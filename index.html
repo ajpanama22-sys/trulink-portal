@@ -66,4 +66,122 @@
       cursor: not-allowed;
     }
     button:hover:enabled {
-      background: #ffd
+      background: #ffd700;
+    }
+    .error {
+      color: red;
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .terms-box {
+      height: 200px;
+      overflow-y: scroll;
+      background: #111111;
+      border: 1px solid #d4af37;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Logo corporativo -->
+  <img src="image/logopw.png" alt="Logo Trulink Fiber" class="logo">
+
+  <h1>Formulario de Registro Corporativo (B2B)</h1>
+
+  <div class="box">
+    <form action="https://formspree.io/f/maqgagep" method="POST" id="registerForm" enctype="multipart/form-data">
+      <!-- Información de la Empresa -->
+      <h2>Información de la Empresa</h2>
+      <div class="form-group">
+        <label>Nombre o Razón Social</label>
+        <input type="text" name="empresa" required>
+      </div>
+      <div class="form-group">
+        <label>Identificación Fiscal (RUC / NIT / EIN)</label>
+        <input type="text" name="fiscal_id" required>
+      </div>
+      <div class="form-group">
+        <label>Sitio Web Corporativo</label>
+        <input type="url" name="website" placeholder="https://www.empresa.com" required>
+      </div>
+      <div class="form-group">
+        <label>Industria / Sector</label>
+        <input type="text" name="industria" required>
+      </div>
+      <div class="form-group">
+        <label>Dirección de Facturación</label>
+        <textarea name="direccion" required></textarea>
+      </div>
+
+      <!-- Información del Contacto -->
+      <h2>Información del Contacto</h2>
+      <div class="form-group">
+        <label>Nombre Completo del Representante</label>
+        <input type="text" name="representante" required>
+      </div>
+      <div class="form-group">
+        <label>Cargo en la Empresa</label>
+        <input type="text" name="cargo" required>
+      </div>
+      <div class="form-group">
+        <label>Correo Electrónico Corporativo</label>
+        <input type="email" name="email" id="email" required>
+      </div>
+      <div class="form-group">
+        <label>Teléfono Fijo o Móvil de Empresa</label>
+        <input type="text" name="telefono" required>
+      </div>
+      <div class="form-group">
+        <label>Documentación de Soporte</label>
+        <input type="file" name="documento" required>
+      </div>
+
+      <!-- Términos y Condiciones -->
+      <h2>Términos y Condiciones</h2>
+      <div class="terms-box">
+        <p><strong>Uso Exclusivo Corporativo:</strong> El acceso al portal está reservado exclusivamente para empresas del sector de telecomunicaciones e infraestructura.</p>
+        <p><strong>Veracidad de la Información:</strong> El solicitante declara que la información fiscal y comercial proporcionada es auténtica y verificable.</p>
+        <p><strong>Condiciones Comerciales:</strong> Todas las transacciones se regirán bajo los términos EXW Panamá.</p>
+        <p><strong>Confidencialidad Técnica:</strong> La información accedida es propiedad exclusiva de Trulink Fiber LLC.</p>
+        <p><strong>Aprobación de Cuenta:</strong> La creación de este usuario no constituye aprobación inmediata. Trulink Fiber LLC validará la solicitud.</p>
+      </div>
+      <div class="form-group">
+        <input type="checkbox" id="terms" required>
+        <label for="terms">He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.</label>
+      </div>
+
+      <button type="submit" id="submitBtn" disabled>Enviar Solicitud</button>
+      <p id="error" class="error"></p>
+    </form>
+  </div>
+
+  <script>
+    const emailInput = document.getElementById("email");
+    const form = document.getElementById("registerForm");
+    const errorMsg = document.getElementById("error");
+    const termsCheckbox = document.getElementById("terms");
+    const submitBtn = document.getElementById("submitBtn");
+
+    // Habilitar botón solo si se aceptan términos
+    termsCheckbox.addEventListener("change", function() {
+      submitBtn.disabled = !this.checked;
+    });
+
+    // Validación de correo corporativo
+    form.addEventListener("submit", function(e) {
+      const email = emailInput.value;
+      const dominio = email.split("@")[1];
+      const bloqueados = ["gmail.com","yahoo.com","hotmail.com","outlook.com"];
+      if (bloqueados.includes(dominio.toLowerCase())) {
+        e.preventDefault();
+        errorMsg.textContent = "Debe usar un correo corporativo o empresarial.";
+      } else {
+        errorMsg.textContent = "";
+        alert("Solicitud de Registro Recibida. Nuestro equipo validará su información en 24-48 horas.");
+      }
+    });
+  </script>
+</body>
+</html>
