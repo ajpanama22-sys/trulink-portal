@@ -4,15 +4,59 @@
   <meta charset="UTF-8">
   <title>Portal B2B - Trulink Fiber</title>
   <style>
-    body { font-family: Arial; background: #f4f4f4; margin: 40px; }
-    h1 { text-align: center; color: #004080; }
-    .box { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
-    input, select { width: 100%; padding: 10px; margin: 5px 0; }
-    button { background: #004080; color: white; padding: 10px; border: none; width: 100%; cursor: pointer; }
-    button:hover { background: #0066cc; }
-    .error { color: red; }
-    .hidden { display: none; }
-    .quote { margin-top: 20px; padding: 10px; background: #e6f0ff; border-radius: 5px; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #000000; /* Fondo negro */
+      color: #d4af37; /* Texto dorado */
+      margin: 40px;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #d4af37; /* Dorado */
+    }
+    .box {
+      max-width: 500px;
+      margin: auto;
+      background: rgba(20,20,20,0.9); /* Negro semi-transparente */
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #d4af37; /* Borde dorado */
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border: 1px solid #d4af37;
+      border-radius: 5px;
+      background: #111111;
+      color: #d4af37;
+    }
+    button {
+      background: #d4af37; /* Botón dorado */
+      color: #000000; /* Texto negro */
+      padding: 10px;
+      border: none;
+      width: 100%;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover {
+      background: #ffd700; /* Dorado más brillante */
+    }
+    .error {
+      color: red;
+    }
+    .hidden {
+      display: none;
+    }
+    .quote {
+      margin-top: 20px;
+      padding: 10px;
+      background: #222222;
+      border-radius: 5px;
+      border: 1px solid #d4af37;
+      color: #d4af37;
+    }
   </style>
 </head>
 <body>
@@ -81,35 +125,4 @@
       e.preventDefault();
       const email = emailInput.value;
       const dominio = email.split("@")[1];
-      const bloqueados = ["gmail.com","yahoo.com","hotmail.com","outlook.com"];
-      if (bloqueados.includes(dominio.toLowerCase())) {
-        errorMsg.textContent = "Debe usar un correo corporativo con dominio propio.";
-      } else {
-        errorMsg.textContent = "";
-        registro.classList.add("hidden");
-        login.classList.remove("hidden");
-        alert("Registro enviado para validación interna. Ahora puede iniciar sesión.");
-      }
-    });
-
-    // Login
-    loginForm.addEventListener("submit", function(e) {
-      e.preventDefault();
-      login.classList.add("hidden");
-      dashboard.classList.remove("hidden");
-      alert("Login exitoso. Bienvenido al panel de cotizaciones.");
-    });
-
-    // Cotizaciones
-    quoteForm.addEventListener("submit", function(e) {
-      e.preventDefault();
-      const producto = document.getElementById("producto").value;
-      const cantidad = document.getElementById("cantidad").value;
-      const precioUnitario = 10; // ejemplo fijo
-      const total = cantidad * precioUnitario;
-      resultado.textContent = `Cotización: ${cantidad} unidades de ${producto} → Total: $${total}`;
-    });
-  </script>
-</body>
-</html>
-
+      const bloque
