@@ -2,127 +2,178 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Portal B2B - Trulink Fiber</title>
+  <title>Registro Corporativo B2B - Trulink Fiber</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #000000; /* Fondo negro */
-      color: #d4af37; /* Texto dorado */
-      margin: 40px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #000000;
+      color: #d4af37;
+      margin: 0;
+      padding: 40px;
     }
     h1, h2 {
       text-align: center;
-      color: #d4af37; /* Dorado */
-    }
-    .box {
-      max-width: 500px;
-      margin: auto;
-      background: rgba(20,20,20,0.9); /* Negro semi-transparente */
-      padding: 20px;
-      border-radius: 10px;
-      border: 1px solid #d4af37; /* Borde dorado */
-    }
-    input, select {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      border: 1px solid #d4af37;
-      border-radius: 5px;
-      background: #111111;
       color: #d4af37;
     }
+    .box {
+      max-width: 700px;
+      margin: auto;
+      background: rgba(20,20,20,0.95);
+      padding: 30px;
+      border-radius: 12px;
+      border: 1px solid #d4af37;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d4af37;
+      border-radius: 6px;
+      background: #111111;
+      color: #d4af37;
+      font-size: 14px;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: #ffd700;
+    }
     button {
-      background: #d4af37; /* Botón dorado */
-      color: #000000; /* Texto negro */
-      padding: 10px;
+      background: #d4af37;
+      color: #000000;
+      padding: 12px;
       border: none;
+      border-radius: 6px;
       width: 100%;
       cursor: pointer;
       font-weight: bold;
+      font-size: 15px;
     }
-    button:hover {
-      background: #ffd700; /* Dorado más brillante */
+    button:disabled {
+      background: #555;
+      color: #999;
+      cursor: not-allowed;
+    }
+    button:hover:enabled {
+      background: #ffd700;
     }
     .error {
       color: red;
+      font-size: 13px;
+      margin-top: 10px;
     }
-    .hidden {
-      display: none;
-    }
-    .quote {
-      margin-top: 20px;
-      padding: 10px;
-      background: #222222;
-      border-radius: 5px;
+    .terms-box {
+      height: 200px;
+      overflow-y: scroll;
+      background: #111111;
       border: 1px solid #d4af37;
-      color: #d4af37;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
-  <h1>Portal B2B - Trulink Fiber</h1>
+  <h1>Formulario de Registro Corporativo (B2B)</h1>
 
-  <!-- Registro -->
-  <div id="registro" class="box">
-    <h2>Registro de Cliente</h2>
-    <form id="registerForm">
-      <input type="text" placeholder="Empresa" required>
-      <input type="email" id="email" placeholder="Email corporativo" required>
-      <input type="text" placeholder="Teléfono" required>
-      <input type="text" placeholder="País" required>
-      <select required>
-        <option value="">Seleccione poder adquisitivo</option>
-        <option value="bajo">Bajo</option>
-        <option value="medio">Medio</option>
-        <option value="alto">Alto</option>
-      </select>
-      <select required>
-        <option value="">Seleccione forma de pago</option>
-        <option value="transferencia">Transferencia bancaria</option>
-        <option value="carta">Carta de crédito</option>
-      </select>
-      <button type="submit">Matricularse</button>
-    </form>
-    <p id="error" class="error"></p>
-  </div>
+  <div class="box">
+    <form action="https://formspree.io/f/maqgagep" method="POST" id="registerForm" enctype="multipart/form-data">
+      <!-- Información de la Empresa -->
+      <h2>Información de la Empresa</h2>
+      <div class="form-group">
+        <label>Nombre o Razón Social</label>
+        <input type="text" name="empresa" required>
+      </div>
+      <div class="form-group">
+        <label>Identificación Fiscal (RUC / NIT / EIN)</label>
+        <input type="text" name="fiscal_id" required>
+      </div>
+      <div class="form-group">
+        <label>Sitio Web Corporativo</label>
+        <input type="url" name="website" placeholder="https://www.empresa.com" required>
+      </div>
+      <div class="form-group">
+        <label>Industria / Sector</label>
+        <input type="text" name="industria" required>
+      </div>
+      <div class="form-group">
+        <label>Dirección de Facturación</label>
+        <textarea name="direccion" required></textarea>
+      </div>
 
-  <!-- Login -->
-  <div id="login" class="box hidden">
-    <h2>Acceso Clientes</h2>
-    <form id="loginForm">
-      <input type="email" placeholder="Email corporativo" required>
-      <input type="password" placeholder="Contraseña" required>
-      <button type="submit">Entrar</button>
-    </form>
-  </div>
+      <!-- Información del Contacto -->
+      <h2>Información del Contacto</h2>
+      <div class="form-group">
+        <label>Nombre Completo del Representante</label>
+        <input type="text" name="representante" required>
+      </div>
+      <div class="form-group">
+        <label>Cargo en la Empresa</label>
+        <input type="text" name="cargo" required>
+      </div>
+      <div class="form-group">
+        <label>Correo Electrónico Corporativo</label>
+        <input type="email" name="email" id="email" required>
+      </div>
+      <div class="form-group">
+        <label>Teléfono Fijo o Móvil de Empresa</label>
+        <input type="text" name="telefono" required>
+      </div>
+      <div class="form-group">
+        <label>Documentación de Soporte</label>
+        <input type="file" name="documento" required>
+      </div>
 
-  <!-- Dashboard -->
-  <div id="dashboard" class="box hidden">
-    <h2>Panel de Cotizaciones</h2>
-    <form id="quoteForm">
-      <input type="text" id="producto" placeholder="Producto" required>
-      <input type="number" id="cantidad" placeholder="Cantidad" required>
-      <button type="submit">Generar Cotización</button>
+      <!-- Términos y Condiciones -->
+      <h2>Términos y Condiciones</h2>
+      <div class="terms-box">
+        <p><strong>Uso Exclusivo Corporativo:</strong> El acceso al portal está reservado exclusivamente para empresas del sector de telecomunicaciones e infraestructura.</p>
+        <p><strong>Veracidad de la Información:</strong> El solicitante declara que la información fiscal y comercial proporcionada es auténtica y verificable.</p>
+        <p><strong>Condiciones Comerciales:</strong> Todas las transacciones se regirán bajo los términos EXW Panamá.</p>
+        <p><strong>Confidencialidad Técnica:</strong> La información accedida es propiedad exclusiva de Trulink Fiber LLC.</p>
+        <p><strong>Aprobación de Cuenta:</strong> La creación de este usuario no constituye aprobación inmediata. Trulink Fiber LLC validará la solicitud.</p>
+      </div>
+      <div class="form-group">
+        <input type="checkbox" id="terms" required>
+        <label for="terms">He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.</label>
+      </div>
+
+      <button type="submit" id="submitBtn" disabled>Enviar Solicitud</button>
+      <p id="error" class="error"></p>
     </form>
-    <div id="resultado" class="quote"></div>
   </div>
 
   <script>
-    const registro = document.getElementById("registro");
-    const login = document.getElementById("login");
-    const dashboard = document.getElementById("dashboard");
-
-    const registerForm = document.getElementById("registerForm");
-    const loginForm = document.getElementById("loginForm");
-    const quoteForm = document.getElementById("quoteForm");
-
     const emailInput = document.getElementById("email");
+    const form = document.getElementById("registerForm");
     const errorMsg = document.getElementById("error");
-    const resultado = document.getElementById("resultado");
+    const termsCheckbox = document.getElementById("terms");
+    const submitBtn = document.getElementById("submitBtn");
 
-    // Registro
-    registerForm.addEventListener("submit", function(e) {
-      e.preventDefault();
+    // Habilitar botón solo si se aceptan términos
+    termsCheckbox.addEventListener("change", function() {
+      submitBtn.disabled = !this.checked;
+    });
+
+    // Validación de correo corporativo
+    form.addEventListener("submit", function(e) {
       const email = emailInput.value;
       const dominio = email.split("@")[1];
-      const bloque
+      const bloqueados = ["gmail.com","yahoo.com","hotmail.com","outlook.com"];
+      if (bloqueados.includes(dominio.toLowerCase())) {
+        e.preventDefault();
+        errorMsg.textContent = "Debe usar un correo corporativo o empresarial.";
+      } else {
+        errorMsg.textContent = "";
+        alert("Solicitud de Registro Recibida. Nuestro equipo validará su información en 24-48 horas.");
+      }
+    });
+  </script>
+</body>
+</html>
