@@ -4,18 +4,23 @@
   <meta charset="UTF-8">
   <title>Portal B2B - Trulink Fiber</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
-    h1 { color: #004080; text-align: center; }
-    .box { max-width: 400px; margin: auto; padding: 20px; background: white; border: 1px solid #ccc; border-radius: 8px; }
+    body { font-family: Arial; background: #f4f4f4; margin: 40px; }
+    h1 { text-align: center; color: #004080; }
+    .box { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 8px; }
     input, select { width: 100%; padding: 10px; margin: 5px 0; }
     button { background: #004080; color: white; padding: 10px; border: none; width: 100%; cursor: pointer; }
     button:hover { background: #0066cc; }
     .error { color: red; }
+    .hidden { display: none; }
+    .quote { margin-top: 20px; padding: 10px; background: #e6f0ff; border-radius: 5px; }
   </style>
 </head>
 <body>
-  <h1>Registro de Cliente</h1>
-  <div class="box">
+  <h1>Portal B2B - Trulink Fiber</h1>
+
+  <!-- Registro -->
+  <div id="registro" class="box">
+    <h2>Registro de Cliente</h2>
     <form id="registerForm">
       <input type="text" placeholder="Empresa" required>
       <input type="email" id="email" placeholder="Email corporativo" required>
@@ -37,12 +42,42 @@
     <p id="error" class="error"></p>
   </div>
 
+  <!-- Login -->
+  <div id="login" class="box hidden">
+    <h2>Acceso Clientes</h2>
+    <form id="loginForm">
+      <input type="email" placeholder="Email corporativo" required>
+      <input type="password" placeholder="Contraseña" required>
+      <button type="submit">Entrar</button>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="box hidden">
+    <h2>Panel de Cotizaciones</h2>
+    <form id="quoteForm">
+      <input type="text" id="producto" placeholder="Producto" required>
+      <input type="number" id="cantidad" placeholder="Cantidad" required>
+      <button type="submit">Generar Cotización</button>
+    </form>
+    <div id="resultado" class="quote"></div>
+  </div>
+
   <script>
-    const form = document.getElementById("registerForm");
+    const registro = document.getElementById("registro");
+    const login = document.getElementById("login");
+    const dashboard = document.getElementById("dashboard");
+
+    const registerForm = document.getElementById("registerForm");
+    const loginForm = document.getElementById("loginForm");
+    const quoteForm = document.getElementById("quoteForm");
+
     const emailInput = document.getElementById("email");
     const errorMsg = document.getElementById("error");
+    const resultado = document.getElementById("resultado");
 
-    form.addEventListener("submit", function(e) {
+    // Registro
+    registerForm.addEventListener("submit", function(e) {
       e.preventDefault();
       const email = emailInput.value;
       const dominio = email.split("@")[1];
@@ -51,9 +86,30 @@
         errorMsg.textContent = "Debe usar un correo corporativo con dominio propio.";
       } else {
         errorMsg.textContent = "";
-        alert("Registro enviado para validación interna.");
+        registro.classList.add("hidden");
+        login.classList.remove("hidden");
+        alert("Registro enviado para validación interna. Ahora puede iniciar sesión.");
       }
+    });
+
+    // Login
+    loginForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      login.classList.add("hidden");
+      dashboard.classList.remove("hidden");
+      alert("Login exitoso. Bienvenido al panel de cotizaciones.");
+    });
+
+    // Cotizaciones
+    quoteForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const producto = document.getElementById("producto").value;
+      const cantidad = document.getElementById("cantidad").value;
+      const precioUnitario = 10; // ejemplo fijo
+      const total = cantidad * precioUnitario;
+      resultado.textContent = `Cotización: ${cantidad} unidades de ${producto} → Total: $${total}`;
     });
   </script>
 </body>
 </html>
+
