@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Portal B2B - Trulink Fiber</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
+    h1 { color: #004080; text-align: center; }
+    .box { max-width: 400px; margin: auto; padding: 20px; background: white; border: 1px solid #ccc; border-radius: 8px; }
+    input, select { width: 100%; padding: 10px; margin: 5px 0; }
+    button { background: #004080; color: white; padding: 10px; border: none; width: 100%; cursor: pointer; }
+    button:hover { background: #0066cc; }
+    .error { color: red; }
+  </style>
+</head>
+<body>
+  <h1>Registro de Cliente</h1>
+  <div class="box">
+    <form id="registerForm">
+      <input type="text" placeholder="Empresa" required>
+      <input type="email" id="email" placeholder="Email corporativo" required>
+      <input type="text" placeholder="Teléfono" required>
+      <input type="text" placeholder="País" required>
+      <select required>
+        <option value="">Seleccione poder adquisitivo</option>
+        <option value="bajo">Bajo</option>
+        <option value="medio">Medio</option>
+        <option value="alto">Alto</option>
+      </select>
+      <select required>
+        <option value="">Seleccione forma de pago</option>
+        <option value="transferencia">Transferencia bancaria</option>
+        <option value="carta">Carta de crédito</option>
+      </select>
+      <button type="submit">Matricularse</button>
+    </form>
+    <p id="error" class="error"></p>
+  </div>
+
+  <script>
+    const form = document.getElementById("registerForm");
+    const emailInput = document.getElementById("email");
+    const errorMsg = document.getElementById("error");
+
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const email = emailInput.value;
+      const dominio = email.split("@")[1];
+      const bloqueados = ["gmail.com","yahoo.com","hotmail.com","outlook.com"];
+      if (bloqueados.includes(dominio.toLowerCase())) {
+        errorMsg.textContent = "Debe usar un correo corporativo con dominio propio.";
+      } else {
+        errorMsg.textContent = "";
+        alert("Registro enviado para validación interna.");
+      }
+    });
+  </script>
+</body>
+</html>
