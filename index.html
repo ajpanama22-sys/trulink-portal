@@ -7,7 +7,6 @@
     body { font-family: "Segoe UI", Arial, sans-serif; background: #000000; color: #d4af37; margin: 0; padding: 40px; }
     h1, h2 { text-align: center; color: #d4af37; }
     .logo { display: block; margin: 0 auto 20px auto; max-height: 100px; }
-    /* Estructura del Layout */
     .wrapper { display: flex; gap: 20px; max-width: 1100px; margin: auto; flex-wrap: wrap; }
     .box { flex: 1; min-width: 350px; background: rgba(20,20,20,0.95); padding: 30px; border-radius: 12px; border: 1px solid #d4af37; }
     .lang-selector { position: absolute; top: 20px; right: 20px; }
@@ -18,12 +17,12 @@
     button { background: #d4af37; color: #000000; padding: 12px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; font-size: 15px; }
     button:disabled { background: #555; color: #999; cursor: not-allowed; }
     .error { color: red; font-size: 13px; margin-top: 10px; text-align: center; }
+    .info-note { font-size: 12px; color: #aaa; margin-top: 15px; text-align: justify; line-height: 1.4; }
     .terms-box { height: 200px; overflow-y: scroll; background: #111111; border: 1px solid #d4af37; padding: 10px; margin-bottom: 10px; font-size: 13px; }
   </style>
 </head>
 <body>
 
-  <!-- Selector de idioma -->
   <div class="lang-selector">
     <select id="languageSelect" onchange="changeLanguage()">
       <option value="es">Español</option>
@@ -36,16 +35,18 @@
   <h1 data-key="main_title">Registro Corporativo B2B - Trulink Fiber</h1>
 
   <div class="wrapper">
-    <!-- Bloque de Login (Izquierda) -->
+    <!-- Bloque de Login -->
     <div class="box">
       <h2 data-key="login_title">Acceso Portal B2B</h2>
       <div class="form-group"><label data-key="user_label">Usuario</label><input type="text" id="loginUser"></div>
       <div class="form-group"><label data-key="pass_label">Contraseña</label><input type="password" id="loginPass"></div>
       <button onclick="handleLogin()" data-key="login_btn">Acceder</button>
       <p id="loginError" class="error"></p>
+      <!-- Nota legal agregada -->
+      <p class="info-note" data-key="login_note">El acceso al portal estará permitido siempre y cuando el cliente haya sometido la información y documentación necesaria para análisis por parte del departamento de operación de Trulink Fiber LLC. De cumplir con los requisitos el cliente recibirá un correo electrónico con su nombre de usuario y un link para la creación de su contraseña segura. De no cumplir con los requisitos igual se le enviará una notificación a su correo declinando su ingreso al portal.</p>
     </div>
 
-    <!-- Bloque de Formulario Original -->
+    <!-- Bloque de Formulario -->
     <div class="box">
       <form action="https://formspree.io/f/maqgagep" method="POST" id="registerForm" enctype="multipart/form-data">
         <h2 data-key="company_info">Información de la Empresa</h2>
@@ -76,9 +77,9 @@
 
   <script>
     const t = {
-      es: { main_title: "Registro Corporativo B2B - Trulink Fiber", login_title: "Acceso Portal B2B", user_label: "Usuario", pass_label: "Contraseña", login_btn: "Acceder", denied: "ACCESO DENEGADO", company_info: "Información de la Empresa", comp_name: "Nombre o Razón Social", fiscal_id: "Identificación Fiscal (RUC / NIT / EIN)", website: "Sitio Web Corporativo", industry: "Industria / Sector", billing: "Dirección de Facturación", contact_info: "Información del Contacto", rep_name: "Nombre Completo del Representante", cargo: "Cargo en la Empresa", email_label: "Correo Electrónico Corporativo", tel_label: "Teléfono Fijo o Móvil de Empresa", doc_label: "Documentación de Soporte", terms_title: "Términos y Condiciones", terms_text: "Información legal detallada...", terms_checkbox: "Acepto Términos y Condiciones.", submit: "Enviar Solicitud", error_text: "Use un correo corporativo." },
-      en: { main_title: "B2B Corporate Registration - Trulink Fiber", login_title: "B2B Portal Access", user_label: "Username", pass_label: "Password", login_btn: "Login", denied: "ACCESS DENIED", company_info: "Company Information", comp_name: "Company Name", fiscal_id: "Tax ID (RUC / NIT / EIN)", website: "Corporate Website", industry: "Industry / Sector", billing: "Billing Address", contact_info: "Contact Information", rep_name: "Representative Name", cargo: "Job Title", email_label: "Corporate Email", tel_label: "Business Phone", doc_label: "Supporting Documentation", terms_title: "Terms and Conditions", terms_text: "Detailed legal information...", terms_checkbox: "I accept Terms and Conditions.", submit: "Submit Application", error_text: "Use a corporate email." },
-      ar: { main_title: "استمارة التسجيل للشركات (B2B)", login_title: "دخول بوابة B2B", user_label: "اسم المستخدم", pass_label: "كلمة المرور", login_btn: "دخول", denied: "تم رفض الوصول", company_info: "معلومات الشركة", comp_name: "اسم الشركة", fiscal_id: "الرقم الضريبي", website: "الموقع الإلكتروني", industry: "القطاع", billing: "عنوان الفواتير", contact_info: "معلومات الاتصال", rep_name: "الاسم الكامل للممثل", cargo: "المسمى الوظيفي", email_label: "البريد الإلكتروني للعمل", tel_label: "هاتف الشركة", doc_label: "وثائق الدعم", terms_title: "الشروط والأحكام", terms_text: "معلومات قانونية مفصلة...", terms_checkbox: "أوافق على الشروط والأحكام.", submit: "إرسال الطلب", error_text: "يجب استخدام بريد إلكتروني خاص بالعمل." }
+      es: { main_title: "Registro Corporativo B2B - Trulink Fiber", login_title: "Acceso Portal B2B", user_label: "Usuario", pass_label: "Contraseña", login_btn: "Acceder", login_note: "El acceso al portal estará permitido siempre y cuando el cliente haya sometido la información y documentación necesaria para análisis por parte del departamento de operación de Trulink Fiber LLC. De cumplir con los requisitos el cliente recibirá un correo electrónico con su nombre de usuario y un link para la creación de su contraseña segura. De no cumplir con los requisitos igual se le enviará una notificación a su correo declinando su ingreso al portal.", denied: "ACCESO DENEGADO", company_info: "Información de la Empresa", comp_name: "Nombre o Razón Social", fiscal_id: "Identificación Fiscal (RUC / NIT / EIN)", website: "Sitio Web Corporativo", industry: "Industria / Sector", billing: "Dirección de Facturación", contact_info: "Información del Contacto", rep_name: "Nombre Completo del Representante", cargo: "Cargo en la Empresa", email_label: "Correo Electrónico Corporativo", tel_label: "Teléfono Fijo o Móvil de Empresa", doc_label: "Documentación de Soporte", terms_title: "Términos y Condiciones", terms_text: "Información legal del portal...", terms_checkbox: "Acepto Términos y Condiciones.", submit: "Enviar Solicitud" },
+      en: { main_title: "B2B Corporate Registration - Trulink Fiber", login_title: "B2B Portal Access", user_label: "Username", pass_label: "Password", login_btn: "Login", login_note: "Portal access is granted provided the client has submitted the necessary information and documentation for analysis by the Trulink Fiber LLC operations department. Upon meeting requirements, the client will receive an email with their username and a link to create a secure password. If requirements are not met, a notification will be sent to their email declining access to the portal.", denied: "ACCESS DENIED", company_info: "Company Information", comp_name: "Company Name", fiscal_id: "Tax ID (RUC / NIT / EIN)", website: "Corporate Website", industry: "Industry / Sector", billing: "Billing Address", contact_info: "Contact Information", rep_name: "Representative Name", cargo: "Job Title", email_label: "Corporate Email", tel_label: "Business Phone", doc_label: "Supporting Documentation", terms_title: "Terms and Conditions", terms_text: "Portal legal information...", terms_checkbox: "I accept Terms and Conditions.", submit: "Submit Application" },
+      ar: { main_title: "استمارة التسجيل للشركات (B2B)", login_title: "دخول بوابة B2B", user_label: "اسم المستخدم", pass_label: "كلمة المرور", login_btn: "دخول", login_note: "يُسمح بالوصول إلى البوابة بشرط أن يكون العميل قد قدم المعلومات والوثائق اللازمة للتحليل من قبل قسم العمليات في شركة Trulink Fiber LLC. في حال استيفاء المتطلبات، سيتلقى العميل بريداً إلكترونياً يحتوي على اسم المستخدم ورابط لإنشاء كلمة مرور آمنة. وفي حال عدم استيفاء المتطلبات، سيتم إرسال إشعار إلى بريده الإلكتروني برفض دخوله إلى البوابة.", denied: "تم رفض الوصول", company_info: "معلومات الشركة", comp_name: "اسم الشركة", fiscal_id: "الرقم الضريبي", website: "الموقع الإلكتروني", industry: "القطاع", billing: "عنوان الفواتير", contact_info: "معلومات الاتصال", rep_name: "الاسم الكامل للممثل", cargo: "المسمى الوظيفي", email_label: "البريد الإلكتروني للعمل", tel_label: "هاتف الشركة", doc_label: "وثائق الدعم", terms_title: "الشروط والأحكام", terms_text: "معلومات قانونية...", terms_checkbox: "أوافق على الشروط والأحكام.", submit: "إرسال الطلب" }
     };
 
     function changeLanguage() {
