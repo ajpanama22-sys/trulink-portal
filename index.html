@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <title>Registro Corporativo B2B - Trulink Fiber</title>
   <style>
-    /* Estilos del portal Trulink Fiber */
     body { font-family: "Segoe UI", Arial, sans-serif; background: #000000; color: #d4af37; margin: 0; padding: 40px; }
     h1, h2 { text-align: center; color: #d4af37; }
     .logo { display: block; margin: 0 auto 20px auto; max-height: 100px; }
+    /* Estructura del Layout */
     .wrapper { display: flex; gap: 20px; max-width: 1100px; margin: auto; flex-wrap: wrap; }
     .box { flex: 1; min-width: 350px; background: rgba(20,20,20,0.95); padding: 30px; border-radius: 12px; border: 1px solid #d4af37; }
     .lang-selector { position: absolute; top: 20px; right: 20px; }
@@ -22,6 +22,7 @@
   </style>
 </head>
 <body>
+
   <!-- Selector de idioma -->
   <div class="lang-selector">
     <select id="languageSelect" onchange="changeLanguage()">
@@ -35,16 +36,16 @@
   <h1 data-key="main_title">Registro Corporativo B2B - Trulink Fiber</h1>
 
   <div class="wrapper">
-    <!-- Módulo de Login (Izquierda) -->
+    <!-- Bloque de Login (Izquierda) -->
     <div class="box">
       <h2 data-key="login_title">Acceso Portal B2B</h2>
       <div class="form-group"><label data-key="user_label">Usuario</label><input type="text" id="loginUser"></div>
       <div class="form-group"><label data-key="pass_label">Contraseña</label><input type="password" id="loginPass"></div>
-      <button onclick="handleLogin()" data-key="login_btn">Entrar</button>
+      <button onclick="handleLogin()" data-key="login_btn">Acceder</button>
       <p id="loginError" class="error"></p>
     </div>
 
-    <!-- Módulo de Registro (Derecha) -->
+    <!-- Bloque de Formulario Original -->
     <div class="box">
       <form action="https://formspree.io/f/maqgagep" method="POST" id="registerForm" enctype="multipart/form-data">
         <h2 data-key="company_info">Información de la Empresa</h2>
@@ -53,12 +54,14 @@
         <div class="form-group"><label data-key="website">Sitio Web Corporativo</label><input type="url" name="website" placeholder="https://www.empresa.com" required></div>
         <div class="form-group"><label data-key="industry">Industria / Sector</label><input type="text" name="industria" required></div>
         <div class="form-group"><label data-key="billing">Dirección de Facturación</label><textarea name="direccion" required></textarea></div>
+
         <h2 data-key="contact_info">Información del Contacto</h2>
         <div class="form-group"><label data-key="rep_name">Nombre Completo del Representante</label><input type="text" name="representante" required></div>
         <div class="form-group"><label data-key="cargo">Cargo en la Empresa</label><input type="text" name="cargo" required></div>
         <div class="form-group"><label data-key="email_label">Correo Electrónico Corporativo</label><input type="email" name="email" id="email" required></div>
         <div class="form-group"><label data-key="tel_label">Teléfono Fijo o Móvil de Empresa</label><input type="text" name="telefono" required></div>
         <div class="form-group"><label data-key="doc_label">Documentación de Soporte</label><input type="file" name="documento" required></div>
+
         <h2 data-key="terms_title">Términos y Condiciones</h2>
         <div class="terms-box" id="termsText"></div>
         <div class="form-group">
@@ -72,28 +75,24 @@
   </div>
 
   <script>
-    /* Diccionario de idiomas */
     const t = {
-      es: { main_title: "Registro Corporativo B2B - Trulink Fiber", login_title: "Acceso Portal B2B", user_label: "Usuario", pass_label: "Contraseña", login_btn: "Entrar", company_info: "Información de la Empresa", comp_name: "Nombre o Razón Social", fiscal_id: "Identificación Fiscal (RUC / NIT / EIN)", website: "Sitio Web Corporativo", industry: "Industria / Sector", billing: "Dirección de Facturación", contact_info: "Información del Contacto", rep_name: "Nombre Completo del Representante", cargo: "Cargo en la Empresa", email_label: "Correo Electrónico Corporativo", tel_label: "Teléfono Fijo o Móvil de Empresa", doc_label: "Documentación de Soporte", terms_title: "Términos y Condiciones", terms_text: "Información legal del portal...", terms_checkbox: "He leído y acepto los Términos.", submit: "Enviar Solicitud", denied: "ACCESO DENEGADO: Usuario no autorizado." },
-      en: { main_title: "B2B Corporate Registration - Trulink Fiber", login_title: "B2B Portal Access", user_label: "Username", pass_label: "Password", login_btn: "Login", company_info: "Company Information", comp_name: "Company Name", fiscal_id: "Tax ID (RUC / NIT / EIN)", website: "Corporate Website", industry: "Industry / Sector", billing: "Billing Address", contact_info: "Contact Information", rep_name: "Representative Name", cargo: "Job Title", email_label: "Corporate Email", tel_label: "Business Phone", doc_label: "Supporting Documentation", terms_title: "Terms and Conditions", terms_text: "Legal portal information...", terms_checkbox: "I have read and accept the Terms.", submit: "Submit Application", denied: "ACCESS DENIED: Unauthorized user." },
-      ar: { main_title: "استمارة التسجيل للشركات (B2B)", login_title: "دخول بوابة B2B", user_label: "اسم المستخدم", pass_label: "كلمة المرور", login_btn: "دخول", company_info: "معلومات الشركة", comp_name: "اسم الشركة", fiscal_id: "الرقم الضريبي", website: "الموقع الإلكتروني", industry: "القطاع", billing: "عنوان الفواتير", contact_info: "معلومات الاتصال", rep_name: "الاسم الكامل للممثل", cargo: "المسمى الوظيفي", email_label: "البريد الإلكتروني للعمل", tel_label: "هاتف الشركة", doc_label: "وثائق الدعم", terms_title: "الشروط والأحكام", terms_text: "معلومات البوابة القانونية...", terms_checkbox: "لقد قرأت وأوافق على الشروط.", submit: "إرسال الطلب", denied: "تم رفض الوصول: المستخدم غير مصرح له." }
+      es: { main_title: "Registro Corporativo B2B - Trulink Fiber", login_title: "Acceso Portal B2B", user_label: "Usuario", pass_label: "Contraseña", login_btn: "Acceder", denied: "ACCESO DENEGADO", company_info: "Información de la Empresa", comp_name: "Nombre o Razón Social", fiscal_id: "Identificación Fiscal (RUC / NIT / EIN)", website: "Sitio Web Corporativo", industry: "Industria / Sector", billing: "Dirección de Facturación", contact_info: "Información del Contacto", rep_name: "Nombre Completo del Representante", cargo: "Cargo en la Empresa", email_label: "Correo Electrónico Corporativo", tel_label: "Teléfono Fijo o Móvil de Empresa", doc_label: "Documentación de Soporte", terms_title: "Términos y Condiciones", terms_text: "Información legal detallada...", terms_checkbox: "Acepto Términos y Condiciones.", submit: "Enviar Solicitud", error_text: "Use un correo corporativo." },
+      en: { main_title: "B2B Corporate Registration - Trulink Fiber", login_title: "B2B Portal Access", user_label: "Username", pass_label: "Password", login_btn: "Login", denied: "ACCESS DENIED", company_info: "Company Information", comp_name: "Company Name", fiscal_id: "Tax ID (RUC / NIT / EIN)", website: "Corporate Website", industry: "Industry / Sector", billing: "Billing Address", contact_info: "Contact Information", rep_name: "Representative Name", cargo: "Job Title", email_label: "Corporate Email", tel_label: "Business Phone", doc_label: "Supporting Documentation", terms_title: "Terms and Conditions", terms_text: "Detailed legal information...", terms_checkbox: "I accept Terms and Conditions.", submit: "Submit Application", error_text: "Use a corporate email." },
+      ar: { main_title: "استمارة التسجيل للشركات (B2B)", login_title: "دخول بوابة B2B", user_label: "اسم المستخدم", pass_label: "كلمة المرور", login_btn: "دخول", denied: "تم رفض الوصول", company_info: "معلومات الشركة", comp_name: "اسم الشركة", fiscal_id: "الرقم الضريبي", website: "الموقع الإلكتروني", industry: "القطاع", billing: "عنوان الفواتير", contact_info: "معلومات الاتصال", rep_name: "الاسم الكامل للممثل", cargo: "المسمى الوظيفي", email_label: "البريد الإلكتروني للعمل", tel_label: "هاتف الشركة", doc_label: "وثائق الدعم", terms_title: "الشروط والأحكام", terms_text: "معلومات قانونية مفصلة...", terms_checkbox: "أوافق على الشروط والأحكام.", submit: "إرسال الطلب", error_text: "يجب استخدام بريد إلكتروني خاص بالعمل." }
     };
 
-    /* Funciones de control */
     function changeLanguage() {
       const lang = document.getElementById("languageSelect").value;
       document.querySelectorAll("[data-key]").forEach(el => { el.textContent = t[lang][el.getAttribute("data-key")]; });
       document.getElementById("termsText").innerHTML = t[lang].terms_text;
       document.dir = (lang === 'ar') ? 'rtl' : 'ltr';
     }
-    
-    function handleLogin() {
-      document.getElementById("loginError").textContent = t[document.getElementById("languageSelect").value].denied;
-    }
+
+    function handleLogin() { document.getElementById("loginError").textContent = t[document.getElementById("languageSelect").value].denied; }
 
     document.getElementById("terms").addEventListener("change", function() { document.getElementById("submitBtn").disabled = !this.checked; });
     
-    changeLanguage(); // Inicialización
+    changeLanguage();
   </script>
 </body>
 </html>
