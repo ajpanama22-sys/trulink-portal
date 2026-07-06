@@ -11,6 +11,10 @@
       margin: 0;
       padding: 40px;
     }
+    /* Selector de idioma */
+    .lang-selector { position: absolute; top: 20px; right: 20px; }
+    .lang-selector select { background: #111; color: #d4af37; border: 1px solid #d4af37; padding: 5px; cursor: pointer; }
+    
     h1, h2 {
       text-align: center;
       color: #d4af37;
@@ -85,74 +89,74 @@
   </style>
 </head>
 <body>
-  <!-- Logo corporativo -->
+
+  <div class="lang-selector">
+    <select id="languageSelect" onchange="changeLanguage()">
+      <option value="es">Español</option>
+      <option value="en">English</option>
+      <option value="ar">العربية</option>
+    </select>
+  </div>
+
   <img src="image/logopw.png" alt="Logo Trulink Fiber" class="logo">
 
-  <h1>Formulario de Registro Corporativo (B2B)</h1>
+  <h1 data-key="title">Formulario de Registro Corporativo (B2B)</h1>
 
   <div class="box">
     <form action="https://formspree.io/f/maqgagep" method="POST" id="registerForm" enctype="multipart/form-data">
-      <!-- Información de la Empresa -->
-      <h2>Información de la Empresa</h2>
+      
+      <h2 data-key="company_info">Información de la Empresa</h2>
       <div class="form-group">
-        <label>Nombre o Razón Social</label>
+        <label data-key="name_label">Nombre o Razón Social</label>
         <input type="text" name="empresa" required>
       </div>
       <div class="form-group">
-        <label>Identificación Fiscal (RUC / NIT / EIN)</label>
+        <label data-key="fiscal_label">Identificación Fiscal (RUC / NIT / EIN)</label>
         <input type="text" name="fiscal_id" required>
       </div>
       <div class="form-group">
-        <label>Sitio Web Corporativo</label>
+        <label data-key="web_label">Sitio Web Corporativo</label>
         <input type="url" name="website" placeholder="https://www.empresa.com" required>
       </div>
       <div class="form-group">
-        <label>Industria / Sector</label>
+        <label data-key="ind_label">Industria / Sector</label>
         <input type="text" name="industria" required>
       </div>
       <div class="form-group">
-        <label>Dirección de Facturación</label>
+        <label data-key="dir_label">Dirección de Facturación</label>
         <textarea name="direccion" required></textarea>
       </div>
 
-      <!-- Información del Contacto -->
-      <h2>Información del Contacto</h2>
+      <h2 data-key="contact_title">Información del Contacto</h2>
       <div class="form-group">
-        <label>Nombre Completo del Representante</label>
+        <label data-key="rep_label">Nombre Completo del Representante</label>
         <input type="text" name="representante" required>
       </div>
       <div class="form-group">
-        <label>Cargo en la Empresa</label>
+        <label data-key="cargo_label">Cargo en la Empresa</label>
         <input type="text" name="cargo" required>
       </div>
       <div class="form-group">
-        <label>Correo Electrónico Corporativo</label>
+        <label data-key="email_label">Correo Electrónico Corporativo</label>
         <input type="email" name="email" id="email" required>
       </div>
       <div class="form-group">
-        <label>Teléfono Fijo o Móvil de Empresa</label>
+        <label data-key="tel_label">Teléfono Fijo o Móvil de Empresa</label>
         <input type="text" name="telefono" required>
       </div>
       <div class="form-group">
-        <label>Documentación de Soporte</label>
+        <label data-key="doc_label">Documentación de Soporte</label>
         <input type="file" name="documento" required>
       </div>
 
-      <!-- Términos y Condiciones -->
-      <h2>Términos y Condiciones</h2>
-      <div class="terms-box">
-        <p><strong>Uso Exclusivo Corporativo:</strong> El acceso al portal está reservado exclusivamente para empresas del sector de telecomunicaciones e infraestructura.</p>
-        <p><strong>Veracidad de la Información:</strong> El solicitante declara que la información fiscal y comercial proporcionada es auténtica y verificable.</p>
-        <p><strong>Condiciones Comerciales:</strong> Todas las transacciones se regirán bajo los términos EXW Panamá.</p>
-        <p><strong>Confidencialidad Técnica:</strong> La información accedida es propiedad exclusiva de Trulink Fiber LLC.</p>
-        <p><strong>Aprobación de Cuenta:</strong> La creación de este usuario no constituye aprobación inmediata. Trulink Fiber LLC validará la solicitud.</p>
-      </div>
+      <h2 data-key="terms_title">Términos y Condiciones</h2>
+      <div class="terms-box" id="termsBox"></div>
       <div class="form-group">
         <input type="checkbox" id="terms" required>
-        <label for="terms">He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.</label>
+        <label for="terms" data-key="terms_checkbox">He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.</label>
       </div>
 
-      <button type="submit" id="submitBtn" disabled>Enviar Solicitud</button>
+      <button type="submit" id="submitBtn" disabled data-key="submit_btn">Enviar Solicitud</button>
       <p id="error" class="error"></p>
     </form>
   </div>
@@ -164,24 +168,36 @@
     const termsCheckbox = document.getElementById("terms");
     const submitBtn = document.getElementById("submitBtn");
 
-    // Habilitar botón solo si se aceptan términos
-    termsCheckbox.addEventListener("change", function() {
-      submitBtn.disabled = !this.checked;
-    });
+    const t = {
+      es: { title: "Formulario de Registro Corporativo (B2B)", company_info: "Información de la Empresa", name_label: "Nombre o Razón Social", fiscal_label: "Identificación Fiscal (RUC / NIT / EIN)", web_label: "Sitio Web Corporativo", ind_label: "Industria / Sector", dir_label: "Dirección de Facturación", contact_title: "Información del Contacto", rep_label: "Nombre Completo del Representante", cargo_label: "Cargo en la Empresa", email_label: "Correo Electrónico Corporativo", tel_label: "Teléfono Fijo o Móvil de Empresa", doc_label: "Documentación de Soporte", terms_title: "Términos y Condiciones", terms_text: "<strong>Uso Exclusivo Corporativo:</strong> El acceso al portal está reservado exclusivamente para empresas del sector de telecomunicaciones e infraestructura.<br><br><strong>Veracidad de la Información:</strong> El solicitante declara que la información fiscal y comercial proporcionada es auténtica y verificable.<br><br><strong>Condiciones Comerciales:</strong> Todas las transacciones se regirán bajo los términos EXW Panamá.<br><br><strong>Confidencialidad Técnica:</strong> La información accedida es propiedad exclusiva de Trulink Fiber LLC.<br><br><strong>Aprobación de Cuenta:</strong> La creación de este usuario no constituye aprobación inmediata. Trulink Fiber LLC validará la solicitud.", terms_checkbox: "He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.", submit_btn: "Enviar Solicitud", error_msg: "Debe usar un correo corporativo o empresarial.", success_msg: "Solicitud de Registro Recibida. Nuestro equipo validará su información en 24-48 horas." },
+      en: { title: "Corporate Registration Form (B2B)", company_info: "Company Information", name_label: "Company Name", fiscal_label: "Tax ID (RUC / NIT / EIN)", web_label: "Corporate Website", ind_label: "Industry / Sector", dir_label: "Billing Address", contact_title: "Contact Information", rep_label: "Representative Full Name", cargo_label: "Job Title", email_label: "Corporate Email", tel_label: "Business Phone", doc_label: "Supporting Documentation", terms_title: "Terms and Conditions", terms_text: "<strong>Exclusive Corporate Use:</strong> Portal access is reserved for telecommunications and infrastructure companies.<br><br><strong>Truthfulness:</strong> The applicant declares all provided fiscal and commercial information is authentic and verifiable.<br><br><strong>Commercial Terms:</strong> Transactions subject to EXW Panama terms.<br><br><strong>Technical Confidentiality:</strong> Information is the exclusive property of Trulink Fiber LLC.<br><br><strong>Account Approval:</strong> Account creation is not immediate. Trulink Fiber LLC will validate your request.", terms_checkbox: "I have read, understood and accept the Terms and Conditions for B2B Portal Access.", submit_btn: "Submit Application", error_msg: "You must use a corporate or business email.", success_msg: "Registration request received. Our team will validate your information within 24-48 hours." },
+      ar: { title: "استمارة التسجيل للشركات (B2B)", company_info: "معلومات الشركة", name_label: "اسم الشركة", fiscal_label: "الرقم الضريبي", web_label: "الموقع الإلكتروني", ind_label: "القطاع / الصناعة", dir_label: "عنوان الفواتير", contact_title: "معلومات الاتصال", rep_label: "الاسم الكامل للممثل", cargo_label: "المسمى الوظيفي", email_label: "البريد الإلكتروني للعمل", tel_label: "رقم هاتف الشركة", doc_label: "وثائق الدعم", terms_title: "الشروط والأحكام", terms_text: "<strong>الاستخدام الحصري للشركات:</strong> الوصول إلى البوابة مخصص حصرياً لشركات الاتصالات والبنية التحتية.<br><br><strong>صحة المعلومات:</strong> يقر مقدم الطلب بأن المعلومات الضريبية والتجارية المقدمة حقيقية وقابلة للتحقق.<br><br><strong>الشروط التجارية:</strong> تخضع المعاملات لشروط EXW بنما.<br><br><strong>السرية التقنية:</strong> المعلومات هي ملكية حصرية لشركة Trulink Fiber LLC.<br><br><strong>الموافقة على الحساب:</strong> إنشاء هذا المستخدم لا يعني الموافقة الفورية. ستقوم Trulink Fiber LLC بالتحقق من طلبك.", terms_checkbox: "لقد قرأت وفهمت وأوافق على الشروط والأحكام الخاصة بالوصول إلى بوابة B2B.", submit_btn: "إرسال الطلب", error_msg: "يجب عليك استخدام بريد إلكتروني خاص بالعمل.", success_msg: "تم استلام طلب التسجيل. سيقوم فريقنا بالتحقق من معلوماتك في غضون 24-48 ساعة." }
+    };
 
-    // Validación de correo corporativo
+    function changeLanguage() {
+      const lang = document.getElementById("languageSelect").value;
+      document.querySelectorAll("[data-key]").forEach(el => { el.textContent = t[lang][el.getAttribute("data-key")]; });
+      document.getElementById("termsBox").innerHTML = t[lang].terms_text;
+      document.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+    }
+
+    termsCheckbox.addEventListener("change", function() { submitBtn.disabled = !this.checked; });
+
     form.addEventListener("submit", function(e) {
       const email = emailInput.value;
       const dominio = email.split("@")[1];
       const bloqueados = ["gmail.com","yahoo.com","hotmail.com","outlook.com"];
       if (bloqueados.includes(dominio.toLowerCase())) {
         e.preventDefault();
-        errorMsg.textContent = "Debe usar un correo corporativo o empresarial.";
+        errorMsg.textContent = t[document.getElementById("languageSelect").value].error_msg;
       } else {
         errorMsg.textContent = "";
-        alert("Solicitud de Registro Recibida. Nuestro equipo validará su información en 24-48 horas.");
+        alert(t[document.getElementById("languageSelect").value].success_msg);
       }
     });
+
+    // Inicializar
+    changeLanguage();
   </script>
 </body>
 </html>
