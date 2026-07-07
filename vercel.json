@@ -6,7 +6,7 @@
         {
           "type": "header",
           "key": "x-vercel-ip-country",
-          "value": "PA"
+          "value": "NI"
         }
       ],
       "destination": "/404.html",
