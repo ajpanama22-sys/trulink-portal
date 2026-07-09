@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
 import { IncomingForm } from 'formidable';
-import os from 'os';
 
 export const config = {
   api: {
@@ -9,20 +8,14 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Método no permitido' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ message: 'Método no permitido' });
 
-  // Forzar que el archivo temporal se guarde en /tmp
-  const form = new IncomingForm({
-    uploadDir: os.tmpdir(),
-    keepExtensions: true,
-  });
+  const form = new IncomingForm({ multiples: false });
 
-  form.parse(req, async (err, fields, files) => {
+  form.parse(req, async (err, fields) => {
     if (err) {
-      console.error('Error en parseo:', err);
-      return res.status(500).json({ message: 'Error al procesar los datos' });
+      console.error('Error de parseo:', err);
+      return res.status(500).json({ message: 'Error en parseo' });
     }
 
     try {
@@ -35,26 +28,20 @@ export default async function handler(req, res) {
         },
       });
 
-      const getValue = (val) => (Array.isArray(val) ? val[0] : val);
+      // Extracción simple
+      const f = (val) => (Array.isArray(val) ? val[0] : val);
 
-      const mailOptions = {
+      await transporter.sendMail({
         from: '"Portal B2B" <no-reply@trulinkfiber.org>',
         to: 'contacto@trulinkfiber.org',
-        subject: `Nueva solicitud: ${getValue(fields.tipo_registro)}`,
-        text: `Nueva solicitud recibida:\n
-        Empresa: ${getValue(fields.empresa)}\n
-        Representante: ${getValue(fields.representante)}\n
-        Email: ${getValue(fields.email)}\n
-        Teléfono: ${getValue(fields.telefono)}\n
-        Web: ${getValue(fields.website)}\n
-        ID Fiscal: ${getValue(fields.fiscal_id) || 'N/A'}`
-      };
+        subject: `Nueva solicitud: ${f(fields.tipo_registro)}`,
+        text: `Empresa: ${f(fields.empresa)} | Email: ${f(fields.email)}`
+      });
 
-      await transporter.sendMail(mailOptions);
       return res.status(200).json({ message: 'Enviado correctamente' });
     } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({ message: 'Error al enviar el correo' });
+      console.error('Error final:', error);
+      return res.status(500).json({ message: 'Error de envío' });
     }
   });
 }
