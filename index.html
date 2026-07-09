@@ -14,7 +14,6 @@
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
     input, select, textarea { width: 100%; padding: 12px; border: 1px solid #d4af37; border-radius: 6px; background: #111111; color: #d4af37; font-size: 14px; }
-    /* Estilo especial para el input file */
     input[type="file"]::file-selector-button { background: #d4af37; color: #000; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px; }
     button { background: #d4af37; color: #000000; padding: 12px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; font-size: 15px; }
     button:disabled { background: #555; color: #999; cursor: not-allowed; }
@@ -23,8 +22,6 @@
     .terms-box { height: 200px; overflow-y: scroll; background: #111111; border: 1px solid #d4af37; padding: 10px; margin-bottom: 10px; font-size: 13px; color: #d4af37; }
     .doc-req { font-size: 13px; color: #d4af37; margin-top: 10px; padding-left: 20px; }
     .doc-req ul { list-style-type: disc; margin: 5px 0; }
-    
-    /* Selector de Tipo de Registro - Nueva sección */
     .track-selector { display: flex; margin-bottom: 25px; border: 1px solid #d4af37; border-radius: 6px; overflow: hidden; }
     .track-btn { flex: 1; padding: 10px; background: #111; color: #d4af37; text-align: center; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.3s; }
     .track-btn.active { background: #d4af37; color: #000; }
@@ -59,7 +56,7 @@
         <div id="btnInvestor" class="track-btn" onclick="setTrack('investor')" data-key="track_investor">Inversor Estratégico</div>
       </div>
 
-      <form id="registerForm">
+      <form id="registerForm" enctype="multipart/form-data">
         <input type="hidden" name="tipo_registro" id="tipo_registro" value="Cliente B2B">
 
         <h2 id="sectionCompanyTitle" data-key="company_info">Información de la Empresa</h2>
@@ -284,6 +281,7 @@
       document.getElementById("submitBtn").disabled = !this.checked; 
     });
     
+    // Script de envío actualizado para apuntar a la API interna
     document.getElementById("registerForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("submitBtn");
@@ -295,14 +293,14 @@
       try {
         const response = await fetch("/api/submit", {
           method: "POST",
-          body: formData
+          body: formData,
         });
 
         if (response.ok) {
           alert("¡Solicitud enviada con éxito!");
           e.target.reset();
         } else {
-          alert("Error: No se pudo enviar la solicitud. Por favor verifique el archivo.");
+          alert("Hubo un error al procesar tu solicitud.");
         }
       } catch (err) {
         console.error(err);
