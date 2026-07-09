@@ -59,7 +59,7 @@
         <div id="btnInvestor" class="track-btn" onclick="setTrack('investor')" data-key="track_investor">Inversor Estratégico</div>
       </div>
 
-      <form action="https://formspree.io/f/maqgagep" method="POST" id="registerForm" enctype="multipart/form-data">
+      <form id="registerForm" enctype="multipart/form-data">
         <input type="hidden" name="tipo_registro" id="tipo_registro" value="Cliente B2B">
 
         <h2 id="sectionCompanyTitle" data-key="company_info">Información de la Empresa</h2>
@@ -244,7 +244,6 @@
     function changeLanguage() {
       const lang = document.getElementById("languageSelect").value;
       
-      // Traducción estructurada completa de elementos data-key
       document.querySelectorAll("[data-key]").forEach(el => { 
         const key = el.getAttribute("data-key");
         if (t[lang][key]) {
@@ -252,7 +251,6 @@
         }
       });
       
-      // Switch lógico de etiquetas HTML internas según tipo de registro
       const sectionCompanyTitle = document.getElementById('sectionCompanyTitle');
       const lblCompName = document.getElementById('lblCompName');
       const termsBox = document.getElementById("termsText");
@@ -270,7 +268,6 @@
         docList.innerHTML = `<strong>${t[lang].doc_req_title}</strong><ul>${t[lang].doc_req_list.map(item => `<li>${item}</li>`).join('')}</ul>`;
       }
       
-      // Inyección exacta del estilo del selector de archivos por lenguaje
       const fileInput = document.getElementById("fileInput");
       const style = document.createElement('style');
       style.innerHTML = `input[type="file"]::file-selector-button { content: "${t[lang].file_btn}"; }`;
@@ -285,6 +282,36 @@
 
     document.getElementById("terms").addEventListener("change", function() { 
       document.getElementById("submitBtn").disabled = !this.checked; 
+    });
+    
+    // Script de envío personalizado a tu API /api/submit
+    document.getElementById("registerForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.textContent = "Procesando...";
+
+      const formData = new FormData(e.target);
+      
+      try {
+        const response = await fetch("/api/submit", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          alert("¡Solicitud enviada con éxito!");
+          e.target.reset();
+        } else {
+          alert("Hubo un error al procesar tu solicitud.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Error de conexión con el servidor.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Enviar Solicitud";
+      }
     });
     
     changeLanguage();
