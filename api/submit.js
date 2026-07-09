@@ -1,22 +1,28 @@
-// api/submit.js
+import nodemailer from 'nodemailer';
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Método no permitido' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ message: 'Method not allowed' });
 
   const { email, empresa, tipo_registro } = req.body;
 
-  // 1. Filtro de seguridad: Bloquear correos públicos
-  const publicDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'];
-  const emailDomain = email.split('@')[1];
-  
-  if (publicDomains.includes(emailDomain)) {
-    return res.status(400).json({ message: 'Por favor, utiliza un correo corporativo válido.' });
+  const transporter = nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    auth: {
+      user: 'b05854001@smtp-brevo.com',
+      pass: process.env.BREVO_SMTP_KEY // Vercel leerá esto de tu configuración
+    }
+  });
+
+  try {
+    await transporter.sendMail({
+      from: 'noreply@trulinkfiber.com',
+      to: 'operaciones@trulinkfiber.com',
+      subject: `Nueva solicitud: ${tipo_registro}`,
+      text: `Empresa: ${empresa}\nContacto: ${email}`
+    });
+    return res.status(200).json({ message: 'Solicitud enviada' });
+  } catch (error) {
+    return res.status(500).json({ message: 'Error de envío' });
   }
-
-  // 2. Aquí es donde conectaremos con tu SMTP (Brevo) más adelante
-  // Por ahora, vamos a registrar que la solicitud llegó
-  console.log(`Nueva solicitud de ${tipo_registro} desde: ${empresa}`);
-
-  return res.status(200).json({ message: 'Solicitud recibida correctamente. Nuestro equipo la revisará.' });
 }
