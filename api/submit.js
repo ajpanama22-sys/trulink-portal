@@ -6,22 +6,22 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ message: 'Método no permitido' });
+  if (req.method !== 'POST') return res.status(405).json({ message: 'No permitido' });
 
+  console.log("Iniciando procesamiento..."); // <--- ESTO APARECERÁ EN LOS LOGS
+  
   const busboy = Busboy({ headers: req.headers });
   const fields = {};
-  let fileData = null;
-  let fileName = '';
 
-  busboy.on('field', (fieldname, val) => { fields[fieldname] = val; });
-  busboy.on('file', (fieldname, file, info) => {
-    fileName = info.filename;
-    const chunks = [];
-    file.on('data', (data) => chunks.push(data));
-    file.on('end', () => { fileData = Buffer.concat(chunks); });
+  busboy.on('field', (fieldname, val) => { 
+    fields[fieldname] = val; 
+    console.log(`Campo recibido: ${fieldname}`); 
   });
 
   busboy.on('finish', async () => {
+    console.log("Busboy finalizado. Campos:", fields);
+    
+    // Aquí solo probaremos si nodemailer puede crear el transporter
     try {
       const transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com',
@@ -31,21 +31,19 @@ export default async function handler(req, res) {
           pass: process.env.BREVO_SMTP_KEY,
         },
       });
-
-      await transporter.sendMail({
-        from: '"Portal B2B" <no-reply@trulinkfiber.org>',
-        to: 'contacto@trulinkfiber.org',
-        subject: `Nueva solicitud: ${fields.tipo_registro}`,
-        text: `Empresa: ${fields.empresa} | Email: ${fields.email}`,
-        attachments: fileData ? [{ filename: fileName, content: fileData }] : []
-      });
-
+      
+      console.log("Transporter creado correctamente.");
       return res.status(200).json({ message: 'Éxito' });
     } catch (error) {
-      return res.status(500).json({ message: 'Error de envío' });
+      console.error("Error en transporter:", error);
+      return res.status(500).json({ message: 'Error de servidor' });
     }
+  });
+
+  busboy.on('error', (err) => {
+    console.error("Error en Busboy:", err);
+    res.status(500).json({ message: 'Error en busboy' });
   });
 
   req.pipe(busboy);
 }
-   
