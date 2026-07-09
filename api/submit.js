@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { IncomingForm } from 'formidable';
+import os from 'os';
 
 export const config = {
   api: {
@@ -12,10 +13,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Método no permitido' });
   }
 
-  const form = new IncomingForm();
+  // Forzar que el archivo temporal se guarde en /tmp
+  const form = new IncomingForm({
+    uploadDir: os.tmpdir(),
+    keepExtensions: true,
+  });
 
   form.parse(req, async (err, fields, files) => {
     if (err) {
+      console.error('Error en parseo:', err);
       return res.status(500).json({ message: 'Error al procesar los datos' });
     }
 
@@ -29,7 +35,6 @@ export default async function handler(req, res) {
         },
       });
 
-      // Extraer valores de forma segura si vienen como arrays
       const getValue = (val) => (Array.isArray(val) ? val[0] : val);
 
       const mailOptions = {
