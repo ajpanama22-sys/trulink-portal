@@ -4,6 +4,6 @@
   "type": "module",
   "dependencies": {
     "nodemailer": "^6.9.0",
-    "formidable": "^3.5.0"
+    "busboy": "^1.6.0"
   }
 }
