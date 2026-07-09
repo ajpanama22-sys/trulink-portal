@@ -1,16 +1,22 @@
 {
-  "redirects": [
+  "functions": {
+    "api/submit.js": {
+      "memory": 1024,
+      "maxDuration": 15
+    }
+  },
+  "crons": [],
+  "cleanUrls": true,
+  "rewrites": [],
+  "headers": [
     {
       "source": "/(.*)",
-      "has": [
+      "headers": [
         {
-          "type": "header",
-          "key": "x-vercel-ip-country",
+          "key": "x-country-block",
           "value": "NI"
         }
-      ],
-      "destination": "/404.html",
-      "permanent": false
+      ]
     }
   ]
 }
