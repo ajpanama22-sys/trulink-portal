@@ -92,223 +92,71 @@
 
   <script>
     let currentTrack = 'client';
-
     const t = {
-      es: { 
-        main_title: "Registro Corporativo B2B - Trulink Fiber", 
-        login_title: "Acceso Portal B2B", 
-        user_label: "Usuario", 
-        pass_label: "Contraseña", 
-        login_btn: "Acceder", 
-        login_note: "El acceso al portal estará permitido siempre y cuando el cliente haya sometido la información y documentación necesaria para análisis por parte del departamento de operación de Trulink Fiber LLC. De cumplir con los requisitos el cliente recibirá un correo electrónico con su nombre de usuario y un link para la creación de su contraseña segura. De no cumplir con los requisitos igual se le enviará una notificación a su correo declinando su ingreso al portal.", 
-        denied: "ACCESO DENEGADO", 
-        company_info: "Información de la Empresa", 
-        comp_name: "Nombre o Razón Social", 
-        fiscal_id: "Identificación Fiscal (RUC / NIT / EIN)", 
-        website: "Sitio Web Corporativo", 
-        industry: "Industria / Sector", 
-        billing: "Dirección de Facturación", 
-        contact_info: "Información del Contacto", 
-        rep_name: "Nombre Completo del Representante", 
-        cargo: "Cargo en la Empresa", 
-        email_label: "Correo Electrónico Corporativo", 
-        tel_label: "Teléfono Fijo o Móvil de Empresa", 
-        doc_label: "Documentación de Soporte", 
-        file_btn: "Elegir archivo", 
-        terms_title: "Términos y Condiciones", 
-        terms_text: "1. USO EXCLUSIVO: Acceso restringido a empresas de telecomunicaciones e infraestructura. 2. VERACIDAD: El solicitante declara que la información proporcionada es real. 3. CONDICIONES: Las transacciones se rigen bajo términos EXW Panamá. 4. CONFIDENCIALIDAD: La información del portal es propiedad exclusiva de Trulink Fiber LLC. 5. APROBACIÓN: La creación de este registro no garantiza acceso inmediato; sujeto a validación técnica de Trulink Fiber LLC.", 
-        terms_checkbox: "He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.", 
-        submit: "Enviar Solicitud",
-        doc_req_title: "Documentación Requerida (PDF, JPG o PNG):", 
-        doc_req_list: ["Registro Fiscal: RUC, NIT o Tax ID vigente.", "Constitución Legal: Registro Público o Cámara de Comercio (máx. 90 días).", "Identificación: Cédula o pasaporte del Representante Legal.", "Formulario de Accesos: Lista de correos corporativos autorizados.", "Acuerdo de Confidencialidad: NDA firmado por el representante."],
-        track_client: "Cliente B2B", 
-        track_investor: "Inversor Estratégico", 
-        fund_info: "Información del Fondo / Family Office", 
-        fund_name: "Nombre del Fondo o Family Office",
-        terms_investor_text: "1. CONFIDENCIALIDAD E IP: El acceso al Virtual Data Room otorga información altamente confidencial sobre proyecciones financieras y la propiedad intelectual de la plataforma T-FAP. 2. PROPÓSITO: El uso de la información es exclusivo para la evaluación técnica y económica de la ronda de inversión estratégica de Trulink Fiber LLC. 3. REQUISITO EXCLUSIVO: Es obligatorio adjuntar el Acuerdo de Confidencialidad (NDA) debidamente firmado por el representante legal del fondo para la aprobación del acceso corporativo.",
-        doc_investor_title: "Documentación Obligatoria del Inversor:", 
-        doc_investor_list: ["Acuerdo de Confidencialidad (NDA) firmado por el representante.", "Identificación oficial o pasaporte del Representante del Fondo."]
-      },
-      en: { 
-        main_title: "B2B Corporate Registration - Trulink Fiber", 
-        login_title: "B2B Portal Access", 
-        user_label: "Username", 
-        pass_label: "Password", 
-        login_btn: "Login", 
-        login_note: "Portal access is granted provided the client has submitted the necessary information and documentation for analysis by the Trulink Fiber LLC operations department. Upon meeting requirements, the client will receive an email with their username and a link to create a secure password. If requirements are not met, a notification will be sent to their email declining access to the portal.", 
-        denied: "ACCESS DENIED", 
-        company_info: "Company Information", 
-        comp_name: "Company Name", 
-        fiscal_id: "Tax ID (RUC / NIT / EIN)", 
-        website: "Corporate Website", 
-        industry: "Industry / Sector", 
-        billing: "Billing Address", 
-        contact_info: "Contact Information", 
-        rep_name: "Representative Name", 
-        cargo: "Job Title", 
-        email_label: "Corporate Email", 
-        tel_label: "Business Phone", 
-        doc_label: "Supporting Documentation", 
-        file_btn: "Choose file", 
-        terms_title: "Terms and Conditions", 
-        terms_text: "1. EXCLUSIVE USE: Access reserved for telecommunications and infrastructure companies. 2. TRUTHFULNESS: Applicant declares all provided information is authentic. 3. CONDITIONS: Transactions subject to EXW Panama terms. 4. CONFIDENTIALITY: Information is the exclusive property of Trulink Fiber LLC. 5. APPROVAL: Account creation is not immediate; subject to Trulink Fiber LLC validation.", 
-        terms_checkbox: "I have read, understood and accept the Terms and Conditions for B2B Portal Access.", 
-        submit: "Submit Application",
-        doc_req_title: "Required Documentation (PDF, JPG or PNG):", 
-        doc_req_list: ["Fiscal Registry: Current RUC, NIT or Tax ID.", "Legal Constitution: Public Registry or Chamber of Commerce (max 90 days).", "Identification: ID or passport of the Legal Representative.", "Access Form: List of authorized corporate emails.", "Confidentiality Agreement: NDA signed by the representative."],
-        track_client: "B2B Client", 
-        track_investor: "Strategic Investor", 
-        fund_info: "Fund / Family Office Information", 
-        fund_name: "Fund or Family Office Name",
-        terms_investor_text: "1. CONFIDENTIALITY & IP: Access to the Virtual Data Room provides highly sensitive financial projections and proprietary technical data regarding the T-FAP platform. 2. PURPOSE: Information is strictly disclosed for the technical and economic evaluation of Trulink Fiber LLC's strategic investment round. 3. MANDATORY REQUIREMENT: Uploading a signed Non-Disclosure Agreement (NDA) by the fund's representative is mandatory for corporate access approval.",
-        doc_investor_title: "Mandatory Investor Documentation:", 
-        doc_investor_list: ["Signed Non-Disclosure Agreement (NDA).", "ID or Passport of the Fund Representative."]
-      },
-      ar: { 
-        main_title: "استمارة التسجيل للشركات (B2B)", 
-        login_title: "دخول بوابة B2B", 
-        user_label: "اسم المستخدم", 
-        pass_label: "كلمة المرور", 
-        login_btn: "دخول", 
-        login_note: "يُسمح بالوصول إلى البوابة بشرط أن يكون العميل قد قدم المعلومات والوثائق اللازمة للتحليل من قبل قسم العمليات في شركة Trulink Fiber LLC. في حال استيفاء المتطلبات، سيتلقى العميل بريداً إلكترونياً يحتوي على اسم المستخدم ورابط لإنشاء كلمة مرور آمنة. وفي حال عدم استيفاء المتطلبات، سيتم إرسال إشعار إلى بريده الإلكتروني برفض دخوله إلى البوابة.", 
-        denied: "تم رفض الوصول", 
-        company_info: "معلومات الشركة", 
-        comp_name: "اسم الشركة", 
-        fiscal_id: "الرقم الضريبي", 
-        website: "الموقع الإلكتروني", 
-        industry: "القطاع", 
-        billing: "عنوان الفواتير", 
-        contact_info: "معلومات الاتصال", 
-        rep_name: "الاسم الكامل للممثل", 
-        cargo: "المسمى الوظيفي", 
-        email_label: "البريد الإلكتروني للعمل", 
-        tel_label: "هاتف الشركة", 
-        doc_label: "وثائق الدعم", 
-        file_btn: "اختر ملف", 
-        terms_title: "الشروط والأحكام", 
-        terms_text: "1. الاستخدام الحصري: الوصول مخصص لشركات الاتصالات والبنية التحتية. 2. صحة المعلومات: يقر مقدم الطلب بأن المعلومات المقدمة حقيقية. 3. الشروط التجارية: تخضع المعاملات لشروط EXW بنما. 4. السرية التقنية: المعلومات هي ملكية حصرية لشركة Trulink Fiber LLC. 5. الموافقة: إنشاء الحساب لا يعني الموافقة الفورية؛ تخضع لعملية التحقق من قبل Trulink Fiber LLC.", 
-        terms_checkbox: "لقد قرأت وفهمت وأوافق على الشروط والأحكام الخاصة بالوصول إلى بوابة B2B.", 
-        submit: "إرسال الطلب",
-        doc_req_title: "الوثائق المطلوبة (PDF, JPG or PNG):", 
-        doc_req_list: ["السجل الضريبي: RUC أو NIT أو Tax ID ساري المفعول.", "التأسيس القانوني: السجل العام أو الغرفة التجارية (بحد أقصى 90 يوماً).", "الهوية: بطاقة الهوية أو جواز سفر الممثل القانوني.", "نموذج الوصول: قائمة البريد الإلكتروني للشركات المعتمدة.", "اتفاقية السرية: NDA موقعة من قبل الممثل."],
-        track_client: "عميل B2B", 
-        track_investor: "مستثمر استراتيجي", 
-        fund_info: "معلومات الصندوق / المكتب العائلي", 
-        fund_name: "اسم الصندوق أو المكتب العائلي",
-        terms_investor_text: "1. السرية وحقوق الملكية: يتيح الدخول إلى غرفة البيانات الافتراضية معلومات سرية للغاية حول التوقعات المالية والملكية الفكرية لمنصة T-FAP. 2. الغرض: الكشف عن المعلومات مخصص حصرياً للتقييم الفني والاقتصادي لجولة الاستثمار الاستراتيجي لشركة Trulink Fiber LLC. 3. شرط إلزامي: يجب إرفاق اتفاقية سرية البيانات (NDA) الموقعة من الممثل القانوني للصندوق للموافقة على الدخول.",
-        doc_investor_title: "وثائق المستثمر الإلزامية:", 
-        doc_investor_list: ["اتفاقية سرية البيانات (NDA) الموقعة.", "هوية أو جواز سفر ممثل الصندوق."]
-      }
+      es: { main_title: "Registro Corporativo B2B - Trulink Fiber", login_title: "Acceso Portal B2B", user_label: "Usuario", pass_label: "Contraseña", login_btn: "Acceder", login_note: "El acceso al portal estará permitido siempre y cuando el cliente haya sometido la información y documentación necesaria para análisis por parte del departamento de operación de Trulink Fiber LLC. De cumplir con los requisitos el cliente recibirá un correo electrónico con su nombre de usuario y un link para la creación de su contraseña segura. De no cumplir con los requisitos igual se le enviará una notificación a su correo declinando su ingreso al portal.", denied: "ACCESO DENEGADO", company_info: "Información de la Empresa", comp_name: "Nombre o Razón Social", fiscal_id: "Identificación Fiscal (RUC / NIT / EIN)", website: "Sitio Web Corporativo", industry: "Industria / Sector", billing: "Dirección de Facturación", contact_info: "Información del Contacto", rep_name: "Nombre Completo del Representante", cargo: "Cargo en la Empresa", email_label: "Correo Electrónico Corporativo", tel_label: "Teléfono Fijo o Móvil de Empresa", doc_label: "Documentación de Soporte", file_btn: "Elegir archivo", terms_title: "Términos y Condiciones", terms_text: "1. USO EXCLUSIVO: Acceso restringido a empresas de telecomunicaciones e infraestructura. 2. VERACIDAD: El solicitante declara que la información proporcionada es real. 3. CONDICIONES: Las transacciones se rigen bajo términos EXW Panamá. 4. CONFIDENCIALIDAD: La información del portal es propiedad exclusiva de Trulink Fiber LLC. 5. APROBACIÓN: La creación de este registro no garantiza acceso inmediato; sujeto a validación técnica de Trulink Fiber LLC.", terms_checkbox: "He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.", submit: "Enviar Solicitud", doc_req_title: "Documentación Requerida (PDF, JPG o PNG):", doc_req_list: ["Registro Fiscal: RUC, NIT o Tax ID vigente.", "Constitución Legal: Registro Público o Cámara de Comercio (máx. 90 días).", "Identificación: Cédula o pasaporte del Representante Legal.", "Formulario de Accesos: Lista de correos corporativos autorizados.", "Acuerdo de Confidencialidad: NDA firmado por el representante."], track_client: "Cliente B2B", track_investor: "Inversor Estratégico", fund_info: "Información del Fondo / Family Office", fund_name: "Nombre del Fondo o Family Office", terms_investor_text: "1. CONFIDENCIALIDAD E IP: El acceso al Virtual Data Room otorga información altamente confidencial sobre proyecciones financieras y la propiedad intelectual de la plataforma T-FAP. 2. PROPÓSITO: El uso de la información es exclusivo para la evaluación técnica y económica de la ronda de inversión estratégica de Trulink Fiber LLC. 3. REQUISITO EXCLUSIVO: Es obligatorio adjuntar el Acuerdo de Confidencialidad (NDA) debidamente firmado por el representante legal del fondo para la aprobación del acceso corporativo.", doc_investor_title: "Documentación Obligatoria del Inversor:", doc_investor_list: ["Acuerdo de Confidencialidad (NDA) firmado por el representante.", "Identificación oficial o pasaporte del Representante del Fondo."] },
+      en: { main_title: "B2B Corporate Registration - Trulink Fiber", login_title: "B2B Portal Access", user_label: "Username", pass_label: "Password", login_btn: "Login", login_note: "Portal access is granted provided the client has submitted the necessary information and documentation for analysis by the Trulink Fiber LLC operations department. Upon meeting requirements, the client will receive an email with their username and a link to create a secure password. If requirements are not met, a notification will be sent to their email declining access to the portal.", denied: "ACCESS DENIED", company_info: "Company Information", comp_name: "Company Name", fiscal_id: "Tax ID (RUC / NIT / EIN)", website: "Corporate Website", industry: "Industry / Sector", billing: "Billing Address", contact_info: "Contact Information", rep_name: "Representative Name", cargo: "Job Title", email_label: "Corporate Email", tel_label: "Business Phone", doc_label: "Supporting Documentation", file_btn: "Choose file", terms_title: "Terms and Conditions", terms_text: "1. EXCLUSIVE USE: Access reserved for telecommunications and infrastructure companies. 2. TRUTHFULNESS: Applicant declares all provided information is authentic. 3. CONDITIONS: Transactions subject to EXW Panama terms. 4. CONFIDENTIALITY: Information is the exclusive property of Trulink Fiber LLC. 5. APPROVAL: Account creation is not immediate; subject to Trulink Fiber LLC validation.", terms_checkbox: "I have read, understood and accept the Terms and Conditions for B2B Portal Access.", submit: "Submit Application", doc_req_title: "Required Documentation (PDF, JPG or PNG):", doc_req_list: ["Fiscal Registry: Current RUC, NIT or Tax ID.", "Legal Constitution: Public Registry or Chamber of Commerce (max 90 days).", "Identification: ID or passport of the Legal Representative.", "Access Form: List of authorized corporate emails.", "Confidentiality Agreement: NDA signed by the representative."], track_client: "B2B Client", track_investor: "Strategic Investor", fund_info: "Fund / Family Office Information", fund_name: "Fund or Family Office Name", terms_investor_text: "1. CONFIDENTIALITY & IP: Access to the Virtual Data Room provides highly sensitive financial projections and proprietary technical data regarding the T-FAP platform. 2. PURPOSE: Information is strictly disclosed for the technical and economic evaluation of Trulink Fiber LLC's strategic investment round. 3. MANDATORY REQUIREMENT: Uploading a signed Non-Disclosure Agreement (NDA) by the fund's representative is mandatory for corporate access approval.", doc_investor_title: "Mandatory Investor Documentation:", doc_investor_list: ["Signed Non-Disclosure Agreement (NDA).", "ID or Passport of the Fund Representative."] },
+      ar: { main_title: "استمارة التسجيل للشركات (B2B)", login_title: "دخول بوابة B2B", user_label: "اسم المستخدم", pass_label: "كلمة المرور", login_btn: "دخول", login_note: "يُسمح بالوصول إلى البوابة بشرط أن يكون العميل قد قدم المعلومات والوثائق اللازمة للتحليل من قبل قسم العمليات في شركة Trulink Fiber LLC. في حال استيفاء المتطلبات، سيتلقى العميل بريداً إلكترونياً يحتوي على اسم المستخدم ورابط لإنشاء كلمة مرور آمنة. وفي حال عدم استيفاء المتطلبات، سيتم إرسال إشعار إلى بريده الإلكتروني برفض دخوله إلى البوابة.", denied: "تم رفض الوصول", company_info: "معلومات الشركة", comp_name: "اسم الشركة", fiscal_id: "الرقم الضريبي", website: "الموقع الإلكتروني", industry: "القطاع", billing: "عنوان الفواتير", contact_info: "معلومات الاتصال", rep_name: "الاسم الكامل للممثل", cargo: "المسمى الوظيفي", email_label: "البريد الإلكتروني للعمل", tel_label: "هاتف الشركة", doc_label: "وثائق الدعم", file_btn: "اختر ملف", terms_title: "الشروط والأحكام", terms_text: "1. الاستخدام الحصري: الوصول مخصص لشركات الاتصالات والبنية التحتية. 2. صحة المعلومات: يقر مقدم الطلب بأن المعلومات المقدمة حقيقية. 3. الشروط التجارية: تخضع المعاملات لشروط EXW بنما. 4. السرية التقنية: المعلومات هي ملكية حصرية لشركة Trulink Fiber LLC. 5. الموافقة: إنشاء الحساب لا يعني الموافقة الفورية؛ تخضع لعملية التحقق من قبل Trulink Fiber LLC.", terms_checkbox: "لقد قرأت وفهمت وأوافق على الشروط والأحكام الخاصة بالوصول إلى بوابة B2B.", submit: "إرسال الطلب", doc_req_title: "الوثائق المطلوبة (PDF, JPG or PNG):", doc_req_list: ["السجل الضريبي: RUC أو NIT أو Tax ID ساري المفعول.", "التأسيس القانوني: السجل العام أو الغرفة التجارية (بحد أقصى 90 يوماً).", "الهوية: بطاقة الهوية أو جواز سفر الممثل القانوني.", "نموذج الوصول: قائمة البريد الإلكتروني للشركات المعتمدة.", "اتفاقية السرية: NDA موقعة من قبل الممثل."], track_client: "عميل B2B", track_investor: "مستثمر استراتيجي", fund_info: "معلومات الصندوق / المكتب العائلي", fund_name: "اسم الصندوق أو المكتب العائلي", terms_investor_text: "1. السرية وحقوق الملكية: يتيح الدخول إلى غرفة البيانات الافتراضية معلومات سرية للغاية حول التوقعات المالية والملكية الفكرية لمنصة T-FAP. 2. الغرض: الكشف عن المعلومات مخصص حصرياً للتقييم الفني والاقتصادي لجولة الاستثمار الاستراتيجي لشركة Trulink Fiber LLC. 3. شرط إلزامي: يجب إرفاق اتفاقية سرية البيانات (NDA) الموقعة من الممثل القانوني للصندوق للموافقة على الدخول.", doc_investor_title: "وثائق المستثمر الإلزامية:", doc_investor_list: ["اتفاقية سرية البيانات (NDA) الموقعة.", "هوية أو جواز سفر ممثل الصندوق."] }
     };
 
     function setTrack(track) {
       currentTrack = track;
       document.getElementById('btnClient').classList.toggle('active', track === 'client');
       document.getElementById('btnInvestor').classList.toggle('active', track === 'investor');
-      
       const tipoReg = document.getElementById('tipo_registro');
-      const groupFiscal = document.getElementById('groupFiscalId');
-      const groupIndustry = document.getElementById('groupIndustry');
-      const groupBilling = document.getElementById('groupBilling');
+      const inputs = [document.getElementById('fiscal_id'), document.getElementById('industria'), document.getElementById('direccion')];
+      const groups = [document.getElementById('groupFiscalId'), document.getElementById('groupIndustry'), document.getElementById('groupBilling')];
       
-      const inputFiscal = document.getElementById('fiscal_id');
-      const inputIndustry = document.getElementById('industria');
-      const inputBilling = document.getElementById('direccion');
-
       if (track === 'investor') {
         tipoReg.value = "Inversor Estratégico";
-        groupFiscal.style.display = 'none';
-        groupIndustry.style.display = 'none';
-        groupBilling.style.display = 'none';
-        
-        inputFiscal.removeAttribute('required');
-        inputIndustry.removeAttribute('required');
-        inputBilling.removeAttribute('required');
+        groups.forEach(g => g.style.display = 'none');
+        inputs.forEach(i => i.removeAttribute('required'));
       } else {
         tipoReg.value = "Cliente B2B";
-        groupFiscal.style.display = 'block';
-        groupIndustry.style.display = 'block';
-        groupBilling.style.display = 'block';
-        
-        inputFiscal.setAttribute('required', '');
-        inputIndustry.setAttribute('required', '');
-        inputBilling.setAttribute('required', '');
+        groups.forEach(g => g.style.display = 'block');
+        inputs.forEach(i => i.setAttribute('required', ''));
       }
-      
       changeLanguage();
     }
 
     function changeLanguage() {
       const lang = document.getElementById("languageSelect").value;
-      
-      document.querySelectorAll("[data-key]").forEach(el => { 
+      document.querySelectorAll("[data-key]").forEach(el => {
         const key = el.getAttribute("data-key");
-        if (t[lang][key]) {
-          el.textContent = t[lang][key]; 
-        }
+        if (t[lang][key]) el.textContent = t[lang][key];
       });
-      
       const sectionCompanyTitle = document.getElementById('sectionCompanyTitle');
       const lblCompName = document.getElementById('lblCompName');
       const termsBox = document.getElementById("termsText");
       const docList = document.getElementById("docReqList");
-
       if (currentTrack === 'investor') {
         sectionCompanyTitle.textContent = t[lang].fund_info;
         lblCompName.textContent = t[lang].fund_name;
         termsBox.textContent = t[lang].terms_investor_text;
-        docList.innerHTML = `<strong>${t[lang].doc_investor_title}</strong><ul>${t[lang].doc_investor_list.map(item => `<li>${item}</li>`).join('')}</ul>`;
+        docList.innerHTML = `<strong>${t[lang].doc_investor_title}</strong><ul>${t[lang].doc_investor_list.map(i => `<li>${i}</li>`).join('')}</ul>`;
       } else {
         sectionCompanyTitle.textContent = t[lang].company_info;
         lblCompName.textContent = t[lang].comp_name;
         termsBox.textContent = t[lang].terms_text;
-        docList.innerHTML = `<strong>${t[lang].doc_req_title}</strong><ul>${t[lang].doc_req_list.map(item => `<li>${item}</li>`).join('')}</ul>`;
+        docList.innerHTML = `<strong>${t[lang].doc_req_title}</strong><ul>${t[lang].doc_req_list.map(i => `<li>${i}</li>`).join('')}</ul>`;
       }
-      
-      const fileInput = document.getElementById("fileInput");
-      const style = document.createElement('style');
-      style.innerHTML = `input[type="file"]::file-selector-button { content: "${t[lang].file_btn}"; }`;
-      document.head.appendChild(style);
-      
       document.dir = (lang === 'ar') ? 'rtl' : 'ltr';
     }
 
-    function handleLogin() { 
-      document.getElementById("loginError").textContent = t[document.getElementById("languageSelect").value].denied; 
-    }
+    function handleLogin() { document.getElementById("loginError").textContent = t[document.getElementById("languageSelect").value].denied; }
 
-    document.getElementById("terms").addEventListener("change", function() { 
-      document.getElementById("submitBtn").disabled = !this.checked; 
-    });
-    
-    // Script de envío actualizado para apuntar a la API interna
+    document.getElementById("terms").addEventListener("change", function() { document.getElementById("submitBtn").disabled = !this.checked; });
+
     document.getElementById("registerForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = document.getElementById("submitBtn");
       btn.disabled = true;
       btn.textContent = "Procesando...";
-
-      const formData = new FormData(e.target);
-      
       try {
-        const response = await fetch("/api/submit", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (response.ok) {
-          alert("¡Solicitud enviada con éxito!");
-          e.target.reset();
-        } else {
-          alert("Hubo un error al procesar tu solicitud.");
-        }
-      } catch (err) {
-        console.error(err);
-        alert("Error de conexión con el servidor.");
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Enviar Solicitud";
-      }
+        const response = await fetch("/api/submit", { method: "POST", body: new FormData(e.target) });
+        if (response.ok) { alert("¡Solicitud enviada con éxito!"); e.target.reset(); }
+        else { alert("Hubo un error en el envío."); }
+      } catch (err) { alert("Error de conexión."); }
+      finally { btn.disabled = false; btn.textContent = "Enviar Solicitud"; }
     });
     
     changeLanguage();
