@@ -4,14 +4,23 @@ import Busboy from 'busboy';
 export const config = { api: { bodyParser: false } };
 
 export default async function handler(req, res) {
+  if (req.method !== 'POST') return res.status(405).send('Método no permitido');
+
   const busboy = Busboy({ headers: req.headers });
   const fields = {};
+  let fileData = null;
+  let fileName = '';
 
   busboy.on('field', (fieldname, val) => { fields[fieldname] = val; });
+  busboy.on('file', (fieldname, file, info) => {
+    fileName = info.filename;
+    const chunks = [];
+    file.on('data', (data) => chunks.push(data));
+    file.on('end', () => { fileData = Buffer.concat(chunks); });
+  });
+
   busboy.on('finish', async () => {
     try {
-      console.log("Intentando enviar correo a:", fields.email);
-      
       const transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com',
         port: 587,
@@ -21,18 +30,18 @@ export default async function handler(req, res) {
         },
       });
 
-      const info = await transporter.sendMail({
-        from: 'no-reply@trulinkfiber.org',
-        to: fields.email || 'fred.jurado@trulinkfiber.com',
-        subject: 'Prueba de envío',
-        text: 'Si recibes esto, el backend funciona.'
+      await transporter.sendMail({
+        from: '"Portal B2B" <no-reply@trulinkfiber.org>',
+        to: 'fred.jurado@trulinkfiber.com', // Correo donde quieres recibirlo
+        subject: `Nueva solicitud: ${fields.empresa}`,
+        text: `Empresa: ${fields.empresa}\nEmail: ${fields.email}\nTipo: ${fields.tipo_registro}`,
+        attachments: fileData ? [{ filename: fileName, content: fileData }] : []
       });
 
-      console.log("Respuesta de Brevo:", info.messageId);
-      return res.status(200).json({ message: 'Enviado a: ' + (fields.email || 'defecto') });
+      res.status(200).json({ message: 'Éxito total' });
     } catch (error) {
-      console.error("ERROR CRÍTICO:", error);
-      return res.status(500).json({ message: 'Error interno: ' + error.message });
+      console.error(error);
+      res.status(500).json({ error: error.message });
     }
   });
 
