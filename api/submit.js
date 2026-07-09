@@ -1,7 +1,5 @@
 import nodemailer from 'nodemailer';
-import { IncomingForm } from 'formidable';
-import fs from 'fs';
-import os from 'os';
+import Busboy from 'busboy';
 
 export const config = {
   api: { bodyParser: false },
@@ -10,18 +8,20 @@ export const config = {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ message: 'Método no permitido' });
 
-  // Configuramos el directorio temporal permitido por Vercel
-  const form = new IncomingForm({
-    uploadDir: os.tmpdir(),
-    keepExtensions: true,
+  const busboy = Busboy({ headers: req.headers });
+  const fields = {};
+  let fileData = null;
+  let fileName = '';
+
+  busboy.on('field', (fieldname, val) => { fields[fieldname] = val; });
+  busboy.on('file', (fieldname, file, info) => {
+    fileName = info.filename;
+    const chunks = [];
+    file.on('data', (data) => chunks.push(data));
+    file.on('end', () => { fileData = Buffer.concat(chunks); });
   });
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      console.error('Error de parseo:', err);
-      return res.status(500).json({ message: 'Error procesando el formulario' });
-    }
-
+  busboy.on('finish', async () => {
     try {
       const transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com',
@@ -32,34 +32,20 @@ export default async function handler(req, res) {
         },
       });
 
-      const f = (val) => (Array.isArray(val) ? val[0] : val);
-      
-      // Preparamos los adjuntos si existen
-      const attachments = [];
-      const file = files.archivo_adjunto ? f(files.archivo_adjunto) : null;
-      
-      if (file) {
-        attachments.push({
-          filename: file.originalFilename,
-          path: file.filepath // Ruta temporal en /tmp
-        });
-      }
-
       await transporter.sendMail({
         from: '"Portal B2B" <no-reply@trulinkfiber.org>',
         to: 'contacto@trulinkfiber.org',
-        subject: `Nueva solicitud con archivo: ${f(fields.tipo_registro)}`,
-        text: `Empresa: ${f(fields.empresa)} | Email: ${f(fields.email)}`,
-        attachments: attachments
+        subject: `Nueva solicitud: ${fields.tipo_registro}`,
+        text: `Empresa: ${fields.empresa} | Email: ${fields.email}`,
+        attachments: fileData ? [{ filename: fileName, content: fileData }] : []
       });
 
-      // Limpieza: Borrar archivo temporal después de enviar
-      if (file) fs.unlinkSync(file.filepath);
-
-      return res.status(200).json({ message: 'Enviado con archivo' });
+      return res.status(200).json({ message: 'Éxito' });
     } catch (error) {
-      console.error('Error en envío:', error);
-      return res.status(500).json({ message: 'Error al enviar email' });
+      return res.status(500).json({ message: 'Error de envío' });
     }
   });
+
+  req.pipe(busboy);
 }
+   
