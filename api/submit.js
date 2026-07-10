@@ -44,6 +44,7 @@ export default async function handler(req, res) {
       await transporter.sendMail({
         from: '"Portal B2B" <no-reply@trulinkfiber.org>',
         to: 'fred.jurado@trulinkfiber.com',
+        replyTo: fields.email, // <--- Aquí está el cambio solicitado
         subject: `Nueva solicitud: ${fields.empresa || 'Sin nombre'}`,
         text: `Empresa: ${fields.empresa}\nEmail: ${fields.email}\nTipo: ${fields.tipo_registro}\nTeléfono: ${fields.telefono}`,
         attachments: fileData ? [{ filename: fileName, content: fileData }] : []
