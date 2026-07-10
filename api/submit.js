@@ -32,7 +32,7 @@ export default async function handler(req, res) {
 
   busboy.on('finish', async () => {
     try {
-      // 1. Envío de Correos (Notificación interna y confirmación automática)
+      // 1. Configuración de envío de correos
       const transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com',
         port: 587,
@@ -45,25 +45,25 @@ export default async function handler(req, res) {
       const esInversionista = fields.tipo_registro === 'Inversor Estratégico';
       const saludo = esInversionista ? 'Estimado Inversionista' : 'Estimado Cliente B2B';
 
-      // Notificación Interna a ti
+      // Correo para ti (Notificación)
       await transporter.sendMail({
         from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
         to: 'fred.jurado@trulinkfiber.com',
         replyTo: fields.email,
         subject: `Nueva solicitud: ${fields.empresa || 'Sin nombre'} (${fields.tipo_registro})`,
-        text: `Tipo: ${fields.tipo_registro}\nEmpresa: ${fields.empresa}\nEmail: ${fields.email}\nTeléfono: ${fields.telefono}`,
+        text: `Tipo: ${fields.tipo_registro}\nEmpresa: ${fields.empresa}\nEmail: ${fields.email}\nTeléfono: ${fields.telefono}\nCargo: ${fields.cargo}\nRepresentante: ${fields.representante}`,
         attachments: fileData ? [{ filename: fileName, content: fileData }] : []
       });
 
-      // Confirmación al solicitante
+      // Correo para el cliente (Confirmación)
       await transporter.sendMail({
         from: '"Fred Jurado - Trulink Fiber" <fred.jurado@trulinkfiber.com>',
         to: fields.email,
         subject: 'Confirmación de recepción: Solicitud de acceso - Trulink Fiber',
-        text: `${saludo},\n\nHemos recibido exitosamente su solicitud de acceso al Portal B2B de Trulink Fiber. Le informamos que su requerimiento ha sido remitido formalmente a Administración y Operaciones para su debida evaluación. Nos pondremos en contacto con usted a la brevedad.\n\nAtentamente,\nFred Jurado\nCEO & Founder | Trulink Fiber, LLC\nwww.trulinkfiber.com`
+        text: `${saludo},\n\nHemos recibido exitosamente su solicitud de acceso al Portal B2B de Trulink Fiber. Nos pondremos en contacto con usted a la brevedad.\n\nAtentamente,\nFred Jurado\nCEO & Founder | Trulink Fiber, LLC\nwww.trulinkfiber.com`
       });
 
-      // 2. Integración con Brevo CRM (Base de datos)
+      // 2. Integración con Brevo (Base de Datos)
       await fetch('https://api.brevo.com/v3/contacts', {
         method: 'POST',
         headers: {
