@@ -31,6 +31,10 @@ export default async function handler(req, res) {
   });
 
   busboy.on('finish', async () => {
+    // --- LÍNEA DE DEPURACIÓN ---
+    console.log("Datos recibidos en el servidor:", JSON.stringify(fields));
+    // ---------------------------
+
     try {
       // 1. Configuración de envío de correos
       const transporter = nodemailer.createTransport({
@@ -43,14 +47,14 @@ export default async function handler(req, res) {
       });
 
       const esInversionista = fields.tipo_registro === 'Inversor Estratégico';
-      const saludo = esInversionista ? 'Estimado Inversionista' : 'Estimado Cliente B2B';
+      const saludo = esInversionista ? 'Estimado Inversor' : 'Estimado Cliente B2B';
 
       // Correo para ti (Notificación)
       await transporter.sendMail({
         from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
         to: 'fred.jurado@trulinkfiber.com',
         replyTo: fields.email,
-        subject: `Nueva solicitud: ${fields.empresa || 'Sin nombre'} (${fields.tipo_registro})`,
+        subject: `Nueva solicitud: ${fields.empresa || 'Sin nombre'} (${fields.tipo_registro || 'Sin tipo'})`,
         text: `Tipo: ${fields.tipo_registro}\nEmpresa: ${fields.empresa}\nEmail: ${fields.email}\nTeléfono: ${fields.telefono}\nCargo: ${fields.cargo}\nRepresentante: ${fields.representante}`,
         attachments: fileData ? [{ filename: fileName, content: fileData }] : []
       });
@@ -63,8 +67,8 @@ export default async function handler(req, res) {
         text: `${saludo},\n\nHemos recibido exitosamente su solicitud de acceso al Portal B2B de Trulink Fiber. Nos pondremos en contacto con usted a la brevedad.\n\nAtentamente,\nFred Jurado\nCEO & Founder | Trulink Fiber, LLC\nwww.trulinkfiber.com`
       });
 
-      // 2. Integración con Brevo (Base de Datos)
-      await fetch('https://api.brevo.com/v3/contacts', {
+      // 2. Integración con Brevo
+      const brevoResponse = await fetch('https://api.brevo.com/v3/contacts', {
         method: 'POST',
         headers: {
           'api-key': process.env.BREVO_API_KEY,
@@ -87,9 +91,16 @@ export default async function handler(req, res) {
         })
       });
 
+      const brevoResult = await brevoResponse.json();
+
+      if (!brevoResponse.ok) {
+        console.error('Error de Brevo:', brevoResult);
+        return res.status(500).json({ error: 'Brevo falló', details: brevoResult });
+      }
+
       res.status(200).json({ message: 'Éxito total' });
     } catch (error) {
-      console.error('Error en proceso:', error);
+      console.error('Error general:', error);
       res.status(500).json({ error: error.message });
     }
   });
