@@ -152,33 +152,27 @@
       btn.disabled = true;
       btn.textContent = "Procesando...";
       
-      // Construcción del objeto consolidado
-      const formDataObj = new FormData(e.target);
-      const dataPayload = {
-          tipo_solicitud: formDataObj.get('tipo_registro'),
-          nombre_entidad: formDataObj.get('empresa'),
-          sitio_web: formDataObj.get('website'),
-          nombre_representante: formDataObj.get('representante'),
-          cargo: formDataObj.get('cargo'),
-          email_corporativo: formDataObj.get('email'),
-          telefono: formDataObj.get('telefono'),
-          // Campos dinámicos según el tipo
-          identificacion_fiscal: currentTrack === 'client' ? formDataObj.get('fiscal_id') : null,
-          direccion_facturacion: currentTrack === 'client' ? formDataObj.get('direccion') : null,
-          industria_sector: currentTrack === 'client' ? formDataObj.get('industria') : null,
-          es_family_office: currentTrack === 'investor' ? true : false,
-          confirmacion_nda: currentTrack === 'investor' ? true : false 
-      };
+      const formData = new FormData(e.target);
 
       try {
         const response = await fetch("/api/submit", { 
             method: "POST", 
-            body: JSON.stringify(dataPayload) // Enviamos el JSON consolidado
+            body: formData 
         });
-        if (response.ok) { alert("¡Solicitud enviada con éxito!"); e.target.reset(); }
-        else { alert("Hubo un error en el envío."); }
-      } catch (err) { alert("Error de conexión."); }
-      finally { btn.disabled = false; btn.textContent = "Enviar Solicitud"; }
+        
+        if (response.ok) { 
+            alert("¡Solicitud enviada con éxito!"); 
+            e.target.reset(); 
+        } else { 
+            const errorData = await response.json().catch(() => ({}));
+            alert("Error en el envío: " + (errorData.error || "Intente de nuevo")); 
+        }
+      } catch (err) { 
+        alert("Error de conexión: " + err.message); 
+      } finally { 
+        btn.disabled = false; 
+        btn.textContent = "Enviar Solicitud"; 
+      }
     });
     
     changeLanguage();
