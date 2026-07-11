@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js';
 import Busboy from 'busboy';
 import nodemailer from 'nodemailer';
 
-// Configuración de Supabase
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 export const config = { api: { bodyParser: false } };
@@ -27,38 +26,26 @@ export default async function handler(req, res) {
 
   busboy.on('finish', async () => {
     try {
-      // 1. Subir archivo a Supabase Storage (Bucket: 'documentos')
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // 1. Subir archivo a Storage
+      const { error: uploadError } = await supabase.storage
         .from('documentos')
         .upload(fileName, fileBuffer, { contentType: mimeType });
       if (uploadError) throw uploadError;
 
-      // 2. Insertar en tabla 'solicitudes_acceso'
+      // 2. Insertar datos en la tabla (usando el nombre exacto de tus columnas)
       const { error: dbError } = await supabase.from('solicitudes_acceso').insert([{
         tipo_solicitud: fields.tipo_registro,
         razon_social: fields.empresa,
         email: fields.email,
         estado: 'PENDIENTE',
         documento_url: fileName,
-        datos_completos: fields
+        datos_completos: fields // <-- Asegúrate de que este nombre sea exacto en la tabla
       }]);
       if (dbError) throw dbError;
 
-      // 3. Envío de correos (Nodemailer)
-      const transporter = nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com', port: 587,
-        auth: { user: process.env.BREVO_SMTP_USER, pass: process.env.BREVO_API_KEY }
-      });
-
-      await transporter.sendMail({
-        from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
-        to: fields.email,
-        subject: 'Solicitud Recibida - Trulink Fiber',
-        text: `Hola ${fields.representante}, hemos recibido su solicitud.`
-      });
-
-      res.status(200).json({ message: 'Proceso completado' });
+      res.status(200).json({ message: 'Solicitud procesada con éxito' });
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: err.message });
     }
   });
