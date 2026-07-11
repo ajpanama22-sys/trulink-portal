@@ -43,17 +43,25 @@ export default async function handler(req, res) {
       }]);
       if (dbError) throw dbError;
 
-      const transporter = nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com',
-        port: 587,
-        auth: { user: process.env.BREVO_SMTP_USER, pass: process.env.BREVO_API_KEY },
-      });
-      await transporter.sendMail({
-        from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
-        to: fields.email,
-        subject: 'Confirmación de solicitud',
-        text: 'Hemos recibido su solicitud correctamente.'
-      });
+      // Envío de correo usando BREVO_SOLI_KET
+      try {
+        const transporter = nodemailer.createTransport({
+          host: 'smtp-relay.brevo.com',
+          port: 587,
+          auth: { 
+            user: process.env.BREVO_SMTP_USER, 
+            pass: process.env.BREVO_API_KEY // <-- Variable actualizada y única
+          },
+        });
+        await transporter.sendMail({
+          from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
+          to: fields.email,
+          subject: 'Confirmación de solicitud',
+          text: 'Hemos recibido su solicitud correctamente.'
+        });
+      } catch (emailErr) {
+        console.error("Error en el envío de correo (no bloqueante):", emailErr);
+      }
 
       res.status(200).json({ message: 'Proceso completado' });
     } catch (err) {
