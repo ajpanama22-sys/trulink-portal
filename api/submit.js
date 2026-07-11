@@ -2,12 +2,22 @@ import { createClient } from '@supabase/supabase-js';
 import Busboy from 'busboy';
 import nodemailer from 'nodemailer';
 
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+// Inicialización de Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL, 
+  process.env.SUPABASE_SERVICE_KEY
+);
 
-export const config = { api: { bodyParser: false } };
+export const config = {
+  api: {
+    bodyParser: false, // Necesario para que Busboy procese multipart/form-data
+  },
+};
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Método no permitido' });
+  }
 
   const busboy = Busboy({ headers: req.headers });
   const fields = {};
@@ -15,35 +25,42 @@ export default async function handler(req, res) {
   let fileName = '';
   let mimeType = '';
 
-  busboy.on('field', (name, val) => { fields[name] = val; });
+  busboy.on('field', (name, val) => {
+    fields[name] = val;
+  });
+
   busboy.on('file', (name, file, info) => {
     fileName = `${Date.now()}_${info.filename}`;
     mimeType = info.mimeType;
     const chunks = [];
     file.on('data', (data) => chunks.push(data));
-    file.on('end', () => { fileBuffer = Buffer.concat(chunks); });
+    file.on('end', () => {
+      fileBuffer = Buffer.concat(chunks);
+    });
   });
 
   busboy.on('finish', async () => {
     try {
-      // 1. Subir archivo a Storage
+      // 1. Subir archivo a Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from('documentos')
         .upload(fileName, fileBuffer, { contentType: mimeType });
-      if (uploadError) throw uploadError;
 
-      // 2. Insertar datos en la tabla
+      if (uploadError) throw new Error('Error al subir archivo: ' + uploadError.message);
+
+      // 2. Guardar datos en la tabla 'solicitudes_acceso'
       const { error: dbError } = await supabase.from('solicitudes_acceso').insert([{
         tipo_solicitud: fields.tipo_registro,
         razon_social: fields.empresa,
         email: fields.email,
         estado: 'PENDIENTE',
         documento_url: fileName,
-        datos_completos: fields 
+        datos_completos: fields
       }]);
-      if (dbError) throw dbError;
 
-      // 3. ENVIAR CORREO (Añadido nuevamente)
+      if (dbError) throw new Error('Error al guardar en base de datos: ' + dbError.message);
+
+      // 3. Enviar correo de confirmación
       const transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com',
         port: 587,
@@ -57,14 +74,15 @@ export default async function handler(req, res) {
         from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
         to: fields.email,
         subject: 'Confirmación de solicitud - Trulink Fiber',
-        text: `Estimado/a ${fields.representante}, hemos recibido su solicitud correctamente.`
+        text: `Hola ${fields.representante}, hemos recibido su solicitud para ${fields.empresa}. Estamos validando la información.`
       });
 
-      res.status(200).json({ message: 'Solicitud guardada y correo enviado con éxito' });
-      
+      // 4. Respuesta de éxito
+      return res.status(200).json({ message: 'Solicitud procesada con éxito' });
+
     } catch (err) {
-      console.error('Error detallado:', err);
-      res.status(500).json({ error: err.message });
+      console.error('Error en el backend:', err);
+      return res.status(500).json({ error: err.message });
     }
   });
 
