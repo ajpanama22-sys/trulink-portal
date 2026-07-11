@@ -26,38 +26,36 @@ export default async function handler(req, res) {
 
   busboy.on('finish', async () => {
     try {
-      // 1. Subir archivo a Supabase
+      if (!fileBuffer) throw new Error("No se recibió archivo");
+
       const { error: uploadError } = await supabase.storage
         .from('documentos')
         .upload(fileName, fileBuffer, { contentType: mimeType });
-      if (uploadError) throw new Error('Error al subir archivo');
+      if (uploadError) throw uploadError;
 
-      // 2. Guardar en Supabase
       const { error: dbError } = await supabase.from('solicitudes_acceso').insert([{
         tipo_solicitud: fields.tipo_registro,
         razon_social: fields.empresa,
         email: fields.email,
         estado: 'PENDIENTE',
         documento_url: fileName,
-        datos_completos: fields 
+        datos_completos: fields
       }]);
-      if (dbError) throw new Error('Error al guardar datos');
+      if (dbError) throw dbError;
 
-      // 3. Enviar correo
       const transporter = nodemailer.createTransport({
         host: 'smtp-relay.brevo.com',
         port: 587,
         auth: { user: process.env.BREVO_SMTP_USER, pass: process.env.BREVO_API_KEY },
       });
-
       await transporter.sendMail({
         from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
         to: fields.email,
-        subject: 'Confirmación de solicitud - Trulink Fiber',
-        text: `Hola ${fields.representante}, hemos recibido su solicitud.`
+        subject: 'Confirmación de solicitud',
+        text: 'Hemos recibido su solicitud correctamente.'
       });
 
-      res.status(200).json({ message: 'Solicitud guardada y procesada correctamente.' });
+      res.status(200).json({ message: 'Proceso completado' });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err.message });
