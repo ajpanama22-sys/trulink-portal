@@ -1,107 +1,65 @@
-import nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
 import Busboy from 'busboy';
+import nodemailer from 'nodemailer';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// Configuración de Supabase
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+
+export const config = { api: { bodyParser: false } };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método no permitido' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
 
   const busboy = Busboy({ headers: req.headers });
   const fields = {};
-  let fileData = null;
+  let fileBuffer = null;
   let fileName = '';
+  let mimeType = '';
 
-  busboy.on('field', (fieldname, val) => {
-    fields[fieldname] = val;
-  });
-
-  busboy.on('file', (fieldname, file, info) => {
-    fileName = info.filename;
+  busboy.on('field', (name, val) => { fields[name] = val; });
+  busboy.on('file', (name, file, info) => {
+    fileName = `${Date.now()}_${info.filename}`;
+    mimeType = info.mimeType;
     const chunks = [];
     file.on('data', (data) => chunks.push(data));
-    file.on('end', () => {
-      fileData = Buffer.concat(chunks);
-    });
+    file.on('end', () => { fileBuffer = Buffer.concat(chunks); });
   });
 
   busboy.on('finish', async () => {
-    // --- LÍNEA DE DEPURACIÓN ---
-    console.log("Datos recibidos en el servidor:", JSON.stringify(fields));
-    // ---------------------------
-
     try {
-      // 1. Configuración de envío de correos
+      // 1. Subir archivo a Supabase Storage (Bucket: 'documentos')
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documentos')
+        .upload(fileName, fileBuffer, { contentType: mimeType });
+      if (uploadError) throw uploadError;
+
+      // 2. Insertar en tabla 'solicitudes_acceso'
+      const { error: dbError } = await supabase.from('solicitudes_acceso').insert([{
+        tipo_solicitud: fields.tipo_registro,
+        razon_social: fields.empresa,
+        email: fields.email,
+        estado: 'PENDIENTE',
+        documento_url: fileName,
+        datos_completos: fields
+      }]);
+      if (dbError) throw dbError;
+
+      // 3. Envío de correos (Nodemailer)
       const transporter = nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com',
-        port: 587,
-        auth: {
-          user: process.env.BREVO_SMTP_USER,
-          pass: process.env.BREVO_SMTP_KEY,
-        },
+        host: 'smtp-relay.brevo.com', port: 587,
+        auth: { user: process.env.BREVO_SMTP_USER, pass: process.env.BREVO_API_KEY }
       });
 
-      const esInversionista = fields.tipo_registro === 'Inversor Estratégico';
-      const saludo = esInversionista ? 'Estimado Inversor' : 'Estimado Cliente B2B';
-
-      // Correo para ti (Notificación)
       await transporter.sendMail({
         from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
-        to: 'fred.jurado@trulinkfiber.com',
-        replyTo: fields.email,
-        subject: `Nueva solicitud: ${fields.empresa || 'Sin nombre'} (${fields.tipo_registro || 'Sin tipo'})`,
-        text: `Tipo: ${fields.tipo_registro}\nEmpresa: ${fields.empresa}\nEmail: ${fields.email}\nTeléfono: ${fields.telefono}\nCargo: ${fields.cargo}\nRepresentante: ${fields.representante}`,
-        attachments: fileData ? [{ filename: fileName, content: fileData }] : []
-      });
-
-      // Correo para el cliente (Confirmación)
-      await transporter.sendMail({
-        from: '"Fred Jurado - Trulink Fiber" <fred.jurado@trulinkfiber.com>',
         to: fields.email,
-        subject: 'Confirmación de recepción: Solicitud de acceso - Trulink Fiber',
-        text: `${saludo},\n\nHemos recibido exitosamente su solicitud de acceso al Portal B2B de Trulink Fiber. Nos pondremos en contacto con usted a la brevedad.\n\nAtentamente,\nFred Jurado\nCEO & Founder | Trulink Fiber, LLC\nwww.trulinkfiber.com`
+        subject: 'Solicitud Recibida - Trulink Fiber',
+        text: `Hola ${fields.representante}, hemos recibido su solicitud.`
       });
 
-      // 2. Integración con Brevo
-      const brevoResponse = await fetch('https://api.brevo.com/v3/contacts', {
-        method: 'POST',
-        headers: {
-          'api-key': process.env.BREVO_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          email: fields.email,
-          attributes: {
-            COMPANY: fields.empresa,
-            REPRESENTANTE: fields.representante,
-            CARGO: fields.cargo,
-            TELEFONO: fields.telefono,
-            FISCAL_ID: fields.fiscal_id,
-            WEBSITE: fields.website,
-            INDUSTRIA: fields.industria,
-            DIRECCION: fields.direccion,
-            TIPO_REGISTRO: fields.tipo_registro
-          },
-          updateEnabled: true 
-        })
-      });
-
-      const brevoResult = await brevoResponse.json();
-
-      if (!brevoResponse.ok) {
-        console.error('Error de Brevo:', brevoResult);
-        return res.status(500).json({ error: 'Brevo falló', details: brevoResult });
-      }
-
-      res.status(200).json({ message: 'Éxito total' });
-    } catch (error) {
-      console.error('Error general:', error);
-      res.status(500).json({ error: error.message });
+      res.status(200).json({ message: 'Proceso completado' });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
     }
   });
 
