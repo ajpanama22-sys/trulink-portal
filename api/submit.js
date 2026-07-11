@@ -32,20 +32,38 @@ export default async function handler(req, res) {
         .upload(fileName, fileBuffer, { contentType: mimeType });
       if (uploadError) throw uploadError;
 
-      // 2. Insertar datos en la tabla (usando el nombre exacto de tus columnas)
+      // 2. Insertar datos en la tabla
       const { error: dbError } = await supabase.from('solicitudes_acceso').insert([{
         tipo_solicitud: fields.tipo_registro,
         razon_social: fields.empresa,
         email: fields.email,
         estado: 'PENDIENTE',
         documento_url: fileName,
-        datos_completos: fields // <-- Asegúrate de que este nombre sea exacto en la tabla
+        datos_completos: fields 
       }]);
       if (dbError) throw dbError;
 
-      res.status(200).json({ message: 'Solicitud procesada con éxito' });
+      // 3. ENVIAR CORREO (Añadido nuevamente)
+      const transporter = nodemailer.createTransport({
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        auth: {
+          user: process.env.BREVO_SMTP_USER,
+          pass: process.env.BREVO_API_KEY,
+        },
+      });
+
+      await transporter.sendMail({
+        from: '"Portal B2B" <fred.jurado@trulinkfiber.com>',
+        to: fields.email,
+        subject: 'Confirmación de solicitud - Trulink Fiber',
+        text: `Estimado/a ${fields.representante}, hemos recibido su solicitud correctamente.`
+      });
+
+      res.status(200).json({ message: 'Solicitud guardada y correo enviado con éxito' });
+      
     } catch (err) {
-      console.error(err);
+      console.error('Error detallado:', err);
       res.status(500).json({ error: err.message });
     }
   });
