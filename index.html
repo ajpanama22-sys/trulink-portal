@@ -92,8 +92,8 @@
   </div>
 
   <script>
-    // Inicialización correcta de Supabase
-    const supabase = supabase.createClient('https://gnaayfvoncyubofydcqj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduYWF5ZnZvbmN5dWJvZnlkY3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDA5MzIsImV4cCI6MjA5OTI3NjkzMn0.cdGB_qnIh2Hkg1rJZ_5eX3i0PXJQmb7r6lH0rPJpW2A');
+    // CORRECCIÓN: Usamos 'supabaseClient' para evitar conflicto con el objeto global 'supabase'
+    const supabaseClient = supabase.createClient('https://gnaayfvoncyubofydcqj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduYWF5ZnZvbmN5dWJvZnlkY3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDA5MzIsImV4cCI6MjA5OTI3NjkzMn0.cdGB_qnIh2Hkg1rJZ_5eX3i0PXJQmb7r6lH0rPJpW2A');
 
     async function handleLogin() {
       const email = document.getElementById("loginUser").value;
@@ -101,7 +101,8 @@
       const errorEl = document.getElementById("loginError");
 
       try {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+        // CORRECCIÓN: Usamos la instancia correcta 'supabaseClient'
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
         if (error) throw error;
         
         if (email === 'fred.jurado@trulinkfiber.com') {
