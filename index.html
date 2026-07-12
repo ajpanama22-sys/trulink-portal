@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Registro Corporativo B2B - Trulink Fiber</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: "Segoe UI", Arial, sans-serif; background: #000000; color: #d4af37; margin: 0; padding: 40px; }
     h1, h2 { text-align: center; color: #d4af37; }
@@ -91,6 +92,27 @@
   </div>
 
   <script>
+    const supabase = supabase.createClient('TU_SUPABASE_URL', 'TU_SUPABASE_ANON_KEY');
+
+    async function handleLogin() {
+        const email = document.getElementById("loginUser").value;
+        const pass = document.getElementById("loginPass").value;
+        const errorEl = document.getElementById("loginError");
+
+        try {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
+            if (error) throw error;
+
+            if (email === 'fred.jurado@trulinkfiber.com') {
+                window.location.href = '/intranet'; 
+            } else {
+                window.location.href = '/portal-b2b';
+            }
+        } catch (err) {
+            errorEl.textContent = t[document.getElementById("languageSelect").value].denied;
+        }
+    }
+
     let currentTrack = 'client';
     const t = {
       es: { main_title: "Registro Corporativo B2B - Trulink Fiber", login_title: "Acceso Portal B2B", user_label: "Usuario", pass_label: "Contraseña", login_btn: "Acceder", login_note: "El acceso al portal estará permitido siempre y cuando el cliente haya sometido la información y documentación necesaria para análisis por parte del departamento de operación de Trulink Fiber LLC. De cumplir con los requisitos el cliente recibirá un correo electrónico con su nombre de usuario y un link para la creación de su contraseña segura. De no cumplir con los requisitos igual se le enviará una notificación a su correo declinando su ingreso al portal.", denied: "ACCESO DENEGADO", company_info: "Información de la Empresa", comp_name: "Nombre o Razón Social", fiscal_id: "Identificación Fiscal (RUC / NIT / EIN)", website: "Sitio Web Corporativo", industry: "Industria / Sector", billing: "Dirección de Facturación", contact_info: "Información del Contacto", rep_name: "Nombre Completo del Representante", cargo: "Cargo en la Empresa", email_label: "Correo Electrónico Corporativo", tel_label: "Teléfono Fijo o Móvil de Empresa", doc_label: "Documentación de Soporte", file_btn: "Elegir archivo", terms_title: "Términos y Condiciones", terms_text: "1. USO EXCLUSIVO: Acceso restringido a empresas de telecomunicaciones e infraestructura. 2. VERACIDAD: El solicitante declara que la información proporcionada es real. 3. CONDICIONES: Las transacciones se rigen bajo términos EXW Panamá. 4. CONFIDENCIALIDAD: La información del portal es propiedad exclusiva de Trulink Fiber LLC. 5. APROBACIÓN: La creación de este registro no garantiza acceso inmediato; sujeto a validación técnica de Trulink Fiber LLC.", terms_checkbox: "He leído, comprendo y acepto los Términos y Condiciones de Acceso al Portal B2B de Trulink Fiber LLC.", submit: "Enviar Solicitud", doc_req_title: "Documentación Requerida (PDF, JPG o PNG):", doc_req_list: ["Registro Fiscal: RUC, NIT o Tax ID vigente.", "Constitución Legal: Registro Público o Cámara de Comercio (máx. 90 días).", "Identificación: Cédula o pasaporte del Representante Legal.", "Formulario de Accesos: Lista de correos corporativos autorizados.", "Acuerdo de Confidencialidad: NDA firmado por el representante."], track_client: "Cliente B2B", track_investor: "Inversor Estratégico", fund_info: "Información del Fondo / Family Office", fund_name: "Nombre del Fondo o Family Office", terms_investor_text: "1. CONFIDENCIALIDAD E IP: El acceso al Virtual Data Room otorga información altamente confidencial sobre proyecciones financieras y la propiedad intelectual de la plataforma T-FAP. 2. PROPÓSITO: El uso de la información es exclusivo para la evaluación técnica y económica de la ronda de inversión estratégica de Trulink Fiber LLC. 3. REQUISITO EXCLUSIVO: Es obligatorio adjuntar el Acuerdo de Confidencialidad (NDA) debidamente firmado por el representante legal del fondo para la aprobación del acceso corporativo.", doc_investor_title: "Documentación Obligatoria del Inversor:", doc_investor_list: ["Acuerdo de Confidencialidad (NDA) firmado por el representante.", "Identificación oficial o pasaporte del Representante del Fondo."] },
@@ -142,8 +164,6 @@
       document.dir = (lang === 'ar') ? 'rtl' : 'ltr';
     }
 
-    function handleLogin() { document.getElementById("loginError").textContent = t[document.getElementById("languageSelect").value].denied; }
-
     document.getElementById("terms").addEventListener("change", function() { document.getElementById("submitBtn").disabled = !this.checked; });
 
     document.getElementById("registerForm").addEventListener("submit", async (e) => {
@@ -151,28 +171,13 @@
       const btn = document.getElementById("submitBtn");
       btn.disabled = true;
       btn.textContent = "Procesando...";
-      
       const formData = new FormData(e.target);
-
       try {
-        const response = await fetch("/api/submit", { 
-            method: "POST", 
-            body: formData 
-        });
-        
-        if (response.ok) { 
-            alert("¡Solicitud enviada con éxito!"); 
-            e.target.reset(); 
-        } else { 
-            const errorData = await response.json().catch(() => ({}));
-            alert("Error en el envío: " + (errorData.error || "Intente de nuevo")); 
-        }
-      } catch (err) { 
-        alert("Error de conexión: " + err.message); 
-      } finally { 
-        btn.disabled = false; 
-        btn.textContent = "Enviar Solicitud"; 
-      }
+        const response = await fetch("/api/submit", { method: "POST", body: formData });
+        if (response.ok) { alert("¡Solicitud enviada con éxito!"); e.target.reset(); } 
+        else { const errorData = await response.json().catch(() => ({})); alert("Error en el envío: " + (errorData.error || "Intente de nuevo")); }
+      } catch (err) { alert("Error de conexión: " + err.message); } 
+      finally { btn.disabled = false; btn.textContent = "Enviar Solicitud"; }
     });
     
     changeLanguage();
