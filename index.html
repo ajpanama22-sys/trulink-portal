@@ -26,78 +26,93 @@
     .track-selector { display: flex; margin-bottom: 25px; border: 1px solid #d4af37; border-radius: 6px; overflow: hidden; }
     .track-btn { flex: 1; padding: 10px; background: #111; color: #d4af37; text-align: center; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.3s; }
     .track-btn.active { background: #d4af37; color: #000; }
-    
-    /* VISTAS Y SELECTOR */
-    .view { display: none; }
-    .active { display: block; }
-    .module-container { display: flex; justify-content: center; gap: 30px; margin-top: 40px; }
-    .module-card { text-align: center; width: 350px; }
-    .module-card img { width: 100%; border-radius: 10px; border: 1px solid #d4af37; }
+    /* ESTILOS DE CONTROL */
+    .view-hidden { display: none !important; }
+    .portal-options { text-align: center; padding: 50px; background: rgba(20,20,20,0.95); border: 1px solid #d4af37; border-radius: 12px; max-width: 600px; margin: 50px auto; }
+    .btn-portal { background: #d4af37; color: #000; padding: 20px; margin: 10px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 18px; border: none; width: 250px; }
   </style>
 </head>
 <body>
 
   <div class="lang-selector">
     <select id="languageSelect" onchange="changeLanguage()">
-      <option value="es">Español</option><option value="en">English</option><option value="ar">العربية</option>
+      <option value="es">Español</option>
+      <option value="en">English</option>
+      <option value="ar">العربية</option>
     </select>
   </div>
 
-  <img src="public/logopw.png" alt="Logo Trulink" class="logo">
+  <img src="image/logopw.png" alt="Logo Trulink Fiber" class="logo">
   <h1 data-key="main_title">Registro Corporativo B2B - Trulink Fiber</h1>
 
-  <div id="selectorView" class="view active">
-    <h2>Seleccione el área de acceso:</h2>
-    <div class="module-container">
-      <div class="module-card">
-        <img src="public/fabrica.png" alt="Fábrica">
-        <button onclick="showForms()">ACCEDER A FÁBRICA</button>
+  <div id="landingView" class="wrapper">
+    <div class="box">
+      <h2 data-key="login_title">Acceso Portal B2B</h2>
+      <div class="form-group"><label data-key="user_label">Usuario</label><input type="text" id="loginUser"></div>
+      <div class="form-group"><label data-key="pass_label">Contraseña</label><input type="password" id="loginPass"></div>
+      <button onclick="handleLogin()" data-key="login_btn">Acceder</button>
+      <p id="loginError" class="error"></p>
+      <p class="info-note" data-key="login_note">El acceso al portal estará permitido siempre y cuando el cliente haya sometido la información y documentación necesaria para análisis por parte del departamento de operación de Trulink Fiber LLC. De cumplir con los requisitos el cliente recibirá un correo electrónico con su nombre de usuario y un link para la creación de su contraseña segura. De no cumplir con los requisitos igual se le enviará una notificación a su correo declinando su ingreso al portal.</p>
+    </div>
+
+    <div class="box">
+      <div class="track-selector">
+        <div id="btnClient" class="track-btn active" onclick="setTrack('client')" data-key="track_client">Cliente B2B</div>
+        <div id="btnInvestor" class="track-btn" onclick="setTrack('investor')" data-key="track_investor">Inversor Estratégico</div>
       </div>
-      <div class="module-card">
-        <img src="public/terminado.png" alt="Producto Terminado">
-        <button onclick="showForms()">ACCEDER A PRODUCTO</button>
-      </div>
+      <form id="registerForm" enctype="multipart/form-data">
+        <input type="hidden" name="tipo_registro" id="tipo_registro" value="Cliente B2B">
+        <h2 id="sectionCompanyTitle" data-key="company_info">Información de la Empresa</h2>
+        <div class="form-group"><label id="lblCompName" data-key="comp_name">Nombre o Razón Social</label><input type="text" name="empresa" required></div>
+        <div class="form-group" id="groupFiscalId"><label data-key="fiscal_id">Identificación Fiscal (RUC / NIT / EIN)</label><input type="text" name="fiscal_id" id="fiscal_id" required></div>
+        <div class="form-group"><label data-key="website">Sitio Web Corporativo</label><input type="url" name="website" placeholder="https://www.empresa.com" required></div>
+        <div class="form-group" id="groupIndustry"><label data-key="industry">Industria / Sector</label><input type="text" name="industria" id="industria" required></div>
+        <div class="form-group" id="groupBilling"><label data-key="billing">Dirección de Facturación</label><textarea name="direccion" id="direccion" required></textarea></div>
+        <h2 data-key="contact_info">Información del Contacto</h2>
+        <div class="form-group"><label data-key="rep_name">Nombre Completo del Representante</label><input type="text" name="representante" required></div>
+        <div class="form-group"><label data-key="cargo">Cargo en la Empresa</label><input type="text" name="cargo" required></div>
+        <div class="form-group"><label data-key="email_label">Correo Electrónico Corporativo</label><input type="email" name="email" id="email" required></div>
+        <div class="form-group"><label data-key="tel_label">Teléfono Fijo o Móvil de Empresa</label><input type="text" name="telefono" required></div>
+        <div class="form-group"><label data-key="doc_label">Documentación de Soporte</label><input type="file" id="fileInput" name="archivo_adjunto" required><div class="doc-req" id="docReqList"></div></div>
+        <h2 data-key="terms_title">Términos y Condiciones</h2>
+        <div class="terms-box" id="termsText"></div>
+        <div class="form-group"><input type="checkbox" id="terms" required><label for="terms" data-key="terms_checkbox">He leído y acepto los Términos y Condiciones.</label></div>
+        <button type="submit" id="submitBtn" disabled data-key="submit">Enviar Solicitud</button>
+        <p id="error" class="error"></p>
+      </form>
     </div>
   </div>
 
-  <div id="formsView" class="view">
-    <div class="wrapper">
-      <div class="box">
-        <h2 data-key="login_title">Acceso Portal B2B</h2>
-        <div class="form-group"><label data-key="user_label">Usuario</label><input type="text" id="loginUser"></div>
-        <div class="form-group"><label data-key="pass_label">Contraseña</label><input type="password" id="loginPass"></div>
-        <button onclick="handleLogin()" data-key="login_btn">Acceder</button>
-        <p id="loginError" class="error"></p>
-        <p class="info-note" data-key="login_note">...</p>
-      </div>
-
-      <div class="box">
-        <div class="track-selector">
-          <div id="btnClient" class="track-btn active" onclick="setTrack('client')" data-key="track_client">Cliente B2B</div>
-          <div id="btnInvestor" class="track-btn" onclick="setTrack('investor')" data-key="track_investor">Inversor Estratégico</div>
-        </div>
-        <form id="registerForm">
-          <h2 id="sectionCompanyTitle" data-key="company_info">Información de la Empresa</h2>
-          <div class="form-group"><label id="lblCompName" data-key="comp_name">Nombre o Razón Social</label><input type="text" name="empresa" required></div>
-          <div class="form-group" id="groupFiscalId"><label data-key="fiscal_id">Identificación Fiscal</label><input type="text" name="fiscal_id" id="fiscal_id" required></div>
-          <div class="form-group"><label data-key="website">Sitio Web Corporativo</label><input type="url" name="website" required></div>
-          <div class="form-group"><label data-key="email_label">Correo Electrónico Corporativo</label><input type="email" name="email" id="email" required></div>
-          <button type="submit" id="submitBtn" data-key="submit">Enviar Solicitud</button>
-        </form>
-      </div>
-    </div>
+  <div id="selectorView" class="portal-options view-hidden">
+    <h2>¿Qué desea realizar?</h2>
+    <button class="btn-portal" onclick="alert('Accediendo a Fábrica...')">FÁBRICA</button>
+    <button class="btn-portal" onclick="alert('Accediendo a Producto Terminado...')">PRODUCTO TERMINADO</button>
   </div>
 
   <script>
-    // Tu lógica original de Supabase y funciones
-    const supabaseClient = supabase.createClient('URL', 'KEY');
-    
-    function showForms() {
-      document.getElementById('selectorView').classList.remove('active');
-      document.getElementById('formsView').classList.add('active');
+    const supabaseClient = supabase.createClient('https://gnaayfvoncyubofydcqj.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImduYWF5ZnZvbmN5dWJvZnlkY3FqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDA5MzIsImV4cCI6MjA5OTI3NjkzMn0.cdGB_qnIh2Hkg1rJZ_5eX3i0PXJQmb7r6lH0rPJpW2A');
+
+    async function handleLogin() {
+      const email = document.getElementById("loginUser").value;
+      const pass = document.getElementById("loginPass").value;
+      const errorEl = document.getElementById("loginError");
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+        if (error) throw error;
+        document.getElementById("landingView").classList.add("view-hidden");
+        document.getElementById("selectorView").classList.remove("view-hidden");
+      } catch (err) {
+        errorEl.textContent = t[document.getElementById("languageSelect").value].denied;
+      }
     }
+
+    /* MANTENIENDO TU LÓGICA ORIGINAL */
+    let currentTrack = 'client';
+    const t = { /* ... (Tus traducciones originales permanecen intactas) ... */ };
     
-    // ... AQUÍ COPIA Y PEGA TODAS TUS FUNCIONES (setTrack, changeLanguage, etc.) ...
+    // ... AQUÍ COPIAS EL RESTO DE TU SCRIPT ORIGINAL (setTrack, changeLanguage, eventListeners, etc.) ...
+    
+    changeLanguage(); // Ejecución final
   </script>
 </body>
 </html>
