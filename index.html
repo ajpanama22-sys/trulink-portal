@@ -8,33 +8,31 @@
     body { font-family: "Segoe UI", Arial, sans-serif; background: #000000; color: #d4af37; margin: 0; padding: 40px; }
     h1, h2 { text-align: center; color: #d4af37; }
     .logo { display: block; margin: 0 auto 20px auto; max-height: 100px; }
-    
-    /* CONTROL DE VISTAS */
-    .view { display: none; }
-    .active { display: block; }
-    
-    /* VISTA DE SELECCIÓN */
-    .selector-container { display: flex; justify-content: center; gap: 30px; margin-top: 30px; flex-wrap: wrap; }
-    .module-box { background: #111; padding: 20px; border: 1px solid #d4af37; border-radius: 12px; width: 350px; text-align: center; }
-    .module-box img { width: 100%; border-radius: 8px; margin-bottom: 15px; }
-    .btn-action { background: #d4af37; color: #000; padding: 15px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; font-size: 16px; }
-
-    /* FORMULARIO (TU CÓDIGO ORIGINAL) */
     .wrapper { display: flex; gap: 20px; max-width: 1100px; margin: auto; flex-wrap: wrap; }
     .box { flex: 1; min-width: 350px; background: rgba(20,20,20,0.95); padding: 30px; border-radius: 12px; border: 1px solid #d4af37; }
     .lang-selector { position: absolute; top: 20px; right: 20px; }
     .lang-selector select { background: #111; color: #d4af37; border: 1px solid #d4af37; padding: 5px; cursor: pointer; }
     .form-group { margin-bottom: 15px; }
     label { display: block; margin-bottom: 5px; font-weight: bold; }
-    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #d4af37; border-radius: 6px; background: #111111; color: #d4af37; }
-    button { background: #d4af37; color: #000000; padding: 12px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; }
-    .btn-back { background: #444; color: #fff; margin-top: 10px; }
+    input, select, textarea { width: 100%; padding: 12px; border: 1px solid #d4af37; border-radius: 6px; background: #111111; color: #d4af37; font-size: 14px; }
+    input[type="file"]::file-selector-button { background: #d4af37; color: #000; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 10px; }
+    button { background: #d4af37; color: #000000; padding: 12px; border: none; border-radius: 6px; width: 100%; cursor: pointer; font-weight: bold; font-size: 15px; }
+    button:disabled { background: #555; color: #999; cursor: not-allowed; }
     .error { color: red; font-size: 13px; margin-top: 10px; text-align: center; }
-    .info-note { font-size: 12px; color: #aaa; margin-top: 15px; text-align: justify; }
-    .terms-box { height: 150px; overflow-y: scroll; background: #111111; border: 1px solid #d4af37; padding: 10px; font-size: 12px; }
+    .info-note { font-size: 12px; color: #aaa; margin-top: 15px; text-align: justify; line-height: 1.4; }
+    .terms-box { height: 200px; overflow-y: scroll; background: #111111; border: 1px solid #d4af37; padding: 10px; margin-bottom: 10px; font-size: 13px; color: #d4af37; }
+    .doc-req { font-size: 13px; color: #d4af37; margin-top: 10px; padding-left: 20px; }
+    .doc-req ul { list-style-type: disc; margin: 5px 0; }
     .track-selector { display: flex; margin-bottom: 25px; border: 1px solid #d4af37; border-radius: 6px; overflow: hidden; }
-    .track-btn { flex: 1; padding: 10px; background: #111; color: #d4af37; text-align: center; cursor: pointer; font-weight: bold; }
+    .track-btn { flex: 1; padding: 10px; background: #111; color: #d4af37; text-align: center; cursor: pointer; font-weight: bold; font-size: 14px; transition: background 0.3s; }
     .track-btn.active { background: #d4af37; color: #000; }
+    
+    /* VISTAS Y SELECTOR */
+    .view { display: none; }
+    .active { display: block; }
+    .module-container { display: flex; justify-content: center; gap: 30px; margin-top: 40px; }
+    .module-card { text-align: center; width: 350px; }
+    .module-card img { width: 100%; border-radius: 10px; border: 1px solid #d4af37; }
   </style>
 </head>
 <body>
@@ -46,70 +44,60 @@
   </div>
 
   <img src="public/logopw.png" alt="Logo Trulink" class="logo">
-  <h1 id="mainTitle">Registro Corporativo B2B - Trulink Fiber</h1>
+  <h1 data-key="main_title">Registro Corporativo B2B - Trulink Fiber</h1>
 
-  <div id="viewSelector" class="view active">
-    <h2>Bienvenido. Gracias por la confianza depositada en la calidad de nuestros productos.</h2>
-    <div class="selector-container">
-      <div class="module-box">
+  <div id="selectorView" class="view active">
+    <h2>Seleccione el área de acceso:</h2>
+    <div class="module-container">
+      <div class="module-card">
         <img src="public/fabrica.png" alt="Fábrica">
-        <button class="btn-action" onclick="showForm('Fábrica')">ACCEDER A FÁBRICA</button>
+        <button onclick="showForms()">ACCEDER A FÁBRICA</button>
       </div>
-      <div class="module-box">
+      <div class="module-card">
         <img src="public/terminado.png" alt="Producto Terminado">
-        <button class="btn-action" onclick="showForm('Producto Terminado')">ACCEDER A PRODUCTO TERMINADO</button>
+        <button onclick="showForms()">ACCEDER A PRODUCTO</button>
       </div>
     </div>
   </div>
 
-  <div id="viewForm" class="view">
+  <div id="formsView" class="view">
     <div class="wrapper">
       <div class="box">
-        <h2>Acceso Portal B2B</h2>
-        <div class="form-group"><label>Usuario</label><input type="text" id="loginUser"></div>
-        <div class="form-group"><label>Contraseña</label><input type="password" id="loginPass"></div>
-        <button onclick="handleLogin()">ACCEDER</button>
-        <button class="btn-action btn-back" onclick="goBack()">VOLVER ATRÁS</button>
+        <h2 data-key="login_title">Acceso Portal B2B</h2>
+        <div class="form-group"><label data-key="user_label">Usuario</label><input type="text" id="loginUser"></div>
+        <div class="form-group"><label data-key="pass_label">Contraseña</label><input type="password" id="loginPass"></div>
+        <button onclick="handleLogin()" data-key="login_btn">Acceder</button>
         <p id="loginError" class="error"></p>
+        <p class="info-note" data-key="login_note">...</p>
       </div>
 
       <div class="box">
         <div class="track-selector">
-          <div id="btnClient" class="track-btn active" onclick="setTrack('client')">Cliente B2B</div>
-          <div id="btnInvestor" class="track-btn" onclick="setTrack('investor')">Inversor Estratégico</div>
+          <div id="btnClient" class="track-btn active" onclick="setTrack('client')" data-key="track_client">Cliente B2B</div>
+          <div id="btnInvestor" class="track-btn" onclick="setTrack('investor')" data-key="track_investor">Inversor Estratégico</div>
         </div>
         <form id="registerForm">
-          <h2 id="sectionCompanyTitle">Información de la Empresa</h2>
-          <div class="form-group"><label>Nombre o Razón Social</label><input type="text" name="empresa" required></div>
-          <div class="form-group"><label>Identificación Fiscal</label><input type="text" name="fiscal_id" required></div>
-          <button type="submit" id="submitBtn">Enviar Solicitud</button>
+          <h2 id="sectionCompanyTitle" data-key="company_info">Información de la Empresa</h2>
+          <div class="form-group"><label id="lblCompName" data-key="comp_name">Nombre o Razón Social</label><input type="text" name="empresa" required></div>
+          <div class="form-group" id="groupFiscalId"><label data-key="fiscal_id">Identificación Fiscal</label><input type="text" name="fiscal_id" id="fiscal_id" required></div>
+          <div class="form-group"><label data-key="website">Sitio Web Corporativo</label><input type="url" name="website" required></div>
+          <div class="form-group"><label data-key="email_label">Correo Electrónico Corporativo</label><input type="email" name="email" id="email" required></div>
+          <button type="submit" id="submitBtn" data-key="submit">Enviar Solicitud</button>
         </form>
       </div>
     </div>
   </div>
 
   <script>
-    const supabaseClient = supabase.createClient('https://gnaayfvoncyubofydcqj.supabase.co', '...');
-
-    function showForm(modulo) {
-      document.getElementById('viewSelector').classList.remove('active');
-      document.getElementById('viewForm').classList.add('active');
+    // Tu lógica original de Supabase y funciones
+    const supabaseClient = supabase.createClient('URL', 'KEY');
+    
+    function showForms() {
+      document.getElementById('selectorView').classList.remove('active');
+      document.getElementById('formsView').classList.add('active');
     }
-
-    function goBack() {
-      document.getElementById('viewForm').classList.remove('active');
-      document.getElementById('viewSelector').classList.add('active');
-    }
-
-    async function handleLogin() {
-      const email = document.getElementById("loginUser").value;
-      const pass = document.getElementById("loginPass").value;
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
-      if (error) document.getElementById("loginError").textContent = "Error de acceso";
-      else alert("Login exitoso");
-    }
-
-    // Aquí irían tus funciones setTrack, changeLanguage y el eventListener del submit.
+    
+    // ... AQUÍ COPIA Y PEGA TODAS TUS FUNCIONES (setTrack, changeLanguage, etc.) ...
   </script>
 </body>
 </html>
