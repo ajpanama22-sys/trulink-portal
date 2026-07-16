@@ -1,3 +1,7 @@
+// ===============================================
+// Portal de Inversores Estratégicos
+// ===============================================
+
 export default function InversoresPage() {
   return (
     <div style={{ padding: "2rem", backgroundColor: "#000", color: "#FFD700" }}>
