@@ -41,7 +41,10 @@ export default function InversoresPage() {
   return (
     <div style={{ padding: "2rem", backgroundColor: "#000", color: "#FFD700" }}>
       <h1>Portal de Inversores Estratégicos</h1>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
+      >
         <input type="text" name="nombre_fondo" placeholder="Nombre del Fondo / Family Office" onChange={handleChange} required />
         <input type="url" name="website" placeholder="Sitio Web Corporativo" onChange={handleChange} required />
         <input type="text" name="representante" placeholder="Nombre del Representante" onChange={handleChange} required />
