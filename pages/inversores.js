@@ -22,7 +22,6 @@ export default function InversoresPage() {
     identificacion: null,
   });
 
-  // Manejo de cambios en inputs y archivos
   const handleChange = (e) => {
     const { name, value, files } = e.target;
     setFormData((prev) => ({
@@ -31,90 +30,33 @@ export default function InversoresPage() {
     }));
   };
 
-  // Envío del formulario
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     // 🚀 Aquí luego conectamos con Supabase:
-    // 1. Validar campos
-    // 2. Subir NDA e identificación a Supabase Storage
-    // 3. Insertar registro en tabla solicitudes_acceso
+    // 1. Subir NDA e identificación a Supabase Storage
+    // 2. Insertar registro en tabla solicitudes_acceso
     alert("Solicitud enviada. Nuestro equipo revisará tu NDA.");
   };
 
   return (
     <div style={{ padding: "2rem", backgroundColor: "#000", color: "#FFD700" }}>
       <h1>Portal de Inversores Estratégicos</h1>
-      <form
-        onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
-      >
-        <input
-          type="text"
-          name="nombre_fondo"
-          placeholder="Nombre del Fondo / Family Office"
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="url"
-          name="website"
-          placeholder="Sitio Web Corporativo"
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="text"
-          name="representante"
-          placeholder="Nombre del Representante"
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="text"
-          name="cargo"
-          placeholder="Cargo"
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="email"
-          name="correo"
-          placeholder="Correo Corporativo"
-          onChange={handleChange}
-          required
-        />
-        <input
-          type="tel"
-          name="telefono"
-          placeholder="Teléfono"
-          onChange={handleChange}
-          required
-        />
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+        <input type="text" name="nombre_fondo" placeholder="Nombre del Fondo / Family Office" onChange={handleChange} required />
+        <input type="url" name="website" placeholder="Sitio Web Corporativo" onChange={handleChange} required />
+        <input type="text" name="representante" placeholder="Nombre del Representante" onChange={handleChange} required />
+        <input type="text" name="cargo" placeholder="Cargo" onChange={handleChange} required />
+        <input type="email" name="correo" placeholder="Correo Corporativo" onChange={handleChange} required />
+        <input type="tel" name="telefono" placeholder="Teléfono" onChange={handleChange} required />
         <label>
           Subir NDA (PDF):
-          <input
-            type="file"
-            name="nda"
-            accept="application/pdf"
-            onChange={handleChange}
-            required
-          />
+          <input type="file" name="nda" accept="application/pdf" onChange={handleChange} required />
         </label>
         <label>
           Subir Identificación Oficial (PDF):
-          <input
-            type="file"
-            name="identificacion"
-            accept="application/pdf"
-            onChange={handleChange}
-            required
-          />
+          <input type="file" name="identificacion" accept="application/pdf" onChange={handleChange} required />
         </label>
-        <button
-          type="submit"
-          style={{ backgroundColor: "#FFD700", color: "#000", padding: "0.5rem" }}
-        >
+        <button type="submit" style={{ backgroundColor: "#FFD700", color: "#000", padding: "0.5rem" }}>
           Enviar Solicitud
         </button>
       </form>
