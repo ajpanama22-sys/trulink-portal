@@ -1,7 +1,7 @@
 export default function QuoteGeneratorPage() {
   return (
-    <div style={{ padding: "2rem", fontFamily: "Arial, sans-serif" }}>
-      <h1 style={{ color: "#b8860b" }}>Quote Generator</h1>
+    <div style={{ padding: "2rem", backgroundColor: "#000", color: "#FFD700" }}>
+      <h1>Quote Generator</h1>
       <p>Bienvenido al portal B2B de Trulink Fiber.</p>
     </div>
   );
