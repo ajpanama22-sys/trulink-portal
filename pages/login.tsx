@@ -3,7 +3,7 @@ import { useState } from "react";
 export default function Login() {
   const [mensaje, setMensaje] = useState("");
 
-  const handleLogin = (e) => {
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // Aquí más adelante puedes conectar con tu backend o base de datos.
     // Ejemplo simple:

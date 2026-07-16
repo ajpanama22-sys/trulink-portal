@@ -1,7 +1,29 @@
 import { useState } from "react";
 
+// Definimos el tipo de los productos del carrito
+type ItemCarrito = {
+  nombre: string;
+  cantidad: number;
+};
+
 export default function Productos() {
-  const [carrito, setCarrito] = useState([]);
+  // Estado del carrito tipado
+  const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+
+  // ➕ Agregar producto al carrito
+  const agregarAlCarrito = (nombre: string, cantidad: number) => {
+    setCarrito([...carrito, { nombre, cantidad }]);
+  };
+
+  // ❌ Eliminar producto por índice
+  const eliminarDelCarrito = (index: number) => {
+    setCarrito(carrito.filter((_, i) => i !== index));
+  };
+
+  // 🗑 Vaciar todo el carrito
+  const vaciarCarrito = () => {
+    setCarrito([]);
+  };
 
   return (
     <div className="productos-container">
@@ -13,17 +35,17 @@ export default function Productos() {
 
       {/* Opciones principales */}
       <div className="opciones">
-        <div className="opcion-card" onClick={() => alert("Ir a Accesorios")}>
+        <div className="opcion-card" onClick={() => agregarAlCarrito("Accesorio NAP", 1)}>
           <img src="/images/nap.png" alt="Accesorios" />
           <h2>Accesorios</h2>
         </div>
 
-        <div className="opcion-card" onClick={() => alert("Ir a Cables")}>
+        <div className="opcion-card" onClick={() => agregarAlCarrito("Cable Patch", 2)}>
           <img src="/images/patch.png" alt="Cables" />
           <h2>Cables</h2>
         </div>
 
-        <div className="opcion-card" onClick={() => alert("Ir a Herrajes")}>
+        <div className="opcion-card" onClick={() => agregarAlCarrito("Herraje D-Type", 3)}>
           <img src="/images/dtype.png" alt="Herrajes" />
           <h2>Herrajes</h2>
         </div>
@@ -35,13 +57,21 @@ export default function Productos() {
         {carrito.length === 0 ? (
           <p>No has agregado productos aún.</p>
         ) : (
-          <ul>
-            {carrito.map((item, index) => (
-              <li key={index}>
-                {item.nombre} – Cantidad: {item.cantidad}
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul>
+              {carrito.map((item, index) => (
+                <li key={index}>
+                  {item.nombre} – Cantidad: {item.cantidad}
+                  <button onClick={() => eliminarDelCarrito(index)} style={{ marginLeft: "10px" }}>
+                    Eliminar
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button onClick={vaciarCarrito} style={{ marginTop: "10px" }}>
+              Vaciar carrito
+            </button>
+          </>
         )}
       </div>
 

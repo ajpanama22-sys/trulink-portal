@@ -1,13 +1,8 @@
+import type { AppProps } from 'next/app'
 import '../styles/globals.css'
 
-function MyApp({ Component, pageProps }) {
-  return (
-    <>
-      <Component {...pageProps} />
-      {/* Sello Premium */}
-      <img src="/images/premium.png" alt="Premium Seal" className="premium-seal" />
-    </>
-  )
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
 }
 
 export default MyApp

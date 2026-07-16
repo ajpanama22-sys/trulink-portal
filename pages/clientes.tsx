@@ -8,6 +8,7 @@
 // Cotización en pantalla con total y nota "PRECIOS EXW PANAMÁ"
 // Guardar cotización → PDF con imágenes y especificaciones
 // ===============================================
+
 export default function Clientes() {
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px" }}>
@@ -63,7 +64,7 @@ export default function Clientes() {
           {/* Términos estrictos */}
           <h3 style={{ color: "#DAA520" }}>Términos y Condiciones</h3>
           <textarea 
-            rows="6" 
+            rows={6} 
             style={{ 
               width: "100%", 
               marginBottom: "10px", 

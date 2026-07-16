@@ -2,86 +2,100 @@ import { useState } from "react";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
+// Definimos el tipo de cada ítem de cotización
+type Item = {
+  tipo: string;
+  hilos: number;
+  longitudKm: number;
+  cantidad: number;
+  precioMetro: number;
+  precioCarrete: number;
+};
+
 export default function Fabricacion() {
-  const [cotizacion, setCotizacion] = useState([]);
+  // useState tipado con Item[]
+  const [cotizacion, setCotizacion] = useState<Item[]>([]);
 
-  const precios = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
+  const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
 
-  const agregarItem = (tipo, hilos, longitudKm, cantidad) => {
+  // Tipamos los parámetros y el retorno
+  const agregarItem = (tipo: string, hilos: number, longitudKm: number, cantidad: number): void => {
     const precioMetro = precios[tipo];
     const precioCarrete = precioMetro * (longitudKm * 1000);
-    const nuevoItem = { tipo, hilos, longitudKm, cantidad, precioMetro, precioCarrete };
+    const nuevoItem: Item = { tipo, hilos, longitudKm, cantidad, precioMetro, precioCarrete };
     setCotizacion([...cotizacion, nuevoItem]);
   };
 
-  const eliminarItem = (index) => {
+  // Tipamos el índice como number
+  const eliminarItem = (index: number): void => {
     const nuevaCotizacion = cotizacion.filter((_, i) => i !== index);
     setCotizacion(nuevaCotizacion);
   };
 
-  const granTotal = cotizacion.reduce((acc, item) => acc + (item.precioCarrete * item.cantidad), 0);
+  // Tipamos el acumulador y el item
+  const granTotal = cotizacion.reduce((acc: number, item: Item) => acc + (item.precioCarrete * item.cantidad), 0);
 
-  const generarPDF = () => {
-  const doc = new jsPDF();
+  const generarPDF = (): void => {
+    const doc = new jsPDF();
 
-  // Logo arriba
-  doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+    // Logo arriba
+    doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
 
-  // Número de cotización, fecha y hora (lado derecho)
-  doc.setFontSize(10);
-  doc.text(`Cotización Nº: QT-${Math.floor(Math.random() * 100000)}`, 150, 20);
-  doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
-  doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
+    // Número de cotización, fecha y hora (lado derecho)
+    doc.setFontSize(10);
+    doc.text(`Cotización Nº: QT-${Math.floor(Math.random() * 100000)}`, 150, 20);
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
+    doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
 
-  // Encabezado empresa debajo del logo
-  doc.setFontSize(16);
-  doc.text("TRULINK FIBER LLC", 14, 40);
-  doc.setFontSize(10);
-  doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
-  doc.text("Tel: +507 6640 3720", 14, 52);
-  doc.text("www.trulinkfiber.com", 14, 58);
+    // Encabezado empresa debajo del logo
+    doc.setFontSize(16);
+    doc.text("TRULINK FIBER LLC", 14, 40);
+    doc.setFontSize(10);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
+    doc.text("Tel: +507 6640 3720", 14, 52);
+    doc.text("www.trulinkfiber.com", 14, 58);
 
-  // Tabla de cotización
-  const rows = cotizacion.map(item => [
-    item.tipo,
-    item.hilos,
-    item.cantidad,
-    `$${item.precioMetro.toFixed(2)}`,
-    `$${item.precioCarrete.toFixed(2)}`,
-    `$${(item.precioCarrete * item.cantidad).toFixed(2)}`
-  ]);
+    // Tabla de cotización
+    const rows = cotizacion.map(item => [
+      item.tipo,
+      item.hilos.toString(),
+      item.cantidad.toString(),
+      `$${item.precioMetro.toFixed(2)}`,
+      `$${item.precioCarrete.toFixed(2)}`,
+      `$${(item.precioCarrete * item.cantidad).toFixed(2)}`
+    ]);
 
-  doc.autoTable({
-    head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
-    body: rows,
-    startY: 70,
-    styles: { fontSize: 10, halign: "center" },
-    headStyles: { fillColor: [218, 165, 32] }
-  });
+    (doc as any).autoTable({
+  head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
+  body: rows,
+  startY: 70,
+  styles: { fontSize: 10, halign: "center" },
+  headStyles: { fillColor: [218, 165, 32] }
+});
 
-  // Total cotización (lado derecho)
-  doc.setFontSize(12);
-  doc.text(`TOTAL : $${granTotal.toFixed(2)}`, 150, doc.lastAutoTable.finalY + 10);
+    // Total cotización (lado derecho)
+    doc.setFontSize(12);
+    doc.text(`TOTAL : $${granTotal.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
 
-  // Precios y nota
-  doc.setFontSize(10);
-  doc.text("Precios: EXW PANAMÁ", 14, doc.lastAutoTable.finalY + 20);
-  doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, doc.lastAutoTable.finalY + 26);
+    // Precios y nota
+    doc.setFontSize(10);
+    doc.text("Precios: EXW PANAMÁ", 14, (doc as any).lastAutoTable.finalY + 20);
+    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, (doc as any).lastAutoTable.finalY + 26);
 
-  // Métodos de pago centrados
-  doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, doc.lastAutoTable.finalY + 40, { align: "center" });
+    // Métodos de pago centrados
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, (doc as any).lastAutoTable.finalY + 40, { align: "center" });
 
-  // Firma con proporción correcta
-  const firma = "/images/firmaco.png";
-  const props = doc.getImageProperties(firma);
-  const firmaWidth = 40; // ancho en mm
-  const firmaHeight = (props.height * firmaWidth) / props.width;
+    // Firma con proporción correcta
+    const firma = "/images/firmaco.png";
+    const props = doc.getImageProperties(firma);
+    const firmaWidth = 40; // ancho en mm
+    const firmaHeight = (props.height * firmaWidth) / props.width;
 
-  doc.addImage(firma, "PNG", 150, doc.lastAutoTable.finalY + 55, firmaWidth, firmaHeight);
+    doc.addImage(firma, "PNG", 150, (doc as any).lastAutoTable.finalY + 55, firmaWidth, firmaHeight);
 
-  // Guardar PDF
-  doc.save("Cotizacion_TrulinkFiber.pdf");
-};
+    // Guardar PDF
+    doc.save("Cotizacion_TrulinkFiber.pdf");
+  };
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px" }}>
@@ -93,30 +107,42 @@ export default function Fabricacion() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "30px", marginTop: "40px" }}>
         
         {/* Tarjeta ASU */}
-<div style={{ backgroundColor: "#111", borderRadius: "12px", padding: "20px", textAlign: "center", border: "1px solid #DAA520" }}>
-  <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "100%", borderRadius: "8px" }} />
-  <h3 style={{ color: "#DAA520", marginTop: "15px" }}>ASU</h3>
-  
-  <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: "10px", marginTop: "10px" }}>
-    <label style={{ color: "#fff" }}>Hilos:</label>
-    <select id="asuHilos"><option value="6">6</option><option value="12">12</option><option value="24">24</option><option value="48">48</option></select>
-    
-    <label style={{ color: "#fff" }}>Carrete:</label>
-    <select id="asuCarrete"><option value="3">3 km</option></select>
-    
-    <label style={{ color: "#fff" }}>Cantidad:</label>
-    <input id="asuCantidad" type="number" min="1" defaultValue="1" style={{ width: "50px", textAlign: "center" }} onInput={(e) => { if (e.target.value.length > 3) e.target.value = e.target.value.slice(0, 3); }} />
-  </div>
+        <div style={{ backgroundColor: "#111", borderRadius: "12px", padding: "20px", textAlign: "center", border: "1px solid #DAA520" }}>
+          <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "100%", borderRadius: "8px" }} />
+          <h3 style={{ color: "#DAA520", marginTop: "15px" }}>ASU</h3>
+          
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: "10px", marginTop: "10px" }}>
+            <label style={{ color: "#fff" }}>Hilos:</label>
+            <select id="asuHilos"><option value="6">6</option><option value="12">12</option><option value="24">24</option><option value="48">48</option></select>
+            
+            <label style={{ color: "#fff" }}>Carrete:</label>
+            <select id="asuCarrete"><option value="3">3 km</option></select>
+            
+            <label style={{ color: "#fff" }}>Cantidad:</label>
+            <input
+  id="asuCantidad"
+  type="number"
+  min="1"
+  defaultValue="1"
+  style={{ width: "50px", textAlign: "center" }}
+  onInput={(e: React.FormEvent<HTMLInputElement>) => {
+    const input = e.currentTarget; // aquí TS sabe que es un <input>
+    if (input.value.length > 3) {
+      input.value = input.value.slice(0, 3);
+    }
+  }}
+/>
+          </div>
 
-  <button onClick={() => {
-    const hilos = parseInt(document.getElementById("asuHilos").value);
-    const carrete = parseInt(document.getElementById("asuCarrete").value);
-    const cantidad = parseInt(document.getElementById("asuCantidad").value);
-    agregarItem("ASU", hilos, carrete, cantidad);
-  }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "6px 12px", width: "120px", borderRadius: "8px", cursor: "pointer", display: "block", margin: "15px auto 0" }}>
-    Agregar
-  </button>
-</div>
+          <button onClick={() => {
+            const hilos = parseInt((document.getElementById("asuHilos") as HTMLSelectElement).value);
+            const carrete = parseInt((document.getElementById("asuCarrete") as HTMLSelectElement).value);
+            const cantidad = parseInt((document.getElementById("asuCantidad") as HTMLInputElement).value);
+            agregarItem("ASU", hilos, carrete, cantidad);
+          }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "6px 12px", width: "120px", borderRadius: "8px", cursor: "pointer", display: "block", margin: "15px auto 0" }}>
+            Agregar
+          </button>
+        </div>
 
         {/* Tarjeta ADSS */}
 <div style={{ backgroundColor: "#111", borderRadius: "12px", padding: "20px", textAlign: "center", border: "1px solid #DAA520" }}>
@@ -131,14 +157,27 @@ export default function Fabricacion() {
     <select id="adssCarrete"><option value="3">3 km</option></select>
     
     <label style={{ color: "#fff" }}>Cantidad:</label>
-    <input id="adssCantidad" type="number" min="1" defaultValue="1" style={{ width: "50px", textAlign: "center" }} onInput={(e) => { if (e.target.value.length > 3) e.target.value = e.target.value.slice(0, 3); }} />
+    <input
+  id="adssCantidad"
+  type="number"
+  min="1"
+  defaultValue="1"
+  style={{ width: "50px", textAlign: "center" }}
+  onInput={(e: React.FormEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    if (input.value.length > 3) {
+      input.value = input.value.slice(0, 3);
+    }
+  }}
+/>
+
   </div>
 
   <button onClick={() => {
-    const hilos = parseInt(document.getElementById("adssHilos").value);
-    const carrete = parseInt(document.getElementById("adssCarrete").value);
-    const cantidad = parseInt(document.getElementById("adssCantidad").value);
-    agregarItem("ADSS", hilos, carrete, cantidad);
+    const hilos = parseInt((document.getElementById("adssHilos") as HTMLSelectElement)?.value || "0");
+const carrete = parseInt((document.getElementById("adssCarrete") as HTMLSelectElement)?.value || "0");
+const cantidad = parseInt((document.getElementById("adssCantidad") as HTMLInputElement)?.value || "0");
+agregarItem("ADSS", hilos, carrete, cantidad);
   }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "6px 12px", width: "120px", borderRadius: "8px", cursor: "pointer", display: "block", margin: "15px auto 0" }}>
     Agregar
   </button>
@@ -159,21 +198,23 @@ export default function Fabricacion() {
     <select id="fttxCarrete"><option value="1">1 km</option><option value="2">2 km</option></select>
     
     <label style={{ color: "#fff" }}>Cantidad:</label>
-    <input 
-      id="fttxCantidad" 
-      type="number" 
-      min="1" 
-      defaultValue="1" 
-      style={{ width: "50px", textAlign: "center" }} // Tamaño pequeño y centrado
-      onInput={(e) => { if (e.target.value.length > 3) e.target.value = e.target.value.slice(0, 3); }} 
-    />
+    <input
+  defaultValue="1" 
+  style={{ width: "50px", textAlign: "center" }}
+  onInput={(e: React.FormEvent<HTMLInputElement>) => {
+    const input = e.currentTarget; // TS sabe que es un <input>
+    if (input.value.length > 3) {
+      input.value = input.value.slice(0, 3);
+    }
+  }}
+/>
   </div>
 
   <button onClick={() => {
-    const hilos = parseInt(document.getElementById("fttxHilos").value);
-    const carrete = parseInt(document.getElementById("fttxCarrete").value);
-    const cantidad = parseInt(document.getElementById("fttxCantidad").value);
-    agregarItem("FTTX", hilos, carrete, cantidad);
+    const hilos = parseInt((document.getElementById("fttxHilos") as HTMLInputElement)?.value || "0");
+const carrete = parseInt((document.getElementById("fttxCarrete") as HTMLInputElement)?.value || "0");
+const cantidad = parseInt((document.getElementById("fttxCantidad") as HTMLInputElement)?.value || "0");
+agregarItem("FTTX", hilos, carrete, cantidad);
   }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "6px 12px", width: "120px", borderRadius: "8px", cursor: "pointer", display: "block", margin: "15px auto 0" }}>
     Agregar
   </button>
