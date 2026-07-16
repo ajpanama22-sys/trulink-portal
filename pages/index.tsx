@@ -22,26 +22,39 @@ export default function Home() {
       {/* Botones principales */}
       <div style={{ display: "flex", justifyContent: "center", gap: "30px" }}>
         <a href="/clientes">
-          <button style={{ 
-            backgroundColor: "#DAA520", 
-            color: "#000", 
-            padding: "15px 30px", 
-            border: "none", 
-            fontWeight: "bold", 
-            borderRadius: "12px",   // 👈 esquinas biseladas
+          <button style={{
+            backgroundColor: "#DAA520",
+            color: "#000",
+            padding: "15px 30px",
+            border: "none",
+            fontWeight: "bold",
+            borderRadius: "12px",
             cursor: "pointer"
           }}>
-            Registro Cliente / Inversor
+            Registro Cliente B2B
+          </button>
+        </a>
+        <a href="/inversores">
+          <button style={{
+            backgroundColor: "#DAA520",
+            color: "#000",
+            padding: "15px 30px",
+            border: "none",
+            fontWeight: "bold",
+            borderRadius: "12px",
+            cursor: "pointer"
+          }}>
+            Registro Inversor Estratégico
           </button>
         </a>
         <a href="/login">
-          <button style={{ 
-            backgroundColor: "#DAA520", 
-            color: "#000", 
-            padding: "15px 30px", 
-            border: "none", 
-            fontWeight: "bold", 
-            borderRadius: "12px",   // 👈 esquinas biseladas
+          <button style={{
+            backgroundColor: "#DAA520",
+            color: "#000",
+            padding: "15px 30px",
+            border: "none",
+            fontWeight: "bold",
+            borderRadius: "12px",
             cursor: "pointer"
           }}>
             Acceso con User + Pass
