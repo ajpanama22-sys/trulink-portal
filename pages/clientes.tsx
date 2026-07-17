@@ -1,18 +1,51 @@
-// ===============================================
-// Portal de Clientes
-// Opción Fábrica:
-//   - ASU: carretes 3km con 6/12/24/48 hilos
-//   - ADSS: carretes 3km con 72/96/144 hilos
-//   - FTTX: carretes 1km/3km con 1/2 hilos
-// Carrito de compras dinámico (agregar/eliminar artículos)
-// Cotización en pantalla con total y nota "PRECIOS EXW PANAMÁ"
-// Guardar cotización → PDF con imágenes y especificaciones
-// ===============================================
-
 export default function Clientes() {
+  // Objeto de estilos reutilizable para los campos
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    marginBottom: "15px",
+    padding: "12px",
+    backgroundColor: "#111",
+    color: "#DAA520",
+    border: "2px solid #DAA520",
+    borderRadius: "15px",
+    outline: "none",
+    transition: "all 0.3s ease",
+  };
+
+  const focusEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.target.style.boxShadow = "0 0 15px #DAA520";
+    e.target.style.borderColor = "#FFF";
+  };
+
+  const blurEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    e.target.style.boxShadow = "none";
+    e.target.style.borderColor = "#DAA520";
+  };
+
   return (
-    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px" }}>
-      <div style={{ display: "flex", gap: "40px" }}>
+    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
+      
+      {/* Estilos dinámicos para el haz de luz y efectos */}
+      <style>{`
+        @keyframes pulse-border {
+          0% { box-shadow: 0 0 10px #DAA520; }
+          50% { box-shadow: 0 0 30px #DAA520; }
+          100% { box-shadow: 0 0 10px #DAA520; }
+        }
+        .container-fiber {
+          animation: pulse-border 2s infinite;
+        }
+      `}</style>
+
+      {/* Contenedor Principal con efecto de Borde "Fibra" */}
+      <div className="container-fiber" style={{ 
+        display: "flex", 
+        gap: "40px", 
+        padding: "40px", 
+        border: "2px solid #DAA520", 
+        borderRadius: "30px",
+        backgroundColor: "#050505"
+      }}>
         
         {/* Logo a la izquierda */}
         <div style={{ flex: 1, textAlign: "center" }}>
@@ -21,39 +54,34 @@ export default function Clientes() {
         </div>
 
         {/* Formulario corporativo */}
-        <div style={{ flex: 2, border: "1px solid #DAA520", padding: "20px" }}>
-          <h2 style={{ color: "#DAA520" }}>REGISTRO CORPORATIVO</h2>
+        <div style={{ flex: 2 }}>
+          <h2 style={{ color: "#DAA520", marginBottom: "20px" }}>REGISTRO CORPORATIVO</h2>
 
-          {/* Selector Cliente/Inversor */}
           <div style={{ marginBottom: "20px" }}>
-            <label>
-              <input type="radio" name="tipo" value="cliente" /> Cliente B2B
+            <label style={{ display: "block", marginBottom: "5px" }}>
+              <input type="radio" name="tipo" value="cliente" style={{ marginRight: "10px" }} /> Cliente B2B
             </label>
-            <br />
-            <label>
-              <input type="radio" name="tipo" value="inversor" /> Inversor Estratégico
+            <label style={{ display: "block" }}>
+              <input type="radio" name="tipo" value="inversor" style={{ marginRight: "10px" }} /> Inversor Estratégico
             </label>
           </div>
 
-          {/* Información de la Empresa */}
           <h3 style={{ color: "#DAA520" }}>Información de la Empresa</h3>
-          <input type="text" placeholder="Nombre o Razón Social" style={{ width: "100%", marginBottom: "10px" }} />
-          <input type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={{ width: "100%", marginBottom: "10px" }} />
-          <input type="url" placeholder="Sitio Web Corporativo" style={{ width: "100%", marginBottom: "10px" }} />
-          <input type="text" placeholder="Industria / Sector" style={{ width: "100%", marginBottom: "10px" }} />
-          <input type="text" placeholder="Dirección de Facturación" style={{ width: "100%", marginBottom: "20px" }} />
+          <input type="text" placeholder="Nombre o Razón Social" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
+          <input type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
+          <input type="url" placeholder="Sitio Web Corporativo" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
+          <input type="text" placeholder="Industria / Sector" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
+          <input type="text" placeholder="Dirección de Facturación" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
 
-          {/* Información del Contacto */}
           <h3 style={{ color: "#DAA520" }}>Información del Contacto</h3>
-          <input type="text" placeholder="Nombre Completo del Representante" style={{ width: "100%", marginBottom: "10px" }} />
-          <input type="text" placeholder="Cargo en la Empresa" style={{ width: "100%", marginBottom: "10px" }} />
-          <input type="email" placeholder="Correo Electrónico Corporativo" style={{ width: "100%", marginBottom: "10px" }} />
-          <input type="tel" placeholder="Teléfono Fijo o Móvil de Empresa" style={{ width: "100%", marginBottom: "20px" }} />
+          <input type="text" placeholder="Nombre Completo del Representante" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
+          <input type="text" placeholder="Cargo en la Empresa" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
+          <input type="email" placeholder="Correo Electrónico Corporativo" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
+          <input type="tel" placeholder="Teléfono Fijo o Móvil de Empresa" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} />
 
-          {/* Documentación */}
           <h3 style={{ color: "#DAA520" }}>Documentación de Soporte</h3>
-          <input type="file" style={{ marginBottom: "10px" }} />
-          <ul style={{ fontSize: "12px", color: "#DAA520" }}>
+          <input type="file" style={{ ...inputStyle, padding: "10px" }} />
+          <ul style={{ fontSize: "12px", color: "#DAA520", marginBottom: "20px" }}>
             <li>Registro Fiscal vigente</li>
             <li>Certificación Legal (últimos 90 días)</li>
             <li>Identificación Oficial o Pasaporte</li>
@@ -61,17 +89,12 @@ export default function Clientes() {
             <li>Acuerdo de Confidencialidad NDA firmado</li>
           </ul>
 
-          {/* Términos estrictos */}
           <h3 style={{ color: "#DAA520" }}>Términos y Condiciones</h3>
           <textarea 
             rows={6} 
-            style={{ 
-              width: "100%", 
-              marginBottom: "10px", 
-              backgroundColor: "#111", 
-              color: "#DAA520", 
-              border: "1px solid #DAA520" 
-            }}
+            style={inputStyle} 
+            onFocus={focusEffect} 
+            onBlur={blurEffect}
           >
             El acceso al Portal B2B de Trulink Fiber LLC está sujeto a estricta verificación corporativa. 
             El solicitante se compromete a entregar documentación válida y vigente. 
@@ -79,26 +102,32 @@ export default function Clientes() {
             Toda la información enviada será tratada bajo confidencialidad y protección de datos. 
             El acceso aprobado implica aceptación plena de estas condiciones.
           </textarea>
+          
           <div style={{ marginBottom: "20px" }}>
-            <input type="checkbox" /> He leído y acepto los Términos y Condiciones
+            <input type="checkbox" style={{ marginRight: "10px" }} /> 
+            He leído y acepto los Términos y Condiciones
           </div>
 
-          {/* Botón biselado */}
           <button style={{ 
             backgroundColor: "#DAA520", 
             color: "#000", 
-            padding: "12px 24px", 
+            padding: "15px 30px", 
             border: "none", 
             fontWeight: "bold", 
-            borderRadius: "12px",   // 👈 esquinas biseladas
-            cursor: "pointer"
-          }}>
+            borderRadius: "15px", 
+            cursor: "pointer",
+            width: "100%",
+            fontSize: "16px",
+            transition: "transform 0.2s"
+          }}
+          onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
+          onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+          >
             Enviar Solicitud
           </button>
         </div>
       </div>
 
-      {/* Footer institucional */}
       <p style={{ marginTop: "40px", fontSize: "12px", color: "#DAA520", textAlign: "center" }}>
         © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
       </p>

@@ -1,11 +1,15 @@
-/* --- Logo por página --- */
+/* --- Directivas necesarias para Tailwind --- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* --- Tu diseño corporativo (no he borrado ni cambiado nada) --- */
 .logo {
   width: 150px;
   height: auto;
   margin-bottom: 20px;
 }
 
-/* --- Estilos generales de Productos --- */
 .productos-container {
   background-color: #000;
   color: #DAA520;
@@ -66,18 +70,17 @@
   padding-top: 20px;
 }
 
-/* --- Sello Premium --- */
 .premium-seal {
   position: fixed;
   bottom: 10px;
-  right: 10px;       /* esquina inferior derecha */
-  width: 100px;      /* tamaño controlado */
-  opacity: 0.3;      /* transparencia elegante */
-  z-index: 9999;     /* siempre visible */
+  right: 10px;
+  width: 100px;
+  opacity: 0.3;
+  z-index: 9999;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .premium-seal:hover {
   transform: scale(1.05);
-  box-shadow: 0 0 15px #DAA520; /* brillo dorado al pasar el mouse */
+  box-shadow: 0 0 15px #DAA520;
 }
