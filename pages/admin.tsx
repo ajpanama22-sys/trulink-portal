@@ -1,8 +1,22 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
 
 export default function Admin() {
   const [seccion, setSeccion] = useState("VALIDAR");
   const [db, setDb] = useState("cabledb");
+  const [solicitudes, setSolicitudes] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (seccion === "VALIDAR") {
+      fetchRegistros();
+    }
+  }, [seccion]);
+
+  const fetchRegistros = async () => {
+    const { data, error } = await supabase.from("solicitudes_acceso").select("*");
+    if (error) console.error("Error al cargar registros:", error);
+    else setSolicitudes(data || []);
+  };
 
   return (
     <div style={{ 
@@ -60,10 +74,16 @@ export default function Admin() {
           {seccion === "VALIDAR" ? (
             <div>
               <h3>Registros Pendientes (Bucket: registros)</h3>
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid #333" }}>
-                <span>Usuario: Juan Pérez | Doc: RUC_001.pdf</span>
-                <button style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 15px", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>Activar</button>
-              </div>
+              {solicitudes.length > 0 ? (
+                solicitudes.map((sol) => (
+                  <div key={sol.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid #333" }}>
+                    <span>Usuario: {sol.email} | Doc: {sol.nombre_archivo}</span>
+                    <button style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 15px", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>Activar</button>
+                  </div>
+                ))
+              ) : (
+                <p>No hay registros pendientes.</p>
+              )}
             </div>
           ) : seccion === "COTIZACIONES" ? (
             <div>
@@ -72,8 +92,8 @@ export default function Admin() {
             </div>
           ) : (
             <div>
-              <h3>Seleccione base de datos para CRUD:</h3>
-              <select value={db} onChange={(e) => setDb(e.target.value)} style={{ backgroundColor: "#000", color: "#DAA520", padding: "10px", borderRadius: "10px", border: "1px solid #DAA520", marginBottom: "20px" }}>
+              <h3>Gestión de Productos</h3>
+              <select value={db} onChange={(e) => setDb(e.target.value)} style={{ backgroundColor: "#000", color: "#DAA520", padding: "10px", borderRadius: "10px", border: "1px solid #DAA520", marginBottom: "20px", width: "100%" }}>
                 <option value="cabledb">Cable DB</option>
                 <option value="herrajesdb">Herrajes DB</option>
                 <option value="accesoriosdb">Accesorios DB</option>
