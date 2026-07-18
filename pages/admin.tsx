@@ -13,9 +13,18 @@ export default function Admin() {
   }, [seccion]);
 
   const fetchRegistros = async () => {
+    // Verificación de seguridad para evitar errores de tipo en tiempo de compilación
+    if (!supabase) {
+      console.error("Supabase no ha sido inicializado");
+      return;
+    }
+
     const { data, error } = await supabase.from("solicitudes_acceso").select("*");
-    if (error) console.error("Error al cargar registros:", error);
-    else setSolicitudes(data || []);
+    if (error) {
+      console.error("Error al cargar registros:", error);
+    } else {
+      setSolicitudes(data || []);
+    }
   };
 
   return (
