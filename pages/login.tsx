@@ -1,8 +1,5 @@
 import { useState } from "react";
-import { createClient } from '@supabase/supabase-js';
-
-// Inicializa el cliente de Supabase
-const supabase = createClient('TU_SUPABASE_URL', 'TU_SUPABASE_ANON_KEY');
+import { supabase } from "./supabaseClient"; 
 
 export default function Login() {
   const [email, setEmail] = useState("");
