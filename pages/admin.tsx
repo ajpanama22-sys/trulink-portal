@@ -29,10 +29,8 @@ export default function Admin() {
   };
 
   const abrirArchivo = (ruta: string | null | undefined, bucket: string) => {
-    console.log("Intentando abrir ruta:", ruta, "en bucket:", bucket);
-
-    if (!ruta || ruta.trim() === "") {
-      alert("Error: El registro en la base de datos no tiene una ruta de archivo válida.");
+    if (!ruta || ruta === "EMPTY" || ruta.trim() === "") {
+      alert("No hay archivo registrado en la base de datos.");
       return;
     }
 
@@ -46,11 +44,9 @@ export default function Admin() {
       return;
     }
 
-    // Limpieza: tomamos el nombre del archivo y codificamos para URLs
-    const nombreArchivo = ruta.split('/').pop();
-    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivo || "");
-    
-    console.log("URL generada:", data.publicUrl);
+    // Codificación para manejar espacios y caracteres especiales en nombres de archivos
+    const nombreArchivoCodificado = encodeURIComponent(ruta.split('/').pop() || "");
+    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivoCodificado);
     
     if (data && data.publicUrl) {
       window.open(data.publicUrl, "_blank");
@@ -103,7 +99,7 @@ export default function Admin() {
         )) : <p>No hay datos disponibles en esta sección.</p>}
         
         {seccion === "PRODUCTOS" && (
-          <div>
+          <div style={{ marginTop: "20px" }}>
             <select onChange={(e) => setDb(e.target.value)} style={{ background: "#000", color: "#DAA520", padding: "10px", width: "100%" }}>
               <option value="cabledb">Cable DB</option>
               <option value="herrajesdb">Herrajes DB</option>
