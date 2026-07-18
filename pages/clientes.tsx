@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabaseClient";
 import { uploadAndLinkDocument } from "../services/documentService";
+
+// Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
+export const dynamic = 'force-dynamic';
 
 export default function Clientes() {
   const [formData, setFormData] = useState({
@@ -34,6 +37,12 @@ export default function Clientes() {
     e.preventDefault();
     if (!selectedFile) {
       alert("Por favor, adjunta un documento de soporte.");
+      return;
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      alert("Error: Configuración de cliente no disponible.");
       return;
     }
 
