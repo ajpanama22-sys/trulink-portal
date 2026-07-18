@@ -1,15 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Obtenemos los valores de forma segura. 
-// Si no están, devolvemos un string vacío para que el build no explote.
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.url';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+// Si esto falla, es porque Vercel no tiene las variables en su configuración
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Inicializamos el cliente. Si las variables son falsas (placeholder), 
-// el cliente se creará pero fallará en tiempo de ejecución (que es lo que queremos para el build).
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error("ERROR CRÍTICO: Las variables de entorno de Supabase no están definidas en Vercel.");
+}
+
 export const getSupabase = () => {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Supabase no está configurado. Revisa tus variables en Vercel.");
+  }
   return createClient(supabaseUrl, supabaseAnonKey);
 };
 
-// Exportamos una instancia para uso general
-export const supabase = getSupabase();
+export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
