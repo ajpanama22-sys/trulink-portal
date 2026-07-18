@@ -8,16 +8,17 @@ const supabase = createClient(
 );
 
 type Producto = {
-  id: number;
-  sku: string;
-  descripcion: string;
-  especificaciones: string;
-  inventario: number;
-  image_url: string;
+  SKU: string;
+  Ítem: string;
+  Familia: string;
+  Descripción: string;
+  Especificaciones: string;
   precio: number;
+  estado_inventario: string;
 };
 
 type ItemCarrito = {
+  SKU: string;
   nombre: string;
   cantidad: number;
   precio: number;
@@ -29,8 +30,8 @@ export default function Productos() {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
 
   // ➕ Agregar producto al carrito
-  const agregarAlCarrito = (nombre: string, cantidad: number, precio: number) => {
-    setCarrito([...carrito, { nombre, cantidad, precio }]);
+  const agregarAlCarrito = (sku: string, nombre: string, cantidad: number, precio: number) => {
+    setCarrito([...carrito, { SKU: sku, nombre: nombre, cantidad: cantidad, precio: precio }]);
   };
 
   // ❌ Eliminar producto por índice
@@ -125,12 +126,13 @@ export default function Productos() {
           </button>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
             {productos.map((prod) => (
-              <div key={prod.id} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
-                <img src={prod.image_url} alt={prod.sku} style={{ width: "100%", borderRadius: "10px" }} />
-                <h3 style={{ color: "#DAA520" }}>{prod.sku}</h3>
-                <p style={{ fontSize: "0.8rem" }}>{prod.descripcion}</p>
-                <p style={{ color: prod.inventario > 0 ? "#0f0" : "#f00" }}>{prod.inventario > 0 ? "Disponible" : "Backorder"}</p>
-                <button onClick={() => agregarAlCarrito(prod.sku, 1, prod.precio)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer" }}>
+              <div key={prod.SKU} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
+                <h3 style={{ color: "#DAA520" }}>{prod.SKU}</h3>
+                <p style={{ fontSize: "1rem", fontWeight: "bold" }}>{prod.Ítem}</p>
+                <p style={{ fontSize: "0.8rem" }}>{prod.Descripción}</p>
+                <p style={{ fontSize: "0.7rem", color: "#aaa" }}>{prod.Especificaciones}</p>
+                <p style={{ color: prod.estado_inventario === 'disponible' ? "#0f0" : "#f00" }}>{prod.estado_inventario}</p>
+                <button onClick={() => agregarAlCarrito(prod.SKU, prod.Ítem, 1, prod.precio)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer" }}>
                   Agregar
                 </button>
               </div>
@@ -161,7 +163,7 @@ export default function Productos() {
                   padding: "10px",
                   borderBottom: "1px solid #333"
                 }}>
-                  {item.nombre} – Cantidad: {item.cantidad}
+                  {item.SKU} - {item.nombre} – Cantidad: {item.cantidad}
                   <button onClick={() => eliminarDelCarrito(index)} style={{
                     backgroundColor: "#b30000", color: "#fff", border: "none", borderRadius: "5px", padding: "5px 10px", cursor: "pointer"
                   }}>
