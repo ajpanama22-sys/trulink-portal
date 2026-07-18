@@ -1,7 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 
-// No usamos || '' ni validaciones bloqueantes en el nivel superior
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// Usamos una función para obtener el cliente, no una constante directa
+export const getSupabase = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  if (!supabaseUrl || !supabaseAnonKey) {
+    // Solo mostramos error si intentamos usarlo, no durante el build
+    console.error("Supabase no está configurado");
+    return null;
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+};
+
+export const supabase = getSupabase();
