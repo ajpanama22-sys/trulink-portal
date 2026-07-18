@@ -102,7 +102,7 @@ export default function Productos() {
         }}>
           {[
             { name: "Accesorios", img: "/images/nap.png", tabla: "accesoriosdb" },
-            { name: "Cables", img: "/images/patch.png", tabla: "cablesdb" },
+            { name: "Cables", img: "/images/patch.png", tabla: "cabledb" },
             { name: "Herrajes", img: "/images/dtype.png", tabla: "herrajesdb" }
           ].map((cat, idx) => (
             <div key={idx} className="opcion-card container-fiber" onClick={() => seleccionarCategoria(cat.tabla)} style={{
