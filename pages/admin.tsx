@@ -10,9 +10,7 @@ export default function Admin() {
   const [dataList, setDataList] = useState<any[]>([]);
   const [paso, setPaso] = useState<number>(0); 
 
-  useEffect(() => {
-    cargarDatos(seccion);
-  }, [seccion]);
+  useEffect(() => { cargarDatos(seccion); }, [seccion]);
 
   const cargarDatos = async (seccionActual: string) => {
     if (!supabase) return;
@@ -64,24 +62,21 @@ export default function Admin() {
 
       <div style={{ flex: 1, padding: "40px" }}>
         {seccion === "VALIDAR" && dataList.map((item: any) => (
-          <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px" }}>
-            <div><strong>RAZON SOCIAL:</strong> {item.razon_social} | <strong>EMAIL:</strong> {item.email}</div>
-            
-            {/* INTENTO DE ENLACE - Ajusta 'documentos_url' al nombre real de tu columna */}
-            <a href={item.documentos_url || item.url || "#"} target="_blank" rel="noreferrer" 
-               style={{...btnAccion, background: "blue", color: "#fff", margin: "10px 0"}}>
-               VER DOCUMENTOS
-            </a>
-
-            <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR')} style={{...btnAccion, background: "green"}}>ACTIVAR</button>
-            <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR')} style={{...btnAccion, background: "red"}}>RECHAZAR</button>
+          <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ fontWeight: "bold" }}>RAZON SOCIAL: <span style={{color: "#DAA520"}}>{item.razon_social}</span> | EMAIL: <span style={{color: "#DAA520"}}>{item.email}</span></div>
+              <a href={item.documentos_url || item.url || "#"} target="_blank" rel="noreferrer" style={{...btnAccion, background: "blue", color: "#fff", width: "fit-content"}}>VER DOCUMENTOS</a>
+            </div>
+            <div style={{ display: "flex", gap: "10px" }}>
+              <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR')} style={{...btnAccion, background: "green", color: "#000"}}>ACTIVAR</button>
+              <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR')} style={{...btnAccion, background: "red", color: "#000"}}>RECHAZAR</button>
+            </div>
           </div>
         ))}
 
         {seccion === "COTIZACIONES" && dataList.map((item: any) => (
           <div key={item.id} style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px", borderRadius: "10px" }}>
             <p><strong>ID:</strong> {item.id} | <strong>USUARIO:</strong> {item.user_email || item.user_id}</p>
-            <p><strong>TOTAL:</strong> ${item.total}</p>
             <table style={{ width: "100%", color: "#fff", borderCollapse: "collapse", marginTop: "10px" }}>
               <thead><tr style={{ borderBottom: "1px solid #DAA520" }}><th>Prod</th><th>Km</th><th>Hilos</th><th>Cant</th><th>Total</th></tr></thead>
               <tbody>
@@ -137,6 +132,6 @@ export default function Admin() {
 }
 
 const btnNav = { padding: "15px", borderRadius: "30px", border: "1px solid #DAA520", background: "transparent", color: "#DAA520", width: "100%", marginBottom: "10px", cursor: "pointer", fontWeight: "bold", textAlign: "left" as const };
-const btnAccion = { padding: "10px 20px", cursor: "pointer", border: "none", borderRadius: "5px", fontWeight: "bold", marginRight: "10px", display: "inline-block", textDecoration: "none", color: "#000" };
+const btnAccion = { padding: "10px 20px", cursor: "pointer", border: "none", borderRadius: "5px", fontWeight: "bold", marginRight: "10px", display: "inline-block", textDecoration: "none" };
 const selectEstilo = { background: "#000", color: "#DAA520", padding: "10px", border: "1px solid #DAA520", width: "100%", marginBottom: "10px" };
 const inputEstilo = { background: "#000", color: "#DAA520", padding: "10px", border: "1px solid #DAA520", width: "100%", marginBottom: "10px" };
