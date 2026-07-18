@@ -66,7 +66,13 @@ export default function Admin() {
         {seccion === "VALIDAR" && dataList.map((item: any) => (
           <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px" }}>
             <div><strong>RAZON SOCIAL:</strong> {item.razon_social} | <strong>EMAIL:</strong> {item.email}</div>
-            <a href={item.documentos_url} target="_blank" rel="noreferrer" style={btnAccion}>VER DOCUMENTOS EN BUCKET</a>
+            
+            {/* INTENTO DE ENLACE - Ajusta 'documentos_url' al nombre real de tu columna */}
+            <a href={item.documentos_url || item.url || "#"} target="_blank" rel="noreferrer" 
+               style={{...btnAccion, background: "blue", color: "#fff", margin: "10px 0"}}>
+               VER DOCUMENTOS
+            </a>
+
             <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR')} style={{...btnAccion, background: "green"}}>ACTIVAR</button>
             <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR')} style={{...btnAccion, background: "red"}}>RECHAZAR</button>
           </div>
