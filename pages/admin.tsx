@@ -14,27 +14,30 @@ export default function Admin() {
     if (!supabase) return;
 
     if (seccion === "VALIDAR") {
-      const { data, error } = await supabase.from("solicitudes_acceso").select("*").order("created_at", { ascending: false });
-      if (error) console.error("Error cargando solicitudes:", error);
+      const { data } = await supabase.from("solicitudes_acceso").select("*").order("created_at", { ascending: false });
       setDataList(data || []);
     } else if (seccion === "COTIZACIONES") {
-      const { data, error } = await supabase.from("quote").select("*").order("created_at", { ascending: false });
-      if (error) console.error("Error cargando cotizaciones:", error);
+      const { data } = await supabase.from("quote").select("*").order("created_at", { ascending: false });
       setDataList(data || []);
     }
   };
 
-  const manejarArchivo = async (url: string, bucket: string) => {
+  const manejarArchivo = async (nombreArchivo: string, bucket: string) => {
     if (!supabase) return;
-    if (url.startsWith("http")) {
-      window.open(url, "_blank");
+    
+    // Si el nombre del archivo ya es una URL completa, abrirla
+    if (nombreArchivo.startsWith("http")) {
+      window.open(nombreArchivo, "_blank");
+      return;
+    }
+
+    // Generar URL pública para el archivo específico dentro del bucket
+    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivo);
+    
+    if (data && data.publicUrl) {
+      window.open(data.publicUrl, "_blank");
     } else {
-      const { data } = supabase.storage.from(bucket).getPublicUrl(url);
-      if (data && data.publicUrl) {
-        window.open(data.publicUrl, "_blank");
-      } else {
-        alert("No se pudo obtener el archivo.");
-      }
+      alert("Error: El archivo no fue encontrado en el bucket " + bucket);
     }
   };
 
@@ -46,7 +49,7 @@ export default function Admin() {
   };
 
   const ejecutarAccionProducto = (accion: string) => {
-    alert(`Ejecutando acción: ${accion} sobre la base de datos: ${db}`);
+    alert(`Acción: ${accion} en ${db}`);
   };
 
   return (
@@ -82,7 +85,7 @@ export default function Admin() {
                   {seccion === "VALIDAR" && <button onClick={() => activarUsuario(item.id)} style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 10px", cursor: "pointer" }}>ACTIVAR</button>}
                 </div>
               </div>
-            )) : <p>No se encontraron datos en esta sección.</p>
+            )) : <p>No hay datos disponibles.</p>
           ) : (
             <div>
               <select value={db} onChange={(e) => setDb(e.target.value)} style={{ background: "#000", color: "#DAA520", width: "100%", padding: "10px", border: "1px solid #DAA520" }}>
