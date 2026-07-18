@@ -3,29 +3,25 @@ import { useRouter } from "next/router";
 export default function Selector() {
   const router = useRouter();
 
-  // Mantenemos tu estilo base de botones para consistencia
+  // Definición de estilos base para mantener el estándar institucional
   const cardStyle: React.CSSProperties = {
-    padding: "20px",
+    padding: "40px",
     backgroundColor: "#000",
     color: "#DAA520",
     border: "2px solid #DAA520",
     borderRadius: "20px",
     cursor: "pointer",
+    transition: "all 0.4s ease",
+    boxShadow: "0 0 15px #DAA520",
+    width: "350px",
+    textAlign: "center",
     fontWeight: "bold",
-    fontSize: "18px",
-    transition: "all 0.3s ease",
-    boxShadow: "0 0 10px #DAA520",
+    fontSize: "22px",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
-    width: "300px"
-  };
-
-  const imageStyle: React.CSSProperties = {
-    width: "100%",
-    borderRadius: "15px",
-    marginBottom: "15px",
-    transition: "transform 0.3s ease"
+    justifyContent: "center",
+    margin: "0 20px"
   };
 
   return (
@@ -38,46 +34,77 @@ export default function Selector() {
       alignItems: "center", 
       justifyContent: "center", 
       textAlign: "center",
+      padding: "40px",
       fontFamily: "Arial, sans-serif"
     }}>
+      
+      {/* Estilos globales y efectos de interacción */}
       <style jsx>{`
-        .card-option:hover {
-          transform: scale(1.05);
-          box-shadow: 0 0 30px #DAA520;
-          background-color: #111;
+        html, body {
+          margin: 0;
+          padding: 0;
+          background-color: #000 !important;
         }
-        .card-option:hover img {
-          transform: scale(1.05);
+        .card-option {
+          transition: transform 0.4s ease, box-shadow 0.4s ease, background-color 0.4s ease;
+        }
+        .card-option:hover {
+          transform: scale(1.08);
+          box-shadow: 0 0 40px #DAA520;
+          background-color: #111;
         }
       `}</style>
 
-      <h1 style={{ color: "#DAA520", marginBottom: "60px" }}>Seleccione la unidad operativa</h1>
+      {/* Título Institucional */}
+      <h1 style={{ 
+        color: "#DAA520", 
+        marginBottom: "80px", 
+        fontSize: "3rem",
+        textTransform: "uppercase",
+        letterSpacing: "2px"
+      }}>
+        Unidad Operativa
+      </h1>
       
-      <div style={{ display: "flex", gap: "50px", flexWrap: "wrap", justifyContent: "center" }}>
+      {/* Contenedor de Selección */}
+      <div style={{ 
+        display: "flex", 
+        gap: "60px", 
+        flexWrap: "wrap", 
+        justifyContent: "center",
+        width: "100%" 
+      }}>
         
-        {/* Opción Fábrica */}
+        {/* Nivel Administrativo */}
         <div 
-          className="card-option" 
-          onClick={() => router.push("/fabricacion")}
+          className="card-option"
+          onClick={() => router.push("/admin")}
           style={cardStyle}
         >
-          <img src="/images/fabrica.png" alt="Fabricación" style={imageStyle} />
-          <span>Fabricación de Cables</span>
+          Unidad Administrativa
         </div>
 
-        {/* Opción Productos */}
+        {/* Nivel Usuario / Cliente */}
         <div 
-          className="card-option" 
-          onClick={() => router.push("/productos")}
+          className="card-option"
+          onClick={() => router.push("/portal-cliente")}
           style={cardStyle}
         >
-          <img src="/images/terminado.png" alt="Productos" style={imageStyle} />
-          <span>Productos Terminados</span>
+          Unidad de Usuario / Cliente
         </div>
       </div>
 
-      <p style={{ marginTop: "80px", fontSize: "12px", color: "#DAA520" }}>
-        © 2026 Marca registrada – Trulink Fiber LLC
+      {/* Footer Institucional */}
+      <p style={{ 
+        marginTop: "120px", 
+        fontSize: "12px", 
+        color: "#DAA520",
+        borderTop: "1px solid #DAA520",
+        paddingTop: "20px",
+        width: "100%",
+        maxWidth: "600px"
+      }}>
+        © 2026 Marca registrada – Trulink Fiber LLC – Acceso exclusivo Superuser
       </p>
     </div>
   );
