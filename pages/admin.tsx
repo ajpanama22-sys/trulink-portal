@@ -10,7 +10,6 @@ export default function Admin() {
   const [dataList, setDataList] = useState<any[]>([]);
   const [paso, setPaso] = useState<number>(0); 
 
-  // Ajuste: El useEffect solo reacciona al cambio de 'seccion' para evitar parpadeos
   useEffect(() => {
     cargarDatos(seccion);
   }, [seccion]);
@@ -18,7 +17,6 @@ export default function Admin() {
   const cargarDatos = async (seccionActual: string) => {
     if (!supabase) return;
     
-    // Limpiamos la lista al cambiar de sección para evitar el flash de datos antiguos
     setDataList([]);
 
     let query;
@@ -41,6 +39,8 @@ export default function Admin() {
   };
 
   const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR') => {
+    if (!supabase) return;
+
     if (tipo === 'ACTIVAR') {
       const { error } = await supabase.from("solicitudes_acceso").update({ status: 'active' }).eq('id', id);
       if (!error) alert("Usuario activado.");
@@ -53,14 +53,23 @@ export default function Admin() {
 
   const ejecutarAccion = async () => {
     if (!supabase) return;
+    
     let query;
     if (accion === "CREAR") query = supabase.from(db).insert([datosForm]);
     else if (accion === "EDITAR") query = supabase.from(db).update(datosForm).eq("sku", sku);
     else if (accion === "ELIMINAR") query = supabase.from(db).delete().eq("sku", sku);
     
-    const { error } = await query!;
-    if (error) alert("Error: " + error.message);
-    else { alert("Operación exitosa"); setAccion(""); setPaso(0); cargarDatos(seccion); }
+    if (query) {
+      const { error } = await query;
+      if (error) {
+        alert("Error: " + error.message);
+      } else {
+        alert("Operación exitosa");
+        setAccion("");
+        setPaso(0);
+        cargarDatos(seccion);
+      }
+    }
   };
 
   return (
