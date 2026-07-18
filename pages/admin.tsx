@@ -16,7 +16,6 @@ export default function Admin() {
 
   const cargarDatos = async (seccionActual: string) => {
     if (!supabase) return;
-    
     setDataList([]);
 
     let query;
@@ -30,30 +29,23 @@ export default function Admin() {
 
     if (query) {
       const { data, error } = await query;
-      if (error) {
-        console.error("Error al cargar datos:", error);
-      } else {
-        setDataList(data || []);
-      }
+      if (error) console.error("Error:", error);
+      else setDataList(data || []);
     }
   };
 
   const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR') => {
     if (!supabase) return;
-
     if (tipo === 'ACTIVAR') {
-      const { error } = await supabase.from("solicitudes_acceso").update({ status: 'active' }).eq('id', id);
-      if (!error) alert("Usuario activado.");
+      await supabase.from("solicitudes_acceso").update({ status: 'active' }).eq('id', id);
     } else {
-      const { error } = await supabase.from("solicitudes_acceso").delete().eq('id', id);
-      if (!error) alert("Solicitud rechazada.");
+      await supabase.from("solicitudes_acceso").delete().eq('id', id);
     }
     cargarDatos(seccion);
   };
 
   const ejecutarAccion = async () => {
     if (!supabase) return;
-    
     let query;
     if (accion === "CREAR") query = supabase.from(db).insert([datosForm]);
     else if (accion === "EDITAR") query = supabase.from(db).update(datosForm).eq("sku", sku);
@@ -61,14 +53,8 @@ export default function Admin() {
     
     if (query) {
       const { error } = await query;
-      if (error) {
-        alert("Error: " + error.message);
-      } else {
-        alert("Operación exitosa");
-        setAccion("");
-        setPaso(0);
-        cargarDatos(seccion);
-      }
+      if (error) alert("Error: " + error.message);
+      else { alert("Operación exitosa"); setAccion(""); setPaso(0); cargarDatos(seccion); }
     }
   };
 
@@ -85,15 +71,25 @@ export default function Admin() {
         {seccion === "VALIDAR" && dataList.map((item: any) => (
           <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px" }}>
             <div><strong>RAZON SOCIAL:</strong> {item.razon_social} | <strong>EMAIL:</strong> {item.email}</div>
+            {/* Botón de documentos original */}
+            <a href={item.documentos_url} target="_blank" rel="noreferrer" style={{ display: "block", color: "#DAA520", margin: "10px 0", textDecoration: "underline" }}>
+              VER DOCUMENTOS (BUCKET)
+            </a>
             <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR')} style={{...btnAccion, background: "green"}}>ACTIVAR</button>
             <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR')} style={{...btnAccion, background: "red"}}>RECHAZAR</button>
           </div>
         ))}
 
         {seccion === "COTIZACIONES" && dataList.map((item: any) => (
-          <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px" }}>
-            <div><strong>ID:</strong> {item.id} | <strong>USUARIO:</strong> {item.user_id}</div>
-            <pre style={{ color: "#fff" }}>{JSON.stringify(item, null, 2)}</pre>
+          <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px", marginBottom: "15px" }}>
+            <div style={{ marginBottom: "5px" }}><strong>ID COTIZACIÓN:</strong> {item.id}</div>
+            <div style={{ marginBottom: "5px" }}><strong>USUARIO/EMAIL:</strong> {item.user_email || item.user_id}</div>
+            <div style={{ marginBottom: "5px" }}><strong>FECHA:</strong> {new Date(item.created_at).toLocaleString()}</div>
+            <div style={{ marginBottom: "10px" }}><strong>TOTAL:</strong> ${item.total}</div>
+            <details style={{ cursor: "pointer", color: "#fff" }}>
+              <summary>Ver detalle de productos</summary>
+              <pre style={{ background: "#111", padding: "10px", marginTop: "10px" }}>{JSON.stringify(item.items, null, 2)}</pre>
+            </details>
           </div>
         ))}
 
