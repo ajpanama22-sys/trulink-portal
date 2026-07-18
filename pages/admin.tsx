@@ -2,6 +2,7 @@ import { useState } from "react";
 
 export default function Admin() {
   const [seccion, setSeccion] = useState("VALIDAR");
+  const [db, setDb] = useState("cabledb");
 
   return (
     <div style={{ 
@@ -36,12 +37,17 @@ export default function Admin() {
         <button onClick={() => setSeccion("COTIZACIONES")} style={{ backgroundColor: seccion === "COTIZACIONES" ? "#DAA520" : "transparent", color: seccion === "COTIZACIONES" ? "#000" : "#DAA520", border: "1px solid #DAA520", padding: "10px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" }}>
           COTIZACIONES
         </button>
+
+        <button onClick={() => setSeccion("PRODUCTOS")} style={{ backgroundColor: seccion === "PRODUCTOS" ? "#DAA520" : "transparent", color: seccion === "PRODUCTOS" ? "#000" : "#DAA520", border: "1px solid #DAA520", padding: "10px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" }}>
+          PRODUCTOS
+        </button>
       </div>
 
       {/* Contenido Principal */}
       <div style={{ flex: 1, padding: "40px" }}>
         <h1 style={{ textAlign: "center", borderBottom: "2px solid #DAA520", paddingBottom: "20px" }}>
-          {seccion === "VALIDAR" ? "Validación de Solicitudes" : "Seguimiento de Cotizaciones"}
+          {seccion === "VALIDAR" ? "Validación de Solicitudes" : 
+           seccion === "COTIZACIONES" ? "Seguimiento de Cotizaciones" : "Gestión de Productos"}
         </h1>
 
         <div className="container-fiber" style={{ 
@@ -53,17 +59,32 @@ export default function Admin() {
         }}>
           {seccion === "VALIDAR" ? (
             <div>
-              <h3>Registros Pendientes</h3>
+              <h3>Registros Pendientes (Bucket: registros)</h3>
               <div style={{ display: "flex", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid #333" }}>
                 <span>Usuario: Juan Pérez | Doc: RUC_001.pdf</span>
                 <button style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 15px", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>Activar</button>
               </div>
             </div>
+          ) : seccion === "COTIZACIONES" ? (
+            <div>
+              <h3>PDFs Generados (Bucket: documentos)</h3>
+              <p>Historial de cotizaciones emitidas por Trulink Fiber LLC.</p>
+            </div>
           ) : (
             <div>
-              <h3>PDFs Generados</h3>
-              <p>Historial de cotizaciones emitidas por Trulink Fiber LLC.</p>
-              {/* Aquí iría la lista de PDFs */}
+              <h3>Seleccione base de datos para CRUD:</h3>
+              <select value={db} onChange={(e) => setDb(e.target.value)} style={{ backgroundColor: "#000", color: "#DAA520", padding: "10px", borderRadius: "10px", border: "1px solid #DAA520", marginBottom: "20px" }}>
+                <option value="cabledb">Cable DB</option>
+                <option value="herrajesdb">Herrajes DB</option>
+                <option value="accesoriosdb">Accesorios DB</option>
+              </select>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button style={{ backgroundColor: "#00FF00", border: "none", padding: "10px", borderRadius: "5px", cursor: "pointer" }}>CREAR</button>
+                <button style={{ backgroundColor: "#FFFF00", border: "none", padding: "10px", borderRadius: "5px", cursor: "pointer" }}>EDITAR</button>
+                <button style={{ backgroundColor: "#FF0000", border: "none", padding: "10px", borderRadius: "5px", cursor: "pointer" }}>ELIMINAR</button>
+                <button style={{ backgroundColor: "#FFA500", border: "none", padding: "10px", borderRadius: "5px", cursor: "pointer" }}>INACTIVAR</button>
+              </div>
+              <p style={{ marginTop: "20px" }}>Gestionando: <strong>{db}</strong></p>
             </div>
           )}
         </div>
