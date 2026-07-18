@@ -15,6 +15,7 @@ type Producto = {
   Especificaciones: string;
   precio: number;
   estado_inventario: string;
+  image_url?: string;
 };
 
 type ItemCarrito = {
@@ -127,6 +128,11 @@ export default function Productos() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
             {productos.map((prod) => (
               <div key={prod.SKU} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
+                {prod.image_url ? (
+                  <img src={prod.image_url} alt={prod.Ítem} style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px" }} />
+                ) : (
+                  <div style={{ width: "100%", height: "150px", backgroundColor: "#111", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "10px", marginBottom: "10px", color: "#333" }}>Sin imagen</div>
+                )}
                 <h3 style={{ color: "#DAA520" }}>{prod.SKU}</h3>
                 <p style={{ fontSize: "1rem", fontWeight: "bold" }}>{prod.Ítem}</p>
                 <p style={{ fontSize: "0.8rem" }}>{prod.Descripción}</p>
