@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function Admin() {
-  const [seccion, setSeccion] = useState<string>("VALIDAR");
-  const [db, setDb] = useState<string>("cabledb");
+  const [seccion, setSeccion] = useState("VALIDAR");
+  const [db, setDb] = useState("cabledb");
   const [dataList, setDataList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -12,101 +12,74 @@ export default function Admin() {
 
   const cargarDatos = async () => {
     if (!supabase) return;
+    let tabla = "";
+    if (seccion === "VALIDAR") tabla = "inscripcionesdb";
+    else if (seccion === "COTIZACIONES") tabla = "cotizacionesdb";
+    else if (seccion === "PRODUCTOS") tabla = db;
 
-    if (seccion === "VALIDAR") {
-      const { data, error } = await supabase
-        .from("solicitudes_acceso")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error) setDataList(data || []);
-    } else if (seccion === "COTIZACIONES") {
-      const { data, error } = await supabase
-        .from("quote")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error) setDataList(data || []);
+    if (tabla) {
+      const { data } = await supabase.from(tabla).select("*");
+      setDataList(data || []);
     }
   };
 
-  const abrirArchivo = (ruta: string | null | undefined, bucket: string) => {
-    if (!ruta || ruta === "EMPTY" || ruta.trim() === "") {
-      alert("No hay archivo registrado en la base de datos.");
-      return;
-    }
-
-    if (ruta.startsWith("http")) {
-      window.open(ruta, "_blank");
-      return;
-    }
-
-    if (!supabase) {
-      alert("Error: Supabase no inicializado.");
-      return;
-    }
-
-    // Codificación para manejar espacios y caracteres especiales en nombres de archivos
-    const nombreArchivoCodificado = encodeURIComponent(ruta.split('/').pop() || "");
-    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivoCodificado);
-    
-    if (data && data.publicUrl) {
-      window.open(data.publicUrl, "_blank");
-    } else {
-      alert("Error al obtener la URL del archivo.");
-    }
+  const ejecutarAccion = (accion: string, item: any = null) => {
+    alert(`Acción: ${accion} ejecutada en ${seccion === "PRODUCTOS" ? db : "tabla"} sobre ${item ? item.id : "nuevo registro"}`);
   };
 
-  const activarUsuario = async (id: string) => {
-    if (!supabase) return;
-    const { error } = await supabase.from("solicitudes_acceso").update({ estado: 'APROBADO' }).eq('id', id);
-    if (!error) cargarDatos();
-    else alert("Error al activar usuario");
-  };
-
-  const ejecutarAccionProducto = (accion: string) => {
-    alert(`Acción: ${accion} en base de datos: ${db}`);
+  const btnStyle = {
+    padding: "15px", cursor: "pointer", background: "transparent", color: "#DAA520", 
+    border: "1px solid #DAA520", fontWeight: "bold", transition: "0.3s"
   };
 
   return (
-    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "20px", fontFamily: "sans-serif" }}>
-      <style jsx global>{`html, body { background-color: #000 !important; color: #DAA520; margin: 0; }`}</style>
+    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
+      <style>{`
+        .menu-btn:hover, .menu-btn.active { box-shadow: 0 0 15px #DAA520; background: #1a1a1a !important; }
+      `}</style>
 
-      <div style={{ display: "flex", gap: "20px", marginBottom: "30px" }}>
+      {/* Menú Lateral */}
+      <div style={{ width: "300px", borderRight: "2px solid #DAA520", display: "flex", flexDirection: "column", gap: "10px", padding: "20px" }}>
+        <h2 style={{ textAlign: "center" }}>PANEL ADMIN</h2>
         {["VALIDAR", "COTIZACIONES", "PRODUCTOS"].map((s) => (
-          <button key={s} onClick={() => setSeccion(s)} style={{ backgroundColor: seccion === s ? "#DAA520" : "transparent", color: seccion === s ? "#000" : "#DAA520", border: "1px solid #DAA520", padding: "10px 20px", cursor: "pointer", fontWeight: "bold" }}>
-            {s}
+          <button key={s} className={`menu-btn ${seccion === s ? "active" : ""}`} onClick={() => setSeccion(s)} style={btnStyle}>
+            {s === "VALIDAR" ? "VALIDAR INSCRIPCIONES" : s === "COTIZACIONES" ? "COTIZACIONES GENERADAS" : s}
           </button>
         ))}
       </div>
 
-      <div style={{ border: "1px solid #DAA520", padding: "20px", borderRadius: "10px" }}>
-        {dataList.length > 0 ? dataList.map((item) => (
-          <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid #333" }}>
-            <span>{item.razon_social || item.email || `ID: ${item.id}`}</span>
-            <div>
-              <button 
-                onClick={() => abrirArchivo(seccion === "VALIDAR" ? item.documento_url : item.pdf_url, seccion === "VALIDAR" ? "registros" : "documentos")} 
-                style={{ marginRight: "10px", cursor: "pointer", background: "transparent", color: "#DAA520", border: "1px solid #DAA520", padding: "5px 10px" }}
-              >
-                REVISAR
-              </button>
-              {seccion === "VALIDAR" && (
-                <button onClick={() => activarUsuario(item.id)} style={{ cursor: "pointer", backgroundColor: "#DAA520", border: "none", padding: "5px 10px", color: "#000", fontWeight: "bold" }}>
-                  ACTIVAR
-                </button>
-              )}
-            </div>
-          </div>
-        )) : <p>No hay datos disponibles en esta sección.</p>}
-        
+      {/* Contenido Principal */}
+      <div style={{ flex: 1, padding: "40px" }}>
         {seccion === "PRODUCTOS" && (
-          <div style={{ marginTop: "20px" }}>
-            <select onChange={(e) => setDb(e.target.value)} style={{ background: "#000", color: "#DAA520", padding: "10px", width: "100%" }}>
-              <option value="cabledb">Cable DB</option>
-              <option value="herrajesdb">Herrajes DB</option>
-              <option value="accesoriosdb">Accesorios DB</option>
-            </select>
-          </div>
+          <select onChange={(e) => setDb(e.target.value)} style={{ background: "#000", color: "#DAA520", padding: "10px", marginBottom: "20px" }}>
+            <option value="cabledb">Cable DB</option>
+            <option value="herrajesdb">Herrajes DB</option>
+            <option value="accesoriosdb">Accesorios DB</option>
+          </select>
         )}
+
+        <table style={{ width: "100%", borderCollapse: "collapse", color: "#DAA520" }}>
+          <thead><tr style={{ borderBottom: "1px solid #DAA520" }}><th>ID</th><th>Datos</th><th>Acciones</th></tr></thead>
+          <tbody>
+            {dataList.map((item) => (
+              <tr key={item.id} style={{ borderBottom: "1px solid #333" }}>
+                <td>{item.id}</td>
+                <td>{JSON.stringify(item).substring(0, 50)}...</td>
+                <td style={{ display: "flex", gap: "5px" }}>
+                  {seccion === "PRODUCTOS" ? (
+                    <>
+                      <button onClick={() => ejecutarAccion("CREAR", item)} style={{ background: "green", color: "#fff", border: "none" }}>CREAR</button>
+                      <button onClick={() => ejecutarAccion("EDITAR", item)} style={{ background: "yellow", color: "#000", border: "none" }}>EDITAR</button>
+                      <button onClick={() => ejecutarAccion("ELIMINAR", item)} style={{ background: "red", color: "#fff", border: "none" }}>ELIMINAR</button>
+                      <button onClick={() => ejecutarAccion("INACTIVAR", item)} style={{ background: "gray", color: "#fff", border: "none" }}>INACTIVAR</button>
+                      <button onClick={() => ejecutarAccion("VISUALIZAR", item)} style={{ background: "blue", color: "#fff", border: "none" }}>VISUALIZAR</button>
+                    </>
+                  ) : <button onClick={() => alert("Revisando...")} style={btnStyle}>REVISAR</button>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
