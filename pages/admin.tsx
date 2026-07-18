@@ -10,20 +10,33 @@ export default function Admin() {
   const [dataList, setDataList] = useState<any[]>([]);
   const [paso, setPaso] = useState<number>(0); 
 
-  useEffect(() => { cargarDatos(); }, [seccion, db]);
+  // Ajuste: El useEffect solo reacciona al cambio de 'seccion' para evitar parpadeos
+  useEffect(() => {
+    cargarDatos(seccion);
+  }, [seccion]);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (seccionActual: string) => {
     if (!supabase) return;
     
-    if (seccion === "COTIZACIONES") {
-      const { data } = await supabase.from("quotes").select("*");
-      setDataList(data || []);
-    } else if (seccion === "VALIDAR") {
-      const { data } = await supabase.from("solicitudes_acceso").select("*");
-      setDataList(data || []);
-    } else if (seccion === "PRODUCTOS") {
-      const { data } = await supabase.from(db).select("*");
-      setDataList(data || []);
+    // Limpiamos la lista al cambiar de sección para evitar el flash de datos antiguos
+    setDataList([]);
+
+    let query;
+    if (seccionActual === "COTIZACIONES") {
+      query = supabase.from("quotes").select("*");
+    } else if (seccionActual === "VALIDAR") {
+      query = supabase.from("solicitudes_acceso").select("*");
+    } else if (seccionActual === "PRODUCTOS") {
+      query = supabase.from(db).select("*");
+    }
+
+    if (query) {
+      const { data, error } = await query;
+      if (error) {
+        console.error("Error al cargar datos:", error);
+      } else {
+        setDataList(data || []);
+      }
     }
   };
 
@@ -35,7 +48,7 @@ export default function Admin() {
       const { error } = await supabase.from("solicitudes_acceso").delete().eq('id', id);
       if (!error) alert("Solicitud rechazada.");
     }
-    cargarDatos();
+    cargarDatos(seccion);
   };
 
   const ejecutarAccion = async () => {
@@ -47,7 +60,7 @@ export default function Admin() {
     
     const { error } = await query!;
     if (error) alert("Error: " + error.message);
-    else { alert("Operación exitosa"); setAccion(""); setPaso(0); cargarDatos(); }
+    else { alert("Operación exitosa"); setAccion(""); setPaso(0); cargarDatos(seccion); }
   };
 
   return (
@@ -83,7 +96,7 @@ export default function Admin() {
               ))}
               {paso === 1 && (
                 <>
-                  <select onChange={(e) => setDb(e.target.value)} style={selectEstilo}>
+                  <select onChange={(e) => { setDb(e.target.value); cargarDatos("PRODUCTOS"); }} style={selectEstilo}>
                     <option value="cabledb">Cable DB</option>
                     <option value="herrajesdb">Herrajes DB</option>
                     <option value="accesoriosdb">Accesorios DB</option>
