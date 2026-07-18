@@ -1,29 +1,20 @@
-// services/documentService.ts
-import { supabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabaseClient";
 
-export const uploadAndLinkDocument = async (
-  file: File, 
-  categoria: string, 
-  idEntidad: string, 
-  tabla: string
-) => {
-  // 1. Crear ruta única
-  const rutaArchivo = `${categoria}/${idEntidad}/${Date.now()}_${file.name}`;
+export const uploadAndLinkDocument = async (file: File, categoria: string, recordId: string, tabla: string) => {
+  const supabase = getSupabase();
+  
+  if (!supabase) {
+    throw new Error("Cliente de Supabase no inicializado");
+  }
 
-  // 2. Subir a Storage
+  // Ahora TypeScript sabe que si llega aquí, supabase NO es null
+  const rutaArchivo = `${categoria}/${recordId}/${file.name}`;
+  
   const { data: storageData, error: uploadError } = await supabase.storage
     .from('registros')
     .upload(rutaArchivo, file);
 
   if (uploadError) throw uploadError;
 
-  // 3. Vincular (Amarrar) en la base de datos
-  const { error: dbError } = await supabase
-    .from(tabla) // 'clientes' o 'inversores'
-    .update({ documento_url: rutaArchivo })
-    .eq('id', idEntidad);
-
-  if (dbError) throw dbError;
-
-  return { success: true, path: rutaArchivo };
+  // ... resto de tu código de inserción en base de datos
 };
