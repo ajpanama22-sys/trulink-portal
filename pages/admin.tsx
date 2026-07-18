@@ -5,67 +5,51 @@ export default function Admin() {
   const [seccion, setSeccion] = useState<string>("VALIDAR");
   const [db, setDb] = useState<string>("cabledb");
   const [dataList, setDataList] = useState<any[]>([]);
-  const [modo, setModo] = useState<string | null>(null);
-  const [itemSeleccionado, setItemSeleccionado] = useState<any>(null);
 
+  // Efecto para recargar datos cuando cambia la sección o la base de datos
   useEffect(() => {
     cargarDatos();
   }, [seccion, db]);
 
   const cargarDatos = async () => {
-    if (!supabase) return;
-    let tabla = seccion === "VALIDAR" ? "solicitudes_acceso" : seccion === "COTIZACIONES" ? "quotes" : db;
-    const { data, error } = await supabase.from(tabla).select("*");
-    if (!error) setDataList(data || []);
-  };
+    let tabla = "";
+    if (seccion === "VALIDAR") tabla = "solicitudes_acceso";
+    else if (seccion === "COTIZACIONES") tabla = "quotes";
+    else tabla = db;
 
-  const ejecutarAccion = async (accion: string, item: any = null) => {
-    if (accion === "ELIMINAR") {
-      const confirmacion = window.confirm("¿ESTÁS TOTALMENTE SEGURO QUE DESEA ELIMINAR ESTE ITEM? (S/N)");
-      if (confirmacion) {
-        await supabase.from(db).delete().eq('id', item.id);
-        cargarDatos();
-      }
+    const { data, error } = await supabase.from(tabla).select("*");
+    if (error) {
+      console.error("Error al cargar:", error);
+      setDataList([]);
     } else {
-      setModo(accion);
-      setItemSeleccionado(item);
+      setDataList(data || []);
     }
   };
 
-  const renderFormulario = () => {
-    if (!itemSeleccionado) return null;
-    return (
-      <div style={{ padding: "20px", border: "1px solid #DAA520", borderRadius: "15px" }}>
-        <h3>{modo} PRODUCTO: {itemSeleccionado.sku || "NUEVO"}</h3>
-        {Object.keys(itemSeleccionado).map((key) => (
-          <div key={key} style={{ marginBottom: "10px" }}>
-            <label style={{ display: "block", color: "#DAA520" }}>{key.toUpperCase()}</label>
-            <input 
-              defaultValue={itemSeleccionado[key]} 
-              readOnly={modo === "VISUALIZAR"}
-              style={{ width: "100%", padding: "8px", background: "#111", color: "#fff", border: "1px solid #DAA520" }}
-            />
-          </div>
-        ))}
-        <button onClick={() => setModo(null)} style={{ marginTop: "20px", padding: "10px 20px", borderRadius: "20px", cursor: "pointer" }}>GUARDAR Y CERRAR</button>
-      </div>
-    );
+  const abrirArchivo = (item: any) => {
+    let bucket = seccion === "VALIDAR" ? "registros" : "documentos";
+    let path = seccion === "VALIDAR" ? item.documento_url : item.pdf_url;
+    
+    if (!path) return alert("No hay archivo asociado");
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    window.open(data.publicUrl, "_blank");
   };
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
       {/* MENÚ LATERAL */}
-      <div style={{ width: "300px", borderRight: "2px solid #DAA520", padding: "30px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
         <h2 style={{ textAlign: "center" }}>ADMIN PANEL</h2>
-        <button onClick={() => {setSeccion("VALIDAR"); setModo(null);}} style={btnEstilo}>VALIDAR INSCRIPCIONES</button>
-        <button onClick={() => {setSeccion("COTIZACIONES"); setModo(null);}} style={btnEstilo}>COTIZACIONES GENERADAS</button>
-        <button onClick={() => {setSeccion("PRODUCTOS"); setModo(null);}} style={btnEstilo}>PRODUCTOS</button>
+        <button onClick={() => setSeccion("VALIDAR")} style={btnEstilo}>VALIDAR INSCRIPCIONES</button>
+        <button onClick={() => setSeccion("COTIZACIONES")} style={btnEstilo}>COTIZACIONES GENERADAS</button>
+        <button onClick={() => setSeccion("PRODUCTOS")} style={btnEstilo}>PRODUCTOS</button>
       </div>
 
-      {/* CONTENIDO */}
-      <div style={{ flex: 1, padding: "40px" }}>
+      {/* ÁREA DE CONTENIDO */}
+      <div style={{ flex: 1, padding: "30px" }}>
         {seccion === "PRODUCTOS" && (
-          <div style={{ marginBottom: "30px" }}>
+          <div style={{ marginBottom: "30px", padding: "20px", border: "1px solid #DAA520", borderRadius: "10px" }}>
+            <label style={{ marginRight: "15px" }}>BASE DE DATOS ACTIVA:</label>
             <select value={db} onChange={(e) => setDb(e.target.value)} style={selectEstilo}>
               <option value="cabledb">Cable DB</option>
               <option value="herrajesdb">Herrajes DB</option>
@@ -74,32 +58,36 @@ export default function Admin() {
           </div>
         )}
 
-        {modo ? renderFormulario() : (
+        {/* LISTADO DE DATOS */}
+        {dataList.length > 0 ? (
           dataList.map((item) => (
-            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "15px", borderBottom: "1px solid #333" }}>
-              <span>{item.sku || item.razon_social || item.id}</span>
+            <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "15px", borderBottom: "1px solid #333", alignItems: "center" }}>
+              <div style={{ fontSize: "14px" }}>
+                <strong>{item.razon_social || item.sku || `ID: ${item.id}`}</strong>
+                <div style={{ fontSize: "11px", color: "#888" }}>{JSON.stringify(item).substring(0, 80)}...</div>
+              </div>
+              
               <div style={{ display: "flex", gap: "10px" }}>
                 {seccion === "PRODUCTOS" ? (
                   <>
-                    <button onClick={() => ejecutarAccion("CREAR", {})} style={{...crudBtn, background: "green"}}>CREAR</button>
-                    <button onClick={() => ejecutarAccion("EDITAR", item)} style={{...crudBtn, background: "gold", color: "#000"}}>EDITAR</button>
-                    <button onClick={() => ejecutarAccion("ELIMINAR", item)} style={{...crudBtn, background: "red"}}>ELIMINAR</button>
-                    <button onClick={() => ejecutarAccion("INACTIVAR", item)} style={{...crudBtn, background: "gray"}}>INACTIVAR</button>
-                    <button onClick={() => ejecutarAccion("VISUALIZAR", item)} style={{...crudBtn, background: "blue"}}>VISUALIZAR</button>
+                    <button style={{...btnAccion, backgroundColor: "#DAA520", color: "#000"}}>EDITAR</button>
+                    <button style={{...btnAccion, backgroundColor: "#800000", color: "#fff"}}>ELIMINAR</button>
                   </>
                 ) : (
-                  <button onClick={() => window.open(supabase.storage.from(seccion === "VALIDAR" ? "registros" : "documentos").getPublicUrl(item.documento_url || item.pdf_url).data.publicUrl, "_blank")} style={btnEstilo}>VER DOCUMENTO</button>
+                  <button onClick={() => abrirArchivo(item)} style={btnAccion}>VER ARCHIVO</button>
                 )}
               </div>
             </div>
           ))
+        ) : (
+          <p style={{ textAlign: "center", marginTop: "50px" }}>No hay registros disponibles.</p>
         )}
       </div>
     </div>
   );
 }
 
-// ESTILOS ESTÁTICOS
+// ESTILOS CENTRALIZADOS
 const btnEstilo = { padding: "15px", borderRadius: "30px", border: "1px solid #DAA520", background: "transparent", color: "#DAA520", cursor: "pointer", fontWeight: "bold" };
-const selectEstilo = { background: "#000", color: "#DAA520", padding: "10px", borderRadius: "20px", border: "1px solid #DAA520", width: "200px" };
-const crudBtn = { border: "none", padding: "8px 15px", borderRadius: "20px", cursor: "pointer", color: "#fff", fontWeight: "bold" };
+const selectEstilo = { background: "#000", color: "#DAA520", padding: "10px", borderRadius: "20px", border: "1px solid #DAA520" };
+const btnAccion = { padding: "8px 20px", borderRadius: "20px", border: "none", cursor: "pointer", fontWeight: "bold", background: "#DAA520", color: "#000" };
