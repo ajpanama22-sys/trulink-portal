@@ -20,8 +20,7 @@ export default function Admin() {
 
   const renderFila = (item: any) => {
     if (seccion === "VALIDAR") {
-      // Intentamos parsear datos_completos con seguridad
-      let info = {};
+      let info: any = {};
       try {
         info = typeof item.datos_completos === 'string' ? JSON.parse(item.datos_completos) : (item.datos_completos || {});
       } catch (e) { info = {}; }
@@ -91,7 +90,10 @@ export default function Admin() {
               <button onClick={() => {
                 const bucket = seccion === "VALIDAR" ? "registros" : "documentos";
                 const path = seccion === "VALIDAR" ? item.documento_url : item.pdf_url;
-                if (path) window.open(supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl, "_blank");
+                if (path && supabase) {
+                    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+                    window.open(data.publicUrl, "_blank");
+                }
               }} style={{ marginTop: "10px", padding: "10px 20px", background: "#DAA520", border: "none", cursor: "pointer", fontWeight: "bold", borderRadius: "20px" }}>
                 VER DOCUMENTO
               </button>
