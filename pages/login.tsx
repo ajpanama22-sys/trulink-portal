@@ -3,11 +3,22 @@ import { useState } from "react";
 export default function Login() {
   const [mensaje, setMensaje] = useState("");
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    marginBottom: "15px",
+    padding: "12px",
+    backgroundColor: "#111",
+    color: "#DAA520",
+    border: "2px solid #DAA520",
+    borderRadius: "15px",
+    outline: "none",
+    transition: "all 0.3s ease",
+    boxSizing: "border-box"
+  };
+
   const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Aquí más adelante puedes conectar con tu backend o base de datos.
-    // Ejemplo simple:
-    const usuarioValido = false; // 👈 cambia esto cuando tengas validación real
+    const usuarioValido = false; 
     if (usuarioValido) {
       setMensaje("Acceso concedido");
     } else {
@@ -16,7 +27,35 @@ export default function Login() {
   };
 
   return (
-    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", textAlign: "center", padding: "40px" }}>
+    <div style={{ 
+      backgroundColor: "#000", 
+      color: "#DAA520", 
+      minHeight: "100vh", 
+      textAlign: "center", 
+      padding: "40px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center"
+    }}>
+      
+      <style jsx global>{`
+        html, body {
+          margin: 0;
+          padding: 0;
+          background-color: #000 !important;
+          color: #DAA520;
+        }
+        @keyframes pulse-border {
+          0% { box-shadow: 0 0 10px #DAA520; }
+          50% { box-shadow: 0 0 30px #DAA520; }
+          100% { box-shadow: 0 0 10px #DAA520; }
+        }
+        .container-fiber {
+          animation: pulse-border 2s infinite;
+        }
+      `}</style>
+
       {/* Logo */}
       <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px", marginBottom: "20px" }} />
 
@@ -28,34 +67,45 @@ export default function Login() {
       {/* Formulario de acceso */}
       <form 
         onSubmit={handleLogin} 
-        style={{ maxWidth: "400px", margin: "0 auto", border: "1px solid #DAA520", padding: "20px", borderRadius: "12px" }}
+        className="container-fiber"
+        style={{ 
+          maxWidth: "400px", 
+          width: "100%",
+          margin: "0 auto", 
+          border: "2px solid #DAA520", 
+          padding: "30px", 
+          borderRadius: "30px",
+          backgroundColor: "#050505"
+        }}
       >
-        <h2 style={{ color: "#DAA520", marginBottom: "20px" }}>Acceso Portal B2B</h2>
+        <h2 style={{ color: "#DAA520", marginBottom: "25px" }}>Acceso Portal B2B</h2>
 
         <label style={{ display: "block", textAlign: "left", marginBottom: "5px" }}>Usuario</label>
         <input 
           type="email" 
           placeholder="correo@empresa.com" 
-          style={{ width: "100%", marginBottom: "15px", padding: "8px", borderRadius: "8px", border: "1px solid #DAA520", backgroundColor: "#111", color: "#DAA520" }} 
+          style={inputStyle} 
         />
 
         <label style={{ display: "block", textAlign: "left", marginBottom: "5px" }}>Contraseña</label>
         <input 
           type="password" 
           placeholder="********" 
-          style={{ width: "100%", marginBottom: "20px", padding: "8px", borderRadius: "8px", border: "1px solid #DAA520", backgroundColor: "#111", color: "#DAA520" }} 
+          style={inputStyle} 
         />
 
         {/* Botón biselado */}
-        <button style={{ 
+        <button type="submit" style={{ 
           backgroundColor: "#DAA520", 
           color: "#000", 
-          padding: "12px 24px", 
+          padding: "15px", 
           border: "none", 
           fontWeight: "bold", 
-          borderRadius: "12px",   // 👈 esquinas biseladas
+          borderRadius: "15px",
           cursor: "pointer",
-          width: "100%"
+          width: "100%",
+          fontSize: "16px",
+          marginTop: "10px"
         }}>
           Acceder
         </button>
