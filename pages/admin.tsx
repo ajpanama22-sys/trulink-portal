@@ -14,21 +14,31 @@ export default function Admin() {
 
   const fetchRegistros = async () => {
     if (!supabase) return;
-    
-    // Cambiamos el select("*") a select("*") y quitamos filtros restrictivos por ahora
-    const { data, error } = await supabase.from("solicitudes_acceso").select("*");
-    
-    if (error) {
-      console.error("Error detallado de Supabase:", error);
+    const { data, error } = await supabase.from("solicitudes_acceso").select("*").order("created_at", { ascending: false });
+    if (error) console.error("Error al cargar:", error);
+    else setSolicitudes(data || []);
+  };
+
+  const abrirDocumento = async (nombreArchivo: string) => {
+    // Si el campo documento_url ya contiene una URL completa (http...), la abre directamente
+    if (nombreArchivo.startsWith("http")) {
+      window.open(nombreArchivo, "_blank");
     } else {
-      console.log("Datos recibidos de la tabla:", data); // Mira esto en F12 -> Console
-      setSolicitudes(data || []);
+      // Si solo contiene el nombre del archivo, lo busca en el bucket 'registros'
+      const { data } = supabase.storage.from("registros").getPublicUrl(nombreArchivo);
+      if (data && data.publicUrl) {
+        window.open(data.publicUrl, "_blank");
+      } else {
+        alert("No se pudo generar la URL del archivo.");
+      }
     }
   };
 
-  const abrirDocumento = (url: string) => {
-    if (url) window.open(url, "_blank");
-    else alert("No hay URL de documento disponible");
+  const activarUsuario = async (id: string) => {
+    console.log("Activando registro:", id);
+    const { error } = await supabase.from("solicitudes_acceso").update({ estado: 'APROBADO' }).eq('id', id);
+    if (!error) fetchRegistros();
+    else alert("Error al activar");
   };
 
   return (
@@ -58,19 +68,19 @@ export default function Admin() {
           {seccion === "VALIDAR" ? (
             <div>
               <h3>Registros Pendientes</h3>
-              {solicitudes.length > 0 ? solicitudes.map((sol) => (
+              {solicitudes.map((sol) => (
                 <div key={sol.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px", borderBottom: "1px solid #333" }}>
                   <div style={{ fontSize: "0.9rem" }}>
-                    <strong>{sol.razon_social || "Sin nombre"}</strong> | {sol.tipo_solicitud}<br/>
+                    <strong>{sol.razon_social} | {sol.tipo_solicitud}</strong><br/>
                     <span style={{ color: "#aaa" }}>Email: {sol.email}</span><br/>
                     <span style={{ color: "#888" }}>Fecha: {sol.created_at} | Estado: {sol.estado}</span>
                   </div>
                   <div style={{ display: "flex", gap: "10px" }}>
                     <button onClick={() => abrirDocumento(sol.documento_url)} style={{ backgroundColor: "transparent", color: "#DAA520", border: "1px solid #DAA520", padding: "5px 15px", borderRadius: "5px", cursor: "pointer" }}>REVISAR</button>
-                    <button style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 15px", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>ACTIVAR</button>
+                    <button onClick={() => activarUsuario(sol.id)} style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 15px", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>ACTIVAR</button>
                   </div>
                 </div>
-              )) : <p>No se encontraron registros en la tabla 'solicitudes_acceso'.</p>}
+              ))}
             </div>
           ) : seccion === "PRODUCTOS" ? (
             <div>
