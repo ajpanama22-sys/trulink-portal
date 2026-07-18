@@ -19,22 +19,14 @@ export default function Admin() {
         .select("*")
         .order("created_at", { ascending: false });
       
-      if (error) {
-        console.error("Error al cargar registros:", error);
-      } else {
-        setDataList(data || []);
-      }
+      if (!error) setDataList(data || []);
     } else if (seccion === "COTIZACIONES") {
       const { data, error } = await supabase
         .from("quote")
         .select("*")
         .order("created_at", { ascending: false });
       
-      if (error) {
-        console.error("Error al cargar cotizaciones:", error);
-      } else {
-        setDataList(data || []);
-      }
+      if (!error) setDataList(data || []);
     }
   };
 
@@ -46,6 +38,12 @@ export default function Admin() {
 
     if (ruta.startsWith("http")) {
       window.open(ruta, "_blank");
+      return;
+    }
+
+    // Validación necesaria para que TypeScript no lance error en el build
+    if (!supabase) {
+      alert("Error: Supabase no está inicializado.");
       return;
     }
 
@@ -66,15 +64,12 @@ export default function Admin() {
       .update({ estado: 'APROBADO' })
       .eq('id', id);
     
-    if (error) {
-      alert("Error al activar usuario");
-    } else {
-      cargarDatos();
-    }
+    if (!error) cargarDatos();
+    else alert("Error al activar usuario");
   };
 
   const ejecutarAccionProducto = (accion: string) => {
-    alert(`Ejecutando acción: ${accion} sobre la base de datos: ${db}`);
+    alert(`Acción: ${accion} en ${db}`);
   };
 
   return (
