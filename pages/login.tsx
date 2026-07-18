@@ -38,7 +38,8 @@ export default function Login() {
       setMensaje("Acceso denegado: " + error.message);
     } else {
       setMensaje("Acceso concedido");
-      window.location.href = '/dashboard';
+      // Redirección al selector de opciones para Superusers
+      window.location.href = '/selector';
     }
   };
 
