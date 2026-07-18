@@ -1,6 +1,12 @@
 import { useState } from "react";
+import { createClient } from '@supabase/supabase-js';
+
+// Inicializa el cliente de Supabase
+const supabase = createClient('TU_SUPABASE_URL', 'TU_SUPABASE_ANON_KEY');
 
 export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [mensaje, setMensaje] = useState("");
 
   const inputStyle: React.CSSProperties = {
@@ -16,13 +22,20 @@ export default function Login() {
     boxSizing: "border-box"
   };
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const usuarioValido = false; 
-    if (usuarioValido) {
-      setMensaje("Acceso concedido");
+    setMensaje("Verificando...");
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setMensaje("Acceso denegado: " + error.message);
     } else {
-      setMensaje("Acceso denegado");
+      setMensaje("Acceso concedido");
+      // Aquí puedes añadir la lógica de redirección, ej: window.location.href = '/dashboard';
     }
   };
 
@@ -85,6 +98,9 @@ export default function Login() {
           type="email" 
           placeholder="correo@empresa.com" 
           style={inputStyle} 
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
         />
 
         <label style={{ display: "block", textAlign: "left", marginBottom: "5px" }}>Contraseña</label>
@@ -92,6 +108,9 @@ export default function Login() {
           type="password" 
           placeholder="********" 
           style={inputStyle} 
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
         />
 
         {/* Botón biselado */}
@@ -112,7 +131,7 @@ export default function Login() {
 
         {/* Mensaje dinámico */}
         {mensaje && (
-          <p style={{ marginTop: "15px", color: mensaje === "Acceso concedido" ? "#00FF00" : "red" }}>
+          <p style={{ marginTop: "15px", color: mensaje.includes("concedido") ? "#00FF00" : "red" }}>
             {mensaje}
           </p>
         )}
