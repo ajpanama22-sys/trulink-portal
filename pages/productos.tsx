@@ -2,10 +2,9 @@ import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // Inicialización de cliente Supabase
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 type Producto = {
   SKU: string;
@@ -49,7 +48,7 @@ export default function Productos() {
   const seleccionarCategoria = async (tabla: string) => {
     const { data, error } = await supabase.from(tabla).select("*");
     if (error) {
-      console.error("Error al cargar productos:", error);
+      console.error("Error al cargar productos de la tabla:", tabla, error);
     } else {
       setProductos(data || []);
       setCategoria(tabla);
@@ -133,12 +132,12 @@ export default function Productos() {
                 ) : (
                   <div style={{ width: "100%", height: "150px", backgroundColor: "#111", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "10px", marginBottom: "10px", color: "#333" }}>Sin imagen</div>
                 )}
-                <h3 style={{ color: "#DAA520" }}>{prod.SKU}</h3>
-                <p style={{ fontSize: "1rem", fontWeight: "bold" }}>{prod.Ítem}</p>
-                <p style={{ fontSize: "0.8rem" }}>{prod.Descripción}</p>
-                <p style={{ fontSize: "0.7rem", color: "#aaa" }}>{prod.Especificaciones}</p>
-                <p style={{ color: prod.estado_inventario === 'disponible' ? "#0f0" : "#f00" }}>{prod.estado_inventario}</p>
-                <button onClick={() => agregarAlCarrito(prod.SKU, prod.Ítem, 1, prod.precio)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer" }}>
+                <h3 style={{ color: "#DAA520", margin: "5px 0" }}>{prod.SKU}</h3>
+                <p style={{ fontSize: "1rem", fontWeight: "bold", margin: "5px 0" }}>{prod.Ítem}</p>
+                <p style={{ fontSize: "0.8rem", margin: "5px 0" }}>{prod.Descripción}</p>
+                <p style={{ fontSize: "0.7rem", color: "#aaa", margin: "5px 0" }}>{prod.Especificaciones}</p>
+                <p style={{ color: prod.estado_inventario === 'disponible' ? "#0f0" : "#f00", margin: "5px 0" }}>{prod.estado_inventario}</p>
+                <button onClick={() => agregarAlCarrito(prod.SKU, prod.Ítem, 1, prod.precio)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer", marginTop: "10px" }}>
                   Agregar
                 </button>
               </div>
