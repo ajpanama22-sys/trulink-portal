@@ -17,15 +17,10 @@ export default function Admin() {
   const cargarDatos = async (seccionActual: string) => {
     if (!supabase) return;
     setDataList([]);
-
     let query;
-    if (seccionActual === "COTIZACIONES") {
-      query = supabase.from("quotes").select("*");
-    } else if (seccionActual === "VALIDAR") {
-      query = supabase.from("solicitudes_acceso").select("*");
-    } else if (seccionActual === "PRODUCTOS") {
-      query = supabase.from(db).select("*");
-    }
+    if (seccionActual === "COTIZACIONES") query = supabase.from("quotes").select("*");
+    else if (seccionActual === "VALIDAR") query = supabase.from("solicitudes_acceso").select("*");
+    else if (seccionActual === "PRODUCTOS") query = supabase.from(db).select("*");
 
     if (query) {
       const { data, error } = await query;
@@ -36,11 +31,8 @@ export default function Admin() {
 
   const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR') => {
     if (!supabase) return;
-    if (tipo === 'ACTIVAR') {
-      await supabase.from("solicitudes_acceso").update({ status: 'active' }).eq('id', id);
-    } else {
-      await supabase.from("solicitudes_acceso").delete().eq('id', id);
-    }
+    if (tipo === 'ACTIVAR') await supabase.from("solicitudes_acceso").update({ status: 'active' }).eq('id', id);
+    else await supabase.from("solicitudes_acceso").delete().eq('id', id);
     cargarDatos(seccion);
   };
 
@@ -50,10 +42,13 @@ export default function Admin() {
     if (accion === "CREAR") query = supabase.from(db).insert([datosForm]);
     else if (accion === "EDITAR") query = supabase.from(db).update(datosForm).eq("sku", sku);
     else if (accion === "ELIMINAR") query = supabase.from(db).delete().eq("sku", sku);
+    else if (accion === "INACTIVAR") query = supabase.from(db).update({ status: 'inactive' }).eq("sku", sku);
+    else if (accion === "VISUALIZAR") query = supabase.from(db).select("*").eq("sku", sku);
     
-    if (query) {
-      const { error } = await query;
-      if (error) alert("Error: " + error.message);
+    const { data, error } = await (query as any);
+    if (error) alert("Error: " + error.message);
+    else { 
+      if (accion === "VISUALIZAR") setDataList(data);
       else { alert("Operación exitosa"); setAccion(""); setPaso(0); cargarDatos(seccion); }
     }
   };
@@ -71,37 +66,42 @@ export default function Admin() {
         {seccion === "VALIDAR" && dataList.map((item: any) => (
           <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px" }}>
             <div><strong>RAZON SOCIAL:</strong> {item.razon_social} | <strong>EMAIL:</strong> {item.email}</div>
-            {/* Botón de documentos original */}
-            <a href={item.documentos_url} target="_blank" rel="noreferrer" style={{ display: "block", color: "#DAA520", margin: "10px 0", textDecoration: "underline" }}>
-              VER DOCUMENTOS (BUCKET)
-            </a>
+            <a href={item.documentos_url} target="_blank" rel="noreferrer" style={btnAccion}>VER DOCUMENTOS EN BUCKET</a>
             <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR')} style={{...btnAccion, background: "green"}}>ACTIVAR</button>
             <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR')} style={{...btnAccion, background: "red"}}>RECHAZAR</button>
           </div>
         ))}
 
         {seccion === "COTIZACIONES" && dataList.map((item: any) => (
-          <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px", marginBottom: "15px" }}>
-            <div style={{ marginBottom: "5px" }}><strong>ID COTIZACIÓN:</strong> {item.id}</div>
-            <div style={{ marginBottom: "5px" }}><strong>USUARIO/EMAIL:</strong> {item.user_email || item.user_id}</div>
-            <div style={{ marginBottom: "5px" }}><strong>FECHA:</strong> {new Date(item.created_at).toLocaleString()}</div>
-            <div style={{ marginBottom: "10px" }}><strong>TOTAL:</strong> ${item.total}</div>
-            <details style={{ cursor: "pointer", color: "#fff" }}>
-              <summary>Ver detalle de productos</summary>
-              <pre style={{ background: "#111", padding: "10px", marginTop: "10px" }}>{JSON.stringify(item.items, null, 2)}</pre>
-            </details>
+          <div key={item.id} style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px", borderRadius: "10px" }}>
+            <p><strong>ID:</strong> {item.id} | <strong>USUARIO:</strong> {item.user_email || item.user_id}</p>
+            <p><strong>TOTAL:</strong> ${item.total}</p>
+            <table style={{ width: "100%", color: "#fff", borderCollapse: "collapse", marginTop: "10px" }}>
+              <thead><tr style={{ borderBottom: "1px solid #DAA520" }}><th>Prod</th><th>Km</th><th>Hilos</th><th>Cant</th><th>Total</th></tr></thead>
+              <tbody>
+                {item.items?.map((it: any, i: number) => (
+                  <tr key={i} style={{ textAlign: "center" }}><td>{it.product}</td><td>{it.km}</td><td>{it.hilos}</td><td>{it.cantidad}</td><td>{it.lineTotal}</td></tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ))}
 
         {seccion === "PRODUCTOS" && (
           <>
             <div style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px" }}>
-              {paso === 0 && ["CREAR", "EDITAR", "ELIMINAR"].map(a => (
-                <button key={a} onClick={() => {setAccion(a); setPaso(1);}} style={btnAccion}>{a}</button>
-              ))}
+              {paso === 0 && (
+                <>
+                  <button onClick={() => {setAccion("CREAR"); setPaso(1);}} style={{...btnAccion, background: "green"}}>CREAR</button>
+                  <button onClick={() => {setAccion("EDITAR"); setPaso(1);}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
+                  <button onClick={() => {setAccion("ELIMINAR"); setPaso(1);}} style={{...btnAccion, background: "red"}}>ELIMINAR</button>
+                  <button onClick={() => {setAccion("INACTIVAR"); setPaso(1);}} style={{...btnAccion, background: "orange"}}>INACTIVAR</button>
+                  <button onClick={() => {setAccion("VISUALIZAR"); setPaso(1);}} style={{...btnAccion, background: "blue", color: "#fff"}}>VISUALIZAR</button>
+                </>
+              )}
               {paso === 1 && (
                 <>
-                  <select onChange={(e) => { setDb(e.target.value); cargarDatos("PRODUCTOS"); }} style={selectEstilo}>
+                  <select onChange={(e) => setDb(e.target.value)} style={selectEstilo}>
                     <option value="cabledb">Cable DB</option>
                     <option value="herrajesdb">Herrajes DB</option>
                     <option value="accesoriosdb">Accesorios DB</option>
@@ -114,7 +114,7 @@ export default function Admin() {
                   {(accion !== "CREAR") && <input placeholder="SKU" onChange={(e) => setSku(e.target.value)} style={inputEstilo} />}
                   <input placeholder="Datos (JSON)" onChange={(e) => {try{setDatosForm(JSON.parse(e.target.value))}catch(e){}}} style={inputEstilo} />
                   <button onClick={ejecutarAccion} style={{...btnAccion, background: "green"}}>EJECUTAR</button>
-                  <button onClick={() => setPaso(0)} style={{...btnAccion, background: "gray"}}>CANCELAR</button>
+                  <button onClick={() => {setPaso(0); setAccion("");}} style={{...btnAccion, background: "gray"}}>CANCELAR</button>
                 </>
               )}
             </div>
@@ -131,6 +131,6 @@ export default function Admin() {
 }
 
 const btnNav = { padding: "15px", borderRadius: "30px", border: "1px solid #DAA520", background: "transparent", color: "#DAA520", width: "100%", marginBottom: "10px", cursor: "pointer", fontWeight: "bold", textAlign: "left" as const };
-const btnAccion = { padding: "10px 20px", cursor: "pointer", background: "#DAA520", border: "none", borderRadius: "5px", fontWeight: "bold", marginRight: "10px" };
+const btnAccion = { padding: "10px 20px", cursor: "pointer", border: "none", borderRadius: "5px", fontWeight: "bold", marginRight: "10px", display: "inline-block", textDecoration: "none", color: "#000" };
 const selectEstilo = { background: "#000", color: "#DAA520", padding: "10px", border: "1px solid #DAA520", width: "100%", marginBottom: "10px" };
 const inputEstilo = { background: "#000", color: "#DAA520", padding: "10px", border: "1px solid #DAA520", width: "100%", marginBottom: "10px" };
