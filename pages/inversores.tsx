@@ -1,6 +1,9 @@
 import { useState } from "react";
-import { supabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabaseClient";
 import { uploadAndLinkDocument } from "../services/documentService";
+
+// Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
+export const dynamic = 'force-dynamic';
 
 export default function InversoresPage() {
   const [formData, setFormData] = useState({
@@ -44,6 +47,12 @@ export default function InversoresPage() {
     e.preventDefault();
     if (!files.nda || !files.identificacion) {
       alert("Por favor, sube ambos archivos (NDA e Identificación).");
+      return;
+    }
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      alert("Error: Configuración de cliente no disponible.");
       return;
     }
 
