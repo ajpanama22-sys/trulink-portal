@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 
 export default function Admin() {
-  const [seccion, setSeccion] = useState("VALIDAR");
-  const [db, setDb] = useState("cabledb");
+  const [seccion, setSeccion] = useState<string>("VALIDAR");
+  const [db, setDb] = useState<string>("cabledb");
   const [dataList, setDataList] = useState<any[]>([]);
 
   useEffect(() => {
@@ -14,52 +14,92 @@ export default function Admin() {
     if (!supabase) return;
 
     if (seccion === "VALIDAR") {
-      const { data } = await supabase.from("solicitudes_acceso").select("*").order("created_at", { ascending: false });
-      setDataList(data || []);
+      const { data, error } = await supabase
+        .from("solicitudes_acceso")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Error al cargar registros:", error);
+      } else {
+        setDataList(data || []);
+      }
     } else if (seccion === "COTIZACIONES") {
-      const { data } = await supabase.from("quote").select("*").order("created_at", { ascending: false });
-      setDataList(data || []);
+      const { data, error } = await supabase
+        .from("quote")
+        .select("*")
+        .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Error al cargar cotizaciones:", error);
+      } else {
+        setDataList(data || []);
+      }
     }
   };
 
-  const manejarArchivo = async (path: string, bucket: string) => {
-    if (!supabase || !path) return;
-    
-    // Extraer nombre del archivo si viene una ruta, para evitar el 404 del bucket
-    const nombreArchivo = path.split('/').pop();
-    
-    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivo || path);
+  const abrirArchivo = (ruta: string | null | undefined, bucket: string) => {
+    if (!ruta) {
+      alert("No hay archivo registrado en la base de datos.");
+      return;
+    }
+
+    if (ruta.startsWith("http")) {
+      window.open(ruta, "_blank");
+      return;
+    }
+
+    const nombreArchivo = ruta.split('/').pop();
+    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivo || ruta);
     
     if (data && data.publicUrl) {
       window.open(data.publicUrl, "_blank");
     } else {
-      alert("No se pudo obtener el archivo.");
+      alert("Error al intentar obtener la URL del archivo.");
     }
   };
 
   const activarUsuario = async (id: string) => {
     if (!supabase) return;
-    const { error } = await supabase.from("solicitudes_acceso").update({ estado: 'APROBADO' }).eq('id', id);
-    if (error) alert("Error al activar");
-    else cargarDatos();
+    const { error } = await supabase
+      .from("solicitudes_acceso")
+      .update({ estado: 'APROBADO' })
+      .eq('id', id);
+    
+    if (error) {
+      alert("Error al activar usuario");
+    } else {
+      cargarDatos();
+    }
   };
 
   const ejecutarAccionProducto = (accion: string) => {
-    alert(`Acción: ${accion} en ${db}`);
+    alert(`Ejecutando acción: ${accion} sobre la base de datos: ${db}`);
   };
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", display: "flex", fontFamily: "sans-serif" }}>
       <style jsx global>{`
         html, body { margin: 0; padding: 0; background-color: #000 !important; color: #DAA520; }
-        .container-fiber { border: 1px solid #DAA520; padding: 20px; border-radius: 20px; }
+        .container-fiber { border: 1px solid #DAA520; padding: 20px; border-radius: 20px; width: 100%; max-width: 800px; }
       `}</style>
 
       <div style={{ width: "250px", borderRight: "2px solid #DAA520", padding: "20px", display: "flex", flexDirection: "column", gap: "15px" }}>
-        <img src="/images/logo.png" alt="Logo" style={{ width: "100px", margin: "0 auto" }} />
         <h2 style={{ fontSize: "1.2rem", textAlign: "center" }}>ADMIN PANEL</h2>
         {["VALIDAR", "COTIZACIONES", "PRODUCTOS"].map((s) => (
-          <button key={s} onClick={() => setSeccion(s)} style={{ backgroundColor: seccion === s ? "#DAA520" : "transparent", color: seccion === s ? "#000" : "#DAA520", border: "1px solid #DAA520", padding: "10px", borderRadius: "10px", cursor: "pointer", fontWeight: "bold" }}>
+          <button 
+            key={s} 
+            onClick={() => setSeccion(s)} 
+            style={{ 
+              backgroundColor: seccion === s ? "#DAA520" : "transparent", 
+              color: seccion === s ? "#000" : "#DAA520", 
+              border: "1px solid #DAA520", 
+              padding: "10px", 
+              borderRadius: "10px", 
+              cursor: "pointer", 
+              fontWeight: "bold" 
+            }}
+          >
             {s === "VALIDAR" ? "VALIDAR REGISTROS" : s}
           </button>
         ))}
@@ -73,15 +113,23 @@ export default function Admin() {
             dataList.length > 0 ? dataList.map((item) => (
               <div key={item.id} style={{ display: "flex", justifyContent: "space-between", padding: "15px", borderBottom: "1px solid #333" }}>
                 <div>
-                  <strong>{item.razon_social || item.email || `ID: ${item.id}`}</strong><br/>
-                  <span style={{ fontSize: "0.8rem" }}>{seccion === "VALIDAR" ? `Email: ${item.email}` : `Total: $${item.total || 0}`}</span>
+                  <strong>{item.razon_social || item.email || `ID: ${item.id}`}</strong>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
-                  <button onClick={() => manejarArchivo(seccion === "VALIDAR" ? item.documento_url : item.pdf_url, seccion === "VALIDAR" ? "registros" : "documentos")} style={{ background: "transparent", color: "#DAA520", border: "1px solid #DAA520", padding: "5px 10px", cursor: "pointer" }}>REVISAR</button>
-                  {seccion === "VALIDAR" && <button onClick={() => activarUsuario(item.id)} style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 10px", cursor: "pointer" }}>ACTIVAR</button>}
+                  <button 
+                    onClick={() => abrirArchivo(seccion === "VALIDAR" ? item.documento_url : item.pdf_url, seccion === "VALIDAR" ? "registros" : "documentos")} 
+                    style={{ background: "transparent", color: "#DAA520", border: "1px solid #DAA520", padding: "5px 10px", cursor: "pointer" }}
+                  >
+                    REVISAR
+                  </button>
+                  {seccion === "VALIDAR" && (
+                    <button onClick={() => activarUsuario(item.id)} style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 10px", cursor: "pointer", color: "#000", fontWeight: "bold" }}>
+                      ACTIVAR
+                    </button>
+                  )}
                 </div>
               </div>
-            )) : <p>No hay información disponible.</p>
+            )) : <p>No hay datos disponibles.</p>
           ) : (
             <div>
               <select value={db} onChange={(e) => setDb(e.target.value)} style={{ background: "#000", color: "#DAA520", width: "100%", padding: "10px", border: "1px solid #DAA520" }}>
@@ -97,7 +145,6 @@ export default function Admin() {
             </div>
           )}
         </div>
-        <p style={{ marginTop: "60px", textAlign: "center", fontSize: "12px" }}>© 2026 Trulink Fiber LLC</p>
       </div>
     </div>
   );
