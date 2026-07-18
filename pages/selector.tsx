@@ -3,17 +3,29 @@ import { useRouter } from "next/router";
 export default function Selector() {
   const router = useRouter();
 
-  const buttonStyle: React.CSSProperties = {
-    padding: "20px 40px",
+  // Mantenemos tu estilo base de botones para consistencia
+  const cardStyle: React.CSSProperties = {
+    padding: "20px",
     backgroundColor: "#000",
     color: "#DAA520",
     border: "2px solid #DAA520",
-    borderRadius: "15px",
+    borderRadius: "20px",
     cursor: "pointer",
     fontWeight: "bold",
     fontSize: "18px",
     transition: "all 0.3s ease",
     boxShadow: "0 0 10px #DAA520",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    width: "300px"
+  };
+
+  const imageStyle: React.CSSProperties = {
+    width: "100%",
+    borderRadius: "15px",
+    marginBottom: "15px",
+    transition: "transform 0.3s ease"
   };
 
   return (
@@ -29,32 +41,39 @@ export default function Selector() {
       fontFamily: "Arial, sans-serif"
     }}>
       <style jsx>{`
-        .btn-option:hover {
-          transform: scale(1.1);
-          box-shadow: 0 0 20px #DAA520;
-          background-color: #DAA520;
-          color: #000;
+        .card-option:hover {
+          transform: scale(1.05);
+          box-shadow: 0 0 30px #DAA520;
+          background-color: #111;
+        }
+        .card-option:hover img {
+          transform: scale(1.05);
         }
       `}</style>
 
-      <h1 style={{ color: "#DAA520", marginBottom: "60px" }}>Seleccione el acceso</h1>
+      <h1 style={{ color: "#DAA520", marginBottom: "60px" }}>Seleccione la unidad operativa</h1>
       
-      <div style={{ display: "flex", gap: "40px", flexWrap: "wrap", justifyContent: "center" }}>
-        <button 
-          className="btn-option"
-          onClick={() => router.push("/admin")}
-          style={buttonStyle}
+      <div style={{ display: "flex", gap: "50px", flexWrap: "wrap", justifyContent: "center" }}>
+        
+        {/* Opción Fábrica */}
+        <div 
+          className="card-option" 
+          onClick={() => router.push("/fabricacion")}
+          style={cardStyle}
         >
-          Administración
-        </button>
+          <img src="/images/fabrica.png" alt="Fabricación" style={imageStyle} />
+          <span>Fabricación de Cables</span>
+        </div>
 
-        <button 
-          className="btn-option"
+        {/* Opción Productos */}
+        <div 
+          className="card-option" 
           onClick={() => router.push("/productos")}
-          style={buttonStyle}
+          style={cardStyle}
         >
-          Portal de Producción
-        </button>
+          <img src="/images/terminado.png" alt="Productos" style={imageStyle} />
+          <span>Productos Terminados</span>
+        </div>
       </div>
 
       <p style={{ marginTop: "80px", fontSize: "12px", color: "#DAA520" }}>
