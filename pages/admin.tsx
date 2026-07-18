@@ -171,7 +171,7 @@ export default function Admin() {
             </div>
             
             <div style={{ marginTop: "20px" }}>
-              <h3>BASE DE DATOS DE PRODUCTOS</h3>
+              <h3>Listado de {db}</h3>
               {dataList.map((item: any, idx: number) => (
                 <div key={idx} style={{ border: "1px solid #333", padding: "12px", marginBottom: "5px", background: "#111", borderRadius: "4px" }}>
                   {Object.entries(item).map(([k, v]) => (
