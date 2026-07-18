@@ -21,9 +21,15 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!supabase) {
+      setMensaje("Error: Cliente de Supabase no inicializado.");
+      return;
+    }
+
     setMensaje("Verificando...");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase!.auth.signInWithPassword({
       email,
       password,
     });
@@ -32,7 +38,7 @@ export default function Login() {
       setMensaje("Acceso denegado: " + error.message);
     } else {
       setMensaje("Acceso concedido");
-      // Aquí puedes añadir la lógica de redirección, ej: window.location.href = '/dashboard';
+      window.location.href = '/dashboard';
     }
   };
 
