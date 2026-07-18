@@ -1,17 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
 
-// Definimos el tipo de los productos del carrito
+// Inicialización de cliente Supabase
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
+);
+
+type Producto = {
+  id: number;
+  sku: string;
+  descripcion: string;
+  especificaciones: string;
+  inventario: number;
+  image_url: string;
+  precio: number;
+};
+
 type ItemCarrito = {
   nombre: string;
   cantidad: number;
+  precio: number;
 };
 
 export default function Productos() {
+  const [categoria, setCategoria] = useState<string | null>(null);
+  const [productos, setProductos] = useState<Producto[]>([]);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
 
   // ➕ Agregar producto al carrito
-  const agregarAlCarrito = (nombre: string, cantidad: number) => {
-    setCarrito([...carrito, { nombre, cantidad }]);
+  const agregarAlCarrito = (nombre: string, cantidad: number, precio: number) => {
+    setCarrito([...carrito, { nombre, cantidad, precio }]);
   };
 
   // ❌ Eliminar producto por índice
@@ -24,13 +43,24 @@ export default function Productos() {
     setCarrito([]);
   };
 
+  // Cargar productos de Supabase
+  const seleccionarCategoria = async (tabla: string) => {
+    const { data, error } = await supabase.from(tabla).select("*");
+    if (error) {
+      console.error("Error al cargar productos:", error);
+    } else {
+      setProductos(data || []);
+      setCategoria(tabla);
+    }
+  };
+
   return (
-    <div style={{ 
-      backgroundColor: "#000", 
-      color: "#DAA520", 
-      minHeight: "100vh", 
-      padding: "40px", 
-      fontFamily: "sans-serif" 
+    <div style={{
+      backgroundColor: "#000",
+      color: "#DAA520",
+      minHeight: "100vh",
+      padding: "40px",
+      fontFamily: "sans-serif"
     }}>
       <style jsx global>{`
         html, body {
@@ -56,45 +86,67 @@ export default function Productos() {
       {/* Logo y Títulos */}
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px", marginBottom: "20px" }} />
-        <h1 style={{ color: "#DAA520", fontSize: "2.5rem" }}>PRODUCTOS TERMINADOS</h1>
+        <h1 style={{ color: "#DAA520", fontSize: "2.5rem" }}>{categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}</h1>
         <p style={{ color: "#FFF", fontSize: "1.2rem" }}>Accesorios – Cables – Herrajes</p>
       </div>
 
-      {/* Opciones principales */}
-      <div style={{ 
-        display: "grid", 
-        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
-        gap: "30px", 
-        maxWidth: "1000px", 
-        margin: "0 auto 40px auto" 
-      }}>
-        {[
-          { name: "Accesorio NAP", img: "/images/nap.png", title: "Accesorios" },
-          { name: "Cable Patch", img: "/images/patch.png", title: "Cables" },
-          { name: "Herraje D-Type", img: "/images/dtype.png", title: "Herrajes" }
-        ].map((prod, idx) => (
-          <div key={idx} className="opcion-card container-fiber" onClick={() => agregarAlCarrito(prod.name, 1)} style={{ 
-            backgroundColor: "#050505", 
-            padding: "20px", 
-            borderRadius: "20px", 
-            border: "2px solid #DAA520", 
-            textAlign: "center",
-            transition: "0.3s"
-          }}>
-            <img src={prod.img} alt={prod.title} style={{ width: "100%", borderRadius: "10px" }} />
-            <h2 style={{ color: "#DAA520", marginTop: "15px" }}>{prod.title}</h2>
+      {!categoria ? (
+        /* Opciones principales de navegación */
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+          gap: "30px",
+          maxWidth: "1000px",
+          margin: "0 auto 40px auto"
+        }}>
+          {[
+            { name: "Accesorios", img: "/images/nap.png", tabla: "accesoriosdb" },
+            { name: "Cables", img: "/images/patch.png", tabla: "cablesdb" },
+            { name: "Herrajes", img: "/images/dtype.png", tabla: "herrajesdb" }
+          ].map((cat, idx) => (
+            <div key={idx} className="opcion-card container-fiber" onClick={() => seleccionarCategoria(cat.tabla)} style={{
+              backgroundColor: "#050505",
+              padding: "20px",
+              borderRadius: "20px",
+              border: "2px solid #DAA520",
+              textAlign: "center",
+              transition: "0.3s"
+            }}>
+              <img src={cat.img} alt={cat.name} style={{ width: "100%", borderRadius: "10px" }} />
+              <h2 style={{ color: "#DAA520", marginTop: "15px" }}>{cat.name}</h2>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Vista de Productos de la Categoría */
+        <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+          <button onClick={() => setCategoria(null)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "20px" }}>
+            ⬅ Volver a Categorías
+          </button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
+            {productos.map((prod) => (
+              <div key={prod.id} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
+                <img src={prod.image_url} alt={prod.sku} style={{ width: "100%", borderRadius: "10px" }} />
+                <h3 style={{ color: "#DAA520" }}>{prod.sku}</h3>
+                <p style={{ fontSize: "0.8rem" }}>{prod.descripcion}</p>
+                <p style={{ color: prod.inventario > 0 ? "#0f0" : "#f00" }}>{prod.inventario > 0 ? "Disponible" : "Backorder"}</p>
+                <button onClick={() => agregarAlCarrito(prod.sku, 1, prod.precio)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer" }}>
+                  Agregar
+                </button>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {/* Carrito global */}
-      <div className="container-fiber" style={{ 
-        maxWidth: "800px", 
-        margin: "0 auto", 
-        padding: "30px", 
-        borderRadius: "30px", 
-        border: "2px solid #DAA520", 
-        backgroundColor: "#050505" 
+      {/* Carrito global - siempre visible */}
+      <div className="container-fiber" style={{
+        maxWidth: "800px",
+        margin: "40px auto",
+        padding: "30px",
+        borderRadius: "30px",
+        border: "2px solid #DAA520",
+        backgroundColor: "#050505"
       }}>
         <h2 style={{ textAlign: "center" }}>Mi Cotización</h2>
         {carrito.length === 0 ? (
@@ -103,23 +155,23 @@ export default function Productos() {
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <ul style={{ width: "100%", padding: 0 }}>
               {carrito.map((item, index) => (
-                <li key={index} style={{ 
-                  display: "flex", 
-                  justifyContent: "space-between", 
-                  padding: "10px", 
-                  borderBottom: "1px solid #333" 
+                <li key={index} style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  padding: "10px",
+                  borderBottom: "1px solid #333"
                 }}>
                   {item.nombre} – Cantidad: {item.cantidad}
-                  <button onClick={() => eliminarDelCarrito(index)} style={{ 
-                    backgroundColor: "#b30000", color: "#fff", border: "none", borderRadius: "5px", padding: "5px 10px", cursor: "pointer" 
+                  <button onClick={() => eliminarDelCarrito(index)} style={{
+                    backgroundColor: "#b30000", color: "#fff", border: "none", borderRadius: "5px", padding: "5px 10px", cursor: "pointer"
                   }}>
                     Eliminar
                   </button>
                 </li>
               ))}
             </ul>
-            <button onClick={vaciarCarrito} style={{ 
-              marginTop: "20px", backgroundColor: "#DAA520", border: "none", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" 
+            <button onClick={vaciarCarrito} style={{
+              marginTop: "20px", backgroundColor: "#DAA520", border: "none", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer"
             }}>
               Vaciar carrito
             </button>
@@ -127,7 +179,6 @@ export default function Productos() {
         )}
       </div>
 
-      {/* Sello Premium */}
       <div style={{ textAlign: "center", marginTop: "40px" }}>
         <img src="/images/premium.png" alt="Premium Seal" style={{ width: "100px" }} />
       </div>
