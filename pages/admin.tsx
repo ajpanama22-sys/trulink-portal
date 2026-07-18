@@ -22,22 +22,18 @@ export default function Admin() {
     }
   };
 
-  const manejarArchivo = async (nombreArchivo: string, bucket: string) => {
-    if (!supabase) return;
+  const manejarArchivo = async (path: string, bucket: string) => {
+    if (!supabase || !path) return;
     
-    // Si el nombre del archivo ya es una URL completa, abrirla
-    if (nombreArchivo.startsWith("http")) {
-      window.open(nombreArchivo, "_blank");
-      return;
-    }
-
-    // Generar URL pública para el archivo específico dentro del bucket
-    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivo);
+    // Extraer nombre del archivo si viene una ruta, para evitar el 404 del bucket
+    const nombreArchivo = path.split('/').pop();
+    
+    const { data } = supabase.storage.from(bucket).getPublicUrl(nombreArchivo || path);
     
     if (data && data.publicUrl) {
       window.open(data.publicUrl, "_blank");
     } else {
-      alert("Error: El archivo no fue encontrado en el bucket " + bucket);
+      alert("No se pudo obtener el archivo.");
     }
   };
 
@@ -85,7 +81,7 @@ export default function Admin() {
                   {seccion === "VALIDAR" && <button onClick={() => activarUsuario(item.id)} style={{ backgroundColor: "#DAA520", border: "none", padding: "5px 10px", cursor: "pointer" }}>ACTIVAR</button>}
                 </div>
               </div>
-            )) : <p>No hay datos disponibles.</p>
+            )) : <p>No hay información disponible.</p>
           ) : (
             <div>
               <select value={db} onChange={(e) => setDb(e.target.value)} style={{ background: "#000", color: "#DAA520", width: "100%", padding: "10px", border: "1px solid #DAA520" }}>
