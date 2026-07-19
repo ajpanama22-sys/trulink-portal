@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-// Inicialización de cliente Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -31,7 +30,6 @@ export default function Productos() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
-  const [mostrarCarrito, setMostrarCarrito] = useState(false);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
 
   const handleCantidadChange = (sku: string, valor: number) => {
@@ -57,7 +55,7 @@ export default function Productos() {
   const seleccionarCategoria = async (tabla: string) => {
     const { data, error } = await supabase.from(tabla).select("*");
     if (error) {
-      console.error("Error al cargar productos de la tabla:", tabla, error);
+      console.error("Error al cargar productos:", error);
     } else {
       setProductos(data || []);
       setCategoria(tabla);
@@ -66,36 +64,24 @@ export default function Productos() {
 
   const generarPDF = () => {
     const doc = new jsPDF();
-    
-    // Logo y Encabezado
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
     doc.setFontSize(10);
     doc.text(`Cotización Nº: QT-${Date.now().toString().slice(-5)}`, 150, 20);
     doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
-    
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 40);
-    doc.setFontSize(10);
-    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
-    doc.text("Tel: +507 6640 3720", 14, 52);
     
-    // Tabla
-    const rows = carrito.map(item => [
-      item.nombre, 
-      item.cantidad.toString(), 
-      `$${item.precio.toFixed(2)}`, 
-      `$${(item.precio * item.cantidad).toFixed(2)}`
-    ]);
-
+    const rows = carrito.map(item => [item.SKU, item.nombre, item.cantidad.toString(), `$${item.precio.toFixed(2)}`, `$${(item.precio * item.cantidad).toFixed(2)}`]);
+    
     (doc as any).autoTable({
-      head: [["Descripción", "Cant", "P. Unitario", "Total"]],
+      head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
       body: rows,
       startY: 70,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
 
-    doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
+    doc.text(`TOTAL GENERAL : $${totalCotizacion.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
     doc.save("Cotizacion_TrulinkFiber.pdf");
   };
 
@@ -127,12 +113,10 @@ export default function Productos() {
         .image-zoom:hover { transform: scale(1.08); box-shadow: 0 0 20px 5px #DAA520; cursor: pointer; }
         .container-fiber { animation: pulse-border 2s infinite; }
         @keyframes pulse-border { 0% { box-shadow: 0 0 10px #DAA520; } 50% { box-shadow: 0 0 30px #DAA520; } 100% { box-shadow: 0 0 10px #DAA520; } }
-        .float-cart { position: fixed; top: 20px; right: 20px; z-index: 1000; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #DAA520; padding: 12px; text-align: center; color: #FFF; }
+        th { background-color: #DAA520; color: #000; }
       `}</style>
-
-      <button className="float-cart" onClick={() => setMostrarCarrito(!mostrarCarrito)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
-        🛒 Ver Carrito ({carrito.length})
-      </button>
 
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
@@ -169,23 +153,45 @@ export default function Productos() {
         </div>
       )}
 
-      {mostrarCarrito && (
-        <div style={{ maxWidth: "600px", margin: "40px auto", padding: "30px", borderRadius: "30px", border: "2px solid #DAA520", backgroundColor: "#050505" }}>
-          <h2 style={{ textAlign: "center" }}>Mi Cotización</h2>
-          {carrito.map((item, index) => (
-            <div key={index} style={{ display: "flex", justifyContent: "space-between", padding: "10px", borderBottom: "1px solid #333" }}>
-              {item.nombre} x {item.cantidad} - ${ (item.precio * item.cantidad).toFixed(2) }
-              <button onClick={() => eliminarDelCarrito(index)} style={{ backgroundColor: "#b30000", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}>Eliminar</button>
+      <div style={{ maxWidth: "900px", margin: "60px auto", padding: "30px", borderRadius: "20px", border: "2px solid #DAA520", backgroundColor: "#050505" }}>
+        <h2 style={{ textAlign: "center", color: "#DAA520" }}>Mi Cotización</h2>
+        {carrito.length === 0 ? (
+          <p style={{ textAlign: "center", color: "#FFF" }}>El carrito está vacío.</p>
+        ) : (
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>SKU</th>
+                  <th>Descripción</th>
+                  <th>Cant</th>
+                  <th>P. Unitario</th>
+                  <th>Total</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {carrito.map((item, index) => (
+                  <tr key={index}>
+                    <td>{item.SKU}</td>
+                    <td>{item.nombre}</td>
+                    <td>{item.cantidad}</td>
+                    <td>${item.precio.toFixed(2)}</td>
+                    <td>${(item.precio * item.cantidad).toFixed(2)}</td>
+                    <td><button onClick={() => eliminarDelCarrito(index)} style={{ backgroundColor: "#b30000", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer" }}>Eliminar</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <h2 style={{ textAlign: "center", marginTop: "20px", color: "#DAA520" }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
+            <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
+              <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
+              <button onClick={() => alert("Redirigiendo a pago...")} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
             </div>
-          ))}
-          <h3 style={{ textAlign: "center", marginTop: "20px" }}>Total: ${totalCotizacion.toFixed(2)}</h3>
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-            <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", border: "none", padding: "10px 20px", cursor: "pointer" }}>GUARDAR (PDF)</button>
-            <button onClick={() => alert("Redirigiendo a pago...")} style={{ backgroundColor: "#DAA520", border: "none", padding: "10px 20px", cursor: "pointer" }}>PROCEDER CON PAGO</button>
-          </div>
-          <button onClick={vaciarCarrito} style={{ marginTop: "10px", width: "100%", backgroundColor: "#333", color: "#FFF", border: "none", padding: "5px", cursor: "pointer" }}>Vaciar carrito</button>
-        </div>
-      )}
+            <button onClick={vaciarCarrito} style={{ marginTop: "10px", width: "100%", backgroundColor: "#333", color: "#FFF", border: "none", padding: "5px", cursor: "pointer" }}>Vaciar carrito</button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
