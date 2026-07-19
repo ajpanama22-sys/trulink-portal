@@ -29,6 +29,7 @@ export default function Productos() {
   const [categoria, setCategoria] = useState<string | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
+  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
 
   const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
@@ -85,6 +86,27 @@ export default function Productos() {
     }
   };
 
+  if (productoSeleccionado) {
+    return (
+      <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
+        <button onClick={() => setProductoSeleccionado(null)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "20px" }}>⬅ Volver</button>
+        <div style={{ maxWidth: "600px", margin: "0 auto", border: "2px solid #DAA520", padding: "30px", borderRadius: "20px", textAlign: "center", backgroundColor: "#050505" }}>
+          <img src={productoSeleccionado.image_url || "/placeholder.png"} alt={productoSeleccionado.Ítem} style={{ width: "100%", borderRadius: "10px", marginBottom: "20px" }} />
+          <h1 style={{ color: "#DAA520" }}>{productoSeleccionado.Ítem}</h1>
+          <p style={{ color: "#FFF" }}><strong>SKU:</strong> {productoSeleccionado.SKU}</p>
+          <p style={{ color: "#FFF" }}><strong>Descripción:</strong> {productoSeleccionado.Descripción}</p>
+          <p style={{ color: "#FFF" }}><strong>Especificaciones:</strong> {productoSeleccionado.Especificaciones}</p>
+          <p style={{ fontSize: "1.8rem", margin: "20px 0" }}><strong>Precio:</strong> ${productoSeleccionado.precio ? productoSeleccionado.precio.toFixed(2) : "0.00"}</p>
+          <div style={{ margin: "20px 0" }}>
+            <label>Cantidad: </label>
+            <input type="number" min="1" value={cantidades[productoSeleccionado.SKU] || 1} onChange={(e) => handleCantidadChange(productoSeleccionado.SKU, parseInt(e.target.value) || 1)} style={{ width: "60px", padding: "5px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520" }} />
+          </div>
+          <button onClick={() => agregarAlCarrito(productoSeleccionado)} style={{ backgroundColor: "#DAA520", border: "none", padding: "15px 40px", borderRadius: "10px", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>Agregar al Carrito</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
       <style jsx global>{`
@@ -125,7 +147,7 @@ export default function Productos() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
             {productos.map((prod) => (
               <div key={prod.SKU} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
-                <img src={prod.image_url || "/placeholder.png"} alt={prod.Ítem} className="image-zoom" style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px" }} />
+                <img src={prod.image_url || "/placeholder.png"} alt={prod.Ítem} className="image-zoom" onClick={() => setProductoSeleccionado(prod)} style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px" }} />
                 <h3>{prod.SKU}</h3>
                 <p><strong>{prod.Ítem}</strong></p>
                 <input type="number" min="1" value={cantidades[prod.SKU] || 1} onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} style={{ width: "50px", marginBottom: "5px", backgroundColor: "#111", color: "#DAA520" }} />
