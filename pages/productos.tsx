@@ -29,8 +29,10 @@ export default function Productos() {
   const [categoria, setCategoria] = useState<string | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
-  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
+
+  const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
+  const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
 
   const handleCantidadChange = (sku: string, valor: number) => {
     setCantidades({ ...cantidades, [sku]: valor });
@@ -48,18 +50,6 @@ export default function Productos() {
 
   const vaciarCarrito = () => {
     setCarrito([]);
-  };
-
-  const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-
-  const seleccionarCategoria = async (tabla: string) => {
-    const { data, error } = await supabase.from(tabla).select("*");
-    if (error) {
-      console.error("Error al cargar productos:", error);
-    } else {
-      setProductos(data || []);
-      setCategoria(tabla);
-    }
   };
 
   const generarPDF = () => {
@@ -81,42 +71,35 @@ export default function Productos() {
       headStyles: { fillColor: [218, 165, 32] }
     });
 
-    doc.text(`TOTAL GENERAL : $${totalCotizacion.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
+    doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
     doc.save("Cotizacion_TrulinkFiber.pdf");
   };
 
-  if (productoSeleccionado) {
-    return (
-      <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
-        <button onClick={() => setProductoSeleccionado(null)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "20px" }}>⬅ Volver a la lista</button>
-        <div style={{ maxWidth: "600px", margin: "0 auto", border: "2px solid #DAA520", padding: "30px", borderRadius: "20px", textAlign: "center", backgroundColor: "#050505" }}>
-          <img src={productoSeleccionado.image_url || "/placeholder.png"} alt={productoSeleccionado.Ítem} style={{ width: "100%", borderRadius: "10px", marginBottom: "20px" }} />
-          <h1 style={{ color: "#DAA520" }}>{productoSeleccionado.Ítem}</h1>
-          <p style={{ color: "#FFF" }}><strong>SKU:</strong> {productoSeleccionado.SKU}</p>
-          <p style={{ color: "#FFF" }}><strong>Descripción:</strong> {productoSeleccionado.Descripción}</p>
-          <p style={{ color: "#FFF" }}><strong>Especificaciones:</strong> {productoSeleccionado.Especificaciones}</p>
-          <p style={{ fontSize: "1.8rem", margin: "20px 0" }}><strong>Precio:</strong> ${productoSeleccionado.precio ? productoSeleccionado.precio.toFixed(2) : "0.00"}</p>
-          <div style={{ margin: "20px 0" }}>
-            <label>Cantidad: </label>
-            <input type="number" min="1" value={cantidades[productoSeleccionado.SKU] || 1} onChange={(e) => handleCantidadChange(productoSeleccionado.SKU, parseInt(e.target.value) || 1)} style={{ width: "60px", padding: "5px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520" }} />
-          </div>
-          <button onClick={() => agregarAlCarrito(productoSeleccionado)} style={{ backgroundColor: "#DAA520", border: "none", padding: "15px 40px", borderRadius: "10px", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>Agregar al Carrito</button>
-        </div>
-      </div>
-    );
-  }
+  const seleccionarCategoria = async (tabla: string) => {
+    const { data, error } = await supabase.from(tabla).select("*");
+    if (error) {
+      console.error("Error al cargar productos:", error);
+    } else {
+      setProductos(data || []);
+      setCategoria(tabla);
+    }
+  };
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
       <style jsx global>{`
         .image-zoom { transition: transform 0.3s, box-shadow 0.3s; }
         .image-zoom:hover { transform: scale(1.08); box-shadow: 0 0 20px 5px #DAA520; cursor: pointer; }
-        .container-fiber { animation: pulse-border 2s infinite; }
-        @keyframes pulse-border { 0% { box-shadow: 0 0 10px #DAA520; } 50% { box-shadow: 0 0 30px #DAA520; } 100% { box-shadow: 0 0 10px #DAA520; } }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #DAA520; padding: 12px; text-align: center; color: #FFF; }
         th { background-color: #DAA520; color: #000; }
       `}</style>
+
+      <div style={{ textAlign: "right", marginBottom: "20px" }}>
+        <button onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })} style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
+          🛒 Carrito ({totalItems})
+        </button>
+      </div>
 
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
@@ -130,7 +113,7 @@ export default function Productos() {
             { name: "Cables", img: "/images/patch.png", tabla: "cablesdb" },
             { name: "Herrajes", img: "/images/dtype.png", tabla: "herrajesdb" }
           ].map((cat, idx) => (
-            <div key={idx} className="container-fiber" onClick={() => seleccionarCategoria(cat.tabla)} style={{ backgroundColor: "#050505", padding: "20px", borderRadius: "20px", border: "2px solid #DAA520", textAlign: "center", cursor: "pointer" }}>
+            <div key={idx} onClick={() => seleccionarCategoria(cat.tabla)} style={{ backgroundColor: "#050505", padding: "20px", borderRadius: "20px", border: "2px solid #DAA520", textAlign: "center", cursor: "pointer" }}>
               <img src={cat.img} alt={cat.name} style={{ width: "100%", borderRadius: "10px" }} />
               <h2>{cat.name}</h2>
             </div>
@@ -142,7 +125,7 @@ export default function Productos() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
             {productos.map((prod) => (
               <div key={prod.SKU} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
-                <img src={prod.image_url || "/placeholder.png"} alt={prod.Ítem} className="image-zoom" onClick={() => setProductoSeleccionado(prod)} style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px" }} />
+                <img src={prod.image_url || "/placeholder.png"} alt={prod.Ítem} className="image-zoom" style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px" }} />
                 <h3>{prod.SKU}</h3>
                 <p><strong>{prod.Ítem}</strong></p>
                 <input type="number" min="1" value={cantidades[prod.SKU] || 1} onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} style={{ width: "50px", marginBottom: "5px", backgroundColor: "#111", color: "#DAA520" }} />
@@ -153,7 +136,7 @@ export default function Productos() {
         </div>
       )}
 
-      <div style={{ maxWidth: "900px", margin: "60px auto", padding: "30px", borderRadius: "20px", border: "2px solid #DAA520", backgroundColor: "#050505" }}>
+      <div id="carrito-seccion" style={{ maxWidth: "900px", margin: "60px auto", padding: "30px", borderRadius: "20px", border: "2px solid #DAA520", backgroundColor: "#050505" }}>
         <h2 style={{ textAlign: "center", color: "#DAA520" }}>Mi Cotización</h2>
         {carrito.length === 0 ? (
           <p style={{ textAlign: "center", color: "#FFF" }}>El carrito está vacío.</p>
