@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 // Inicialización de cliente Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -30,25 +32,71 @@ export default function Productos() {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [mostrarCarrito, setMostrarCarrito] = useState(false);
-  const [cantidadTemp, setCantidadTemp] = useState(1);
+  const [cantidades, setCantidades] = useState<Record<string, number>>({});
 
-  const agregarAlCarrito = (prod: Producto, cant: number) => {
-    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Ítem, cantidad: cant, precio: prod.precio }]);
-    setCantidadTemp(1);
+  const handleCantidadChange = (sku: string, valor: number) => {
+    setCantidades({ ...cantidades, [sku]: valor });
   };
 
-  const eliminarDelCarrito = (index: number) => setCarrito(carrito.filter((_, i) => i !== index));
-  const vaciarCarrito = () => setCarrito([]);
+  const agregarAlCarrito = (prod: Producto) => {
+    const qty = cantidades[prod.SKU] || 1;
+    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Ítem, cantidad: qty, precio: prod.precio }]);
+    setCantidades({ ...cantidades, [prod.SKU]: 1 });
+  };
+
+  const eliminarDelCarrito = (index: number) => {
+    setCarrito(carrito.filter((_, i) => i !== index));
+  };
+
+  const vaciarCarrito = () => {
+    setCarrito([]);
+  };
+
   const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
 
   const seleccionarCategoria = async (tabla: string) => {
     const { data, error } = await supabase.from(tabla).select("*");
     if (error) {
-      console.error("Error al cargar productos:", error);
+      console.error("Error al cargar productos de la tabla:", tabla, error);
     } else {
       setProductos(data || []);
       setCategoria(tabla);
     }
+  };
+
+  const generarPDF = () => {
+    const doc = new jsPDF();
+    
+    // Logo y Encabezado
+    doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+    doc.setFontSize(10);
+    doc.text(`Cotización Nº: QT-${Date.now().toString().slice(-5)}`, 150, 20);
+    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
+    
+    doc.setFontSize(16);
+    doc.text("TRULINK FIBER LLC", 14, 40);
+    doc.setFontSize(10);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
+    doc.text("Tel: +507 6640 3720", 14, 52);
+    
+    // Tabla
+    const rows = carrito.map(item => [
+      item.nombre, 
+      item.cantidad.toString(), 
+      `$${item.precio.toFixed(2)}`, 
+      `$${(item.precio * item.cantidad).toFixed(2)}`
+    ]);
+
+    (doc as any).autoTable({
+      head: [["Descripción", "Cant", "P. Unitario", "Total"]],
+      body: rows,
+      startY: 70,
+      styles: { fontSize: 10, halign: "center" },
+      headStyles: { fillColor: [218, 165, 32] }
+    });
+
+    doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
+    doc.save("Cotizacion_TrulinkFiber.pdf");
   };
 
   if (productoSeleccionado) {
@@ -64,11 +112,9 @@ export default function Productos() {
           <p style={{ fontSize: "1.8rem", margin: "20px 0" }}><strong>Precio:</strong> ${productoSeleccionado.precio ? productoSeleccionado.precio.toFixed(2) : "0.00"}</p>
           <div style={{ margin: "20px 0" }}>
             <label>Cantidad: </label>
-            <input type="number" min="1" value={cantidadTemp} onChange={(e) => setCantidadTemp(parseInt(e.target.value) || 1)} style={{ width: "60px", padding: "5px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520" }} />
+            <input type="number" min="1" value={cantidades[productoSeleccionado.SKU] || 1} onChange={(e) => handleCantidadChange(productoSeleccionado.SKU, parseInt(e.target.value) || 1)} style={{ width: "60px", padding: "5px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520" }} />
           </div>
-          <button onClick={() => agregarAlCarrito(productoSeleccionado, cantidadTemp)} style={{ backgroundColor: "#DAA520", border: "none", padding: "15px 40px", borderRadius: "10px", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>
-            Agregar al Carrito
-          </button>
+          <button onClick={() => agregarAlCarrito(productoSeleccionado)} style={{ backgroundColor: "#DAA520", border: "none", padding: "15px 40px", borderRadius: "10px", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>Agregar al Carrito</button>
         </div>
       </div>
     );
@@ -108,15 +154,15 @@ export default function Productos() {
         </div>
       ) : (
         <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-          <button onClick={() => setCategoria(null)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "20px" }}>⬅ Volver a Categorías</button>
+          <button onClick={() => setCategoria(null)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "20px" }}>⬅ Volver</button>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
             {productos.map((prod) => (
               <div key={prod.SKU} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
                 <img src={prod.image_url || "/placeholder.png"} alt={prod.Ítem} className="image-zoom" onClick={() => setProductoSeleccionado(prod)} style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px" }} />
                 <h3>{prod.SKU}</h3>
                 <p><strong>{prod.Ítem}</strong></p>
-                <p>${prod.precio ? prod.precio.toFixed(2) : "0.00"}</p>
-                <button onClick={() => agregarAlCarrito(prod, 1)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer" }}>Agregar</button>
+                <input type="number" min="1" value={cantidades[prod.SKU] || 1} onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} style={{ width: "50px", marginBottom: "5px", backgroundColor: "#111", color: "#DAA520" }} />
+                <button onClick={() => agregarAlCarrito(prod)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer", display: "block", margin: "0 auto" }}>Agregar</button>
               </div>
             ))}
           </div>
@@ -133,7 +179,11 @@ export default function Productos() {
             </div>
           ))}
           <h3 style={{ textAlign: "center", marginTop: "20px" }}>Total: ${totalCotizacion.toFixed(2)}</h3>
-          <button onClick={vaciarCarrito} style={{ marginTop: "20px", backgroundColor: "#DAA520", border: "none", padding: "10px", cursor: "pointer", width: "100%" }}>Vaciar carrito</button>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", border: "none", padding: "10px 20px", cursor: "pointer" }}>GUARDAR (PDF)</button>
+            <button onClick={() => alert("Redirigiendo a pago...")} style={{ backgroundColor: "#DAA520", border: "none", padding: "10px 20px", cursor: "pointer" }}>PROCEDER CON PAGO</button>
+          </div>
+          <button onClick={vaciarCarrito} style={{ marginTop: "10px", width: "100%", backgroundColor: "#333", color: "#FFF", border: "none", padding: "5px", cursor: "pointer" }}>Vaciar carrito</button>
         </div>
       )}
     </div>
