@@ -41,7 +41,8 @@ export default function Productos() {
 
   const agregarAlCarrito = (prod: Producto) => {
     const qty = cantidades[prod.SKU] || 1;
-    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Ítem, cantidad: qty, precio: prod.precio }]);
+    // Asignación corregida: se utiliza prod.Descripción para el nombre en el carrito
+    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción, cantidad: qty, precio: prod.precio }]);
     setCantidades({ ...cantidades, [prod.SKU]: 1 });
   };
 
