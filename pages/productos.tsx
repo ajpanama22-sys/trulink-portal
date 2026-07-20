@@ -65,7 +65,7 @@ export default function Productos() {
       console.log("Intentando guardar cotización en Supabase...");
       
       const { data, error } = await supabase
-        .from('orders')
+        .from('quotes')
         .insert([{ 
           total_amount: totalCotizacion, 
           items: carrito,
