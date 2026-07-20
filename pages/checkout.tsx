@@ -70,7 +70,7 @@ export default function Checkout() {
         ) : order ? (
           <div>
             <p style={{ fontSize: "1.2rem", color: "#FFF" }}>Referencia de pedido: <strong>{order.id}</strong></p>
-            <h2 style={{ fontSize: "2rem", margin: "20px 0" }}>Total a Pagar: ${order.total_amount.toFixed(2)}</h2>
+            <h2 style={{ fontSize: "2rem", margin: "20px 0" }}>Total a Pagar: ${(order.total_amount ?? order.total ?? 0).toFixed(2)}</h2>
             
             <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
               <button className="btn-gold" onClick={() => alert("Redirigiendo a Stripe...")}>Pagar con Stripe</button>
