@@ -16,7 +16,7 @@ export default function Checkout() {
     if (id) {
       const fetchOrder = async () => {
         const { data, error } = await supabase
-          .from('orders')
+          .from('quotes')
           .select('*')
           .eq('id', id)
           .single();
