@@ -43,21 +43,34 @@ export default function Fabricacion() {
   const granTotal = cotizacion.reduce((acc: number, item: Item) => acc + (item.precioCarrete * item.cantidad), 0);
 
   const procesarPago = async () => {
-    const { data, error } = await supabase
-      .from('orders')
-      .insert([{ 
-        total_amount: granTotal, 
-        items: cotizacion,
-        status: 'pending' 
-      }])
-      .select()
-      .single();
+    if (cotizacion.length === 0) {
+      alert("La cotización está vacía. Por favor, agregue artículos.");
+      return;
+    }
 
-    if (error) {
-      alert("Error al iniciar el proceso de pago. Intenta de nuevo.");
-      console.error(error);
-    } else {
-      router.push(`/checkout?id=${data.id}`);
+    try {
+      console.log("Intentando guardar cotización en Supabase...");
+      
+      const { data, error } = await supabase
+        .from('orders')
+        .insert([{ 
+          total_amount: granTotal, 
+          items: cotizacion,
+          status: 'pending' 
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error("ERROR DETALLADO DE SUPABASE:", error);
+        alert(`Error al guardar: ${error.message}`);
+      } else {
+        console.log("¡Cotización guardada exitosamente!", data);
+        router.push(`/checkout?id=${data.id}`);
+      }
+    } catch (err) {
+      console.error("ERROR INESPERADO:", err);
+      alert("Ocurrió un error inesperado al procesar la solicitud.");
     }
   };
 
