@@ -1,6 +1,12 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
+import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Definimos el tipo de cada ítem de cotización
 type Item = {
@@ -13,6 +19,7 @@ type Item = {
 };
 
 export default function Fabricacion() {
+  const router = useRouter();
   // useState tipado con Item[]
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
 
@@ -34,6 +41,25 @@ export default function Fabricacion() {
 
   // Tipamos el acumulador y el item
   const granTotal = cotizacion.reduce((acc: number, item: Item) => acc + (item.precioCarrete * item.cantidad), 0);
+
+  const procesarPago = async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([{ 
+        total_amount: granTotal, 
+        items: cotizacion,
+        status: 'pending' 
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      alert("Error al iniciar el proceso de pago. Intenta de nuevo.");
+      console.error(error);
+    } else {
+      router.push(`/checkout?id=${data.id}`);
+    }
+  };
 
   const generarPDF = (): void => {
     const doc = new jsPDF();
@@ -113,13 +139,13 @@ export default function Fabricacion() {
       backgroundColor: "#000", 
       color: "#DAA520", 
       minHeight: "100vh", 
-      padding: "20px", // Reducido para compactar
+      padding: "20px",
       fontFamily: "sans-serif",
       margin: 0,
       width: "100%",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center" // Esto centra todo el contenido
+      alignItems: "center"
     }}>
       
       {/* Estilos globales para forzar fondo negro y animación de fibra óptica */}
@@ -335,7 +361,7 @@ export default function Fabricacion() {
           <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
             Guardar PDF
           </button>
-          <button style={{ backgroundColor: "#222", color: "#DAA520", border: "2px solid #DAA520", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>
+          <button onClick={procesarPago} style={{ backgroundColor: "#222", color: "#DAA520", border: "2px solid #DAA520", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>
             Proceder con Pago
           </button>
         </div>
