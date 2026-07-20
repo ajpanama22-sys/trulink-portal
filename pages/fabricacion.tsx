@@ -52,7 +52,7 @@ export default function Fabricacion() {
       console.log("Intentando guardar cotización en Supabase...");
       
       const { data, error } = await supabase
-        .from('orders')
+        .from('quotes')
         .insert([{ 
           total_amount: granTotal, 
           items: cotizacion,
