@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -26,6 +27,7 @@ type ItemCarrito = {
 };
 
 export default function Productos() {
+  const router = useRouter();
   const [categoria, setCategoria] = useState<string | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
@@ -41,7 +43,6 @@ export default function Productos() {
 
   const agregarAlCarrito = (prod: Producto) => {
     const qty = cantidades[prod.SKU] || 1;
-    // Asignación corregida: se utiliza prod.Descripción para el nombre en el carrito
     setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción, cantidad: qty, precio: prod.precio }]);
     setCantidades({ ...cantidades, [prod.SKU]: 1 });
   };
@@ -52,6 +53,25 @@ export default function Productos() {
 
   const vaciarCarrito = () => {
     setCarrito([]);
+  };
+
+  const procesarPago = async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([{ 
+        total_amount: totalCotizacion, 
+        items: carrito,
+        status: 'pending' 
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      alert("Error al iniciar el proceso de pago. Intenta de nuevo.");
+      console.error(error);
+    } else {
+      router.push(`/checkout?id=${data.id}`);
+    }
   };
 
   const generarPDF = () => {
@@ -192,7 +212,7 @@ export default function Productos() {
             <h2 style={{ textAlign: "center", marginTop: "20px", color: "#DAA520" }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
               <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
-              <button onClick={() => alert("Redirigiendo a pago...")} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
+              <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
             </div>
             <button onClick={vaciarCarrito} style={{ marginTop: "10px", width: "100%", backgroundColor: "#333", color: "#FFF", border: "none", padding: "5px", cursor: "pointer" }}>Vaciar carrito</button>
           </>
