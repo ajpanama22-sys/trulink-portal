@@ -67,9 +67,10 @@ export default function Productos() {
       const { data, error } = await supabase
         .from('quotes')
         .insert([{ 
-          total_amount: totalCotizacion, 
+          total: totalCotizacion, 
           items: carrito,
-          status: 'pending' 
+          status: 'pending',
+          type: 'producto'
         }])
         .select()
         .single();
@@ -106,7 +107,8 @@ export default function Productos() {
       headStyles: { fillColor: [218, 165, 32] }
     });
 
-    doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 130, finalY, { align: "right" });
     doc.save("Cotizacion_TrulinkFiber.pdf");
   };
 
@@ -222,7 +224,9 @@ export default function Productos() {
                 ))}
               </tbody>
             </table>
-            <h2 style={{ textAlign: "center", marginTop: "20px", color: "#DAA520" }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "10px" }}>
+              <h2 style={{ color: "#DAA520", margin: 0 }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
+            </div>
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
               <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
               <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
