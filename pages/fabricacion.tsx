@@ -54,7 +54,7 @@ export default function Fabricacion() {
       const { data, error } = await supabase
         .from('quotes')
         .insert([{ 
-          total_amount: granTotal, 
+          total: granTotal, 
           items: cotizacion,
           status: 'pending' 
         }])
