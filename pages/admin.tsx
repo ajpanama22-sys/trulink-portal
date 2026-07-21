@@ -37,13 +37,72 @@ export default function Admin() {
     }
   };
 
-  const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR') => {
+  const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocial: string) => {
     if (!supabase) return;
+
     if (tipo === 'ACTIVAR') {
-      await supabase.from("solicitudes_acceso").update({ status: 'active' }).eq('id', id);
+      // Generar un ID único de acceso / token para la contraseña
+      const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
+      // Actualizar estado en la tabla solicitudes_acceso
+      const { error: updateError } = await supabase
+        .from("solicitudes_acceso")
+        .update({ status: 'active', password_token: passwordToken })
+        .eq('id', id);
+
+      if (updateError) {
+        alert("Error al activar en base de datos: " + updateError.message);
+        return;
+      }
+
+      // Enviar correo de notificación de activación con link de password
+      try {
+        const response = await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "ACTIVACION",
+            email: emailCliente,
+            razon_social: razonSocial,
+            link: `${window.location.origin}/auth/crear-password?token=${passwordToken}`
+          })
+        });
+        if (!response.ok) throw new Error("Fallo al enviar correo de activación");
+        alert(`Solicitud activada con éxito. Correo enviado a ${emailCliente}`);
+      } catch (err: any) {
+        alert("Solicitud activada en BD, pero hubo un error enviando el correo: " + err.message);
+      }
+
     } else {
-      await supabase.from("solicitudes_acceso").delete().eq('id', id);
+      // RECHAZAR: Enviar correo de notificación de rechazo y opcionalmente actualizar/eliminar registro
+      try {
+        const response = await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "RECHAZO",
+            email: emailCliente,
+            razon_social: razonSocial
+          })
+        });
+        if (!response.ok) throw new Error("Fallo al enviar correo de rechazo");
+      } catch (err: any) {
+        console.error("Error enviando correo de rechazo:", err);
+      }
+
+      const { error: deleteError } = await supabase
+        .from("solicitudes_acceso")
+        .update({ status: 'rejected' })
+        .eq('id', id);
+
+      if (deleteError) {
+        // Si no existe la columna status, intentamos eliminar el registro de forma segura
+        await supabase.from("solicitudes_acceso").delete().eq('id', id);
+      }
+
+      alert(`La solicitud de ${razon_social} ha sido rechazada y se ha notificado al solicitante.`);
     }
+
     cargarDatos(seccion);
   };
 
@@ -101,24 +160,33 @@ export default function Admin() {
       </div>
 
       <div style={{ flex: 1, padding: "40px" }}>
-        {seccion === "VALIDAR" && dataList.map((item: any) => (
-          <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ fontWeight: "bold" }}>RAZON SOCIAL: <span style={{color: "#DAA520"}}>{item.razon_social}</span> | EMAIL: <span style={{color: "#DAA520"}}>{item.email}</span></div>
-              <a href={item.documentos_url || item.url || "#"} target="_blank" rel="noreferrer" style={{...btnAccion, background: "blue", color: "#fff", width: "fit-content", textAlign: "center"}}>VER DOCUMENTOS</a>
+        {seccion === "VALIDAR" && dataList.map((item: any) => {
+          // Obtener la URL del documento subido al bucket de Supabase de manera dinámica o directa
+          let docUrl = item.documentos_url || item.url || "";
+          if (!docUrl && supabase) {
+            // Intenta buscar el documento asociado en el bucket predeterminado
+            const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`${item.id}_documento`);
+            docUrl = publicData?.publicUrl || "#";
+          }
+
+          return (
+            <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ fontWeight: "bold" }}>RAZON SOCIAL: <span style={{color: "#DAA520"}}>{item.razon_social}</span> | EMAIL: <span style={{color: "#DAA520"}}>{item.email}</span></div>
+                <a href={docUrl} target="_blank" rel="noreferrer" style={{...btnAccion, background: "blue", color: "#fff", width: "fit-content", textAlign: "center", textDecoration: "none"}}>VER DOCUMENTOS</a>
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social)} style={{...btnAccion, background: "green", color: "#000"}}>ACTIVAR</button>
+                <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social)} style={{...btnAccion, background: "red", color: "#000"}}>RECHAZAR</button>
+              </div>
             </div>
-            <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR')} style={{...btnAccion, background: "green", color: "#000"}}>ACTIVAR</button>
-              <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR')} style={{...btnAccion, background: "red", color: "#000"}}>RECHAZAR</button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {seccion === "COTIZACIONES" && dataList.map((item: any) => {
           const esProd = item.type === 'producto';
           const refCot = item.referencia || item.reference || item.id;
           
-          // Obtiene la URL del campo pdf_url o la construye dinámicamente apuntando al bucket 'documentos' usando el ID
           let pdfUrl = item.pdf_url;
           if (!pdfUrl && supabase) {
             const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`${item.id}_cotizacion.pdf`);

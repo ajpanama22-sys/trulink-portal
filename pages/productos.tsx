@@ -35,6 +35,11 @@ export default function Productos() {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
 
+  // Estados para los datos del cliente solicitados
+  const [nombreEmpresa, setNombreEmpresa] = useState("");
+  const [representante, setRepresentante] = useState("");
+  const [mailCliente, setMailCliente] = useState("");
+
   const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
   const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
 
@@ -73,7 +78,10 @@ export default function Productos() {
         items: itemsFormateados,
         status: 'pending',
         type: 'producto',
-        pdf_url: pdfPublicUrl
+        pdf_url: pdfPublicUrl,
+        empresa: nombreEmpresa,
+        representante: representante,
+        email: mailCliente
       }])
       .select()
       .single();
@@ -92,15 +100,23 @@ export default function Productos() {
     }
 
     try {
-      console.log("Intentando generar PDF y guardar cotización en Supabase...");
       const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+      const fechaActual = new Date().toLocaleDateString();
+      const horaActual = new Date().toLocaleTimeString();
 
       const doc = new jsPDF();
       doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+      
       doc.setFontSize(10);
       doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
-      doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
-      doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
+      doc.text(`Fecha: ${fechaActual}`, 150, 26);
+      doc.text(`Hora: ${horaActual}`, 150, 32);
+
+      // Datos del Cliente (Exactamente en el recuadro superior derecho)
+      doc.setFontSize(9);
+      doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 130, 42);
+      doc.text(`Representante: ${representante || "N/D"}`, 130, 48);
+      doc.text(`Mail: ${mailCliente || "N/D"}`, 130, 54);
 
       doc.setFontSize(16);
       doc.text("TRULINK FIBER LLC", 14, 40);
@@ -120,7 +136,7 @@ export default function Productos() {
       (doc as any).autoTable({
         head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
         body: rows,
-        startY: 70,
+        startY: 65,
         styles: { fontSize: 10, halign: "center" },
         headStyles: { fillColor: [218, 165, 32] }
       });
@@ -130,16 +146,16 @@ export default function Productos() {
       doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
 
       doc.setFontSize(10);
-      doc.text("Precios: EXW PANAMÁ", 14, finalY + 20);
-      doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 26);
-      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 40, { align: "center" });
+      doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
+      doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
+      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 30, { align: "center" });
 
       try {
         const firma = "/images/firmaco.png";
         const props = doc.getImageProperties(firma);
         const firmaWidth = 40;
         const firmaHeight = (props.height * firmaWidth) / props.width;
-        doc.addImage(firma, "PNG", 150, finalY + 55, firmaWidth, firmaHeight);
+        doc.addImage(firma, "PNG", 150, finalY + 40, firmaWidth, firmaHeight);
       } catch (e) {
         console.error("No se pudo cargar la firma:", e);
       }
@@ -149,23 +165,16 @@ export default function Productos() {
 
       const { error: uploadError } = await supabase.storage
         .from("documentos")
-        .upload(fileName, pdfBlob, {
-          contentType: 'application/pdf',
-          upsert: true
-        });
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
 
       if (uploadError) {
         console.error("Error al subir PDF al bucket:", uploadError.message);
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("documentos")
-        .getPublicUrl(fileName);
-
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
       const data = await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
-      console.log("¡Cotización guardada exitosamente!", data);
       router.push(`/checkout?id=${data.id}`);
 
     } catch (err: any) {
@@ -181,13 +190,22 @@ export default function Productos() {
     }
 
     const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+    const fechaActual = new Date().toLocaleDateString();
+    const horaActual = new Date().toLocaleTimeString();
 
     const doc = new jsPDF();
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+    
     doc.setFontSize(10);
     doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
-    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
-    doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
+    doc.text(`Fecha: ${fechaActual}`, 150, 26);
+    doc.text(`Hora: ${horaActual}`, 150, 32);
+
+    // Datos del Cliente
+    doc.setFontSize(9);
+    doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 130, 42);
+    doc.text(`Representante: ${representante || "N/D"}`, 130, 48);
+    doc.text(`Mail: ${mailCliente || "N/D"}`, 130, 54);
 
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 40);
@@ -207,7 +225,7 @@ export default function Productos() {
     (doc as any).autoTable({
       head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
       body: rows,
-      startY: 70,
+      startY: 65,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
@@ -217,16 +235,16 @@ export default function Productos() {
     doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
 
     doc.setFontSize(10);
-    doc.text("Precios: EXW PANAMÁ", 14, finalY + 20);
-    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 26);
-    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 40, { align: "center" });
+    doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
+    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 30, { align: "center" });
 
     try {
       const firma = "/images/firmaco.png";
       const props = doc.getImageProperties(firma);
       const firmaWidth = 40;
       const firmaHeight = (props.height * firmaWidth) / props.width;
-      doc.addImage(firma, "PNG", 150, finalY + 55, firmaWidth, firmaHeight);
+      doc.addImage(firma, "PNG", 150, finalY + 40, firmaWidth, firmaHeight);
     } catch (e) {
       console.error("No se pudo cargar la firma:", e);
     }
@@ -237,59 +255,29 @@ export default function Productos() {
 
       const { error: uploadError } = await supabase.storage
         .from("documentos")
-        .upload(fileName, pdfBlob, {
-          contentType: 'application/pdf',
-          upsert: true
-        });
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
 
       if (uploadError) {
         console.error("Error al subir PDF al bucket:", uploadError.message);
       }
 
-      const { data: publicUrlData } = supabase.storage
-        .from("documentos")
-        .getPublicUrl(fileName);
-
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
       await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
       doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
     } catch (err) {
-      console.error("Error al registrar cotización automática por PDF:", err);
       doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
     }
   };
 
   const seleccionarCategoria = async (tabla: string) => {
     const { data, error } = await supabase.from(tabla).select("*");
-    if (error) {
-      console.error("Error al cargar productos:", error);
-    } else {
+    if (!error) {
       setProductos(data || []);
       setCategoria(tabla);
     }
   };
-
-  if (productoSeleccionado) {
-    return (
-      <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
-        <button onClick={() => setProductoSeleccionado(null)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "20px" }}>⬅ Volver</button>
-        <div style={{ maxWidth: "600px", margin: "0 auto", border: "2px solid #DAA520", padding: "30px", borderRadius: "20px", textAlign: "center", backgroundColor: "#050505" }}>
-          <img src={productoSeleccionado.image_url || "/placeholder.png"} alt={productoSeleccionado.Ítem} style={{ width: "100%", borderRadius: "10px", marginBottom: "20px" }} />
-          <h1 style={{ color: "#DAA520" }}>{productoSeleccionado.Ítem}</h1>
-          <p style={{ color: "#FFF" }}><strong>SKU:</strong> {productoSeleccionado.SKU}</p>
-          <p style={{ color: "#FFF" }}><strong>Descripción:</strong> {productoSeleccionado.Descripción}</p>
-          <p style={{ color: "#FFF" }}><strong>Especificaciones:</strong> {productoSeleccionado.Especificaciones}</p>
-          <p style={{ fontSize: "1.8rem", margin: "20px 0" }}><strong>Precio:</strong> ${productoSeleccionado.precio ? productoSeleccionado.precio.toFixed(2) : "0.00"}</p>
-          <div style={{ margin: "20px 0" }}>
-            <label>Cantidad: </label>
-            <input type="number" min="1" value={cantidades[productoSeleccionado.SKU] || 1} onChange={(e) => handleCantidadChange(productoSeleccionado.SKU, parseInt(e.target.value) || 1)} style={{ width: "60px", padding: "5px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520" }} />
-          </div>
-          <button onClick={() => agregarAlCarrito(productoSeleccionado)} style={{ backgroundColor: "#DAA520", border: "none", padding: "15px 40px", borderRadius: "10px", cursor: "pointer", fontSize: "1.1rem", fontWeight: "bold" }}>Agregar al Carrito</button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
@@ -310,6 +298,22 @@ export default function Productos() {
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
         <h1>{categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}</h1>
+      </div>
+
+      {/* Formulario de Datos de Cliente en Productos */}
+      <div style={{ backgroundColor: "#050505", border: "2px solid #DAA520", borderRadius: "20px", padding: "20px", maxWidth: "900px", margin: "0 auto 30px auto", display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "space-between" }}>
+        <div style={{ flex: 1, minWidth: "250px" }}>
+          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "5px", color: "#FFF" }}>Empresa:</label>
+          <input type="text" value={nombreEmpresa} onChange={(e) => setNombreEmpresa(e.target.value)} placeholder="Nombre de la Empresa" style={{ width: "100%", padding: "8px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "8px" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: "250px" }}>
+          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "5px", color: "#FFF" }}>Representante:</label>
+          <input type="text" value={representante} onChange={(e) => setRepresentante(e.target.value)} placeholder="Nombre del Representante" style={{ width: "100%", padding: "8px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "8px" }} />
+        </div>
+        <div style={{ flex: 1, minWidth: "250px" }}>
+          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "5px", color: "#FFF" }}>Mail:</label>
+          <input type="email" value={mailCliente} onChange={(e) => setMailCliente(e.target.value)} placeholder="correo@empresa.com" style={{ width: "100%", padding: "8px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "8px" }} />
+        </div>
       </div>
 
       {!categoria ? (
@@ -373,9 +377,8 @@ export default function Productos() {
               </tbody>
             </table>
             
-            {/* Alineado exactamente debajo de la columna de Total de la tabla */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "45px" }}>
-              <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.2rem" }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "15px" }}>
+              <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.2rem" }}>TOTAL : ${totalCotizacion.toFixed(2)}</h2>
             </div>
 
             <div style={{ marginTop: "15px", color: "#FFF", fontSize: "0.85rem", borderTop: "1px dashed #DAA520", paddingTop: "10px" }}>
@@ -383,6 +386,7 @@ export default function Productos() {
               <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
               <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
             </div>
+            
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
               <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
               <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>

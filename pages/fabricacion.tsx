@@ -23,6 +23,13 @@ export default function Fabricacion() {
   // useState tipado con Item[]
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
 
+  // Estados opcionales para capturar los datos del cliente en el PDF si están disponibles en la sesión/formulario
+  const [clienteInfo, setClienteInfo] = useState({
+    empresa: "Cliente B2B / Invitado",
+    representante: "Representante Autorizado",
+    correo: "corporativo@trulinkfiber.com"
+  });
+
   const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
 
   // Tipamos los parámetros y el retorno
@@ -119,6 +126,13 @@ export default function Fabricacion() {
     doc.text("Tel: +507 6640 3720", 14, 52);
     doc.text("www.trulinkfiber.com", 14, 58);
 
+    // Datos del cliente integrados en el PDF (Empresa, Representante y Correo)
+    doc.setFontSize(10);
+    doc.setTextColor(50, 50, 50);
+    doc.text(`Empresa / Razón Social: ${clienteInfo.empresa}`, 14, 66);
+    doc.text(`Atención: ${clienteInfo.representante} | Correo: ${clienteInfo.correo}`, 14, 72);
+    doc.setTextColor(0, 0, 0);
+
     // Tabla de cotización
     const rows = cotizacion.map(item => [
       item.tipo,
@@ -132,7 +146,7 @@ export default function Fabricacion() {
     (doc as any).autoTable({
       head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
       body: rows,
-      startY: 70,
+      startY: 78,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });

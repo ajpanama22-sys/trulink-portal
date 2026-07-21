@@ -21,6 +21,7 @@ export default function Clientes() {
 
   const [cargando, setCargando] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [terminosAceptados, setTerminosAceptados] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -35,6 +36,12 @@ export default function Clientes() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!terminosAceptados) {
+      alert("Debe leer y aceptar los Términos y Condiciones para continuar.");
+      return;
+    }
+
     if (!selectedFile) {
       alert("Por favor, adjunta un documento de soporte.");
       return;
@@ -176,7 +183,7 @@ export default function Clientes() {
           </ul>
 
           <h3 style={{ color: "#DAA520" }}>Términos y Condiciones</h3>
-          <textarea rows={6} style={inputStyle} onFocus={focusEffect} onBlur={blurEffect}>
+          <textarea rows={6} style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} readOnly>
             El acceso al Portal B2B de Trulink Fiber LLC está sujeto a estricta verificación corporativa. 
             El solicitante se compromete a entregar documentación válida y vigente. 
             El incumplimiento de requisitos legales, fiscales o de confidencialidad será motivo de rechazo inmediato. 
@@ -185,7 +192,12 @@ export default function Clientes() {
           </textarea>
           
           <div style={{ marginBottom: "20px" }}>
-            <input type="checkbox" style={{ marginRight: "10px" }} /> 
+            <input 
+              type="checkbox" 
+              checked={terminosAceptados} 
+              onChange={(e) => setTerminosAceptados(e.target.checked)} 
+              style={{ marginRight: "10px" }} 
+            /> 
             He leído y acepto los Términos y Condiciones
           </div>
 
