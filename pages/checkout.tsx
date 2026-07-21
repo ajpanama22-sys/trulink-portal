@@ -7,14 +7,17 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 type QuoteItem = {
+  SKU?: string;
   tipo?: string;
   nombre?: string;
+  descripcion?: string;
   hilos?: number;
   longitudKm?: number;
   cantidad?: number;
   precioMetro?: number;
   precioCarrete?: number;
   precioUnitario?: number;
+  total?: number;
 };
 
 type OrderData = {
@@ -27,6 +30,7 @@ type OrderData = {
   type?: string;
   client_id?: string;
   user_id?: string;
+  referencia?: string;
 };
 
 export default function Checkout() {
@@ -64,6 +68,7 @@ export default function Checkout() {
 
   const rawTotal = order?.total ?? order?.total_amount ?? 0;
   const granTotal = typeof rawTotal === 'number' ? rawTotal : Number(rawTotal) || 0;
+  const esProducto = order?.type === 'producto';
 
   const handleStripeCheckout = async () => {
     try {
@@ -236,7 +241,7 @@ export default function Checkout() {
         ) : order ? (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", fontSize: "0.9rem", color: "#ccc" }}>
-              <span><strong>Referencia:</strong> {order.id}</span>
+              <span><strong>Referencia:</strong> {order.referencia || order.id}</span>
               <span><strong>Fecha:</strong> {order.created_at ? new Date(order.created_at).toLocaleDateString() : ""}</span>
             </div>
 
@@ -245,25 +250,28 @@ export default function Checkout() {
               <table style={{ margin: "0 auto", borderCollapse: "collapse", color: "#DAA520", width: "100%", fontSize: "0.9rem" }}>
                 <thead>
                   <tr style={{ backgroundColor: "#111" }}>
+                    {esProducto && <th style={{ border: "1px solid #DAA520", padding: "10px" }}>SKU</th>}
                     <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Descripción / Tipo</th>
-                    <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Hilos</th>
+                    {!esProducto && <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Hilos</th>}
                     <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Cant</th>
-                    <th style={{ border: "1px solid #DAA520", padding: "10px" }}>P. Unitario / Carrete</th>
+                    <th style={{ border: "1px solid #DAA520", padding: "10px" }}>{esProducto ? "P. Unitario" : "P. Unitario / Carrete"}</th>
                     <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {order.items && Array.isArray(order.items) && order.items.map((item, index) => {
-                    const desc = item.tipo || item.nombre || "Artículo";
+                    const skuVal = item.SKU || "-";
+                    const desc = item.descripcion || item.nombre || item.tipo || "Artículo";
                     const hilosVal = item.hilos !== undefined ? item.hilos : "-";
                     const cantVal = item.cantidad ?? 1;
-                    const unitPrice = Number(item.precioCarrete ?? item.precioUnitario ?? item.precioMetro ?? 0);
-                    const itemTotal = unitPrice * cantVal;
+                    const unitPrice = Number(item.precioUnitario ?? item.precioCarrete ?? item.precioMetro ?? 0);
+                    const itemTotal = item.total ?? (unitPrice * cantVal);
 
                     return (
                       <tr key={index} style={{ backgroundColor: "#0c0c0c" }}>
+                        {esProducto && <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{skuVal}</td>}
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{desc}</td>
-                        <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{hilosVal}</td>
+                        {!esProducto && <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{hilosVal}</td>}
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{cantVal}</td>
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${unitPrice.toFixed(2)}</td>
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${itemTotal.toFixed(2)}</td>
