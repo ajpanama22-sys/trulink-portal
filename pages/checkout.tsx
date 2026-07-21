@@ -25,6 +25,8 @@ type OrderData = {
   items: QuoteItem[];
   status: string;
   type?: string;
+  client_id?: string;
+  user_id?: string;
 };
 
 export default function Checkout() {
@@ -33,6 +35,12 @@ export default function Checkout() {
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null); // null | 'stripe' | 'paypal' | 'transfer'
+  
+  // Estados para la transferencia bancaria y subida de comprobante
+  const [transferStatus, setTransferStatus] = useState<string>('idle'); // 'idle' | 'uploading' | 'success' | 'error'
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<string>('');
 
   useEffect(() => {
     if (id) {
@@ -54,11 +62,9 @@ export default function Checkout() {
     }
   }, [id]);
 
-  // Validación segura para evitar que toFixed falle si es undefined
   const rawTotal = order?.total ?? order?.total_amount ?? 0;
   const granTotal = typeof rawTotal === 'number' ? rawTotal : Number(rawTotal) || 0;
 
-  // Función de Stripe sin alertas y con llamada directa al endpoint
   const handleStripeCheckout = async () => {
     try {
       const response = await fetch('/api/create-stripe-session', {
@@ -80,7 +86,6 @@ export default function Checkout() {
     }
   };
 
-  // Función de PayPal conectada al endpoint de backend
   const handlePayPalCheckout = async () => {
     try {
       const response = await fetch('/api/create-paypal-order', {
@@ -99,6 +104,79 @@ export default function Checkout() {
     } catch (err) {
       console.error('Error:', err);
       alert('Ocurrió un error de red al conectar con PayPal.');
+    }
+  };
+
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fileToUpload) {
+      alert('Por favor, adjunte el comprobante de transferencia.');
+      return;
+    }
+
+    setTransferStatus('uploading');
+    setUploadMessage('Subiendo comprobante al bucket transferencias y notificando al departamento financiero...');
+
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const clientId = order?.client_id || order?.user_id || id || 'cliente-general';
+      const fileExt = fileToUpload.name.split('.').pop();
+      const fileName = `${timestamp}_${clientId}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // 1. Subir archivo al Bucket 'transferencias' en Supabase
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('transferencias')
+        .upload(filePath, fileToUpload);
+
+      if (uploadError) {
+        throw new Error('Error al subir el archivo al bucket: ' + uploadError.message);
+      }
+
+      // Obtener URL pública o ruta del archivo guardado
+      const { data: publicURLData } = supabase.storage
+        .from('transferencias')
+        .getPublicUrl(filePath);
+
+      const comprobanteUrl = publicURLData.publicUrl || filePath;
+
+      // 2. Actualizar la tabla quotes con el estado y la URL del comprobante
+      const { error: updateError } = await supabase
+        .from('quotes')
+        .update({
+          status: 'Pendiente de Verificación Bancaria',
+          comprobante_url: comprobanteUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (updateError) {
+        console.error('Advertencia al actualizar la tabla quotes:', updateError);
+      }
+
+      // 3. Enviar correo electrónico directamente a fred.jurado@trulinkfiber.com
+      const emailResponse = await fetch('/api/send-transfer-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: 'fred.jurado@trulinkfiber.com',
+          quoteId: id,
+          clientName: clientId,
+          total: granTotal,
+          comprobanteUrl: comprobanteUrl,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        console.error('Aviso de correo con retraso, pero el comprobante se guardó con éxito en Supabase.');
+      }
+
+      setTransferStatus('success');
+      setUploadMessage('¡Comprobante adjuntado e instrucciones enviadas con éxito!');
+    } catch (err: any) {
+      console.error('Error procesando transferencia:', err);
+      setTransferStatus('error');
+      setUploadMessage('Error al procesar la transferencia: ' + (err.message || 'Desconocido'));
     }
   };
 
@@ -212,12 +290,85 @@ export default function Checkout() {
                   </button>
                 </div>
               </div>
+            ) : selectedMethod === 'transfer' ? (
+              <div style={{ marginTop: "30px", padding: "25px", backgroundColor: "#111", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "left" }}>
+                <h3 style={{ color: "#DAA520", marginBottom: "15px", textAlign: "center" }}>Detalles de Transferencia Bancaria o ACH</h3>
+                
+                <div style={{ fontSize: "0.9rem", lineHeight: "1.6", color: "#ddd", marginBottom: "20px", background: "#1a1a1a", padding: "15px", borderRadius: "10px", border: "1px solid #333" }}>
+                  <p><strong>Titular de la cuenta:</strong> Trulink Fiber, LLC</p>
+                  <p><strong>Tipo de cuenta:</strong> Checking</p>
+                  <p><strong>Número de ruta (para wire y ACH):</strong> 026073150</p>
+                  <p><strong>Número de cuenta:</strong> 822000835611</p>
+                  <p><strong>SWIFT/BIC (Internacional):</strong> CMFGUS33</p>
+                  <p><strong>Banco:</strong> Community Federal Savings Bank, 89-16 Jamaica Ave, Woodhaven, NY, 11421, United States</p>
+                </div>
+
+                <div style={{ backgroundColor: "rgba(218, 165, 3, 0.1)", border: "1px solid #DAA520", padding: "15px", borderRadius: "10px", marginBottom: "20px", textAlign: "center" }}>
+                  <p style={{ color: "#DAA520", fontWeight: "bold", margin: "0 0 8px 0" }}>
+                    FAVOR SUBIR/ADJUNTAR EL COMPROBANTE DE LA TRANSFERENCIA.
+                  </p>
+                  <p style={{ color: "#ccc", fontSize: "0.85rem", margin: 0 }}>
+                    Su pedido será procesado a la confirmación del pago recibido.
+                  </p>
+                </div>
+
+                {transferStatus === 'success' ? (
+                  <div style={{ textAlign: 'center', padding: '15px', color: '#4bb543' }}>
+                    <h4>¡Comprobante Registrado con Éxito!</h4>
+                    <p style={{ color: '#fff', fontSize: '0.9rem' }}>{uploadMessage}</p>
+                    <p style={{ color: '#aaa', fontSize: '0.8rem', marginTop: '5px' }}>Notificación enviada a fred.jurado@trulinkfiber.com</p>
+                    <button
+                      onClick={() => router.push('/')}
+                      style={{ marginTop: '15px', backgroundColor: '#DAA520', color: '#000', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                    >
+                      Volver al Inicio del Portal
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleTransferSubmit}>
+                    <div style={{ marginBottom: '20px' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', color: '#DAA520', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                        Seleccione archivo de comprobante (PDF o Imagen):
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pdf,image/*"
+                        onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)}
+                        style={{ width: '100%', padding: '10px', backgroundColor: '#000', border: '1px solid #DAA520', color: '#fff', borderRadius: '8px' }}
+                        required
+                      />
+                    </div>
+
+                    {transferStatus === 'uploading' && (
+                      <p style={{ color: '#DAA520', textAlign: 'center', fontStyle: 'italic', marginBottom: '15px' }}>{uploadMessage}</p>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'space-between' }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMethod(null)}
+                        style={{ backgroundColor: 'transparent', color: '#aaa', border: '1px solid #555', padding: '12px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                      >
+                        ← Volver
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={transferStatus === 'uploading'}
+                        className="btn-gold"
+                        style={{ width: 'auto', flex: 1, padding: '12px 20px' }}
+                      >
+                        {transferStatus === 'uploading' ? 'Subiendo...' : 'Enviar Comprobante'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
             ) : (
               <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
                 <p style={{ color: "#FFF", fontSize: "1rem", marginBottom: "10px" }}>Seleccione su método de pago:</p>
                 <button className="btn-gold" onClick={handleStripeCheckout}>Pagar con Stripe</button>
                 <button className="btn-gold" onClick={handlePayPalCheckout}>Pagar con PayPal</button>
-                <button className="btn-gold" onClick={() => router.push(`/pago-exitoso?order_id=${id}&method=transferencia`)}>Transferencias (Locales e Internacionales)</button>
+                <button className="btn-gold" onClick={() => setSelectedMethod('transfer')}>Transferencias (Locales e Internacionales)</button>
                 
                 <button onClick={() => setShowPaymentOptions(false)} style={{ marginTop: "15px", background: "none", border: "none", color: "#DAA520", textDecoration: "underline", cursor: "pointer" }}>
                   ⬅ Volver a la pregunta anterior
