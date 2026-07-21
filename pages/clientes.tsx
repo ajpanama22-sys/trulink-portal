@@ -17,13 +17,14 @@ export default function Clientes() {
     cargo: "",
     email: "",
     telefono: "",
+    perfil_cliente: "ISP",
   });
 
   const [cargando, setCargando] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [terminosAceptados, setTerminosAceptados] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -95,12 +96,12 @@ export default function Clientes() {
     transition: "all 0.3s ease",
   };
 
-  const focusEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const focusEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     e.target.style.boxShadow = "0 0 15px #DAA520";
     e.target.style.borderColor = "#FFF";
   };
 
-  const blurEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const blurEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     e.target.style.boxShadow = "none";
     e.target.style.borderColor = "#DAA520";
   };
@@ -158,6 +159,14 @@ export default function Clientes() {
               <input type="radio" name="tipo_solicitud" value="Inversor Estratégico" onChange={handleInputChange} style={{ marginRight: "10px" }} /> Inversor Estratégico
             </label>
           </div>
+
+          <h3 style={{ color: "#DAA520" }}>Perfil del Cliente / Lista de Precios</h3>
+          <select name="perfil_cliente" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} defaultValue="ISP">
+            <option value="ISP">ISP (Lista A)</option>
+            <option value="MAYORISTA">MAYORISTA (Lista B)</option>
+            <option value="INTEGRADOR">INTEGRADOR (Lista C)</option>
+            <option value="CLIENTE FINAL">CLIENTE FINAL (Lista D)</option>
+          </select>
 
           <h3 style={{ color: "#DAA520" }}>Información de la Empresa</h3>
           <input name="razon_social" type="text" placeholder="Nombre o Razón Social" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />

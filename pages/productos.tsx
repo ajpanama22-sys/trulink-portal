@@ -14,7 +14,10 @@ type Producto = {
   Familia: string;
   Descripción: string;
   Especificaciones: string;
-  precio: number;
+  precio_a: number;
+  precio_b: number;
+  precio_c: number;
+  precio_d: number;
   estado_inventario: string;
   image_url?: string;
 };
@@ -70,7 +73,8 @@ export default function Productos() {
 
   const agregarAlCarrito = (prod: Producto) => {
     const qty = cantidades[prod.SKU] || 1;
-    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción || prod.Ítem, cantidad: qty, precio: prod.precio, descripcion: prod.Descripción }]);
+    const precioSeleccionado = prod.precio_a || 0;
+    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción || prod.Ítem, cantidad: qty, precio: precioSeleccionado, descripcion: prod.Descripción }]);
     setCantidades({ ...cantidades, [prod.SKU]: 1 });
   };
 
@@ -353,6 +357,7 @@ export default function Productos() {
                 <img src={prod.image_url || "/placeholder.png"} alt={prod.Ítem} className="image-zoom" onClick={() => setProductoSeleccionado(prod)} style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px" }} />
                 <h3>{prod.SKU}</h3>
                 <p><strong>{prod.Ítem}</strong></p>
+                <p style={{ fontSize: "0.9rem", color: "#DAA520", margin: "5px 0" }}>Precio: ${prod.precio_a?.toFixed(2) || "0.00"}</p>
                 <input type="number" min="1" value={cantidades[prod.SKU] || 1} onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} style={{ width: "50px", marginBottom: "5px", backgroundColor: "#111", color: "#DAA520" }} />
                 <button onClick={() => agregarAlCarrito(prod)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer", display: "block", margin: "0 auto" }}>Agregar</button>
               </div>

@@ -12,7 +12,10 @@ export default function Admin() {
     Familia: "",
     Descripción: "",
     Especificaciones: "",
-    precio: 0,
+    precio_a: 0,
+    precio_b: 0,
+    precio_c: 0,
+    precio_d: 0,
     estado_inventario: "disponible"
   });
   const [dataList, setDataList] = useState<any[]>([]);
@@ -127,7 +130,18 @@ export default function Admin() {
         alert("Operación exitosa"); 
         setAccion(""); 
         setPaso(0); 
-        setFormData({SKU: "", Item: "", Familia: "", Descripción: "", Especificaciones: "", precio: 0, estado_inventario: "disponible"}); 
+        setFormData({
+          SKU: "", 
+          Item: "", 
+          Familia: "", 
+          Descripción: "", 
+          Especificaciones: "", 
+          precio_a: 0, 
+          precio_b: 0, 
+          precio_c: 0, 
+          precio_d: 0, 
+          estado_inventario: "disponible"
+        }); 
         setSkuTarget("");
         cargarDatos(seccion); 
       }
@@ -141,7 +155,10 @@ export default function Admin() {
       <input placeholder="Familia" onChange={(e) => setFormData({...formData, Familia: e.target.value})} style={inputEstilo} value={formData.Familia}/>
       <input placeholder="Descripción" onChange={(e) => setFormData({...formData, Descripción: e.target.value})} style={inputEstilo} value={formData.Descripción}/>
       <input placeholder="Especificaciones" onChange={(e) => setFormData({...formData, Especificaciones: e.target.value})} style={inputEstilo} value={formData.Especificaciones}/>
-      <input type="number" placeholder="Precio" onChange={(e) => setFormData({...formData, precio: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio}/>
+      <input type="number" placeholder="Precio A ($1.00)" onChange={(e) => setFormData({...formData, precio_a: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_a}/>
+      <input type="number" placeholder="Precio B ($2.00)" onChange={(e) => setFormData({...formData, precio_b: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_b}/>
+      <input type="number" placeholder="Precio C ($3.00)" onChange={(e) => setFormData({...formData, precio_c: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_c}/>
+      <input type="number" placeholder="Precio D ($4.00)" onChange={(e) => setFormData({...formData, precio_d: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_d}/>
       <input placeholder="Estado Inventario" onChange={(e) => setFormData({...formData, estado_inventario: e.target.value})} style={inputEstilo} value={formData.estado_inventario}/>
     </div>
   );

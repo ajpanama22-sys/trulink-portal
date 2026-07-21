@@ -8,7 +8,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Definimos el tipo de cada ítem de cotización
 type Item = {
   tipo: string;
   hilos: number;
@@ -20,10 +19,8 @@ type Item = {
 
 export default function Fabricacion() {
   const router = useRouter();
-  // useState tipado con Item[]
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
 
-  // Estados para los datos del cliente automatizados desde Supabase
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
@@ -51,7 +48,6 @@ export default function Fabricacion() {
 
   const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
 
-  // Tipamos los parámetros y el retorno
   const agregarItem = (tipo: string, hilos: number, longitudKm: number, cantidad: number): void => {
     const precioMetro = precios[tipo];
     const precioCarrete = precioMetro * (longitudKm * 1000);
@@ -59,13 +55,11 @@ export default function Fabricacion() {
     setCotizacion([...cotizacion, nuevoItem]);
   };
 
-  // Tipamos el índice como number
   const eliminarItem = (index: number): void => {
     const nuevaCotizacion = cotizacion.filter((_, i) => i !== index);
     setCotizacion(nuevaCotizacion);
   };
 
-  // Tipamos el acumulador y el item
   const granTotal = cotizacion.reduce((acc: number, item: Item) => acc + (item.precioCarrete * item.cantidad), 0);
 
   const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
@@ -119,7 +113,6 @@ export default function Fabricacion() {
       doc.text(`Fecha: ${fechaActual}`, 150, 26);
       doc.text(`Hora: ${horaActual}`, 150, 32);
 
-      // Datos del Cliente (Exactamente en el recuadro superior izquierdo)
       doc.setFontSize(9);
       doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
       doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
@@ -209,7 +202,6 @@ export default function Fabricacion() {
     doc.text(`Fecha: ${fechaActual}`, 150, 26);
     doc.text(`Hora: ${horaActual}`, 150, 32);
 
-    // Datos del Cliente
     doc.setFontSize(9);
     doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
     doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
@@ -274,13 +266,12 @@ export default function Fabricacion() {
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
       await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
-      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+      doc.save(`${referenciaUn_TrulinkFiber.pdf`);
     } catch (err) {
       doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
     }
   };
 
-  // Estilos reutilizables para inputs y selects
   const controlStyle: React.CSSProperties = {
     backgroundColor: "#111",
     color: "#DAA520",
@@ -322,7 +313,6 @@ export default function Fabricacion() {
         }
       `}</style>
 
-      {/* Botón superior de Volver */}
       <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "flex-start", marginBottom: "15px" }}>
         <button 
           onClick={() => router.back()} 
@@ -351,7 +341,6 @@ export default function Fabricacion() {
       }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
           
-          {/* Tarjeta ASU */}
           <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
             <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
             <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>ASU</h3>
@@ -389,7 +378,6 @@ export default function Fabricacion() {
             </button>
           </div>
 
-          {/* Tarjeta ADSS */}
           <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
             <img src="/images/ADSS.png" alt="Cable ADSS" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
             <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>ADSS</h3>
@@ -427,7 +415,6 @@ export default function Fabricacion() {
             </button>
           </div>
 
-          {/* Tarjeta FTTX */}
           <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
             <img src="/images/FTTX.png" alt="Cable FTTX" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
             <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>FTTX</h3>
