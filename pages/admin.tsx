@@ -13,10 +13,10 @@ export default function Admin() {
     Familia: "",
     Descripción: "",
     Especificaciones: "",
-    precio_a: 0,
-    precio_b: 0,
-    precio_c: 0,
-    precio_d: 0,
+    precio_a: "" as any,
+    precio_b: "" as any,
+    precio_c: "" as any,
+    precio_d: "" as any,
     estado_inventario: "disponible"
   });
   const [dataList, setDataList] = useState<any[]>([]);
@@ -125,13 +125,44 @@ export default function Admin() {
     cargarDatos(seccion);
   };
 
+  const buscarSkuParaEditar = async () => {
+    if (!supabase || !db || db === "TODAS" || !skuTarget) return;
+    const { data, error } = await supabase.from(db).select("*").eq("SKU", skuTarget).single();
+    if (error || !data) {
+      alert("No se encontró ningún registro con ese SKU.");
+    } else {
+      setFormData({
+        SKU: data.SKU || "",
+        Item: data.Item || "",
+        Familia: data.Familia || "",
+        Descripción: data.Descripción || "",
+        Especificaciones: data.Especificaciones || "",
+        precio_a: data.precio_a ?? "",
+        precio_b: data.precio_b ?? "",
+        precio_c: data.precio_c ?? "",
+        precio_d: data.precio_d ?? "",
+        estado_inventario: data.estado_inventario || "disponible"
+      });
+      setPaso(3); // Paso para mostrar los campos rellenados y permitir guardar cambios
+    }
+  };
+
   const ejecutarAccion = async () => {
     if (!supabase || !db || db === "TODAS") return;
     let query;
+
+    const dataToSubmit = {
+      ...formData,
+      precio_a: formData.precio_a === "" ? 0 : parseFloat(formData.precio_a) || 0,
+      precio_b: formData.precio_b === "" ? 0 : parseFloat(formData.precio_b) || 0,
+      precio_c: formData.precio_c === "" ? 0 : parseFloat(formData.precio_c) || 0,
+      precio_d: formData.precio_d === "" ? 0 : parseFloat(formData.precio_d) || 0,
+    };
+
     if (accion === "CREAR") {
-      query = supabase.from(db).insert([formData]);
+      query = supabase.from(db).insert([dataToSubmit]);
     } else if (accion === "EDITAR") {
-      query = supabase.from(db).update(formData).eq("SKU", skuTarget);
+      query = supabase.from(db).update(dataToSubmit).eq("SKU", skuTarget);
     } else if (accion === "ELIMINAR") {
       query = supabase.from(db).delete().eq("SKU", skuTarget);
     } else if (accion === "INACTIVAR") {
@@ -156,10 +187,10 @@ export default function Admin() {
           Familia: "", 
           Descripción: "", 
           Especificaciones: "", 
-          precio_a: 0, 
-          precio_b: 0, 
-          precio_c: 0, 
-          precio_d: 0, 
+          precio_a: "", 
+          precio_b: "", 
+          precio_c: "", 
+          precio_d: "", 
           estado_inventario: "disponible"
         }); 
         setSkuTarget("");
@@ -250,10 +281,10 @@ export default function Admin() {
       <input placeholder="Familia" onChange={(e) => setFormData({...formData, Familia: e.target.value})} style={inputEstilo} value={formData.Familia}/>
       <input placeholder="Descripción" onChange={(e) => setFormData({...formData, Descripción: e.target.value})} style={inputEstilo} value={formData.Descripción}/>
       <input placeholder="Especificaciones" onChange={(e) => setFormData({...formData, Especificaciones: e.target.value})} style={inputEstilo} value={formData.Especificaciones}/>
-      <input type="number" placeholder="Precio A ($1.00)" onChange={(e) => setFormData({...formData, precio_a: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_a}/>
-      <input type="number" placeholder="Precio B ($2.00)" onChange={(e) => setFormData({...formData, precio_b: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_b}/>
-      <input type="number" placeholder="Precio C ($3.00)" onChange={(e) => setFormData({...formData, precio_c: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_c}/>
-      <input type="number" placeholder="Precio D ($4.00)" onChange={(e) => setFormData({...formData, precio_d: parseFloat(e.target.value) || 0})} style={inputEstilo} value={formData.precio_d}/>
+      <input type="number" placeholder="Precio A" onChange={(e) => setFormData({...formData, precio_a: e.target.value})} style={inputEstilo} value={formData.precio_a}/>
+      <input type="number" placeholder="Precio B" onChange={(e) => setFormData({...formData, precio_b: e.target.value})} style={inputEstilo} value={formData.precio_b}/>
+      <input type="number" placeholder="Precio C" onChange={(e) => setFormData({...formData, precio_c: e.target.value})} style={inputEstilo} value={formData.precio_c}/>
+      <input type="number" placeholder="Precio D" onChange={(e) => setFormData({...formData, precio_d: e.target.value})} style={inputEstilo} value={formData.precio_d}/>
       <input placeholder="Estado Inventario" onChange={(e) => setFormData({...formData, estado_inventario: e.target.value})} style={inputEstilo} value={formData.estado_inventario}/>
     </div>
   );
@@ -323,7 +354,7 @@ export default function Admin() {
                     {esProd && <th style={{ padding: "8px" }}>SKU</th>}
                     <th style={{ padding: "8px" }}>{esProd ? "Descripción" : "Prod"}</th>
                     {!esProd && <th style={{ padding: "8px" }}>Km</th>}
-                    {!esProd && <th style={{ padding: "8px" }}>Hilos</th>}
+                    {!esProd && <th style={{ precision: "8px" }}>Hilos</th>}
                     <th style={{ padding: "8px" }}>Cant</th>
                     <th style={{ padding: "8px" }}>P. Unitario</th>
                     <th style={{ padding: "8px" }}>Total</th>
@@ -360,6 +391,11 @@ export default function Admin() {
         {seccion === "PRODUCTOS" && (
           <>
             <div style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px" }}>
+              {paso > 0 && (
+                <button onClick={() => { setPaso(0); setAccion(""); setSkuTarget(""); }} style={{...btnAccion, background: "#333", color: "#DAA520", border: "1px solid #DAA520", marginBottom: "15px"}}>
+                  ← VOLVER
+                </button>
+              )}
               {paso === 0 && (
                 <>
                   <div style={{ marginBottom: "15px" }}>
@@ -374,24 +410,20 @@ export default function Admin() {
                   </div>
                   {db && (
                     <>
-                      <div style={{ marginBottom: "15px" }}>
-                        <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Seleccionar Lista de Precios:</label>
-                        <select onChange={(e) => setListaPreciosFiltro(e.target.value)} style={selectEstilo} value={listaPreciosFiltro}>
-                          <option value="precio_a">Lista A - ISP</option>
-                          <option value="precio_b">Lista B - Mayorista</option>
-                          <option value="precio_c">Lista C - Integrador</option>
-                          <option value="precio_d">Lista D - Cliente Final</option>
-                        </select>
-                      </div>
                       {db !== "TODAS" && (
                         <>
-                          <button onClick={() => {setAccion("CREAR"); setPaso(1);}} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
-                          <button onClick={() => {setAccion("EDITAR"); setPaso(2);}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
-                          <button onClick={() => {setAccion("ELIMINAR"); setPaso(2);}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
+                          <button onClick={() => {setAccion("CREAR"); setPaso(1); setFormData({SKU: "", Item: "", Familia: "", Descripción: "", Especificaciones: "", precio_a: "", precio_b: "", precio_c: "", precio_d: "", estado_inventario: "disponible"});}} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
+                          <button onClick={() => {setAccion("EDITAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
+                          <button onClick={() => {setAccion("ELIMINAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
                         </>
                       )}
-                      <button onClick={() => cargarDatos("PRODUCTOS")} style={{...btnAccion, background: "blue", color: "#fff"}}>CONSULTAR</button>
-                      <button onClick={imprimirPrecios} style={{...btnAccion, background: "#fff", color: "#000"}}>IMPRIMIR PRECIOS</button>
+                      <button onClick={() => {
+                        const seleccionLista = prompt("Seleccionar Lista de Precios:\n1. precio_a (Lista A - ISP)\n2. precio_b (Lista B - Mayorista)\n3. precio_c (Lista C - Integrador)\n4. precio_d (Lista D - Cliente Final)\n\nEscribe precio_a, precio_b, precio_c o precio_d:", "precio_a");
+                        if (seleccionLista && ["precio_a", "precio_b", "precio_c", "precio_d"].includes(seleccionLista)) {
+                          setListaPreciosFiltro(seleccionLista);
+                        }
+                        imprimirPrecios();
+                      }} style={{...btnAccion, background: "#fff", color: "#000"}}>IMPRIMIR PRECIOS</button>
                     </>
                   )}
                 </>
@@ -409,35 +441,32 @@ export default function Admin() {
               {paso === 2 && db !== "TODAS" && (
                 <>
                   <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong></div>
-                  <input placeholder="Ingresa el SKU a procesar" onChange={(e) => setSkuTarget(e.target.value)} style={inputEstilo} value={skuTarget} />
-                  {accion === "EDITAR" && renderInputs()}
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <input 
+                      placeholder="Ingresa el SKU a procesar y presiona Enter o Buscar" 
+                      onChange={(e) => setSkuTarget(e.target.value)} 
+                      onKeyDown={(e) => { if (e.key === 'Enter') { buscarSkuParaEditar(); } }}
+                      style={inputEstilo} 
+                      value={skuTarget} 
+                    />
+                    <button onClick={buscarSkuParaEditar} style={{...btnAccion, background: "#DAA520", color: "#000", height: "42px"}}>BUSCAR SKU</button>
+                  </div>
                   <div style={{ marginTop: "15px" }}>
-                    <button onClick={ejecutarAccion} style={{...btnAccion, background: "green", color: "#fff"}}>EJECUTAR</button>
+                    <button onClick={() => {setPaso(0); setAccion(""); setSkuTarget("");}} style={{...btnAccion, background: "gray", color: "#fff"}}>CANCELAR</button>
+                  </div>
+                </>
+              )}
+              {paso === 3 && db !== "TODAS" && (
+                <>
+                  <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong> (Editando SKU: <strong>{skuTarget}</strong>)</div>
+                  {renderInputs()}
+                  <div style={{ marginTop: "15px" }}>
+                    <button onClick={ejecutarAccion} style={{...btnAccion, background: "green", color: "#fff"}}>GUARDAR CAMBIOS</button>
                     <button onClick={() => {setPaso(0); setAccion(""); setSkuTarget("");}} style={{...btnAccion, background: "gray", color: "#fff"}}>CANCELAR</button>
                   </div>
                 </>
               )}
             </div>
-            
-            {db && (
-              <div style={{ marginTop: "20px" }}>
-                <h3>Listado de {db === "TODAS" ? "Todas las Bases de Datos" : db} (Mostrando {listaPreciosFiltro.toUpperCase()})</h3>
-                {dataList.map((item: any, idx: number) => (
-                  <div key={idx} style={{ border: "1px solid #333", padding: "12px", marginBottom: "5px", background: "#111", borderRadius: "4px" }}>
-                    {db === "TODAS" && <span style={{ marginRight: "15px", display: "inline-block" }}><strong>_origen:</strong> <span style={{ color: "#DAA520" }}>{item._origen}</span></span>}
-                    {Object.entries(item).map(([k, v]) => {
-                      if (k === "_origen") return null;
-                      const esPrecioActual = k === listaPreciosFiltro;
-                      return (
-                        <span key={k} style={{ marginRight: "15px", display: "inline-block" }}>
-                          <strong>{k}:</strong> <span style={{ color: esPrecioActual ? "#00FF00" : "#fff", fontWeight: esPrecioActual ? "bold" : "normal" }}>{String(v)}</span>
-                        </span>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            )}
           </>
         )}
       </div>
