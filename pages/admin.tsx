@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 
 export default function Admin() {
   const [seccion, setSeccion] = useState<string>("VALIDAR");
-  const [db, setDb] = useState<string>("cabledb");
+  const [db, setDb] = useState<string>(""); 
   const [accion, setAccion] = useState<string>(""); 
   const [skuTarget, setSkuTarget] = useState<string>(""); 
   const [formData, setFormData] = useState({
@@ -19,8 +19,9 @@ export default function Admin() {
   const [paso, setPaso] = useState<number>(0); 
 
   useEffect(() => { 
+    if (seccion === "PRODUCTOS" && !db) return;
     cargarDatos(seccion); 
-  }, [seccion]);
+  }, [seccion, db]);
 
   const cargarDatos = async (seccionActual: string) => {
     if (!supabase) return;
@@ -28,7 +29,7 @@ export default function Admin() {
     let query;
     if (seccionActual === "COTIZACIONES") query = supabase.from("quotes").select("*").order("created_at", { ascending: false });
     else if (seccionActual === "VALIDAR") query = supabase.from("solicitudes_acceso").select("*");
-    else if (seccionActual === "PRODUCTOS") query = supabase.from(db).select("*");
+    else if (seccionActual === "PRODUCTOS" && db) query = supabase.from(db).select("*");
 
     if (query) {
       const { data, error } = await query;
@@ -37,14 +38,12 @@ export default function Admin() {
     }
   };
 
-  const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocial: string) => {
+  const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string) => {
     if (!supabase) return;
 
     if (tipo === 'ACTIVAR') {
-      // Generar un ID único de acceso / token para la contraseña
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       
-      // Actualizar estado en la tabla solicitudes_acceso
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ status: 'active', password_token: passwordToken })
@@ -55,7 +54,6 @@ export default function Admin() {
         return;
       }
 
-      // Enviar correo de notificación de activación con link de password
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
@@ -63,7 +61,7 @@ export default function Admin() {
           body: JSON.stringify({
             tipo: "ACTIVACION",
             email: emailCliente,
-            razon_social: razonSocial,
+            razon_social: razonSocialParam,
             link: `${window.location.origin}/auth/crear-password?token=${passwordToken}`
           })
         });
@@ -74,7 +72,6 @@ export default function Admin() {
       }
 
     } else {
-      // RECHAZAR: Enviar correo de notificación de rechazo y opcionalmente actualizar/eliminar registro
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
@@ -82,7 +79,7 @@ export default function Admin() {
           body: JSON.stringify({
             tipo: "RECHAZO",
             email: emailCliente,
-            razon_social: razonSocial
+            razon_social: razonSocialParam
           })
         });
         if (!response.ok) throw new Error("Fallo al enviar correo de rechazo");
@@ -96,18 +93,17 @@ export default function Admin() {
         .eq('id', id);
 
       if (deleteError) {
-        // Si no existe la columna status, intentamos eliminar el registro de forma segura
         await supabase.from("solicitudes_acceso").delete().eq('id', id);
       }
 
-      alert(`La solicitud de ${razon_social} ha sido rechazada y se ha notificado al solicitante.`);
+      alert(`La solicitud de ${razonSocialParam} ha sido rechazada y se ha notificado al solicitante.`);
     }
 
     cargarDatos(seccion);
   };
 
   const ejecutarAccion = async () => {
-    if (!supabase) return;
+    if (!supabase || !db) return;
     let query;
     if (accion === "CREAR") {
       query = supabase.from(db).insert([formData]);
@@ -154,17 +150,15 @@ export default function Admin() {
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
       <div style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px" }}>
         <h2 style={{ textAlign: "center", marginBottom: "30px" }}>ADMIN PANEL</h2>
-        <button onClick={() => {setSeccion("VALIDAR"); setPaso(0); setAccion("");}} style={btnNav}>VALIDAR INSCRIPCIONES</button>
-        <button onClick={() => {setSeccion("COTIZACIONES"); setPaso(0); setAccion("");}} style={btnNav}>COTIZACIONES GENERADAS</button>
-        <button onClick={() => {setSeccion("PRODUCTOS"); setPaso(0); setAccion("");}} style={btnNav}>PRODUCTOS</button>
+        <button onClick={() => {setSeccion("VALIDAR"); setPaso(0); setAccion(""); setDb("");}} style={btnNav}>VALIDAR INSCRIPCIONES</button>
+        <button onClick={() => {setSeccion("COTIZACIONES"); setPaso(0); setAccion(""); setDb("");}} style={btnNav}>COTIZACIONES GENERADAS</button>
+        <button onClick={() => {setSeccion("PRODUCTOS"); setPaso(0); setAccion(""); setDb(""); setDataList([]);}} style={btnNav}>PRODUCTOS</button>
       </div>
 
       <div style={{ flex: 1, padding: "40px" }}>
         {seccion === "VALIDAR" && dataList.map((item: any) => {
-          // Obtener la URL del documento subido al bucket de Supabase de manera dinámica o directa
           let docUrl = item.documentos_url || item.url || "";
           if (!docUrl && supabase) {
-            // Intenta buscar el documento asociado en el bucket predeterminado
             const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`${item.id}_documento`);
             docUrl = publicData?.publicUrl || "#";
           }
@@ -256,18 +250,27 @@ export default function Admin() {
             <div style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px" }}>
               {paso === 0 && (
                 <>
-                  <button onClick={() => {setAccion("CREAR"); setPaso(1);}} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
-                  <button onClick={() => {setAccion("EDITAR"); setPaso(2);}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
-                  <button onClick={() => {setAccion("ELIMINAR"); setPaso(2);}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
+                  <div style={{ marginBottom: "15px" }}>
+                    <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Selecciona la base de datos a trabajar:</label>
+                    <select onChange={(e) => setDb(e.target.value)} style={selectEstilo} value={db}>
+                      <option value="">-- Selecciona una base de datos --</option>
+                      <option value="cabledb">Cable DB</option>
+                      <option value="herrajesdb">Herrajes DB</option>
+                      <option value="accesoriosdb">Accesorios DB</option>
+                    </select>
+                  </div>
+                  {db && (
+                    <>
+                      <button onClick={() => {setAccion("CREAR"); setPaso(1);}} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
+                      <button onClick={() => {setAccion("EDITAR"); setPaso(2);}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
+                      <button onClick={() => {setAccion("ELIMINAR"); setPaso(2);}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
+                    </>
+                  )}
                 </>
               )}
               {paso === 1 && (
                 <>
-                  <select onChange={(e) => setDb(e.target.value)} style={selectEstilo} value={db}>
-                    <option value="cabledb">Cable DB</option>
-                    <option value="herrajesdb">Herrajes DB</option>
-                    <option value="accesoriosdb">Accesorios DB</option>
-                  </select>
+                  <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong></div>
                   {renderInputs()}
                   <div style={{ marginTop: "15px" }}>
                     <button onClick={ejecutarAccion} style={{...btnAccion, background: "green", color: "#fff"}}>GUARDAR</button>
@@ -277,11 +280,7 @@ export default function Admin() {
               )}
               {paso === 2 && (
                 <>
-                  <select onChange={(e) => setDb(e.target.value)} style={selectEstilo} value={db}>
-                    <option value="cabledb">Cable DB</option>
-                    <option value="herrajesdb">Herrajes DB</option>
-                    <option value="accesoriosdb">Accesorios DB</option>
-                  </select>
+                  <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong></div>
                   <input placeholder="Ingresa el SKU a procesar" onChange={(e) => setSkuTarget(e.target.value)} style={inputEstilo} value={skuTarget} />
                   {accion === "EDITAR" && renderInputs()}
                   <div style={{ marginTop: "15px" }}>
@@ -292,18 +291,20 @@ export default function Admin() {
               )}
             </div>
             
-            <div style={{ marginTop: "20px" }}>
-              <h3>Listado de {db}</h3>
-              {dataList.map((item: any, idx: number) => (
-                <div key={idx} style={{ border: "1px solid #333", padding: "12px", marginBottom: "5px", background: "#111", borderRadius: "4px" }}>
-                  {Object.entries(item).map(([k, v]) => (
-                    <span key={k} style={{ marginRight: "15px", display: "inline-block" }}>
-                      <strong>{k}:</strong> <span style={{ color: "#fff" }}>{String(v)}</span>
-                    </span>
-                  ))}
-                </div>
-              ))}
-            </div>
+            {db && (
+              <div style={{ marginTop: "20px" }}>
+                <h3>Listado de {db}</h3>
+                {dataList.map((item: any, idx: number) => (
+                  <div key={idx} style={{ border: "1px solid #333", padding: "12px", marginBottom: "5px", background: "#111", borderRadius: "4px" }}>
+                    {Object.entries(item).map(([k, v]) => (
+                      <span key={k} style={{ marginRight: "15px", display: "inline-block" }}>
+                        <strong>{k}:</strong> <span style={{ color: "#fff" }}>{String(v)}</span>
+                      </span>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </div>
