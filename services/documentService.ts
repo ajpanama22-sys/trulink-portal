@@ -11,7 +11,7 @@ export const uploadAndLinkDocument = async (file: File, categoria: string, recor
   const rutaArchivo = `${categoria}/${recordId}/${file.name}`;
   
   const { data: storageData, error: uploadError } = await supabase.storage
-    .from('registros')
+    .from('documentos')
     .upload(rutaArchivo, file);
 
   if (uploadError) throw uploadError;
