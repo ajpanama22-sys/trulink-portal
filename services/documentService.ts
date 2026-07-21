@@ -8,7 +8,7 @@ export const uploadAndLinkDocument = async (file: File, categoria: string, recor
   }
 
   // Ahora TypeScript sabe que si llega aquí, supabase NO es null
-  const rutaArchivo = `${categoria}/${recordId}/${file.name}`;
+  const rutaArchivo = `file.name;
   
   const { data: storageData, error: uploadError } = await supabase.storage
     .from('documentos')
