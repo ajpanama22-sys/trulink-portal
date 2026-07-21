@@ -172,9 +172,7 @@ export default function Checkout() {
                 <button className="btn-gold" onClick={() => alert("Redirigiendo a PayPal...")}>Pagar con PayPal</button>
                 <button className="btn-gold" onClick={() => alert("Instrucciones de Transferencia (Locales e Internacionales) enviadas al correo")}>Transferencias (Locales e Internacionales)</button>
                 
-                <button onClick={() => setShowPaymentOptions(false)} style={{ marginTop: "15px", background: "none", border: "none", color: "#DAA520", textDecoration: "underline", cursor: "pointer" }}>
-                  ⬅ Volver a la pregunta anterior
-                </button>
+                
               </div>
             )}
           </div>
