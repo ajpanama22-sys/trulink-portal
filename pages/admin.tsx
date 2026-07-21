@@ -118,10 +118,10 @@ export default function Admin() {
           const esProd = item.type === 'producto';
           const refCot = item.referencia || item.reference || item.id;
           
-          let pdfUrl = item.pdf_url || item.document_url || item.comprobante_url || item.pdf || item.url || item.documento;
+          let pdfUrl = item.pdf_url || item.document_url || item.comprobante_url || item.pdf || item.url || item.documento || item.file_url;
           
-          if (!pdfUrl && supabase && refCot) {
-            const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`${refCot}.pdf`);
+          if (!pdfUrl && supabase && item.id) {
+            const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`${item.id}_cotizacion.pdf`);
             if (publicData?.publicUrl) {
               pdfUrl = publicData.publicUrl;
             }
