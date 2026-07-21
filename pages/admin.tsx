@@ -36,20 +36,7 @@ export default function Admin() {
     } else if (seccionActual === "VALIDAR") {
       query = supabase.from("solicitudes_acceso").select("*");
     } else if (seccionActual === "PRODUCTOS") {
-      if (db === "TODAS") {
-        const [cables, herrajes, accesorios] = await Promise.all([
-          supabase.from("cabledb").select("*"),
-          supabase.from("herrajesdb").select("*"),
-          supabase.from("accesoriosdb").select("*")
-        ]);
-        const combinado = [
-          ...(cables.data || []).map(item => ({ ...item, _origen: "cabledb" })),
-          ...(herrajes.data || []).map(item => ({ ...item, _origen: "herrajesdb" })),
-          ...(accesorios.data || []).map(item => ({ ...item, _origen: "accesoriosdb" }))
-        ];
-        setDataList(combinado);
-        return;
-      } else if (db) {
+      if (db) {
         query = supabase.from(db).select("*");
       }
     }
@@ -126,9 +113,8 @@ export default function Admin() {
   };
 
   const prepararFormularioCrear = async () => {
-    if (!supabase || !db || db === "TODAS") return;
+    if (!supabase || !db) return;
     
-    // Consultar el último ítem registrado en la base de datos seleccionada ordenado de forma descendente
     const { data, error } = await supabase
       .from(db)
       .select("Item")
@@ -160,7 +146,7 @@ export default function Admin() {
   };
 
   const buscarSkuParaEditar = async () => {
-    if (!supabase || !db || db === "TODAS" || !skuTarget) return;
+    if (!supabase || !db || !skuTarget) return;
     const { data, error } = await supabase.from(db).select("*").ilike("SKU", skuTarget.trim());
     if (error || !data || data.length === 0) {
       alert("No se encontró ningún registro con ese SKU.");
@@ -183,7 +169,7 @@ export default function Admin() {
   };
 
   const ejecutarAccion = async () => {
-    if (!supabase || !db || db === "TODAS") return;
+    if (!supabase || !db) return;
     let query;
 
     const dataToSubmit = {
@@ -232,26 +218,12 @@ export default function Admin() {
   const imprimirPrecios = async () => {
     if (!supabase || !db) return;
     
-    let listaParaImprimir: any[] = [];
-    if (db === "TODAS") {
-      const [cables, herrajes, accesorios] = await Promise.all([
-        supabase.from("cabledb").select("*"),
-        supabase.from("herrajesdb").select("*"),
-        supabase.from("accesoriosdb").select("*")
-      ]);
-      listaParaImprimir = [
-        ...(cables.data || []),
-        ...(herrajes.data || []),
-        ...(accesorios.data || [])
-      ];
-    } else {
-      const { data, error } = await supabase.from(db).select("*");
-      if (error) {
-        alert("Error al cargar datos para imprimir: " + error.message);
-        return;
-      }
-      listaParaImprimir = data || [];
+    const { data, error } = await supabase.from(db).select("*");
+    if (error) {
+      alert("Error al cargar datos para imprimir: " + error.message);
+      return;
     }
+    const listaParaImprimir = data || [];
 
     const ventanaImpresion = window.open("", "_blank");
     if (!ventanaImpresion) return;
@@ -264,7 +236,7 @@ export default function Admin() {
       precio_d: "Lista D - Cliente Final"
     };
 
-    const tituloBase = db === "TODAS" ? "TODAS LAS BASES DE DATOS (Cable, Herrajes, Accesorios)" : db.toUpperCase();
+    const tituloBase = db.toUpperCase();
 
     const contenidoHtml = `
       <html>
@@ -455,7 +427,6 @@ export default function Admin() {
                     <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Selecciona la base de datos a trabajar:</label>
                     <select onChange={(e) => setDb(e.target.value)} style={selectEstilo} value={db}>
                       <option value="">-- Selecciona una base de datos --</option>
-                      <option value="TODAS">TODAS (Cables, Herrajes y Accesorios Juntas)</option>
                       <option value="cabledb">Cable DB</option>
                       <option value="herrajesdb">Herrajes DB</option>
                       <option value="accesoriosdb">Accesorios DB</option>
@@ -463,13 +434,9 @@ export default function Admin() {
                   </div>
                   {db && (
                     <>
-                      {db !== "TODAS" && (
-                        <>
-                          <button onClick={prepararFormularioCrear} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
-                          <button onClick={() => {setAccion("EDITAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
-                          <button onClick={() => {setAccion("ELIMINAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
-                        </>
-                      )}
+                      <button onClick={prepararFormularioCrear} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
+                      <button onClick={() => {setAccion("EDITAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
+                      <button onClick={() => {setAccion("ELIMINAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
                       <button onClick={() => {
                         const seleccionLista = prompt("Seleccionar Lista de Precios:\n1. precio_a (Lista A - ISP)\n2. precio_b (Lista B - Mayorista)\n3. precio_c (Lista C - Integrador)\n4. precio_d (Lista D - Cliente Final)\n\nEscribe precio_a, precio_b, precio_c o precio_d:", "precio_a");
                         if (seleccionLista && ["precio_a", "precio_b", "precio_c", "precio_d"].includes(seleccionLista)) {
@@ -481,7 +448,7 @@ export default function Admin() {
                   )}
                 </>
               )}
-              {paso === 1 && db !== "TODAS" && (
+              {paso === 1 && (
                 <>
                   <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong></div>
                   {renderInputs()}
@@ -491,7 +458,7 @@ export default function Admin() {
                   </div>
                 </>
               )}
-              {paso === 2 && db !== "TODAS" && (
+              {paso === 2 && (
                 <>
                   <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong></div>
                   <div style={{ display: "flex", gap: "10px" }}>
@@ -509,7 +476,7 @@ export default function Admin() {
                   </div>
                 </>
               )}
-              {paso === 3 && db !== "TODAS" && (
+              {paso === 3 && (
                 <>
                   <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong> (Editando SKU: <strong>{skuTarget}</strong>)</div>
                   {renderInputs()}
