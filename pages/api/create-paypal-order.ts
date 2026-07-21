@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next5' // o NextApiRequest de next
+import { NextApiRequest, NextApiResponse } from 'next'
 import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 
 function environment() {
