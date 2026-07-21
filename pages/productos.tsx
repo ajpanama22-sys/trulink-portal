@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
@@ -44,7 +44,7 @@ export default function Productos() {
 
   const agregarAlCarrito = (prod: Producto) => {
     const qty = cantidades[prod.SKU] || 1;
-    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción, cantidad: qty, precio: prod.precio, descripcion: prod.Descripción }]);
+    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción || prod.Ítem, cantidad: qty, precio: prod.precio, descripcion: prod.Descripción }]);
     setCantidades({ ...cantidades, [prod.SKU]: 1 });
   };
 
@@ -95,32 +95,54 @@ export default function Productos() {
       console.log("Intentando generar PDF y guardar cotización en Supabase...");
       const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
 
-      // Generar PDF para almacenarlo en el bucket
       const doc = new jsPDF();
       doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
       doc.setFontSize(10);
       doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
       doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
+      doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
+
       doc.setFontSize(16);
       doc.text("TRULINK FIBER LLC", 14, 40);
+      doc.setFontSize(10);
+      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
+      doc.text("Tel: +507 6640 3720", 14, 52);
+      doc.text("www.trulinkfiber.com", 14, 58);
       
-      const rows = carrito.map(item => [item.SKU, item.nombre, item.cantidad.toString(), `$${item.precio.toFixed(2)}`, `$${(item.precio * item.cantidad).toFixed(2)}`]);
+      const rows = carrito.map(item => [
+        item.SKU, 
+        item.nombre, 
+        item.cantidad.toString(), 
+        `$${item.precio.toFixed(2)}`, 
+        `$${(item.precio * item.cantidad).toFixed(2)}`
+      ]);
       
       (doc as any).autoTable({
         head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
         body: rows,
-        startY: 50,
+        startY: 70,
         styles: { fontSize: 10, halign: "center" },
         headStyles: { fillColor: [218, 165, 32] }
       });
 
       const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 130, finalY, { align: "right" });
+      doc.setFontSize(12);
+      doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
 
-      doc.setFontSize(9);
+      doc.setFontSize(10);
       doc.text("Precios: EXW PANAMÁ", 14, finalY + 20);
       doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 26);
-      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 14, finalY + 32);
+      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 40, { align: "center" });
+
+      try {
+        const firma = "/images/firmaco.png";
+        const props = doc.getImageProperties(firma);
+        const firmaWidth = 40;
+        const firmaHeight = (props.height * firmaWidth) / props.width;
+        doc.addImage(firma, "PNG", 150, finalY + 55, firmaWidth, firmaHeight);
+      } catch (e) {
+        console.error("No se pudo cargar la firma:", e);
+      }
 
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaUnica}.pdf`;
@@ -165,26 +187,49 @@ export default function Productos() {
     doc.setFontSize(10);
     doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
     doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
+    doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
+
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 40);
+    doc.setFontSize(10);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
+    doc.text("Tel: +507 6640 3720", 14, 52);
+    doc.text("www.trulinkfiber.com", 14, 58);
     
-    const rows = carrito.map(item => [item.SKU, item.nombre, item.cantidad.toString(), `$${item.precio.toFixed(2)}`, `$${(item.precio * item.cantidad).toFixed(2)}`]);
+    const rows = carrito.map(item => [
+      item.SKU, 
+      item.nombre, 
+      item.cantidad.toString(), 
+      `$${item.precio.toFixed(2)}`, 
+      `$${(item.precio * item.cantidad).toFixed(2)}`
+    ]);
     
     (doc as any).autoTable({
       head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
       body: rows,
-      startY: 50,
+      startY: 70,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 130, finalY, { align: "right" });
+    doc.setFontSize(12);
+    doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
 
-    doc.setFontSize(9);
+    doc.setFontSize(10);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 20);
     doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 26);
-    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 14, finalY + 32);
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 40, { align: "center" });
+
+    try {
+      const firma = "/images/firmaco.png";
+      const props = doc.getImageProperties(firma);
+      const firmaWidth = 40;
+      const firmaHeight = (props.height * firmaWidth) / props.width;
+      doc.addImage(firma, "PNG", 150, finalY + 55, firmaWidth, firmaHeight);
+    } catch (e) {
+      console.error("No se pudo cargar la firma:", e);
+    }
 
     try {
       const pdfBlob = doc.output("blob");
@@ -327,9 +372,12 @@ export default function Productos() {
                 ))}
               </tbody>
             </table>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "10px" }}>
-              <h2 style={{ color: "#DAA520", margin: 0 }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
+            
+            {/* Alineado exactamente debajo de la columna de Total de la tabla */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "45px" }}>
+              <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.2rem" }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
             </div>
+
             <div style={{ marginTop: "15px", color: "#FFF", fontSize: "0.85rem", borderTop: "1px dashed #DAA520", paddingTop: "10px" }}>
               <p style={{ margin: "4px 0" }}><strong>Precios:</strong> EXW PANAMÁ</p>
               <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
