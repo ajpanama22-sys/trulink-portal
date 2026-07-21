@@ -11,7 +11,7 @@ type QuoteItem = {
   nombre?: string;
   hilos?: number;
   longitudKm?: number;
-  cantidad: number;
+  cantidad?: number;
   precioMetro?: number;
   precioCarrete?: number;
   precioUnitario?: number;
@@ -54,7 +54,9 @@ export default function Checkout() {
     }
   }, [id]);
 
-  const granTotal = order ? (order.total ?? order.total_amount ?? 0) : 0;
+  // Validación segura para evitar que toFixed falle si es undefined
+  const rawTotal = order?.total ?? order?.total_amount ?? 0;
+  const granTotal = typeof rawTotal === 'number' ? rawTotal : Number(rawTotal) || 0;
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
@@ -113,7 +115,7 @@ export default function Checkout() {
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", fontSize: "0.9rem", color: "#ccc" }}>
               <span><strong>Referencia:</strong> {order.id}</span>
-              <span><strong>Fecha:</strong> {new Date(order.created_at).toLocaleDateString()}</span>
+              <span><strong>Fecha:</strong> {order.created_at ? new Date(order.created_at).toLocaleDateString() : ""}</span>
             </div>
 
             {/* Tabla de desglose de la cotización generada */}
@@ -129,17 +131,18 @@ export default function Checkout() {
                   </tr>
                 </thead>
                 <tbody>
-                  {order.items && order.items.map((item, index) => {
+                  {order.items && Array.isArray(order.items) && order.items.map((item, index) => {
                     const desc = item.tipo || item.nombre || "Artículo";
                     const hilosVal = item.hilos !== undefined ? item.hilos : "-";
-                    const unitPrice = item.precioCarrete ?? item.precioUnitario ?? item.precioMetro ?? 0;
-                    const itemTotal = unitPrice * item.cantidad;
+                    const cantVal = item.cantidad ?? 1;
+                    const unitPrice = Number(item.precioCarrete ?? item.precioUnitario ?? item.precioMetro ?? 0);
+                    const itemTotal = unitPrice * cantVal;
 
                     return (
                       <tr key={index} style={{ backgroundColor: "#0c0c0c" }}>
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{desc}</td>
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{hilosVal}</td>
-                        <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{item.cantidad}</td>
+                        <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{cantVal}</td>
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${unitPrice.toFixed(2)}</td>
                         <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${itemTotal.toFixed(2)}</td>
                       </tr>
@@ -160,7 +163,7 @@ export default function Checkout() {
                   <button className="btn-gold" style={{ maxWidth: "200px" }} onClick={() => setShowPaymentOptions(true)}>
                     Sí, continuar
                   </button>
-                  <button className="btn-outline-gold" onClick={() => router.push("/fabricacion")}>
+                  <button className="btn-outline-gold" onClick={() => router.back()}>
                     No, regresar
                   </button>
                 </div>
