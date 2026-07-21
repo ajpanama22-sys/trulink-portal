@@ -113,13 +113,20 @@ export default function Admin() {
   };
 
   const prepararFormularioCrear = async () => {
-    if (!supabase || !db) return;
+    if (!supabase || !db) {
+      alert("Por favor selecciona una base de datos primero.");
+      return;
+    }
     
     const { data, error } = await supabase
       .from(db)
       .select("Item")
       .order("Item", { ascending: false })
       .limit(1);
+
+    if (error) {
+      console.error("Error consultando último Item en", db, error);
+    }
 
     let siguienteItem = 1;
     if (!error && data && data.length > 0) {
@@ -191,7 +198,7 @@ export default function Admin() {
       query = supabase.from(db).update({ estado_inventario: 'inactivo' }).eq("SKU", skuTarget);
     }
     
-    const { data, error } = await (query as any);
+    const { error } = await (query as any);
     if (error) {
       alert("Error RLS: " + error.message);
     } else { 
@@ -226,7 +233,10 @@ export default function Admin() {
     const listaParaImprimir = data || [];
 
     const ventanaImpresion = window.open("", "_blank");
-    if (!ventanaImpresion) return;
+    if (!ventanaImpresion) {
+      alert("Por favor, permite las ventanas emergentes (pop-ups) para imprimir el listado.");
+      return;
+    }
 
     const fechaHoraActual = new Date().toLocaleString();
     const nombreListaMap: Record<string, string> = {
@@ -239,6 +249,7 @@ export default function Admin() {
     const tituloBase = db.toUpperCase();
 
     const contenidoHtml = `
+      <!DOCTYPE html>
       <html>
         <head>
           <title>Listado de Precios - Trulink Fiber LLC</title>
@@ -290,13 +301,20 @@ export default function Admin() {
               `).join("")}
             </tbody>
           </table>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 300);
+            };
+          </script>
         </body>
       </html>
     `;
 
+    ventanaImpresion.document.open();
     ventanaImpresion.document.write(contenidoHtml);
     ventanaImpresion.document.close();
-    ventanaImpresion.print();
   };
 
   const renderInputs = () => (
