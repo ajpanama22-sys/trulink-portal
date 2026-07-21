@@ -427,7 +427,7 @@ export default function Admin() {
                     <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Selecciona la base de datos a trabajar:</label>
                     <select onChange={(e) => setDb(e.target.value)} style={selectEstilo} value={db}>
                       <option value="">-- Selecciona una base de datos --</option>
-                      <option value="cabledb">Cable DB</option>
+                      <option value="cablesdb">Cables DB</option>
                       <option value="herrajesdb">Herrajes DB</option>
                       <option value="accesoriosdb">Accesorios DB</option>
                     </select>
