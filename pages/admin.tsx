@@ -143,7 +143,7 @@ export default function Admin() {
         precio_d: data.precio_d ?? "",
         estado_inventario: data.estado_inventario || "disponible"
       });
-      setPaso(3); // Paso para mostrar los campos rellenados y permitir guardar cambios
+      setPaso(3); 
     }
   };
 
@@ -354,7 +354,7 @@ export default function Admin() {
                     {esProd && <th style={{ padding: "8px" }}>SKU</th>}
                     <th style={{ padding: "8px" }}>{esProd ? "Descripción" : "Prod"}</th>
                     {!esProd && <th style={{ padding: "8px" }}>Km</th>}
-                    {!esProd && <th style={{ precision: "8px" }}>Hilos</th>}
+                    {!esProd && <th style={{ padding: "8px" }}>Hilos</th>}
                     <th style={{ padding: "8px" }}>Cant</th>
                     <th style={{ padding: "8px" }}>P. Unitario</th>
                     <th style={{ padding: "8px" }}>Total</th>
