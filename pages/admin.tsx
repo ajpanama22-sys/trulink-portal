@@ -7,6 +7,7 @@ export default function Admin() {
   const [accion, setAccion] = useState<string>(""); 
   const [skuTarget, setSkuTarget] = useState<string>(""); 
   const [listaPreciosFiltro, setListaPreciosFiltro] = useState<string>("precio_a");
+  const [mostrarSelectorImpresion, setMostrarSelectorImpresion] = useState<boolean>(false);
   const [formData, setFormData] = useState({
     SKU: "",
     Item: "" as any,
@@ -160,11 +161,11 @@ export default function Admin() {
     } else {
       const reg = data[0];
       setFormData({
-        SKU: reg.SKU || "",
-        Item: reg.Item ?? "",
-        Familia: reg.Familia || "",
-        Descripción: reg.Descripción || "",
-        Especificaciones: reg.Especificaciones || "",
+        SKU: reg.SKU || reg.sku || "",
+        Item: reg.Item ?? reg.item ?? "",
+        Familia: reg.Familia || reg.familia || "",
+        Descripción: reg.Descripción || reg.descripcion || "",
+        Especificaciones: reg.Especificaciones || reg.especificaciones || "",
         precio_a: reg.precio_a ?? "",
         precio_b: reg.precio_b ?? "",
         precio_c: reg.precio_c ?? "",
@@ -290,11 +291,11 @@ export default function Admin() {
             <tbody>
               ${listaParaImprimir.map(item => `
                 <tr>
-                  <td>${item.SKU || "-"}</td>
-                  <td>${item.Item || "-"}</td>
-                  <td>${item.Familia || "-"}</td>
-                  <td>${item.Descripción || "-"}</td>
-                  <td>${item.Especificaciones || "-"}</td>
+                  <td>${item.SKU || item.sku || "-"}</td>
+                  <td>${item.Item ?? item.item ?? "-"}</td>
+                  <td>${item.Familia || item.familia || "-"}</td>
+                  <td>${item.Descripción || item.descripcion || "-"}</td>
+                  <td>${item.Especificaciones || item.especificaciones || "-"}</td>
                   <td>$${Number(item[listaPreciosFiltro] || 0).toFixed(2)}</td>
                   <td>${item.estado_inventario || "disponible"}</td>
                 </tr>
@@ -305,7 +306,8 @@ export default function Admin() {
             window.onload = function() {
               setTimeout(function() {
                 window.print();
-              }, 300);
+                window.close();
+              }, 400);
             };
           </script>
         </body>
@@ -336,9 +338,9 @@ export default function Admin() {
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
       <div style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px" }}>
         <h2 style={{ textAlign: "center", marginBottom: "30px" }}>ADMIN PANEL</h2>
-        <button onClick={() => {setSeccion("VALIDAR"); setPaso(0); setAccion(""); setDb("");}} style={btnNav}>VALIDAR INSCRIPCIONES</button>
-        <button onClick={() => {setSeccion("COTIZACIONES"); setPaso(0); setAccion(""); setDb("");}} style={btnNav}>COTIZACIONES GENERADAS</button>
-        <button onClick={() => {setSeccion("PRODUCTOS"); setPaso(0); setAccion(""); setDb(""); setDataList([]);}} style={btnNav}>PRODUCTOS</button>
+        <button onClick={() => {setSeccion("VALIDAR"); setPaso(0); setAccion(""); setDb(""); setMostrarSelectorImpresion(false);}} style={btnNav}>VALIDAR INSCRIPCIONES</button>
+        <button onClick={() => {setSeccion("COTIZACIONES"); setPaso(0); setAccion(""); setDb(""); setMostrarSelectorImpresion(false);}} style={btnNav}>COTIZACIONES GENERADAS</button>
+        <button onClick={() => {setSeccion("PRODUCTOS"); setPaso(0); setAccion(""); setDb(""); setDataList([]); setMostrarSelectorImpresion(false);}} style={btnNav}>PRODUCTOS</button>
       </div>
 
       <div style={{ flex: 1, padding: "40px" }}>
@@ -435,7 +437,7 @@ export default function Admin() {
           <>
             <div style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px" }}>
               {paso > 0 && (
-                <button onClick={() => { setPaso(0); setAccion(""); setSkuTarget(""); }} style={{...btnAccion, background: "#333", color: "#DAA520", border: "1px solid #DAA520", marginBottom: "15px"}}>
+                <button onClick={() => { setPaso(0); setAccion(""); setSkuTarget(""); setMostrarSelectorImpresion(false); }} style={{...btnAccion, background: "#333", color: "#DAA520", border: "1px solid #DAA520", marginBottom: "15px"}}>
                   ← VOLVER
                 </button>
               )}
@@ -443,7 +445,7 @@ export default function Admin() {
                 <>
                   <div style={{ marginBottom: "15px" }}>
                     <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Selecciona la base de datos a trabajar:</label>
-                    <select onChange={(e) => setDb(e.target.value)} style={selectEstilo} value={db}>
+                    <select onChange={(e) => { setDb(e.target.value); setMostrarSelectorImpresion(false); }} style={selectEstilo} value={db}>
                       <option value="">-- Selecciona una base de datos --</option>
                       <option value="cablesdb">Cables DB</option>
                       <option value="herrajesdb">Herrajes DB</option>
@@ -453,15 +455,29 @@ export default function Admin() {
                   {db && (
                     <>
                       <button onClick={prepararFormularioCrear} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
-                      <button onClick={() => {setAccion("EDITAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
-                      <button onClick={() => {setAccion("ELIMINAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
-                      <button onClick={() => {
-                        const seleccionLista = prompt("Seleccionar Lista de Precios:\n1. precio_a (Lista A - ISP)\n2. precio_b (Lista B - Mayorista)\n3. precio_c (Lista C - Integrador)\n4. precio_d (Lista D - Cliente Final)\n\nEscribe precio_a, precio_b, precio_c o precio_d:", "precio_a");
-                        if (seleccionLista && ["precio_a", "precio_b", "precio_c", "precio_d"].includes(seleccionLista)) {
-                          setListaPreciosFiltro(seleccionLista);
-                        }
-                        imprimirPrecios();
-                      }} style={{...btnAccion, background: "#fff", color: "#000"}}>IMPRIMIR PRECIOS</button>
+                      <button onClick={() => {setAccion("EDITAR"); setPaso(2); setSkuTarget(""); setMostrarSelectorImpresion(false);}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
+                      <button onClick={() => {setAccion("ELIMINAR"); setPaso(2); setSkuTarget(""); setMostrarSelectorImpresion(false);}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
+                      <button onClick={() => setMostrarSelectorImpresion(!mostrarSelectorImpresion)} style={{...btnAccion, background: "#fff", color: "#000"}}>IMPRIMIR PRECIOS</button>
+
+                      {mostrarSelectorImpresion && (
+                        <div style={{ marginTop: "15px", padding: "15px", border: "1px solid #DAA520", borderRadius: "8px", background: "#111" }}>
+                          <p style={{ margin: "0 0 10px 0", fontWeight: "bold", color: "#DAA520" }}>Selecciona la lista de precios a imprimir:</p>
+                          <select 
+                            onChange={(e) => setListaPreciosFiltro(e.target.value)} 
+                            style={selectEstilo} 
+                            value={listaPreciosFiltro}
+                          >
+                            <option value="precio_a">Lista A - ISP</option>
+                            <option value="precio_b">Lista B - Mayorista</option>
+                            <option value="precio_c">Lista C - Integrador</option>
+                            <option value="precio_d">Lista D - Cliente Final</option>
+                          </select>
+                          <div style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
+                            <button onClick={() => { imprimirPrecios(); setMostrarSelectorImpresion(false); }} style={{...btnAccion, background: "#DAA520", color: "#000", padding: "8px 15px"}}>GENERAR e IMPRIMIR</button>
+                            <button onClick={() => setMostrarSelectorImpresion(false)} style={{...btnAccion, background: "#333", color: "#fff", padding: "8px 15px", border: "1px solid #666"}}>CANCELAR</button>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </>
