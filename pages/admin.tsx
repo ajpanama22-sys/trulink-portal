@@ -9,7 +9,7 @@ export default function Admin() {
   const [listaPreciosFiltro, setListaPreciosFiltro] = useState<string>("precio_a");
   const [formData, setFormData] = useState({
     SKU: "",
-    Item: "",
+    Item: "" as any,
     Familia: "",
     Descripción: "",
     Especificaciones: "",
@@ -125,23 +125,58 @@ export default function Admin() {
     cargarDatos(seccion);
   };
 
+  const prepararFormularioCrear = async () => {
+    if (!supabase || !db || db === "TODAS") return;
+    
+    // Consultar el último ítem registrado en la base de datos seleccionada ordenado de forma descendente
+    const { data, error } = await supabase
+      .from(db)
+      .select("Item")
+      .order("Item", { ascending: false })
+      .limit(1);
+
+    let siguienteItem = 1;
+    if (!error && data && data.length > 0) {
+      const ultimoItem = Number(data[0].Item);
+      if (!isNaN(ultimoItem)) {
+        siguienteItem = ultimoItem + 1;
+      }
+    }
+
+    setFormData({
+      SKU: "",
+      Item: siguienteItem,
+      Familia: "",
+      Descripción: "",
+      Especificaciones: "",
+      precio_a: "",
+      precio_b: "",
+      precio_c: "",
+      precio_d: "",
+      estado_inventario: "disponible"
+    });
+    setAccion("CREAR");
+    setPaso(1);
+  };
+
   const buscarSkuParaEditar = async () => {
     if (!supabase || !db || db === "TODAS" || !skuTarget) return;
-    const { data, error } = await supabase.from(db).select("*").eq("SKU", skuTarget).single();
-    if (error || !data) {
+    const { data, error } = await supabase.from(db).select("*").ilike("SKU", skuTarget.trim());
+    if (error || !data || data.length === 0) {
       alert("No se encontró ningún registro con ese SKU.");
     } else {
+      const reg = data[0];
       setFormData({
-        SKU: data.SKU || "",
-        Item: data.Item || "",
-        Familia: data.Familia || "",
-        Descripción: data.Descripción || "",
-        Especificaciones: data.Especificaciones || "",
-        precio_a: data.precio_a ?? "",
-        precio_b: data.precio_b ?? "",
-        precio_c: data.precio_c ?? "",
-        precio_d: data.precio_d ?? "",
-        estado_inventario: data.estado_inventario || "disponible"
+        SKU: reg.SKU || "",
+        Item: reg.Item ?? "",
+        Familia: reg.Familia || "",
+        Descripción: reg.Descripción || "",
+        Especificaciones: reg.Especificaciones || "",
+        precio_a: reg.precio_a ?? "",
+        precio_b: reg.precio_b ?? "",
+        precio_c: reg.precio_c ?? "",
+        precio_d: reg.precio_d ?? "",
+        estado_inventario: reg.estado_inventario || "disponible"
       });
       setPaso(3); 
     }
@@ -153,6 +188,7 @@ export default function Admin() {
 
     const dataToSubmit = {
       ...formData,
+      Item: formData.Item === "" ? 0 : Number(formData.Item) || 0,
       precio_a: formData.precio_a === "" ? 0 : parseFloat(formData.precio_a) || 0,
       precio_b: formData.precio_b === "" ? 0 : parseFloat(formData.precio_b) || 0,
       precio_c: formData.precio_c === "" ? 0 : parseFloat(formData.precio_c) || 0,
@@ -167,39 +203,56 @@ export default function Admin() {
       query = supabase.from(db).delete().eq("SKU", skuTarget);
     } else if (accion === "INACTIVAR") {
       query = supabase.from(db).update({ estado_inventario: 'inactivo' }).eq("SKU", skuTarget);
-    } else if (accion === "VISUALIZAR") {
-      query = supabase.from(db).select("*").eq("SKU", skuTarget);
     }
     
     const { data, error } = await (query as any);
     if (error) {
       alert("Error RLS: " + error.message);
     } else { 
-      if (accion === "VISUALIZAR") {
-        setDataList(data || []);
-      } else { 
-        alert("Operación exitosa"); 
-        setAccion(""); 
-        setPaso(0); 
-        setFormData({
-          SKU: "", 
-          Item: "", 
-          Familia: "", 
-          Descripción: "", 
-          Especificaciones: "", 
-          precio_a: "", 
-          precio_b: "", 
-          precio_c: "", 
-          precio_d: "", 
-          estado_inventario: "disponible"
-        }); 
-        setSkuTarget("");
-        cargarDatos(seccion); 
-      }
+      alert("Operación exitosa"); 
+      setAccion(""); 
+      setPaso(0); 
+      setFormData({
+        SKU: "", 
+        Item: "", 
+        Familia: "", 
+        Descripción: "", 
+        Especificaciones: "", 
+        precio_a: "", 
+        precio_b: "", 
+        precio_c: "", 
+        precio_d: "", 
+        estado_inventario: "disponible"
+      }); 
+      setSkuTarget("");
+      cargarDatos(seccion); 
     }
   };
 
-  const imprimirPrecios = () => {
+  const imprimirPrecios = async () => {
+    if (!supabase || !db) return;
+    
+    let listaParaImprimir: any[] = [];
+    if (db === "TODAS") {
+      const [cables, herrajes, accesorios] = await Promise.all([
+        supabase.from("cabledb").select("*"),
+        supabase.from("herrajesdb").select("*"),
+        supabase.from("accesoriosdb").select("*")
+      ]);
+      listaParaImprimir = [
+        ...(cables.data || []),
+        ...(herrajes.data || []),
+        ...(accesorios.data || [])
+      ];
+    } else {
+      const { data, error } = await supabase.from(db).select("*");
+      if (error) {
+        alert("Error al cargar datos para imprimir: " + error.message);
+        return;
+      }
+      listaParaImprimir = data || [];
+    }
+
     const ventanaImpresion = window.open("", "_blank");
     if (!ventanaImpresion) return;
 
@@ -252,7 +305,7 @@ export default function Admin() {
               </tr>
             </thead>
             <tbody>
-              ${dataList.map(item => `
+              ${listaParaImprimir.map(item => `
                 <tr>
                   <td>${item.SKU || "-"}</td>
                   <td>${item.Item || "-"}</td>
@@ -277,7 +330,7 @@ export default function Admin() {
   const renderInputs = () => (
     <div style={{ display: "grid", gap: "10px", marginTop: "15px" }}>
       <input placeholder="SKU" onChange={(e) => setFormData({...formData, SKU: e.target.value})} style={inputEstilo} value={formData.SKU}/>
-      <input placeholder="Item" onChange={(e) => setFormData({...formData, Item: e.target.value})} style={inputEstilo} value={formData.Item}/>
+      <input type="number" placeholder="Item" onChange={(e) => setFormData({...formData, Item: e.target.value})} style={inputEstilo} value={formData.Item}/>
       <input placeholder="Familia" onChange={(e) => setFormData({...formData, Familia: e.target.value})} style={inputEstilo} value={formData.Familia}/>
       <input placeholder="Descripción" onChange={(e) => setFormData({...formData, Descripción: e.target.value})} style={inputEstilo} value={formData.Descripción}/>
       <input placeholder="Especificaciones" onChange={(e) => setFormData({...formData, Especificaciones: e.target.value})} style={inputEstilo} value={formData.Especificaciones}/>
@@ -412,7 +465,7 @@ export default function Admin() {
                     <>
                       {db !== "TODAS" && (
                         <>
-                          <button onClick={() => {setAccion("CREAR"); setPaso(1); setFormData({SKU: "", Item: "", Familia: "", Descripción: "", Especificaciones: "", precio_a: "", precio_b: "", precio_c: "", precio_d: "", estado_inventario: "disponible"});}} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
+                          <button onClick={prepararFormularioCrear} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
                           <button onClick={() => {setAccion("EDITAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
                           <button onClick={() => {setAccion("ELIMINAR"); setPaso(2); setSkuTarget("");}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
                         </>
