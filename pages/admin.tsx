@@ -114,25 +114,65 @@ export default function Admin() {
           </div>
         ))}
 
-        {seccion === "COTIZACIONES" && dataList.map((item: any) => (
-          <div key={item.id} style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px", borderRadius: "10px" }}>
-            <p>
-              <strong>REF:</strong> <span style={{ color: "#DAA520" }}>{item.referencia || item.reference || "N/A"}</span> | 
-              <strong> FECHA:</strong> {item.created_at ? new Date(item.created_at).toLocaleString() : "N/A"} | 
-              <strong> EMAIL:</strong> {item.user_email || item.email || "N/A"} | 
-              <strong> TELÉFONO:</strong> {item.user_telefono || item.telefono || "N/A"}
-            </p>
-            <p><strong>TOTAL:</strong> ${item.total}</p>
-            <table style={{ width: "100%", color: "#fff", borderCollapse: "collapse", marginTop: "10px" }}>
-              <thead><tr style={{ borderBottom: "1px solid #DAA520" }}><th>Prod</th><th>Km</th><th>Hilos</th><th>Cant</th><th>Total</th></tr></thead>
-              <tbody>
-                {item.items?.map((it: any, i: number) => (
-                  <tr key={i} style={{ textAlign: "center" }}><td>{it.product}</td><td>{it.km}</td><td>{it.hilos}</td><td>{it.cantidad}</td><td>{it.lineTotal}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
+        {seccion === "COTIZACIONES" && dataList.map((item: any) => {
+          const esProd = item.type === 'producto';
+          const pdfUrl = item.pdf_url || item.document_url || item.comprobante_url;
+
+          return (
+            <div key={item.id} style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px", borderRadius: "10px" }}>
+              <p>
+                <strong>REF:</strong> <span style={{ color: "#DAA520" }}>{item.referencia || item.reference || item.id}</span> | 
+                <strong> FECHA:</strong> {item.created_at ? new Date(item.created_at).toLocaleString() : "N/A"} | 
+                <strong> EMAIL:</strong> {item.user_email || item.email || item.client_email || "N/A"} | 
+                <strong> TELÉFONO:</strong> {item.user_telefono || item.telefono || item.client_phone || "N/A"}
+              </p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0" }}>
+                <p style={{ margin: 0 }}><strong>TOTAL:</strong> ${typeof item.total === 'number' ? item.total.toFixed(2) : (Number(item.total) || 0).toFixed(2)}</p>
+                {pdfUrl && (
+                  <a href={pdfUrl} target="_blank" rel="noreferrer" style={{...btnAccion, background: "#DAA520", color: "#000", padding: "6px 15px", fontSize: "0.85rem", textDecoration: "none"}}>
+                    VER PDF COTIZACIÓN
+                  </a>
+                )}
+              </div>
+              <table style={{ width: "100%", color: "#fff", borderCollapse: "collapse", marginTop: "10px", fontSize: "0.9rem" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #DAA520" }}>
+                    {esProd && <th style={{ padding: "8px" }}>SKU</th>}
+                    <th style={{ padding: "8px" }}>{esProd ? "Descripción" : "Prod"}</th>
+                    {!esProd && <th style={{ padding: "8px" }}>Km</th>}
+                    {!esProd && <th style={{ padding: "8px" }}>Hilos</th>}
+                    <th style={{ padding: "8px" }}>Cant</th>
+                    <th style={{ padding: "8px" }}>P. Unitario</th>
+                    <th style={{ padding: "8px" }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {item.items?.map((it: any, i: number) => {
+                    const skuVal = it.SKU || it.sku || "-";
+                    const descVal = it.descripcion || it.nombre || it.tipo || it.product || "Artículo";
+                    const kmVal = it.longitudKm ?? it.km ?? "-";
+                    const hilosVal = it.hilos !== undefined ? it.hilos : "-";
+                    const cantVal = it.cantidad ?? 1;
+                    const unitPrice = Number(it.precioUnitario ?? it.precioCarrete ?? it.precioMetro ?? 0);
+                    const lineTotal = it.total ?? (unitPrice * cantVal);
+
+                    return (
+                      <tr key={i} style={{ textAlign: "center", borderBottom: "1px solid #222" }}>
+                        {esProd && <td style={{ padding: "8px" }}>{skuVal}</td>}
+                        <td style={{ padding: "8px" }}>{descVal}</td>
+                        {!esProd && <td style={{ padding: "8px" }}>{kmVal}</td>}
+                        {!esProd && <td style={{ padding: "8px" }}>{hilosVal}</td>}
+                        <td style={{ padding: "8px" }}>{cantVal}</td>
+                        <td style={{ padding: "8px" }}>${unitPrice.toFixed(2)}</td>
+                        <td style={{ padding: "8px" }}>${Number(lineTotal).toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
 
         {seccion === "PRODUCTOS" && (
           <>
