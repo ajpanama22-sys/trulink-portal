@@ -24,6 +24,7 @@ type ItemCarrito = {
   nombre: string;
   cantidad: number;
   precio: number;
+  descripcion?: string;
 };
 
 export default function Productos() {
@@ -43,7 +44,7 @@ export default function Productos() {
 
   const agregarAlCarrito = (prod: Producto) => {
     const qty = cantidades[prod.SKU] || 1;
-    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción, cantidad: qty, precio: prod.precio }]);
+    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción, cantidad: qty, precio: prod.precio, descripcion: prod.Descripción }]);
     setCantidades({ ...cantidades, [prod.SKU]: 1 });
   };
 
@@ -66,12 +67,20 @@ export default function Productos() {
       
       const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
 
+      const itemsFormateados = carrito.map(item => ({
+        SKU: item.SKU,
+        descripcion: item.nombre || item.descripcion,
+        cantidad: item.cantidad,
+        precioUnitario: item.precio,
+        total: item.precio * item.cantidad
+      }));
+
       const { data, error } = await supabase
         .from('quotes')
         .insert([{ 
           referencia: referenciaUnica,
           total: totalCotizacion, 
-          items: carrito,
+          items: itemsFormateados,
           status: 'pending',
           type: 'producto'
         }])
@@ -100,12 +109,20 @@ export default function Productos() {
     const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
 
     try {
+      const itemsFormateados = carrito.map(item => ({
+        SKU: item.SKU,
+        descripcion: item.nombre || item.descripcion,
+        cantidad: item.cantidad,
+        precioUnitario: item.precio,
+        total: item.precio * item.cantidad
+      }));
+
       await supabase
         .from('quotes')
         .insert([{ 
           referencia: referenciaUnica,
           total: totalCotizacion, 
-          items: carrito,
+          items: itemsFormateados,
           status: 'pending',
           type: 'producto'
         }]);
