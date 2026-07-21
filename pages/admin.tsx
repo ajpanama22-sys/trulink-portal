@@ -116,22 +116,33 @@ export default function Admin() {
 
         {seccion === "COTIZACIONES" && dataList.map((item: any) => {
           const esProd = item.type === 'producto';
-          const pdfUrl = item.pdf_url || item.document_url || item.comprobante_url;
+          const refCot = item.referencia || item.reference || item.id;
+          
+          let pdfUrl = item.pdf_url || item.document_url || item.comprobante_url || item.pdf || item.url || item.documento;
+          
+          if (!pdfUrl && supabase && refCot) {
+            const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`${refCot}.pdf`);
+            if (publicData?.publicUrl) {
+              pdfUrl = publicData.publicUrl;
+            }
+          }
 
           return (
             <div key={item.id} style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px", borderRadius: "10px" }}>
               <p>
-                <strong>REF:</strong> <span style={{ color: "#DAA520" }}>{item.referencia || item.reference || item.id}</span> | 
+                <strong>REF:</strong> <span style={{ color: "#DAA520" }}>{refCot}</span> | 
                 <strong> FECHA:</strong> {item.created_at ? new Date(item.created_at).toLocaleString() : "N/A"} | 
                 <strong> EMAIL:</strong> {item.user_email || item.email || item.client_email || "N/A"} | 
                 <strong> TELÉFONO:</strong> {item.user_telefono || item.telefono || item.client_phone || "N/A"}
               </p>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "10px 0" }}>
                 <p style={{ margin: 0 }}><strong>TOTAL:</strong> ${typeof item.total === 'number' ? item.total.toFixed(2) : (Number(item.total) || 0).toFixed(2)}</p>
-                {pdfUrl && (
+                {pdfUrl ? (
                   <a href={pdfUrl} target="_blank" rel="noreferrer" style={{...btnAccion, background: "#DAA520", color: "#000", padding: "6px 15px", fontSize: "0.85rem", textDecoration: "none"}}>
                     VER PDF COTIZACIÓN
                   </a>
+                ) : (
+                  <span style={{ fontSize: "0.85rem", color: "#888", fontStyle: "italic" }}>PDF no disponible</span>
                 )}
               </div>
               <table style={{ width: "100%", color: "#fff", borderCollapse: "collapse", marginTop: "10px", fontSize: "0.9rem" }}>
