@@ -6,6 +6,7 @@ export default function Admin() {
   const [db, setDb] = useState<string>(""); 
   const [accion, setAccion] = useState<string>(""); 
   const [skuTarget, setSkuTarget] = useState<string>(""); 
+  const [listaPreciosFiltro, setListaPreciosFiltro] = useState<string>("precio_a");
   const [formData, setFormData] = useState({
     SKU: "",
     Item: "",
@@ -30,9 +31,28 @@ export default function Admin() {
     if (!supabase) return;
     setDataList([]);
     let query;
-    if (seccionActual === "COTIZACIONES") query = supabase.from("quotes").select("*").order("created_at", { ascending: false });
-    else if (seccionActual === "VALIDAR") query = supabase.from("solicitudes_acceso").select("*");
-    else if (seccionActual === "PRODUCTOS" && db) query = supabase.from(db).select("*");
+    if (seccionActual === "COTIZACIONES") {
+      query = supabase.from("quotes").select("*").order("created_at", { ascending: false });
+    } else if (seccionActual === "VALIDAR") {
+      query = supabase.from("solicitudes_acceso").select("*");
+    } else if (seccionActual === "PRODUCTOS") {
+      if (db === "TODAS") {
+        const [cables, herrajes, accesorios] = await Promise.all([
+          supabase.from("cabledb").select("*"),
+          supabase.from("herrajesdb").select("*"),
+          supabase.from("accesoriosdb").select("*")
+        ]);
+        const combinado = [
+          ...(cables.data || []).map(item => ({ ...item, _origen: "cabledb" })),
+          ...(herrajes.data || []).map(item => ({ ...item, _origen: "herrajesdb" })),
+          ...(accesorios.data || []).map(item => ({ ...item, _origen: "accesoriosdb" }))
+        ];
+        setDataList(combinado);
+        return;
+      } else if (db) {
+        query = supabase.from(db).select("*");
+      }
+    }
 
     if (query) {
       const { data, error } = await query;
@@ -106,7 +126,7 @@ export default function Admin() {
   };
 
   const ejecutarAccion = async () => {
-    if (!supabase || !db) return;
+    if (!supabase || !db || db === "TODAS") return;
     let query;
     if (accion === "CREAR") {
       query = supabase.from(db).insert([formData]);
@@ -146,6 +166,81 @@ export default function Admin() {
         cargarDatos(seccion); 
       }
     }
+  };
+
+  const imprimirPrecios = () => {
+    const ventanaImpresion = window.open("", "_blank");
+    if (!ventanaImpresion) return;
+
+    const fechaHoraActual = new Date().toLocaleString();
+    const nombreListaMap: Record<string, string> = {
+      precio_a: "Lista A - ISP",
+      precio_b: "Lista B - Mayorista",
+      precio_c: "Lista C - Integrador",
+      precio_d: "Lista D - Cliente Final"
+    };
+
+    const tituloBase = db === "TODAS" ? "TODAS LAS BASES DE DATOS (Cable, Herrajes, Accesorios)" : db.toUpperCase();
+
+    const contenidoHtml = `
+      <html>
+        <head>
+          <title>Listado de Precios - Trulink Fiber LLC</title>
+          <style>
+            body { background: #fff; color: #000; font-family: sans-serif; padding: 20px; }
+            .header-container { text-align: center; margin-bottom: 20px; }
+            .logo { max-width: 150px; height: auto; margin-bottom: 10px; }
+            h2 { margin: 5px 0; color: #333; font-size: 18px; }
+            .meta-info { font-size: 12px; color: #555; margin-bottom: 15px; text-align: center; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 11px; }
+            th { background: #DAA520; color: #fff; text-align: center; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+            tr:nth-child(odd) { background-color: #DAA52015; }
+          </style>
+        </head>
+        <body>
+          <div class="header-container">
+            <img src="/images/logo.png" alt="Trulink Fiber Logo" class="logo" />
+            <h2>Trulink Fiber LLC - Listado de Precios</h2>
+            <div class="meta-info">
+              Base: ${tituloBase} | <strong>${nombreListaMap[listaPreciosFiltro] || listaPreciosFiltro}</strong><br/>
+              Fecha y Hora de Creación: ${fechaHoraActual}
+            </div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Item</th>
+                <th>Familia</th>
+                <th>Descripción</th>
+                <th>Especificaciones</th>
+                <th>Precio (${nombreListaMap[listaPreciosFiltro] || listaPreciosFiltro})</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${dataList.map(item => `
+                <tr>
+                  <td>${item.SKU || "-"}</td>
+                  <td>${item.Item || "-"}</td>
+                  <td>${item.Familia || "-"}</td>
+                  <td>${item.Descripción || "-"}</td>
+                  <td>${item.Especificaciones || "-"}</td>
+                  <td>$${Number(item[listaPreciosFiltro] || 0).toFixed(2)}</td>
+                  <td>${item.estado_inventario || "disponible"}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    ventanaImpresion.document.write(contenidoHtml);
+    ventanaImpresion.document.close();
+    ventanaImpresion.print();
   };
 
   const renderInputs = () => (
@@ -271,6 +366,7 @@ export default function Admin() {
                     <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Selecciona la base de datos a trabajar:</label>
                     <select onChange={(e) => setDb(e.target.value)} style={selectEstilo} value={db}>
                       <option value="">-- Selecciona una base de datos --</option>
+                      <option value="TODAS">TODAS (Cables, Herrajes y Accesorios Juntas)</option>
                       <option value="cabledb">Cable DB</option>
                       <option value="herrajesdb">Herrajes DB</option>
                       <option value="accesoriosdb">Accesorios DB</option>
@@ -278,14 +374,29 @@ export default function Admin() {
                   </div>
                   {db && (
                     <>
-                      <button onClick={() => {setAccion("CREAR"); setPaso(1);}} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
-                      <button onClick={() => {setAccion("EDITAR"); setPaso(2);}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
-                      <button onClick={() => {setAccion("ELIMINAR"); setPaso(2);}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
+                      <div style={{ marginBottom: "15px" }}>
+                        <label style={{ display: "block", marginBottom: "5px", fontWeight: "bold" }}>Seleccionar Lista de Precios:</label>
+                        <select onChange={(e) => setListaPreciosFiltro(e.target.value)} style={selectEstilo} value={listaPreciosFiltro}>
+                          <option value="precio_a">Lista A - ISP</option>
+                          <option value="precio_b">Lista B - Mayorista</option>
+                          <option value="precio_c">Lista C - Integrador</option>
+                          <option value="precio_d">Lista D - Cliente Final</option>
+                        </select>
+                      </div>
+                      {db !== "TODAS" && (
+                        <>
+                          <button onClick={() => {setAccion("CREAR"); setPaso(1);}} style={{...btnAccion, background: "green", color: "#fff"}}>CREAR</button>
+                          <button onClick={() => {setAccion("EDITAR"); setPaso(2);}} style={{...btnAccion, background: "#DAA520", color: "#000"}}>EDITAR</button>
+                          <button onClick={() => {setAccion("ELIMINAR"); setPaso(2);}} style={{...btnAccion, background: "red", color: "#fff"}}>ELIMINAR</button>
+                        </>
+                      )}
+                      <button onClick={() => cargarDatos("PRODUCTOS")} style={{...btnAccion, background: "blue", color: "#fff"}}>CONSULTAR</button>
+                      <button onClick={imprimirPrecios} style={{...btnAccion, background: "#fff", color: "#000"}}>IMPRIMIR PRECIOS</button>
                     </>
                   )}
                 </>
               )}
-              {paso === 1 && (
+              {paso === 1 && db !== "TODAS" && (
                 <>
                   <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong></div>
                   {renderInputs()}
@@ -295,7 +406,7 @@ export default function Admin() {
                   </div>
                 </>
               )}
-              {paso === 2 && (
+              {paso === 2 && db !== "TODAS" && (
                 <>
                   <div style={{ marginBottom: "10px", fontSize: "0.9rem", color: "#DAA520" }}>Base de datos activa: <strong>{db}</strong></div>
                   <input placeholder="Ingresa el SKU a procesar" onChange={(e) => setSkuTarget(e.target.value)} style={inputEstilo} value={skuTarget} />
@@ -310,14 +421,19 @@ export default function Admin() {
             
             {db && (
               <div style={{ marginTop: "20px" }}>
-                <h3>Listado de {db}</h3>
+                <h3>Listado de {db === "TODAS" ? "Todas las Bases de Datos" : db} (Mostrando {listaPreciosFiltro.toUpperCase()})</h3>
                 {dataList.map((item: any, idx: number) => (
                   <div key={idx} style={{ border: "1px solid #333", padding: "12px", marginBottom: "5px", background: "#111", borderRadius: "4px" }}>
-                    {Object.entries(item).map(([k, v]) => (
-                      <span key={k} style={{ marginRight: "15px", display: "inline-block" }}>
-                        <strong>{k}:</strong> <span style={{ color: "#fff" }}>{String(v)}</span>
-                      </span>
-                    ))}
+                    {db === "TODAS" && <span style={{ marginRight: "15px", display: "inline-block" }}><strong>_origen:</strong> <span style={{ color: "#DAA520" }}>{item._origen}</span></span>}
+                    {Object.entries(item).map(([k, v]) => {
+                      if (k === "_origen") return null;
+                      const esPrecioActual = k === listaPreciosFiltro;
+                      return (
+                        <span key={k} style={{ marginRight: "15px", display: "inline-block" }}>
+                          <strong>{k}:</strong> <span style={{ color: esPrecioActual ? "#00FF00" : "#fff", fontWeight: esPrecioActual ? "bold" : "normal" }}>{String(v)}</span>
+                        </span>
+                      );
+                    })}
                   </div>
                 ))}
               </div>

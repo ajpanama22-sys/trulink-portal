@@ -160,12 +160,12 @@ export default function Clientes() {
             </label>
           </div>
 
-          <h3 style={{ color: "#DAA520" }}>Perfil del Cliente / Lista de Precios</h3>
+          <h3 style={{ color: "#DAA520" }}>Perfil del Cliente</h3>
           <select name="perfil_cliente" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} defaultValue="ISP">
-            <option value="ISP">ISP (Lista A)</option>
-            <option value="MAYORISTA">MAYORISTA (Lista B)</option>
-            <option value="INTEGRADOR">INTEGRADOR (Lista C)</option>
-            <option value="CLIENTE FINAL">CLIENTE FINAL (Lista D)</option>
+            <option value="ISP">ISP</option>
+            <option value="MAYORISTA">MAYORISTA</option>
+            <option value="INTEGRADOR">INTEGRADOR</option>
+            <option value="CLIENTE FINAL">CLIENTE FINAL</option>
           </select>
 
           <h3 style={{ color: "#DAA520" }}>Información de la Empresa</h3>
