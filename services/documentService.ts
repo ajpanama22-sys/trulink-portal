@@ -7,8 +7,7 @@ export const uploadAndLinkDocument = async (file: File, categoria: string, recor
     throw new Error("Cliente de Supabase no inicializado");
   }
 
-  // Ahora TypeScript sabe que si llega aquí, supabase NO es null
-  const rutaArchivo = `file.name;
+  const rutaArchivo = file.name;
   
   const { data: storageData, error: uploadError } = await supabase.storage
     .from('documentos')
@@ -16,5 +15,5 @@ export const uploadAndLinkDocument = async (file: File, categoria: string, recor
 
   if (uploadError) throw uploadError;
 
-  // ... resto de tu código de inserción en base de datos
+  return storageData;
 };
