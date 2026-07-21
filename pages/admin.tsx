@@ -26,7 +26,7 @@ export default function Admin() {
     if (!supabase) return;
     setDataList([]);
     let query;
-    if (seccionActual === "COTIZACIONES") query = supabase.from("quotes").select("*");
+    if (seccionActual === "COTIZACIONES") query = supabase.from("quotes").select("*").order("created_at", { ascending: false });
     else if (seccionActual === "VALIDAR") query = supabase.from("solicitudes_acceso").select("*");
     else if (seccionActual === "PRODUCTOS") query = supabase.from(db).select("*");
 
@@ -116,7 +116,12 @@ export default function Admin() {
 
         {seccion === "COTIZACIONES" && dataList.map((item: any) => (
           <div key={item.id} style={{ border: "1px solid #DAA520", padding: "20px", marginBottom: "20px", borderRadius: "10px" }}>
-            <p><strong>ID:</strong> {item.id} | <strong>EMAIL:</strong> {item.user_email} | <strong>TELÉFONO:</strong> {item.user_telefono}</p>
+            <p>
+              <strong>REF:</strong> <span style={{ color: "#DAA520" }}>{item.referencia || item.reference || "N/A"}</span> | 
+              <strong> FECHA:</strong> {item.created_at ? new Date(item.created_at).toLocaleString() : "N/A"} | 
+              <strong> EMAIL:</strong> {item.user_email || item.email || "N/A"} | 
+              <strong> TELÉFONO:</strong> {item.user_telefono || item.telefono || "N/A"}
+            </p>
             <p><strong>TOTAL:</strong> ${item.total}</p>
             <table style={{ width: "100%", color: "#fff", borderCollapse: "collapse", marginTop: "10px" }}>
               <thead><tr style={{ borderBottom: "1px solid #DAA520" }}><th>Prod</th><th>Km</th><th>Hilos</th><th>Cant</th><th>Total</th></tr></thead>

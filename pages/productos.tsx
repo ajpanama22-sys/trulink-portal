@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
@@ -64,9 +64,12 @@ export default function Productos() {
     try {
       console.log("Intentando guardar cotización en Supabase...");
       
+      const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+
       const { data, error } = await supabase
         .from('quotes')
         .insert([{ 
+          referencia: referenciaUnica,
           total: totalCotizacion, 
           items: carrito,
           status: 'pending',
@@ -88,11 +91,32 @@ export default function Productos() {
     }
   };
 
-  const generarPDF = () => {
+  const generarPDF = async () => {
+    if (carrito.length === 0) {
+      alert("La cotización está vacía.");
+      return;
+    }
+
+    const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+
+    try {
+      await supabase
+        .from('quotes')
+        .insert([{ 
+          referencia: referenciaUnica,
+          total: totalCotizacion, 
+          items: carrito,
+          status: 'pending',
+          type: 'producto'
+        }]);
+    } catch (err) {
+      console.error("Error al registrar cotización automática por PDF:", err);
+    }
+
     const doc = new jsPDF();
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
     doc.setFontSize(10);
-    doc.text(`Cotización Nº: QT-${Date.now().toString().slice(-5)}`, 150, 20);
+    doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
     doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 40);
@@ -109,7 +133,7 @@ export default function Productos() {
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 130, finalY, { align: "right" });
-    doc.save("Cotizacion_TrulinkFiber.pdf");
+    doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
   };
 
   const seleccionarCategoria = async (tabla: string) => {

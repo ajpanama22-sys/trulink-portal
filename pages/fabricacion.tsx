@@ -51,9 +51,12 @@ export default function Fabricacion() {
     try {
       console.log("Intentando guardar cotización en Supabase...");
       
+      const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+
       const { data, error } = await supabase
         .from('quotes')
         .insert([{ 
+          referencia: referenciaUnica,
           type: "fiber_quote",
           total: granTotal, 
           items: cotizacion,
@@ -75,7 +78,28 @@ export default function Fabricacion() {
     }
   };
 
-  const generarPDF = (): void => {
+  const generarPDF = async (): Promise<void> => {
+    if (cotizacion.length === 0) {
+      alert("La cotización está vacía.");
+      return;
+    }
+
+    const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+
+    try {
+      await supabase
+        .from('quotes')
+        .insert([{ 
+          referencia: referenciaUnica,
+          type: "fiber_quote",
+          total: granTotal, 
+          items: cotizacion,
+          status: 'pending' 
+        }]);
+    } catch (err) {
+      console.error("Error al registrar cotización automática por PDF:", err);
+    }
+
     const doc = new jsPDF();
 
     // Logo arriba
@@ -83,7 +107,7 @@ export default function Fabricacion() {
 
     // Número de cotización, fecha y hora (lado derecho)
     doc.setFontSize(10);
-    doc.text(`Cotización Nº: QT-${Math.floor(Math.random() * 100000)}`, 150, 20);
+    doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
     doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
     doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
 
@@ -134,7 +158,7 @@ export default function Fabricacion() {
     doc.addImage(firma, "PNG", 150, (doc as any).lastAutoTable.finalY + 55, firmaWidth, firmaHeight);
 
     // Guardar PDF
-    doc.save("Cotizacion_TrulinkFiber.pdf");
+    doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
   };
 
   // Estilos reutilizables para inputs y selects
