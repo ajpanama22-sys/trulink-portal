@@ -181,10 +181,6 @@ export default function Checkout() {
         ) : (
           <p style={{ color: "#DAA520" }}>Pedido no encontrado.</p>
         )}
-
-        <button onClick={() => router.push("/fabricacion")} style={{ marginTop: "30px", background: "none", border: "1px solid #DAA520", color: "#DAA520", padding: "10px 20px", borderRadius: "5px", cursor: "pointer" }}>
-          ⬅ Volver a la línea de producción
-        </button>
       </div>
     </div>
   );
