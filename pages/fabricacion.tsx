@@ -266,7 +266,7 @@ export default function Fabricacion() {
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
       await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
-      doc.save(`${referenciaUn_TrulinkFiber.pdf`);
+      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
     } catch (err) {
       doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
     }
