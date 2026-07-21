@@ -56,6 +56,35 @@ export default function Productos() {
     setCarrito([]);
   };
 
+  const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
+    const itemsFormateados = carrito.map(item => ({
+      SKU: item.SKU,
+      descripcion: item.nombre || item.descripcion,
+      cantidad: item.cantidad,
+      precioUnitario: item.precio,
+      total: item.precio * item.cantidad
+    }));
+
+    const { data, error } = await supabase
+      .from('quotes')
+      .insert([{ 
+        referencia: referenciaUnica,
+        total: totalCotizacion, 
+        items: itemsFormateados,
+        status: 'pending',
+        type: 'producto',
+        pdf_url: pdfPublicUrl
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("ERROR DETALLADO DE SUPABASE:", error);
+      throw new Error(error.message);
+    }
+    return data;
+  };
+
   const procesarPago = async () => {
     if (carrito.length === 0) {
       alert("La cotización está vacía. Por favor, agregue artículos.");
@@ -63,40 +92,63 @@ export default function Productos() {
     }
 
     try {
-      console.log("Intentando guardar cotización en Supabase...");
-      
+      console.log("Intentando generar PDF y guardar cotización en Supabase...");
       const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
 
-      const itemsFormateados = carrito.map(item => ({
-        SKU: item.SKU,
-        descripcion: item.nombre || item.descripcion,
-        cantidad: item.cantidad,
-        precioUnitario: item.precio,
-        total: item.precio * item.cantidad
-      }));
+      // Generar PDF para almacenarlo en el bucket
+      const doc = new jsPDF();
+      doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+      doc.setFontSize(10);
+      doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
+      doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
+      doc.setFontSize(16);
+      doc.text("TRULINK FIBER LLC", 14, 40);
+      
+      const rows = carrito.map(item => [item.SKU, item.nombre, item.cantidad.toString(), `$${item.precio.toFixed(2)}`, `$${(item.precio * item.cantidad).toFixed(2)}`]);
+      
+      (doc as any).autoTable({
+        head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
+        body: rows,
+        startY: 50,
+        styles: { fontSize: 10, halign: "center" },
+        headStyles: { fillColor: [218, 165, 32] }
+      });
 
-      const { data, error } = await supabase
-        .from('quotes')
-        .insert([{ 
-          referencia: referenciaUnica,
-          total: totalCotizacion, 
-          items: itemsFormateados,
-          status: 'pending',
-          type: 'producto'
-        }])
-        .select()
-        .single();
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 130, finalY, { align: "right" });
 
-      if (error) {
-        console.error("ERROR DETALLADO DE SUPABASE:", error);
-        alert(`Error al guardar: ${error.message}`);
-      } else {
-        console.log("¡Cotización guardada exitosamente!", data);
-        router.push(`/checkout?id=${data.id}`);
+      doc.setFontSize(9);
+      doc.text("Precios: EXW PANAMÁ", 14, finalY + 20);
+      doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 26);
+      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 14, finalY + 32);
+
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaUnica}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
       }
-    } catch (err) {
+
+      const { data: publicUrlData } = supabase.storage
+        .from("documentos")
+        .getPublicUrl(fileName);
+
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
+
+      const data = await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
+      console.log("¡Cotización guardada exitosamente!", data);
+      router.push(`/checkout?id=${data.id}`);
+
+    } catch (err: any) {
       console.error("ERROR INESPERADO:", err);
-      alert("Ocurrió un error inesperado al procesar la solicitud.");
+      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
     }
   };
 
@@ -107,28 +159,6 @@ export default function Productos() {
     }
 
     const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
-
-    try {
-      const itemsFormateados = carrito.map(item => ({
-        SKU: item.SKU,
-        descripcion: item.nombre || item.descripcion,
-        cantidad: item.cantidad,
-        precioUnitario: item.precio,
-        total: item.precio * item.cantidad
-      }));
-
-      await supabase
-        .from('quotes')
-        .insert([{ 
-          referencia: referenciaUnica,
-          total: totalCotizacion, 
-          items: itemsFormateados,
-          status: 'pending',
-          type: 'producto'
-        }]);
-    } catch (err) {
-      console.error("Error al registrar cotización automática por PDF:", err);
-    }
 
     const doc = new jsPDF();
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
@@ -143,14 +173,46 @@ export default function Productos() {
     (doc as any).autoTable({
       head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
       body: rows,
-      startY: 70,
+      startY: 50,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.text(`TOTAL GENERAL: $${totalCotizacion.toFixed(2)}`, 130, finalY, { align: "right" });
-    doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+
+    doc.setFontSize(9);
+    doc.text("Precios: EXW PANAMÁ", 14, finalY + 20);
+    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 26);
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 14, finalY + 32);
+
+    try {
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaUnica}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("documentos")
+        .getPublicUrl(fileName);
+
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
+
+      await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
+      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+    } catch (err) {
+      console.error("Error al registrar cotización automática por PDF:", err);
+      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+    }
   };
 
   const seleccionarCategoria = async (tabla: string) => {
@@ -267,6 +329,11 @@ export default function Productos() {
             </table>
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "10px" }}>
               <h2 style={{ color: "#DAA520", margin: 0 }}>TOTAL GENERAL: ${totalCotizacion.toFixed(2)}</h2>
+            </div>
+            <div style={{ marginTop: "15px", color: "#FFF", fontSize: "0.85rem", borderTop: "1px dashed #DAA520", paddingTop: "10px" }}>
+              <p style={{ margin: "4px 0" }}><strong>Precios:</strong> EXW PANAMÁ</p>
+              <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
+              <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
             </div>
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
               <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
