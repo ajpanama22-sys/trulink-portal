@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
@@ -35,10 +35,31 @@ export default function Productos() {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
 
-  // Estados para los datos del cliente solicitados
+  // Estados para los datos del cliente automatizados
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
+
+  useEffect(() => {
+    const fetchClientInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('empresa, representante, email')
+          .eq('user_id', user.id)
+          .single();
+
+        if (data) {
+          setNombreEmpresa(data.empresa || '');
+          setRepresentante(data.representante || '');
+          setMailCliente(data.email || '');
+        }
+      }
+    };
+
+    fetchClientInfo();
+  }, []);
 
   const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
   const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
@@ -112,18 +133,18 @@ export default function Productos() {
       doc.text(`Fecha: ${fechaActual}`, 150, 26);
       doc.text(`Hora: ${horaActual}`, 150, 32);
 
-      // Datos del Cliente (Exactamente en el recuadro superior derecho)
+      // Datos del Cliente (Exactamente en el recuadro superior izquierdo)
       doc.setFontSize(9);
-      doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 130, 42);
-      doc.text(`Representante: ${representante || "N/D"}`, 130, 48);
-      doc.text(`Mail: ${mailCliente || "N/D"}`, 130, 54);
+      doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
+      doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
+      doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
 
       doc.setFontSize(16);
-      doc.text("TRULINK FIBER LLC", 14, 40);
+      doc.text("TRULINK FIBER LLC", 14, 66);
       doc.setFontSize(10);
-      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
-      doc.text("Tel: +507 6640 3720", 14, 52);
-      doc.text("www.trulinkfiber.com", 14, 58);
+      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
+      doc.text("Tel: +507 6640 3720", 14, 78);
+      doc.text("www.trulinkfiber.com", 14, 84);
       
       const rows = carrito.map(item => [
         item.SKU, 
@@ -136,7 +157,7 @@ export default function Productos() {
       (doc as any).autoTable({
         head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
         body: rows,
-        startY: 65,
+        startY: 92,
         styles: { fontSize: 10, halign: "center" },
         headStyles: { fillColor: [218, 165, 32] }
       });
@@ -203,16 +224,16 @@ export default function Productos() {
 
     // Datos del Cliente
     doc.setFontSize(9);
-    doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 130, 42);
-    doc.text(`Representante: ${representante || "N/D"}`, 130, 48);
-    doc.text(`Mail: ${mailCliente || "N/D"}`, 130, 54);
+    doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
+    doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
+    doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
 
     doc.setFontSize(16);
-    doc.text("TRULINK FIBER LLC", 14, 40);
+    doc.text("TRULINK FIBER LLC", 14, 66);
     doc.setFontSize(10);
-    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
-    doc.text("Tel: +507 6640 3720", 14, 52);
-    doc.text("www.trulinkfiber.com", 14, 58);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
+    doc.text("Tel: +507 6640 3720", 14, 78);
+    doc.text("www.trulinkfiber.com", 14, 84);
     
     const rows = carrito.map(item => [
       item.SKU, 
@@ -225,7 +246,7 @@ export default function Productos() {
     (doc as any).autoTable({
       head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
       body: rows,
-      startY: 65,
+      startY: 92,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
@@ -289,8 +310,18 @@ export default function Productos() {
         th { background-color: #DAA520; color: #000; }
       `}</style>
 
-      <div style={{ textAlign: "right", marginBottom: "20px" }}>
-        <button onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })} style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
+      {/* Botón superior de Volver y Carrito */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <button 
+          onClick={() => router.back()} 
+          style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
+        >
+          ⬅ Volver
+        </button>
+        <button 
+          onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })} 
+          style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
+        >
           🛒 Carrito ({totalItems})
         </button>
       </div>
@@ -298,22 +329,6 @@ export default function Productos() {
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
         <h1>{categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}</h1>
-      </div>
-
-      {/* Formulario de Datos de Cliente en Productos */}
-      <div style={{ backgroundColor: "#050505", border: "2px solid #DAA520", borderRadius: "20px", padding: "20px", maxWidth: "900px", margin: "0 auto 30px auto", display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "space-between" }}>
-        <div style={{ flex: 1, minWidth: "250px" }}>
-          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "5px", color: "#FFF" }}>Empresa:</label>
-          <input type="text" value={nombreEmpresa} onChange={(e) => setNombreEmpresa(e.target.value)} placeholder="Nombre de la Empresa" style={{ width: "100%", padding: "8px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "8px" }} />
-        </div>
-        <div style={{ flex: 1, minWidth: "250px" }}>
-          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "5px", color: "#FFF" }}>Representante:</label>
-          <input type="text" value={representante} onChange={(e) => setRepresentante(e.target.value)} placeholder="Nombre del Representante" style={{ width: "100%", padding: "8px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "8px" }} />
-        </div>
-        <div style={{ flex: 1, minWidth: "250px" }}>
-          <label style={{ display: "block", fontSize: "0.85rem", marginBottom: "5px", color: "#FFF" }}>Mail:</label>
-          <input type="email" value={mailCliente} onChange={(e) => setMailCliente(e.target.value)} placeholder="correo@empresa.com" style={{ width: "100%", padding: "8px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "8px" }} />
-        </div>
       </div>
 
       {!categoria ? (

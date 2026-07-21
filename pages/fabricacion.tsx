@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
@@ -23,12 +23,31 @@ export default function Fabricacion() {
   // useState tipado con Item[]
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
 
-  // Estados opcionales para capturar los datos del cliente en el PDF si están disponibles en la sesión/formulario
-  const [clienteInfo, setClienteInfo] = useState({
-    empresa: "Cliente B2B / Invitado",
-    representante: "Representante Autorizado",
-    correo: "corporativo@trulinkfiber.com"
-  });
+  // Estados para los datos del cliente automatizados desde Supabase
+  const [nombreEmpresa, setNombreEmpresa] = useState("");
+  const [representante, setRepresentante] = useState("");
+  const [mailCliente, setMailCliente] = useState("");
+
+  useEffect(() => {
+    const fetchClientInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('empresa, representante, email')
+          .eq('user_id', user.id)
+          .single();
+
+        if (data) {
+          setNombreEmpresa(data.empresa || '');
+          setRepresentante(data.representante || '');
+          setMailCliente(data.email || '');
+        }
+      }
+    };
+
+    fetchClientInfo();
+  }, []);
 
   const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
 
@@ -49,6 +68,38 @@ export default function Fabricacion() {
   // Tipamos el acumulador y el item
   const granTotal = cotizacion.reduce((acc: number, item: Item) => acc + (item.precioCarrete * item.cantidad), 0);
 
+  const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
+    const itemsFormateados = cotizacion.map(item => ({
+      SKU: item.tipo,
+      descripcion: `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
+      cantidad: item.cantidad,
+      precioUnitario: item.precioCarrete,
+      total: item.precioCarrete * item.cantidad
+    }));
+
+    const { data, error } = await supabase
+      .from('quotes')
+      .insert([{ 
+        referencia: referenciaUnica,
+        total: granTotal, 
+        items: itemsFormateados,
+        status: 'pending',
+        type: 'fiber_quote',
+        pdf_url: pdfPublicUrl,
+        empresa: nombreEmpresa,
+        representante: representante,
+        email: mailCliente
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error("ERROR DETALLADO DE SUPABASE:", error);
+      throw new Error(error.message);
+    }
+    return data;
+  };
+
   const procesarPago = async () => {
     if (cotizacion.length === 0) {
       alert("La cotización está vacía. Por favor, agregue artículos.");
@@ -56,32 +107,87 @@ export default function Fabricacion() {
     }
 
     try {
-      console.log("Intentando guardar cotización en Supabase...");
-      
       const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+      const fechaActual = new Date().toLocaleDateString();
+      const horaActual = new Date().toLocaleTimeString();
 
-      const { data, error } = await supabase
-        .from('quotes')
-        .insert([{ 
-          referencia: referenciaUnica,
-          type: "fiber_quote",
-          total: granTotal, 
-          items: cotizacion,
-          status: 'pending' 
-        }])
-        .select()
-        .single();
+      const doc = new jsPDF();
+      doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+      
+      doc.setFontSize(10);
+      doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
+      doc.text(`Fecha: ${fechaActual}`, 150, 26);
+      doc.text(`Hora: ${horaActual}`, 150, 32);
 
-      if (error) {
-        console.error("ERROR DETALLADO DE SUPABASE:", error);
-        alert(`Error al guardar: ${error.message}`);
-      } else {
-        console.log("¡Cotización guardada exitosamente!", data);
-        router.push(`/checkout?id=${data.id}`);
+      // Datos del Cliente (Exactamente en el recuadro superior izquierdo)
+      doc.setFontSize(9);
+      doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
+      doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
+      doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
+
+      doc.setFontSize(16);
+      doc.text("TRULINK FIBER LLC", 14, 66);
+      doc.setFontSize(10);
+      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
+      doc.text("Tel: +507 6640 3720", 14, 78);
+      doc.text("www.trulinkfiber.com", 14, 84);
+      
+      const rows = cotizacion.map(item => [
+        item.tipo,
+        item.hilos.toString(),
+        item.cantidad.toString(),
+        `$${item.precioMetro.toFixed(2)}`,
+        `$${item.precioCarrete.toFixed(2)}`,
+        `$${(item.precioCarrete * item.cantidad).toFixed(2)}`
+      ]);
+      
+      (doc as any).autoTable({
+        head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
+        body: rows,
+        startY: 92,
+        styles: { fontSize: 10, halign: "center" },
+        headStyles: { fillColor: [218, 165, 32] }
+      });
+
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      doc.setFontSize(12);
+      doc.text(`TOTAL : $${granTotal.toFixed(2)}`, 150, finalY);
+
+      doc.setFontSize(10);
+      doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
+      doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
+      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 30, { align: "center" });
+
+      try {
+        const firma = "/images/firmaco.png";
+        const props = doc.getImageProperties(firma);
+        const firmaWidth = 40;
+        const firmaHeight = (props.height * firmaWidth) / props.width;
+        doc.addImage(firma, "PNG", 150, finalY + 40, firmaWidth, firmaHeight);
+      } catch (e) {
+        console.error("No se pudo cargar la firma:", e);
       }
-    } catch (err) {
+
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaUnica}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
+
+      const data = await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
+      router.push(`/checkout?id=${data.id}`);
+
+    } catch (err: any) {
       console.error("ERROR INESPERADO:", err);
-      alert("Ocurrió un error inesperado al procesar la solicitud.");
+      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
     }
   };
 
@@ -92,48 +198,30 @@ export default function Fabricacion() {
     }
 
     const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
-
-    try {
-      await supabase
-        .from('quotes')
-        .insert([{ 
-          referencia: referenciaUnica,
-          type: "fiber_quote",
-          total: granTotal, 
-          items: cotizacion,
-          status: 'pending' 
-        }]);
-    } catch (err) {
-      console.error("Error al registrar cotización automática por PDF:", err);
-    }
+    const fechaActual = new Date().toLocaleDateString();
+    const horaActual = new Date().toLocaleTimeString();
 
     const doc = new jsPDF();
-
-    // Logo arriba
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
-
-    // Número de cotización, fecha y hora (lado derecho)
+    
     doc.setFontSize(10);
     doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
-    doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 150, 26);
-    doc.text(`Hora: ${new Date().toLocaleTimeString()}`, 150, 32);
+    doc.text(`Fecha: ${fechaActual}`, 150, 26);
+    doc.text(`Hora: ${horaActual}`, 150, 32);
 
-    // Encabezado empresa debajo del logo
+    // Datos del Cliente
+    doc.setFontSize(9);
+    doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
+    doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
+    doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
+
     doc.setFontSize(16);
-    doc.text("TRULINK FIBER LLC", 14, 40);
+    doc.text("TRULINK FIBER LLC", 14, 66);
     doc.setFontSize(10);
-    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 46);
-    doc.text("Tel: +507 6640 3720", 14, 52);
-    doc.text("www.trulinkfiber.com", 14, 58);
-
-    // Datos del cliente integrados en el PDF (Empresa, Representante y Correo)
-    doc.setFontSize(10);
-    doc.setTextColor(50, 50, 50);
-    doc.text(`Empresa / Razón Social: ${clienteInfo.empresa}`, 14, 66);
-    doc.text(`Atención: ${clienteInfo.representante} | Correo: ${clienteInfo.correo}`, 14, 72);
-    doc.setTextColor(0, 0, 0);
-
-    // Tabla de cotización
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
+    doc.text("Tel: +507 6640 3720", 14, 78);
+    doc.text("www.trulinkfiber.com", 14, 84);
+    
     const rows = cotizacion.map(item => [
       item.tipo,
       item.hilos.toString(),
@@ -142,37 +230,54 @@ export default function Fabricacion() {
       `$${item.precioCarrete.toFixed(2)}`,
       `$${(item.precioCarrete * item.cantidad).toFixed(2)}`
     ]);
-
+    
     (doc as any).autoTable({
       head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
       body: rows,
-      startY: 78,
+      startY: 92,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
 
-    // Total cotización (lado derecho)
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(12);
-    doc.text(`TOTAL : $${granTotal.toFixed(2)}`, 150, (doc as any).lastAutoTable.finalY + 10);
+    doc.text(`TOTAL : $${granTotal.toFixed(2)}`, 150, finalY);
 
-    // Precios y nota
     doc.setFontSize(10);
-    doc.text("Precios: EXW PANAMÁ", 14, (doc as any).lastAutoTable.finalY + 20);
-    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, (doc as any).lastAutoTable.finalY + 26);
+    doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
+    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 30, { align: "center" });
 
-    // Métodos de pago centrados
-    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, (doc as any).lastAutoTable.finalY + 40, { align: "center" });
+    try {
+      const firma = "/images/firmaco.png";
+      const props = doc.getImageProperties(firma);
+      const firmaWidth = 40;
+      const firmaHeight = (props.height * firmaWidth) / props.width;
+      doc.addImage(firma, "PNG", 150, finalY + 40, firmaWidth, firmaHeight);
+    } catch (e) {
+      console.error("No se pudo cargar la firma:", e);
+    }
 
-    // Firma con proporción correcta
-    const firma = "/images/firmaco.png";
-    const props = doc.getImageProperties(firma);
-    const firmaWidth = 40; // ancho en mm
-    const firmaHeight = (props.height * firmaWidth) / props.width;
+    try {
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaUnica}.pdf`;
 
-    doc.addImage(firma, "PNG", 150, (doc as any).lastAutoTable.finalY + 55, firmaWidth, firmaHeight);
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
 
-    // Guardar PDF
-    doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
+
+      await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
+      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+    } catch (err) {
+      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+    }
   };
 
   // Estilos reutilizables para inputs y selects
@@ -200,7 +305,6 @@ export default function Fabricacion() {
       alignItems: "center"
     }}>
       
-      {/* Estilos globales para forzar fondo negro y animación de fibra óptica */}
       <style jsx global>{`
         html, body {
           margin: 0;
@@ -218,7 +322,16 @@ export default function Fabricacion() {
         }
       `}</style>
 
-      {/* Header e Identidad Visual - Compactado */}
+      {/* Botón superior de Volver */}
+      <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "flex-start", marginBottom: "15px" }}>
+        <button 
+          onClick={() => router.back()} 
+          style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
+        >
+          ⬅ Volver
+        </button>
+      </div>
+
       <div style={{ textAlign: "center", marginBottom: "20px", maxWidth: "800px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "100px", marginBottom: "10px" }} />
         <h1 style={{ color: "#DAA520", marginBottom: "5px", fontSize: "1.8rem", fontWeight: "bold" }}>
@@ -227,7 +340,6 @@ export default function Fabricacion() {
         <p style={{ color: "#FFF", fontSize: "1rem", letterSpacing: "1px" }}>ADSS – ASU – FTTX</p>
       </div>
 
-      {/* Catálogo en tarjetas - Anchos reducidos */}
       <div className="container-fiber" style={{
         backgroundColor: "#050505",
         border: "2px solid #DAA520",
@@ -355,7 +467,6 @@ export default function Fabricacion() {
         </div>
       </div>
 
-      {/* Contenedor de la Cotización - Centrado y Compacto */}
       <div className="container-fiber" style={{
         backgroundColor: "#050505",
         border: "2px solid #DAA520",
@@ -408,7 +519,6 @@ export default function Fabricacion() {
           TOTAL GENERAL: ${granTotal.toFixed(2)}
         </h2>
 
-        {/* Botones de acción */}
         <div style={{ textAlign: "center", marginTop: "15px", display: "flex", justifyContent: "center", gap: "15px" }}>
           <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
             Guardar PDF
