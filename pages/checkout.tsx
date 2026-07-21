@@ -58,6 +58,28 @@ export default function Checkout() {
   const rawTotal = order?.total ?? order?.total_amount ?? 0;
   const granTotal = typeof rawTotal === 'number' ? rawTotal : Number(rawTotal) || 0;
 
+  // Función actualizada de Stripe sin alertas y con llamada directa al endpoint
+  const handleStripeCheckout = async () => {
+    try {
+      const response = await fetch('/api/create-stripe-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: id, amount: granTotal }),
+      });
+
+      const data = await response.json();
+      
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Error al generar la sesión de pago: ' + (data.error || 'Desconocido'));
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Ocurrió un error de red al conectar con Stripe.');
+    }
+  };
+
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
       <style jsx global>{`
@@ -171,7 +193,7 @@ export default function Checkout() {
             ) : (
               <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
                 <p style={{ color: "#FFF", fontSize: "1rem", marginBottom: "10px" }}>Seleccione su método de pago:</p>
-                <button className="btn-gold" onClick={() => alert("Redirigiendo a Stripe...")}>Pagar con Stripe</button>
+                <button className="btn-gold" onClick={handleStripeCheckout}>Pagar con Stripe</button>
                 <button className="btn-gold" onClick={() => alert("Redirigiendo a PayPal...")}>Pagar con PayPal</button>
                 <button className="btn-gold" onClick={() => alert("Instrucciones de Transferencia (Locales e Internacionales) enviadas al correo")}>Transferencias (Locales e Internacionales)</button>
                 
