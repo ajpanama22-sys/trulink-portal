@@ -8,16 +8,16 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 export default function PagoExitoso() {
   const router = useRouter();
-  const { session_id, order_id, method, type } = router.query;
+  const { session_id, order_id, method, amount } = router.query;
   const [loading, setLoading] = useState(true);
   const [orderInfo, setOrderInfo] = useState<any>(null);
 
-  // Normalizar el método y tipo de pago
   const methodStr = Array.isArray(method) ? method[0] : method;
-  const paymentType = Array.isArray(type) ? type[0] : type; // 'full' o 'anticipo'
+  const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
+  const rawAmount = Array.isArray(amount) ? amount[0] : amount;
 
   useEffect(() => {
-    if (order_id) {
+    if (singleOrderId) {
       const updateOrderStatus = async () => {
         try {
           const newStatus = methodStr === 'transferencia' || methodStr === 'ach' ? 'en_verificacion' : 'pagado';
@@ -25,12 +25,12 @@ export default function PagoExitoso() {
           await supabase
             .from('quotes')
             .update({ status: newStatus })
-            .eq('id', order_id);
+            .eq('id', singleOrderId);
           
           const { data } = await supabase
             .from('quotes')
             .select('*')
-            .eq('id', order_id)
+            .eq('id', singleOrderId)
             .single();
             
           setOrderInfo(data);
@@ -44,21 +44,17 @@ export default function PagoExitoso() {
     } else {
       setLoading(false);
     }
-  }, [order_id, methodStr]);
+  }, [singleOrderId, methodStr]);
 
   const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
 
-  // Obtener montos reales de la base de datos o usar respaldos seguros
-  const totalAmount = orderInfo?.total || orderInfo?.monto_total || 25000.00;
-  
-  // Determinar si es pago completo (por parámetro o por defecto si viene de pasarela de pago total)
-  const isFullPayment = paymentType === 'full' || methodStr === 'stripe' || methodStr === 'paypal';
-  
-  const paidAmount = isFullPayment ? totalAmount : totalAmount / 2;
-  const balanceAmount = isFullPayment ? 0 : totalAmount / 2;
+  // Cálculos basados en la orden o el monto pasado por URL
+  const totalAmount = orderInfo?.total_amount || orderInfo?.total || (rawAmount ? Number(rawAmount) : 3.00);
+  const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
+  const balanceAmount = Math.max(0, totalAmount - paidAmount);
+  const isFullPayment = balanceAmount === 0;
 
   const currentDate = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px 20px", fontFamily: "sans-serif", display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
@@ -102,9 +98,6 @@ export default function PagoExitoso() {
             <p style={{ color: "#FFF", fontSize: "1.05rem", lineHeight: "1.7", marginBottom: "20px" }}>
               Hemos registrado su selección de pago mediante transferencia bancaria o ACH {singleOrderId ? <strong style={{ color: "#DAA520" }}>para la cotización #{singleOrderId}</strong> : ""}. 
             </p>
-            <p style={{ color: "#ccc", fontSize: "0.95rem", lineHeight: "1.6", marginBottom: "25px" }}>
-              Recibirá un correo electrónico de confirmación tan pronto nuestro departamento financiero verifique la entrada del monto correspondiente en nuestra cuenta.
-            </p>
           </div>
         ) : (
           <div>
@@ -119,7 +112,6 @@ export default function PagoExitoso() {
         {/* RECIBO ESTILO POS INTEGRADO */}
         <div style={{ width: "100%", backgroundColor: "#fcfbf9", border: "2px solid #DAA520", padding: "16px", borderRadius: "8px", textAlign: "left", color: "#111", margin: "25px 0", boxSizing: "border-box" }}>
           
-          {/* Cabecera del Recibo */}
           <div style={{ textAlign: "center", borderBottom: "2px solid #DAA520", paddingBottom: "10px", marginBottom: "10px" }}>
             <img src="/images/logo.png" alt="Trulink Fiber LLC" style={{ width: "90px", height: "auto", marginBottom: "4px" }} />
             <div style={{ fontSize: "6.5pt", color: "#555", margin: "1px 0" }}>5203 Juan Tabo Blvd. NE Suite 2a</div>
@@ -127,21 +119,17 @@ export default function PagoExitoso() {
             <div style={{ fontSize: "6.5pt", color: "#555", margin: "1px 0" }}>info@trulinkfiber.com</div>
           </div>
 
-          {/* Banner Título Recibo Dinámico */}
           <div style={{ backgroundColor: "#1a1a1a", color: "#DAA520", fontSize: "9pt", fontWeight: "bold", textAlign: "center", padding: "6px", margin: "10px 0", borderRadius: "3px", letterSpacing: "0.5px" }}>
-            {isFullPayment ? `RECIBO DE PAGO COMPLETO (100%) #${singleOrderId || "2026-0185"}` : `RECIBO DE ANTICIPO 50% #${singleOrderId || "2026-0185"}`}
+            {isFullPayment ? `RECIBO DE PAGO COMPLETO (100%)` : `RECIBO DE ANTICIPO / PAGO PARCIAL`}
           </div>
 
-          {/* Metadatos */}
           <div style={{ fontSize: "7.5pt", color: "#333", marginBottom: "10px", borderBottom: "1px solid #ddd", paddingBottom: "8px", lineHeight: "1.5" }}>
             <div><strong>Fecha:</strong> {currentDate}</div>
-            <div><strong>Cotización Asociada:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{singleOrderId || "QT-2026-094"}</span></div>
-            <div><strong>Cliente:</strong> {orderInfo?.client_name || "IGTEL Integración S.A."}</div>
-            <div><strong>Tipo de Cliente:</strong> {orderInfo?.client_type || "Integrador (Lista C)"}</div>
-            <div><strong>Método de Pago:</strong> {methodStr ? methodStr.toUpperCase() : "Transferencia / Pasarela"}</div>
+            <div><strong>Referencia / ID:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{singleOrderId || "QT-014504"}</span></div>
+            <div><strong>Cliente:</strong> {orderInfo?.client_name || orderInfo?.nombre || "Cliente General"}</div>
+            <div><strong>Método de Pago:</strong> {methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"}</div>
           </div>
 
-          {/* Tabla de Concepto */}
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "10px" }}>
             <thead>
               <tr>
@@ -152,9 +140,9 @@ export default function PagoExitoso() {
             <tbody>
               <tr>
                 <td style={{ padding: "6px", fontSize: "7.5pt", border: "1px solid #e0dbd1", backgroundColor: "#fff", verticalAlign: "top" }}>
-                  <strong>{isFullPayment ? "PAGO TOTAL - CONTADO" : "ANTICIPO-50"}</strong><br />
+                  <strong>{isFullPayment ? "PAGO TOTAL - CONTADO" : "PAGO PARCIAL / ANTICIPO"}</strong><br />
                   <span style={{ color: "#666", fontSize: "6.5pt" }}>
-                    {isFullPayment ? "Liquidación total (100%) - Orden de fabricación y suministro." : "Anticipo (50%) - Orden de fabricación y suministro de componentes de fibra óptica."}
+                    {isFullPayment ? "Liquidación total (100%) de la orden." : "Monto parcial transferido por el cliente."}
                   </span>
                 </td>
                 <td style={{ padding: "6px", fontSize: "7.5pt", border: "1px solid #e0dbd1", backgroundColor: "#fff", textAlign: "right", verticalAlign: "middle" }}>
@@ -164,7 +152,6 @@ export default function PagoExitoso() {
             </tbody>
           </table>
 
-          {/* Totales Dinámicos */}
           <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "10px" }}>
             <tbody>
               <tr>
@@ -172,9 +159,7 @@ export default function PagoExitoso() {
                 <td style={{ padding: "5px 8px", fontSize: "8pt", textAlign: "right", border: "1px solid #e0dbd1", backgroundColor: "#fff" }}>${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</td>
               </tr>
               <tr>
-                <td style={{ padding: "5px 8px", fontSize: "8pt", fontWeight: "bold", color: "#2b7a0b", backgroundColor: "#f4f1ea", border: "1px solid #e0dbd1" }}>
-                  {isFullPayment ? "Monto Pagado (100%):" : "Anticipo Recibido (50%):"}
-                </td>
+                <td style={{ padding: "5px 8px", fontSize: "8pt", fontWeight: "bold", color: "#2b7a0b", backgroundColor: "#f4f1ea", border: "1px solid #e0dbd1" }}>Monto Recibido:</td>
                 <td style={{ padding: "5px 8px", fontSize: "8pt", textAlign: "right", fontWeight: "bold", color: "#2b7a0b", border: "1px solid #e0dbd1", backgroundColor: "#fff" }}>
                   ${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD
                 </td>
@@ -186,21 +171,14 @@ export default function PagoExitoso() {
             </tbody>
           </table>
 
-          {/* Términos y Condiciones Dinámicos */}
           <div style={{ fontSize: "7pt", color: "#444", backgroundColor: "#f4f1ea", border: "1px solid #e0dbd1", borderLeft: "3px solid #DAA520", padding: "8px", marginBottom: "10px", textAlign: "justify", lineHeight: "1.4" }}>
-            {isFullPayment ? (
-              <strong>Estado de Cuenta:</strong>
-            ) : (
-              <strong>Condiciones de Liquidación:</strong>
-            )}{" "}
+            <strong>Condiciones:</strong>{" "}
             {isFullPayment 
-              ? "Esta cotización ha sido pagada en su totalidad (100%). La orden pasa inmediatamente a proceso de fabricación y despacho según los tiempos acordados."
-              : `El 50% restante ($${balanceAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD) debe ser liquidado en su totalidad a más tardar 3 días antes de la fecha estimada de finalización de producción o entrega de mercancía, según lo estipulado en las políticas de Trulink Fiber LLC.`}
+              ? "Esta cotización ha sido pagada en su totalidad (100%)."
+              : `El saldo pendiente de $${balanceAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD queda registrado para su posterior liquidación.`}
           </div>
 
-          {/* Pie de Recibo */}
           <div style={{ textAlign: "center", fontSize: "7pt", color: "#555", borderTop: "1px dashed #ccc", paddingTop: "8px", lineHeight: "1.4" }}>
-            {isFullPayment ? "Este comprobante certifica el pago total (100%) de la cotización correspondiente." : "Este comprobante certifica la recepción del anticipo inicial equivalente al 50%, vinculado de manera formal a la cotización correspondiente."}<br /><br />
             <strong style={{ color: "#111", fontSize: "7.5pt" }}>¡GRACIAS POR SU CONFIANZA!</strong><br />
             www.trulinkfiber.com
           </div>
@@ -212,7 +190,7 @@ export default function PagoExitoso() {
             Imprimir / Guardar Recibo
           </button>
           <button className="btn-gold" onClick={() => router.push('/')} style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520" }}>
-            Volver al Inicio del Portal
+            Volver al Inicio
           </button>
         </div>
       </div>
