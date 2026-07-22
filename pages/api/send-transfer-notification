@@ -16,13 +16,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
-  const { recipient, quoteId, clientName, total, comprobanteUrl } = req.body;
+  // Se añade montoPagado para reflejar exactamente lo que el cliente decidió transferir
+  const { recipient, quoteId, clientName, total, montoPagado, comprobanteUrl } = req.body;
 
   if (!recipient || !quoteId || !total) {
     return res.status(400).json({ error: 'Faltan parámetros obligatorios en la solicitud.' });
   }
 
-  const asunto = `[PENDIENTE DE PAGO] Nuevo Comprobante de Transferencia - Cotización #${quoteId}`;
+  const valorPagado = montoPagado !== undefined ? Number(montoPagado) : Number(total);
+  const granTotal = Number(total);
+  const saldoPendiente = granTotal - valorPagado;
+
+  const asunto = `[PENDIENTE DE PAGO] Comprobante de Transferencia - Cotización #${quoteId}`;
   
   const contenidoHtml = `
     <div style="font-family: sans-serif; background-color: #000; color: #fff; padding: 30px; border-radius: 10px; border: 1px solid #DAA520;">
@@ -35,7 +40,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       <div style="background-color: #111; padding: 20px; border-radius: 8px; border: 1px solid #333; margin: 20px 0;">
         <p style="margin: 8px 0; color: #ddd;"><strong>ID / Referencia de Cotización:</strong> <span style="color: #DAA520;">${quoteId}</span></p>
         <p style="margin: 8px 0; color: #ddd;"><strong>Cliente / Referencia:</strong> ${clientName || 'N/D'}</p>
-        <p style="margin: 8px 0; color: #ddd;"><strong>Monto Total:</strong> <span style="color: #DAA520; font-size: 1.2rem; font-weight: bold;">$${Number(total).toFixed(2)} USD</span></p>
+        <p style="margin: 8px 0; color: #ddd;"><strong>Monto Total de Cotización:</strong> $${granTotal.toFixed(2)} USD</p>
+        <p style="margin: 8px 0; color: #ddd;"><strong>Monto Transferido / Pagado:</strong> <span style="color: #DAA520; font-size: 1.2rem; font-weight: bold;">$${valorPagado.toFixed(2)} USD</span></p>
+        ${saldoPendiente > 0 ? `<p style="margin: 8px 0; color: #ffaa00;"><strong>Saldo Pendiente por Cobrar:</strong> $${saldoPendiente.toFixed(2)} USD</p>` : `<p style="margin: 8px 0; color: #4bb543;"><strong>Estado:</strong> Pagado al 100% (Contado)</p>`}
       </div>
 
       ${
@@ -48,7 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : '<p style="color: #ff6b6b; font-style: italic;">No se adjuntó enlace directo del comprobante.</p>'
       }
 
-      <p style="margin-top: 30px; color: #888; font-size: 0.85rem; text-align: center; border-top: 1px dashed #333; pt: 15px;">
+      <p style="margin-top: 30px; color: #888; font-size: 0.85rem; text-align: center; border-top: 1px dashed #333; padding-top: 15px;">
         Trulink Fiber LLC – Sistema Automatizado de Gestión Financiera
       </p>
     </div>

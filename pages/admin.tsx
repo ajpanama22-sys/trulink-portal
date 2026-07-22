@@ -49,7 +49,7 @@ export default function Admin() {
     }
   };
 
-  const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string) => {
+  const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
     if (!supabase) return;
 
     if (tipo === 'ACTIVAR') {
@@ -65,6 +65,25 @@ export default function Admin() {
         return;
       }
 
+      const datosCompletos = itemCompleto.datos_completos || {};
+      const tipoClienteVal = datosCompletos.tipo_cliente || itemCompleto.tipo_solicitud || 'Integrador';
+      const priceListVal = datosCompletos.price_list || 'C';
+
+      const { error: clienteError } = await supabase
+        .from("clientes")
+        .upsert({
+          razon_social: razonSocialParam,
+          email: emailCliente,
+          tipo_cliente: tipoClienteVal,
+          price_list: priceListVal,
+          status: 'pendiente_password',
+          password_token: passwordToken
+        }, { onConflict: 'email' });
+
+      if (clienteError) {
+        console.error("Error replicando en tabla clientes:", clienteError);
+      }
+
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
@@ -77,9 +96,9 @@ export default function Admin() {
           })
         });
         if (!response.ok) throw new Error("Fallo al enviar correo de activación");
-        alert(`Solicitud activada con éxito. Correo enviado a ${emailCliente}`);
+        alert(`Solicitud activada con éxito. Cliente replicado y correo enviado a ${emailCliente}`);
       } catch (err: any) {
-        alert("Solicitud activada en BD, pero hubo un error enviando el correo: " + err.message);
+        alert("Solicitud activada en BD y replicada, pero hubo un error enviando el correo: " + err.message);
       }
 
     } else {
@@ -358,8 +377,8 @@ export default function Admin() {
                 <a href={docUrl} target="_blank" rel="noreferrer" style={{...btnAccion, background: "blue", color: "#fff", width: "fit-content", textAlign: "center", textDecoration: "none"}}>VER DOCUMENTOS</a>
               </div>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social)} style={{...btnAccion, background: "green", color: "#000"}}>ACTIVAR</button>
-                <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social)} style={{...btnAccion, background: "red", color: "#000"}}>RECHAZAR</button>
+                <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={{...btnAccion, background: "green", color: "#000"}}>ACTIVAR</button>
+                <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={{...btnAccion, background: "red", color: "#000"}}>RECHAZAR</button>
               </div>
             </div>
           );

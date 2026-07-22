@@ -39,10 +39,12 @@ export default function Checkout() {
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null); // null | 'stripe' | 'paypal' | 'transfer'
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   
-  // Estados para la transferencia bancaria y subida de comprobante
-  const [transferStatus, setTransferStatus] = useState<string>('idle'); // 'idle' | 'uploading' | 'success' | 'error'
+  const [montoPago, setMontoPago] = useState<number | string>("");
+  const [errorMonto, setErrorMonto] = useState<string>("");
+
+  const [transferStatus, setTransferStatus] = useState<string>('idle');
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string>('');
 
@@ -59,6 +61,9 @@ export default function Checkout() {
           console.error("Error al recuperar orden:", error);
         } else {
           setOrder(data);
+          const rawT = data?.total ?? data?.total_amount ?? 0;
+          const totalVal = typeof rawT === 'number' ? rawT : Number(rawT) || 0;
+          setMontoPago(totalVal);
         }
         setLoading(false);
       };
@@ -70,12 +75,22 @@ export default function Checkout() {
   const granTotal = typeof rawTotal === 'number' ? rawTotal : Number(rawTotal) || 0;
   const esProducto = order?.type === 'producto';
 
+  const montoMinimo = granTotal * 0.5;
+  const refLabel = order?.referencia || order?.id || "QT-XXXX";
+
   const handleStripeCheckout = async () => {
+    const valorIngresado = Number(montoPago);
+    if (isNaN(valorIngresado) || valorIngresado < montoMinimo) {
+      setErrorMonto(`El pago no puede procesarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (50%).`);
+      return;
+    }
+    setErrorMonto("");
+
     try {
       const response = await fetch('/api/create-stripe-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: id, amount: granTotal }),
+        body: JSON.stringify({ orderId: id, amount: valorIngresado }),
       });
 
       const data = await response.json();
@@ -92,11 +107,18 @@ export default function Checkout() {
   };
 
   const handlePayPalCheckout = async () => {
+    const valorIngresado = Number(montoPago);
+    if (isNaN(valorIngresado) || valorIngresado < montoMinimo) {
+      setErrorMonto(`El pago no puede procesarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (50%).`);
+      return;
+    }
+    setErrorMonto("");
+
     try {
       const response = await fetch('/api/create-paypal-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId: id, amount: granTotal }),
+        body: JSON.stringify({ orderId: id, amount: valorIngresado }),
       });
 
       const data = await response.json();
@@ -114,6 +136,13 @@ export default function Checkout() {
 
   const handleTransferSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const valorIngresado = Number(montoPago);
+    if (isNaN(valorIngresado) || valorIngresado < montoMinimo) {
+      setErrorMonto(`El comprobante no puede registrarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (50%).`);
+      return;
+    }
+    setErrorMonto("");
+
     if (!fileToUpload) {
       alert('Por favor, adjunte el comprobante de transferencia.');
       return;
@@ -129,8 +158,7 @@ export default function Checkout() {
       const fileName = `${timestamp}_${clientId}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // 1. Subir archivo al Bucket 'transferencias' en Supabase
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('transferencias')
         .upload(filePath, fileToUpload);
 
@@ -138,19 +166,18 @@ export default function Checkout() {
         throw new Error('Error al subir el archivo al bucket: ' + uploadError.message);
       }
 
-      // Obtener URL pública o ruta del archivo guardado
       const { data: publicURLData } = supabase.storage
         .from('transferencias')
         .getPublicUrl(filePath);
 
       const comprobanteUrl = publicURLData.publicUrl || filePath;
 
-      // 2. Actualizar la tabla quotes con el estado y la URL del comprobante
       const { error: updateError } = await supabase
         .from('quotes')
         .update({
           status: 'Pendiente de Verificación Bancaria',
           comprobante_url: comprobanteUrl,
+          monto_pagado: valorIngresado,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
@@ -159,7 +186,6 @@ export default function Checkout() {
         console.error('Advertencia al actualizar la tabla quotes:', updateError);
       }
 
-      // 3. Enviar correo electrónico directamente a fred.jurado@trulinkfiber.com
       const emailResponse = await fetch('/api/send-transfer-notification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,6 +194,7 @@ export default function Checkout() {
           quoteId: id,
           clientName: clientId,
           total: granTotal,
+          montoPagado: valorIngresado,
           comprobanteUrl: comprobanteUrl,
         }),
       });
@@ -245,7 +272,6 @@ export default function Checkout() {
               <span><strong>Fecha:</strong> {order.created_at ? new Date(order.created_at).toLocaleDateString() : ""}</span>
             </div>
 
-            {/* Tabla de desglose de la cotización generada */}
             <div style={{ overflowX: "auto", marginBottom: "20px" }}>
               <table style={{ margin: "0 auto", borderCollapse: "collapse", color: "#DAA520", width: "100%", fontSize: "0.9rem" }}>
                 <thead>
@@ -284,6 +310,24 @@ export default function Checkout() {
 
             <h2 style={{ fontSize: "1.8rem", margin: "20px 0", color: "#DAA520" }}>Total a Pagar: ${granTotal.toFixed(2)}</h2>
             
+            <div style={{ backgroundColor: "#111", border: "1px dashed #DAA520", padding: "12px 15px", borderRadius: "8px", margin: "15px 0", textAlign: "center", fontSize: "0.95rem" }}>
+              <span style={{ color: "#FFF" }}>Monto mínimo requerido (50%):</span> <strong style={{ color: "#DAA520" }}>${montoMinimo.toFixed(2)} USD</strong> <span style={{ color: "#aaa" }}>(Puede pagar desde el 50% hasta el 100% o más de contado)</span>
+            </div>
+
+            <div style={{ margin: "20px 0", textAlign: "left", backgroundColor: "#0a0a0a", padding: "15px", borderRadius: "10px", border: "1px solid #333" }}>
+              <label style={{ display: "block", marginBottom: "8px", color: "#DAA520", fontWeight: "bold", fontSize: "0.9rem" }}>
+                Monto que desea pagar (USD) [Mínimo 50% - Sin límite máximo]:
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={montoPago}
+                onChange={(e) => setMontoPago(e.target.value)}
+                style={{ width: "100%", padding: "10px", backgroundColor: "#000", border: "1px solid #DAA520", color: "#fff", borderRadius: "8px", fontSize: "1rem" }}
+              />
+              {errorMonto && <p style={{ color: "#ff4d4d", fontSize: "0.85rem", marginTop: "8px", marginBottom: 0 }}>{errorMonto}</p>}
+            </div>
+
             {!showPaymentOptions ? (
               <div style={{ marginTop: "30px", padding: "20px", backgroundColor: "#111", borderRadius: "15px", border: "1px dashed #DAA520" }}>
                 <p style={{ fontSize: "1.1rem", color: "#FFF", marginBottom: "20px", fontWeight: "bold" }}>
@@ -375,7 +419,7 @@ export default function Checkout() {
               <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
                 <p style={{ color: "#FFF", fontSize: "1rem", marginBottom: "10px" }}>Seleccione su método de pago:</p>
                 <button className="btn-gold" onClick={handleStripeCheckout}>Pagar con Stripe</button>
-                <button className="btn-gold" onClick={handlePayPalCheckout}>Pagar con PayPal</button>
+                <button className="btn-gold" onClick={handlePayPalCheckout}>Pagar con PayPal | Pay Later</button>
                 <button className="btn-gold" onClick={() => setSelectedMethod('transfer')}>Transferencias (Locales e Internacionales)</button>
                 
                 <button onClick={() => setShowPaymentOptions(false)} style={{ marginTop: "15px", background: "none", border: "none", color: "#DAA520", textDecoration: "underline", cursor: "pointer" }}>
