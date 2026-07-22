@@ -41,7 +41,7 @@ export default function Productos() {
   const [paginaActual, setPaginaActual] = useState(1);
   const productosPorPagina = 12;
 
-  // Estado para la referencia única
+  // Estado para la referencia única con prefijo QT- y fecha/hora precisa para evitar duplicados en Supabase
   const [referenciaActual, setReferenciaActual] = useState<string>("");
 
   // Estados para los datos del cliente automatizados
@@ -50,7 +50,13 @@ export default function Productos() {
   const [mailCliente, setMailCliente] = useState("");
 
   useEffect(() => {
-    setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
+    // Generación de referencia única QT sólida basada en marca temporal y aleatoriedad controlada
+    const generarReferenciaUnica = () => {
+      const timestamp = Date.now().toString().slice(-6);
+      const randomNum = Math.floor(100 + Math.random() * 900);
+      return `QT-${timestamp}-${randomNum}`;
+    };
+    setReferenciaActual(generarReferenciaUnica());
 
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -59,7 +65,7 @@ export default function Productos() {
           .from('clients')
           .select('empresa, representante, email')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (data) {
           setNombreEmpresa(data.empresa || '');
@@ -109,12 +115,12 @@ export default function Productos() {
       total: item.precio * item.cantidad
     }));
 
-    // Verificamos si ya existe la cotización con esta referencia en la tabla quotes
+    // Verificamos si ya existe la cotización con esta referencia en la tabla quotes usando maybeSingle para prevenir errores 406/404
     const { data: existente } = await supabase
       .from('quotes')
       .select('id')
       .eq('referencia', referenciaUnica)
-      .single();
+      .maybeSingle();
 
     let resultado;
     if (existente) {
@@ -404,7 +410,7 @@ export default function Productos() {
                   src={prod.image_url || "/placeholder.png"} 
                   alt={prod.Ítem} 
                   className="image-zoom" 
-                  onClick={() => router.push(`/producto/${prod.SKU}`)} 
+                  onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')} 
                   style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px", backgroundColor: "#111" }} 
                 />
                 <h3 style={{ fontSize: "0.95rem", color: "#DAA520" }}>{prod.SKU}</h3>
