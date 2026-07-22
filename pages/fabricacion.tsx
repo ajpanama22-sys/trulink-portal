@@ -62,6 +62,12 @@ export default function Fabricacion() {
 
   const granTotal = cotizacion.reduce((acc: number, item: Item) => acc + (item.precioCarrete * item.cantidad), 0);
 
+  const calcularFechaEntrega = () => {
+    const hoy = new Date();
+    hoy.setDate(hoy.getDate() + 3); // 3 días por defecto para fecha estimada de finalización
+    return hoy.toISOString().split('T')[0];
+  };
+
   const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
@@ -82,7 +88,8 @@ export default function Fabricacion() {
         pdf_url: pdfPublicUrl,
         empresa: nombreEmpresa,
         representante: representante,
-        email: mailCliente
+        email: mailCliente,
+        fecha_estimada_entrega: calcularFechaEntrega()
       }])
       .select()
       .single();
@@ -149,14 +156,15 @@ export default function Fabricacion() {
       doc.setFontSize(10);
       doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
       doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 30, { align: "center" });
+      doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
+      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
 
       try {
         const firma = "/images/firmaco.png";
         const props = doc.getImageProperties(firma);
         const firmaWidth = 40;
         const firmaHeight = (props.height * firmaWidth) / props.width;
-        doc.addImage(firma, "PNG", 150, finalY + 40, firmaWidth, firmaHeight);
+        doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
       } catch (e) {
         console.error("No se pudo cargar la firma:", e);
       }
@@ -238,14 +246,15 @@ export default function Fabricacion() {
     doc.setFontSize(10);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
     doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 30, { align: "center" });
+    doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
 
     try {
       const firma = "/images/firmaco.png";
       const props = doc.getImageProperties(firma);
       const firmaWidth = 40;
       const firmaHeight = (props.height * firmaWidth) / props.width;
-      doc.addImage(firma, "PNG", 150, finalY + 40, firmaWidth, firmaHeight);
+      doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
     } catch (e) {
       console.error("No se pudo cargar la firma:", e);
     }
@@ -501,6 +510,13 @@ export default function Fabricacion() {
             </table>
           </div>
         )}
+
+        <div style={{ marginTop: "15px", color: "#FFF", fontSize: "0.85rem", borderTop: "1px dashed #DAA520", paddingTop: "10px" }}>
+          <p style={{ margin: "4px 0" }}><strong>Precios:</strong> EXW PANAMÁ</p>
+          <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
+          <p style={{ margin: "4px 0" }}><strong>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
+          <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
+        </div>
 
         <h2 style={{ marginTop: "15px", color: "#DAA520", textAlign: "center", fontSize: "1.2rem" }}>
           TOTAL GENERAL: ${granTotal.toFixed(2)}
