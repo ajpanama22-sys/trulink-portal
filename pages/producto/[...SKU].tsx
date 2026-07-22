@@ -13,8 +13,11 @@ export default function DetalleProductoDinamico() {
   const [loading, setLoading] = useState(true);
   const [tablaOrigen, setTablaOrigen] = useState<string>("");
 
+  // Normaliza el SKU si Next.js lo recibe como un arreglo debido a las barras diagonales (/)
+  const skuString = Array.isArray(SKU) ? SKU.join('/') : SKU;
+
   useEffect(() => {
-    if (!SKU) return;
+    if (!skuString) return;
 
     const buscarEnTablas = async () => {
       setLoading(true);
@@ -27,7 +30,7 @@ export default function DetalleProductoDinamico() {
         const { data, error } = await supabase
           .from(tabla)
           .select('*')
-          .eq('SKU', SKU);
+          .eq('SKU', skuString);
 
         if (data && data.length > 0 && !error) {
           encontrado = data[0];
@@ -42,7 +45,7 @@ export default function DetalleProductoDinamico() {
     };
 
     buscarEnTablas();
-  }, [SKU]);
+  }, [skuString]);
 
   return (
     <div style={{ 
@@ -66,8 +69,7 @@ export default function DetalleProductoDinamico() {
       `}</style>
 
       <div style={{ width: "100%", maxWidth: "900px", display: "flex", justifyContent: "space-between", marginBottom: "30px", alignItems: "center" }}>
-        
-        <span style={{ color: "#FFF", fontSize: "1rem" }}>SKU: <strong style={{ color: "#DAA520" }}>{SKU}</strong></span>
+        <span style={{ color: "#FFF", fontSize: "1rem" }}>SKU: <strong style={{ color: "#DAA520" }}>{skuString}</strong></span>
       </div>
 
       <div style={{
@@ -90,7 +92,7 @@ export default function DetalleProductoDinamico() {
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {producto.image_url && (
               <div style={{ textAlign: "center" }}>
-                <img src={producto.image_url} alt={SKU as string} style={{ maxWidth: "300px", maxHeight: "300px", borderRadius: "15px", border: "1px solid #DAA520", objectFit: "contain" }} />
+                <img src={producto.image_url} alt={skuString} style={{ maxWidth: "300px", maxHeight: "300px", borderRadius: "15px", border: "1px solid #DAA520", objectFit: "contain" }} />
               </div>
             )}
             
@@ -98,7 +100,7 @@ export default function DetalleProductoDinamico() {
               <span style={{ backgroundColor: "#DAA520", color: "#000", padding: "4px 10px", borderRadius: "6px", fontSize: "0.8rem", fontWeight: "bold" }}>
                 {producto.Familia || tablaOrigen.toUpperCase()}
               </span>
-              <h1 style={{ color: "#DAA520", fontSize: "2.2rem", margin: "15px 0 10px 0" }}>{producto.item || producto.SKU}</h1>
+              <h1 style={{ color: "#DAA520", fontSize: "2.2rem", margin: "15px 0 10px 0" }}>{producto.Ítem || producto.item || producto.SKU}</h1>
               <p style={{ color: "#FFF", fontSize: "1.2rem", lineHeight: "1.6", margin: 0 }}>{producto.Descripción || producto.descripcion || "Sin descripción detallada disponible."}</p>
             </div>
             
@@ -129,7 +131,7 @@ export default function DetalleProductoDinamico() {
         ) : (
           <div style={{ textAlign: "center", padding: "50px 0" }}>
             <h2 style={{ color: "#DAA520", marginBottom: "15px" }}>Producto no encontrado</h2>
-            <p style={{ color: "#FFF", fontSize: "1.1rem" }}>El código SKU <strong>{SKU}</strong> no registra datos activos en el sistema.</p>
+            <p style={{ color: "#FFF", fontSize: "1.1rem" }}>El código SKU <strong>{skuString}</strong> no registra datos activos en el sistema.</p>
           </div>
         )}
       </div>
