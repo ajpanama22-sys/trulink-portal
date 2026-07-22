@@ -42,7 +42,7 @@ export default function PagoExitoso() {
           const activeData = data || {};
           setOrderInfo(activeData);
 
-          const dbTotal = Number(activeData.total_amount || activeData.total || activeData.monto || activeData.subtotal || 0);
+          const dbTotal = Number(activeData.total || activeData.monto || 0);
           const currentTotal = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
           const currentPaid = rawAmount ? Number(rawAmount) : currentTotal;
           const balance = Math.max(0, currentTotal - currentPaid);
@@ -52,8 +52,8 @@ export default function PagoExitoso() {
           if (!emailSentRef.current) {
             emailSentRef.current = true;
             
-            const clientEmail = activeData.client_email || activeData.correo || "ajpanama22@gmail.com";
-            const clientName = activeData.client_name || activeData.nombre || "Alfredo Abdel Jurado Madrigal";
+            const clientEmail = activeData.client_email || activeData.email || activeData.correo || "ajpanama22@gmail.com";
+            const clientName = activeData.client_name || activeData.representante || activeData.nombre || "Alfredo Abdel Jurado Madrigal";
 
             const emailRes = await fetch('/api/send-email', {
               method: 'POST',
@@ -95,7 +95,7 @@ export default function PagoExitoso() {
     }
   }, [singleOrderId, methodStr, rawAmount]);
 
-  const dbTotal = Number(orderInfo?.total_amount || orderInfo?.total || orderInfo?.monto || orderInfo?.subtotal || 0);
+  const dbTotal = Number(orderInfo?.total || orderInfo?.monto || 0);
   const totalAmount = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
   const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
   const balanceAmount = Math.max(0, totalAmount - paidAmount);
@@ -145,7 +145,7 @@ export default function PagoExitoso() {
             <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "15px", letterSpacing: "1px" }}>¡Instrucciones de Pago Registradas!</h1>
             <div style={{ width: "60px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 20px auto" }}></div>
             <p style={{ color: "#FFF", fontSize: "1.05rem", lineHeight: "1.7", marginBottom: "20px" }}>
-              Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
+              Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
             </p>
           </div>
         ) : (
@@ -153,7 +153,7 @@ export default function PagoExitoso() {
             <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "15px", letterSpacing: "1px" }}>¡Transacción Exitosa!</h1>
             <div style={{ width: "60px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 20px auto" }}></div>
             <p style={{ color: "#FFF", fontSize: "1.05rem", lineHeight: "1.7", marginBottom: "15px" }}>
-              Su pago ha sido procesado con éxito y se ha enviado la {documentType.toLowerCase()} a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
+              Su pago ha sido procesado con éxito y se ha enviado la {documentType.toLowerCase()} a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
             </p>
           </div>
         )}
@@ -174,8 +174,8 @@ export default function PagoExitoso() {
           <div style={{ fontSize: "7.5pt", color: "#333", marginBottom: "10px", borderBottom: "1px solid #ddd", paddingBottom: "8px", lineHeight: "1.5" }}>
             <div><strong>Fecha:</strong> {currentDate}</div>
             <div><strong>Referencia / ID:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{singleOrderId || "N/D"}</span></div>
-            <div><strong>Cliente:</strong> {orderInfo?.client_name || orderInfo?.nombre || "Alfredo Abdel Jurado Madrigal"}</div>
-            <div><strong>Correo Electrónico:</strong> {orderInfo?.client_email || orderInfo?.correo || "ajpanama22@gmail.com"}</div>
+            <div><strong>Cliente:</strong> {orderInfo?.client_name || orderInfo?.representante || orderInfo?.nombre || "Alfredo Abdel Jurado Madrigal"}</div>
+            <div><strong>Correo Electrónico:</strong> {orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</div>
             <div><strong>Método de Pago:</strong> {methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"}</div>
           </div>
 
