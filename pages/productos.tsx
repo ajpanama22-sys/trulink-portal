@@ -207,8 +207,10 @@ export default function Productos() {
       const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
-      const data = await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
-      router.push(`/checkout?id=${data.id}`);
+      await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
+      
+      // CORRECCIÓN CLAVE: Pasar la referencia real (ej. QT-597622) en lugar del ID secuencial numérico
+      router.push(`/checkout?id=${referenciaUnica}`);
 
     } catch (err: any) {
       console.error("ERROR INESPERADO:", err);
