@@ -42,7 +42,7 @@ export default function PagoExitoso() {
           const activeData = data || {};
           setOrderInfo(activeData);
 
-          const dbTotal = activeData.total_amount || activeData.total || 0;
+          const dbTotal = Number(activeData.total_amount || activeData.total || activeData.monto || activeData.subtotal || 0);
           const currentTotal = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
           const currentPaid = rawAmount ? Number(rawAmount) : currentTotal;
           const balance = Math.max(0, currentTotal - currentPaid);
@@ -55,7 +55,7 @@ export default function PagoExitoso() {
             const clientEmail = activeData.client_email || activeData.correo || "ajpanama22@gmail.com";
             const clientName = activeData.client_name || activeData.nombre || "Alfredo Abdel Jurado Madrigal";
 
-            const emailResponse = await fetch('/api/send-email', {
+            const emailRes = await fetch('/api/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -79,16 +79,12 @@ export default function PagoExitoso() {
               })
             });
 
-            if (!emailResponse.ok) {
-              const errorText = await emailResponse.text();
-              console.error("Fallo al enviar correo desde la API /api/send-email:", errorText);
-            } else {
-              console.log("Correo enviado exitosamente a:", clientEmail);
-            }
+            const emailResultText = await emailRes.text();
+            console.log("Respuesta de /api/send-email:", emailRes.status, emailResultText);
           }
 
         } catch (err) {
-          console.error("Error crítico al procesar orden y notificaciones:", err);
+          console.error("Error crítico al procesar orden:", err);
         } finally {
           setLoading(false);
         }
@@ -99,8 +95,7 @@ export default function PagoExitoso() {
     }
   }, [singleOrderId, methodStr, rawAmount]);
 
-  // Cálculos garantizados con respaldo en orderInfo y rawAmount
-  const dbTotal = orderInfo?.total_amount || orderInfo?.total || 0;
+  const dbTotal = Number(orderInfo?.total_amount || orderInfo?.total || orderInfo?.monto || orderInfo?.subtotal || 0);
   const totalAmount = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
   const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
   const balanceAmount = Math.max(0, totalAmount - paidAmount);
@@ -196,7 +191,7 @@ export default function PagoExitoso() {
                 <td style={{ padding: "6px", fontSize: "7.5pt", border: "1px solid #e0dbd1", backgroundColor: "#fff", verticalAlign: "top" }}>
                   <strong>{isFullPayment ? "FACTURA COMERCIAL - PAGO TOTAL" : "RECIBO DE ANTICIPO / PAGO PARCIAL"}</strong><br />
                   <span style={{ color: "#666", fontSize: "6.5pt" }}>
-                    {isFullPayment ? "Liquidación total de orden para suministro y fabricación." : "Monto parcial transferido para la orden."}
+                    {orderInfo?.descripcion || orderInfo?.description || (isFullPayment ? "Liquidación total de orden para suministro y fabricación." : "Monto parcial transferido para la orden.")}
                   </span>
                 </td>
                 <td style={{ padding: "6px", fontSize: "7.5pt", border: "1px solid #e0dbd1", backgroundColor: "#fff", textAlign: "right", verticalAlign: "middle" }}>
