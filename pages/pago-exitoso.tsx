@@ -17,20 +17,11 @@ export default function PagoExitoso() {
   const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
   const rawAmount = Array.isArray(amount) ? amount[0] : amount;
 
-  // Cálculos de montos blindados contra nulos
-  const dbTotal = orderInfo?.total_amount || orderInfo?.total || 0;
-  const totalAmount = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
-  
-  const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
-  const balanceAmount = Math.max(0, totalAmount - paidAmount);
-  const isFullPayment = balanceAmount === 0;
-  const documentType = isFullPayment ? "FACTURA" : "RECIBO DE PAGO";
-  const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
-
   useEffect(() => {
     if (singleOrderId) {
       const processPaymentAndEmail = async () => {
         try {
+          const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
           const newStatus = isTransferencia ? 'en_verificacion' : 'pagado';
           
           await supabase
@@ -38,47 +29,66 @@ export default function PagoExitoso() {
             .update({ status: newStatus })
             .eq('id', singleOrderId);
           
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('quotes')
             .select('*')
             .eq('id', singleOrderId)
             .single();
             
-          setOrderInfo(data);
+          if (error) {
+            console.error("Error al obtener la orden de Supabase:", error);
+          }
+
+          const activeData = data || {};
+          setOrderInfo(activeData);
+
+          const dbTotal = activeData.total_amount || activeData.total || 0;
+          const currentTotal = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
+          const currentPaid = rawAmount ? Number(rawAmount) : currentTotal;
+          const balance = Math.max(0, currentTotal - currentPaid);
+          const fullPay = balance === 0;
+          const docType = fullPay ? "FACTURA" : "RECIBO DE PAGO";
 
           if (!emailSentRef.current) {
             emailSentRef.current = true;
             
-            const clientEmail = data?.client_email || "ajpanama22@gmail.com";
-            const clientName = data?.client_name || data?.nombre || "Alfredo Abdel Jurado Madrigal";
+            const clientEmail = activeData.client_email || activeData.correo || "ajpanama22@gmail.com";
+            const clientName = activeData.client_name || activeData.nombre || "Alfredo Abdel Jurado Madrigal";
 
-            await fetch('/api/send-email', {
+            const emailResponse = await fetch('/api/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 to: clientEmail,
-                subject: `${documentType} #${singleOrderId} - Trulink Fiber LLC`,
+                subject: `${docType} #${singleOrderId} - Trulink Fiber LLC`,
                 htmlContent: `
                   <div style="background-color:#000; color:#DAA520; padding:30px; font-family:sans-serif; border-radius:10px;">
                     <h2 style="color:#DAA520; border-bottom:1px solid #DAA520; padding-bottom:10px;">Trulink Fiber LLC - Notificación de Pago</h2>
                     <p style="color:#fff; font-size:16px;">Estimado/a <strong>${clientName}</strong>,</p>
                     <p style="color:#fff; font-size:15px;">Hemos registrado exitosamente su pago correspondiente a la referencia <strong style="color:#DAA520;">#${singleOrderId}</strong>.</p>
                     <div style="background:#111; border:1px solid #DAA520; padding:15px; border-radius:8px; margin:20px 0; color:#fff;">
-                      <p><strong>Tipo de Documento:</strong> ${documentType}</p>
-                      <p><strong>Monto Total Cotización:</strong> $${(data?.total || totalAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</p>
-                      <p><strong>Monto Pagado:</strong> <span style="color:#2b7a0b; font-weight:bold;">$${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span></p>
-                      <p><strong>Saldo Pendiente:</strong> $${balanceAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</p>
+                      <p><strong>Tipo de Documento:</strong> ${docType}</p>
+                      <p><strong>Monto Total Cotización:</strong> $${currentTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</p>
+                      <p><strong>Monto Pagado:</strong> <span style="color:#2b7a0b; font-weight:bold;">$${currentPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span></p>
+                      <p><strong>Saldo Pendiente:</strong> $${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</p>
                       <p><strong>Método:</strong> ${(methodStr || "En línea").toUpperCase()}</p>
                     </div>
                     <p style="color:#bbb; font-size:13px;">Atentamente,<br/>Departamento de Administración y Operaciones<br/>Trulink Fiber LLC</p>
                   </div>
                 `
               })
-            }).catch(err => console.error("Error al enviar correo:", err));
+            });
+
+            if (!emailResponse.ok) {
+              const errorText = await emailResponse.text();
+              console.error("Fallo al enviar correo desde la API /api/send-email:", errorText);
+            } else {
+              console.log("Correo enviado exitosamente a:", clientEmail);
+            }
           }
 
         } catch (err) {
-          console.error("Error al procesar orden y notificaciones:", err);
+          console.error("Error crítico al procesar orden y notificaciones:", err);
         } finally {
           setLoading(false);
         }
@@ -87,7 +97,16 @@ export default function PagoExitoso() {
     } else {
       setLoading(false);
     }
-  }, [singleOrderId, methodStr, paidAmount, totalAmount, balanceAmount, documentType, isTransferencia]);
+  }, [singleOrderId, methodStr, rawAmount]);
+
+  // Cálculos garantizados con respaldo en orderInfo y rawAmount
+  const dbTotal = orderInfo?.total_amount || orderInfo?.total || 0;
+  const totalAmount = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
+  const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
+  const balanceAmount = Math.max(0, totalAmount - paidAmount);
+  const isFullPayment = balanceAmount === 0;
+  const documentType = isFullPayment ? "FACTURA" : "RECIBO DE PAGO";
+  const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
 
   const currentDate = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -131,7 +150,7 @@ export default function PagoExitoso() {
             <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "15px", letterSpacing: "1px" }}>¡Instrucciones de Pago Registradas!</h1>
             <div style={{ width: "60px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 20px auto" }}></div>
             <p style={{ color: "#FFF", fontSize: "1.05rem", lineHeight: "1.7", marginBottom: "20px" }}>
-              Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: "#DAA520" }}>ajpanama22@gmail.com</strong>.
+              Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
             </p>
           </div>
         ) : (
@@ -139,7 +158,7 @@ export default function PagoExitoso() {
             <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "15px", letterSpacing: "1px" }}>¡Transacción Exitosa!</h1>
             <div style={{ width: "60px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 20px auto" }}></div>
             <p style={{ color: "#FFF", fontSize: "1.05rem", lineHeight: "1.7", marginBottom: "15px" }}>
-              Su pago ha sido procesado con éxito y se ha enviado la {documentType.toLowerCase()} a <strong style={{ color: "#DAA520" }}>ajpanama22@gmail.com</strong>.
+              Su pago ha sido procesado con éxito y se ha enviado la {documentType.toLowerCase()} a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
             </p>
           </div>
         )}
@@ -161,7 +180,7 @@ export default function PagoExitoso() {
             <div><strong>Fecha:</strong> {currentDate}</div>
             <div><strong>Referencia / ID:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{singleOrderId || "N/D"}</span></div>
             <div><strong>Cliente:</strong> {orderInfo?.client_name || orderInfo?.nombre || "Alfredo Abdel Jurado Madrigal"}</div>
-            <div><strong>Correo Electrónico:</strong> {orderInfo?.client_email || "ajpanama22@gmail.com"}</div>
+            <div><strong>Correo Electrónico:</strong> {orderInfo?.client_email || orderInfo?.correo || "ajpanama22@gmail.com"}</div>
             <div><strong>Método de Pago:</strong> {methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"}</div>
           </div>
 
