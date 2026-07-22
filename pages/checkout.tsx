@@ -51,10 +51,17 @@ export default function Checkout() {
   useEffect(() => {
     if (id) {
       const fetchOrder = async () => {
-        const { data, error } = await supabase
-          .from('quotes')
-          .select('*')
-          .or(`id.eq.${id},referencia.eq.${id}`);
+        let query = supabase.from('quotes').select('*');
+        
+        // Si el id contiene guiones o letras (como QT-XXXX), buscamos estrictamente por 'referencia'.
+        // Si es puramente numérico, podemos buscar por 'id' o 'referencia'.
+        if (typeof id === 'string' && isNaN(Number(id))) {
+          query = query.eq('referencia', id);
+        } else {
+          query = query.or(`id.eq.${id},referencia.eq.${id}`);
+        }
+
+        const { data, error } = await query;
         
         if (error) {
           console.error("Error al recuperar orden:", error);
