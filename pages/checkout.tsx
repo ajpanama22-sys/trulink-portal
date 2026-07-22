@@ -54,16 +54,18 @@ export default function Checkout() {
         const { data, error } = await supabase
           .from('quotes')
           .select('*')
-          .or(`id.eq.${id},referencia.eq.${id}`)
-          .single();
+          .or(`id.eq.${id},referencia.eq.${id}`);
         
         if (error) {
           console.error("Error al recuperar orden:", error);
-        } else {
-          setOrder(data);
-          const rawT = data?.total ?? data?.total_amount ?? 0;
+        } else if (data && data.length > 0) {
+          const foundOrder = data[0];
+          setOrder(foundOrder);
+          const rawT = foundOrder?.total ?? foundOrder?.total_amount ?? 0;
           const totalVal = typeof rawT === 'number' ? rawT : Number(rawT) || 0;
           setMontoPago(totalVal);
+        } else {
+          console.warn("No se encontró ningún pedido con el identificador:", id);
         }
         setLoading(false);
       };
