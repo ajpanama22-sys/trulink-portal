@@ -12,11 +12,14 @@ export default function PagoExitoso() {
   const [loading, setLoading] = useState(true);
   const [orderInfo, setOrderInfo] = useState<any>(null);
 
+  // Normalizar el método de pago para evitar errores de tipo string | string[]
+  const methodStr = Array.isArray(method) ? method[0] : method;
+
   useEffect(() => {
     if (order_id) {
       const updateOrderStatus = async () => {
         try {
-          const newStatus = method === 'transferencia' || method === 'ach' ? 'en_verificacion' : 'pagado';
+          const newStatus = methodStr === 'transferencia' || methodStr === 'ach' ? 'en_verificacion' : 'pagado';
           
           await supabase
             .from('quotes')
@@ -40,15 +43,16 @@ export default function PagoExitoso() {
     } else {
       setLoading(false);
     }
-  }, [order_id, method]);
+  }, [order_id, methodStr]);
 
-  const isTransferencia = method === 'transferencia' || method === 'ach';
+  const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
 
   // Cálculos simulados basados en la orden o montos predeterminados del recibo de anticipo 50%
   const totalAmount = orderInfo?.total || 25000.00;
   const paidAmount = totalAmount / 2;
   const balanceAmount = totalAmount / 2;
   const currentDate = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px 20px", fontFamily: "sans-serif", display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column" }}>
@@ -90,7 +94,7 @@ export default function PagoExitoso() {
             <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "15px", letterSpacing: "1px" }}>¡Instrucciones de Pago Registradas!</h1>
             <div style={{ width: "60px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 20px auto" }}></div>
             <p style={{ color: "#FFF", fontSize: "1.05rem", lineHeight: "1.7", marginBottom: "20px" }}>
-              Hemos registrado su selección de pago mediante transferencia bancaria o ACH {order_id ? <strong style={{ color: "#DAA520" }}>para la cotización #{order_id}</strong> : ""}. 
+              Hemos registrado su selección de pago mediante transferencia bancaria o ACH {singleOrderId ? <strong style={{ color: "#DAA520" }}>para la cotización #{singleOrderId}</strong> : ""}. 
             </p>
             <p style={{ color: "#ccc", fontSize: "0.95rem", lineHeight: "1.6", marginBottom: "25px" }}>
               Recibirá un correo electrónico de confirmación tan pronto nuestro departamento financiero verifique la entrada del monto correspondiente en nuestra cuenta.
@@ -119,16 +123,16 @@ export default function PagoExitoso() {
 
           {/* Banner Título Recibo */}
           <div style={{ backgroundColor: "#1a1a1a", color: "#DAA520", fontSize: "9pt", fontWeight: "bold", textAlign: "center", padding: "6px", margin: "10px 0", borderRadius: "3px", letterSpacing: "0.5px" }}>
-            RECIBO DE ANTICIPO 50% #{order_id ? order_id : "2026-0185"}
+            RECIBO DE ANTICIPO 50% #{singleOrderId ? singleOrderId : "2026-0185"}
           </div>
 
           {/* Metadatos */}
           <div style={{ fontSize: "7.5pt", color: "#333", marginBottom: "10px", borderBottom: "1px solid #ddd", paddingBottom: "8px", lineHeight: "1.5" }}>
             <div><strong>Fecha:</strong> {currentDate}</div>
-            <div><strong>Cotización Asociada:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{order_id || "QT-2026-094"}</span></div>
+            <div><strong>Cotización Asociada:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{singleOrderId || "QT-2026-094"}</span></div>
             <div><strong>Cliente:</strong> {orderInfo?.client_name || "IGTEL Integración S.A."}</div>
             <div><strong>Tipo de Cliente:</strong> {orderInfo?.client_type || "Integrador (Lista C)"}</div>
-            <div><strong>Método de Pago:</strong> {method ? method.toUpperCase() : "Transferencia / Pasarela"}</div>
+            <div><strong>Método de Pago:</strong> {methodStr ? methodStr.toUpperCase() : "Transferencia / Pasarela"}</div>
           </div>
 
           {/* Tabla de Concepto */}
