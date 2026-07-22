@@ -115,7 +115,7 @@ export default function Productos() {
       total: item.precio * item.cantidad
     }));
 
-    // Verificamos si ya existe la cotización con esta referencia en la tabla quotes usando maybeSingle para prevenir errores 406/404
+    // Verificamos si ya existe la cotización con esta referencia usando maybeSingle de forma segura
     const { data: existente } = await supabase
       .from('quotes')
       .select('id')
@@ -138,8 +138,7 @@ export default function Productos() {
           fecha_estimada_entrega: calcularFechaEntrega()
         })
         .eq('referencia', referenciaUnica)
-        .select()
-        .single();
+        .select();
     } else {
       resultado = await supabase
         .from('quotes')
@@ -155,15 +154,16 @@ export default function Productos() {
           email: mailCliente,
           fecha_estimada_entrega: calcularFechaEntrega()
         }])
-        .select()
-        .single();
+        .select();
     }
 
     if (resultado.error) {
       console.error("ERROR DETALLADO DE SUPABASE:", resultado.error);
       throw new Error(resultado.error.message);
     }
-    return resultado.data;
+    
+    const dataRes = Array.isArray(resultado.data) ? resultado.data[0] : resultado.data;
+    return dataRes;
   };
 
   const procesarPago = async () => {
