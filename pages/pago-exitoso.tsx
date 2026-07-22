@@ -17,8 +17,10 @@ export default function PagoExitoso() {
   const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
   const rawAmount = Array.isArray(amount) ? amount[0] : amount;
 
-  // Cálculos de montos y validación de transferencia
-  const totalAmount = orderInfo?.total_amount || orderInfo?.total || (rawAmount ? Number(rawAmount) : 0);
+  // Cálculos de montos blindados contra nulos
+  const dbTotal = orderInfo?.total_amount || orderInfo?.total || 0;
+  const totalAmount = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
+  
   const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
   const balanceAmount = Math.max(0, totalAmount - paidAmount);
   const isFullPayment = balanceAmount === 0;
