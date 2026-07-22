@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import { NextApiRequest, NextApiResponse } from 'next';
 import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
 
 function environment() {
@@ -48,7 +48,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const paypalClient = client();
     const response = await paypalClient.execute(request);
     
-    // Buscar el enlace de aprobación de PayPal para redirigir al usuario
     const approveLink = response.result.links.find((link: any) => link.rel === 'approve');
 
     return res.status(200).json({ id: response.result.id, url: approveLink?.href });
@@ -56,3 +55,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error("Error al crear orden de PayPal:", err);
     return res.status(500).json({ error: err.message || 'Error al conectar con PayPal' });
   }
+}
