@@ -17,18 +17,19 @@ export default function PagoExitoso() {
   const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
   const rawAmount = Array.isArray(amount) ? amount[0] : amount;
 
-  // Cálculos basados estrictamente en la base de datos o en los parámetros reales recibidos
+  // Cálculos de montos y validación de transferencia
   const totalAmount = orderInfo?.total_amount || orderInfo?.total || (rawAmount ? Number(rawAmount) : 0);
   const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
   const balanceAmount = Math.max(0, totalAmount - paidAmount);
   const isFullPayment = balanceAmount === 0;
   const documentType = isFullPayment ? "FACTURA" : "RECIBO DE PAGO";
+  const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
 
   useEffect(() => {
     if (singleOrderId) {
       const processPaymentAndEmail = async () => {
         try {
-          const newStatus = methodStr === 'transferencia' || methodStr === 'ach' ? 'en_verificacion' : 'pagado';
+          const newStatus = isTransferencia ? 'en_verificacion' : 'pagado';
           
           await supabase
             .from('quotes')
@@ -43,7 +44,6 @@ export default function PagoExitoso() {
             
           setOrderInfo(data);
 
-          // Enviar correo electrónico de manera única (evitando doble ejecución en StrictMode)
           if (!emailSentRef.current) {
             emailSentRef.current = true;
             
@@ -85,7 +85,7 @@ export default function PagoExitoso() {
     } else {
       setLoading(false);
     }
-  }, [singleOrderId, methodStr, paidAmount, totalAmount, balanceAmount, documentType]);
+  }, [singleOrderId, methodStr, paidAmount, totalAmount, balanceAmount, documentType, isTransferencia]);
 
   const currentDate = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -129,7 +129,7 @@ export default function PagoExitoso() {
             <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "15px", letterSpacing: "1px" }}>¡Instrucciones de Pago Registradas!</h1>
             <div style={{ width: "60px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 20px auto" }}></div>
             <p style={{ color: "#FFF", fontSize: "1.05rem", lineHeight: "1.7", marginBottom: "20px" }}>
-              Hemos registrado su selección de pago y enviado el comprob correspondiente a <strong style={{ color: "#DAA520" }}>ajpanama22@gmail.com</strong>.
+              Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: "#DAA520" }}>ajpanama22@gmail.com</strong>.
             </p>
           </div>
         ) : (
@@ -142,7 +142,6 @@ export default function PagoExitoso() {
           </div>
         )}
 
-        {/* RECIBO O FACTURA ESTILO POS INTEGRADO */}
         <div style={{ width: "100%", backgroundColor: "#fcfbf9", border: "2px solid #DAA520", padding: "16px", borderRadius: "8px", textAlign: "left", color: "#111", margin: "25px 0", boxSizing: "border-box" }}>
           
           <div style={{ textAlign: "center", borderBottom: "2px solid #DAA520", paddingBottom: "10px", marginBottom: "10px" }}>
