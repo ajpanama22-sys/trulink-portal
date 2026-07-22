@@ -66,12 +66,7 @@ export default function DetalleProductoDinamico() {
       `}</style>
 
       <div style={{ width: "100%", maxWidth: "900px", display: "flex", justifyContent: "space-between", marginBottom: "30px", alignItems: "center" }}>
-        <button 
-          onClick={() => router.back()} 
-          style={{ backgroundColor: "#DAA520", color: "#000", padding: "12px 25px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer", fontSize: "1rem" }}
-        >
-          ⬅ Volver al Catálogo
-        </button>
+        
         <span style={{ color: "#FFF", fontSize: "1rem" }}>SKU: <strong style={{ color: "#DAA520" }}>{SKU}</strong></span>
       </div>
 
