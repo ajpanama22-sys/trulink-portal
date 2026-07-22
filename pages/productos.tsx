@@ -109,28 +109,55 @@ export default function Productos() {
       total: item.precio * item.cantidad
     }));
 
-    const { data, error } = await supabase
+    // Verificamos si ya existe la cotización con esta referencia en la tabla quotes
+    const { data: existente } = await supabase
       .from('quotes')
-      .upsert([{
-        referencia: referenciaUnica,
-        total: totalCotizacion,
-        items: itemsFormateados,
-        status: 'pending',
-        type: 'producto',
-        pdf_url: pdfPublicUrl,
-        empresa: nombreEmpresa,
-        representante: representante,
-        email: mailCliente,
-        fecha_estimada_entrega: calcularFechaEntrega()
-      }], { onConflict: 'referencia' })
-      .select()
+      .select('id')
+      .eq('referencia', referenciaUnica)
       .single();
 
-    if (error) {
-      console.error("ERROR DETALLADO DE SUPABASE:", error);
-      throw new Error(error.message);
+    let resultado;
+    if (existente) {
+      resultado = await supabase
+        .from('quotes')
+        .update({
+          total: totalCotizacion,
+          items: itemsFormateados,
+          status: 'pending',
+          type: 'producto',
+          pdf_url: pdfPublicUrl,
+          empresa: nombreEmpresa,
+          representante: representante,
+          email: mailCliente,
+          fecha_estimada_entrega: calcularFechaEntrega()
+        })
+        .eq('referencia', referenciaUnica)
+        .select()
+        .single();
+    } else {
+      resultado = await supabase
+        .from('quotes')
+        .insert([{
+          referencia: referenciaUnica,
+          total: totalCotizacion,
+          items: itemsFormateados,
+          status: 'pending',
+          type: 'producto',
+          pdf_url: pdfPublicUrl,
+          empresa: nombreEmpresa,
+          representante: representante,
+          email: mailCliente,
+          fecha_estimada_entrega: calcularFechaEntrega()
+        }])
+        .select()
+        .single();
     }
-    return data;
+
+    if (resultado.error) {
+      console.error("ERROR DETALLADO DE SUPABASE:", resultado.error);
+      throw new Error(resultado.error.message);
+    }
+    return resultado.data;
   };
 
   const procesarPago = async () => {
@@ -314,11 +341,10 @@ export default function Productos() {
     if (!error) {
       setProductos(data || []);
       setCategoria(tabla);
-      setPaginaActual(1); // Reiniciar a la primera página al cambiar de categoría
+      setPaginaActual(1);
     }
   };
 
-  // Cálculo de elementos paginados
   const indiceUltimoProducto = paginaActual * productosPorPagina;
   const indicePrimerProducto = indiceUltimoProducto - productosPorPagina;
   const productosActuales = productos.slice(indicePrimerProducto, indiceUltimoProducto);
@@ -334,7 +360,6 @@ export default function Productos() {
         th { background-color: #DAA520; color: #000; }
       `}</style>
 
-      {/* Botón superior de Volver y Carrito */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <button 
           onClick={() => router.back()} 
@@ -391,7 +416,6 @@ export default function Productos() {
             ))}
           </div>
 
-          {/* Controles de Paginación */}
           {totalPaginas > 1 && (
             <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "40px", alignItems: "center" }}>
               <button 
@@ -444,7 +468,7 @@ export default function Productos() {
                 ))}
               </tbody>
             </table>
-              
+            
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "15px" }}>
               <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.2rem" }}>TOTAL : ${totalCotizacion.toFixed(2)}</h2>
             </div>
@@ -455,7 +479,7 @@ export default function Productos() {
               <p style={{ margin: "4px 0" }}><strong>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
               <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
             </div>
-              
+            
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
               <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
               <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>

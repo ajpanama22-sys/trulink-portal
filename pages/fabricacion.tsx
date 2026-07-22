@@ -81,28 +81,55 @@ export default function Fabricacion() {
       total: item.precioCarrete * item.cantidad
     }));
 
-    const { data, error } = await supabase
+    // Verificamos si ya existe la cotización con esta referencia en la tabla quotes
+    const { data: existente } = await supabase
       .from('quotes')
-      .upsert([{ 
-        referencia: referenciaActual,
-        total: granTotal, 
-        items: itemsFormateados,
-        status: 'pending',
-        type: 'fiber_quote',
-        pdf_url: pdfPublicUrl,
-        empresa: nombreEmpresa,
-        representante: representante,
-        email: mailCliente,
-        fecha_estimada_entrega: calcularFechaEntrega()
-      }], { onConflict: 'referencia' })
-      .select()
+      .select('id')
+      .eq('referencia', referenciaActual)
       .single();
 
-    if (error) {
-      console.error("ERROR DETALLADO DE SUPABASE:", error);
-      throw new Error(error.message);
+    let resultado;
+    if (existente) {
+      resultado = await supabase
+        .from('quotes')
+        .update({
+          total: granTotal,
+          items: itemsFormateados,
+          status: 'pending',
+          type: 'fiber_quote',
+          pdf_url: pdfPublicUrl,
+          empresa: nombreEmpresa,
+          representante: representante,
+          email: mailCliente,
+          fecha_estimada_entrega: calcularFechaEntrega()
+        })
+        .eq('referencia', referenciaActual)
+        .select()
+        .single();
+    } else {
+      resultado = await supabase
+        .from('quotes')
+        .insert([{
+          referencia: referenciaActual,
+          total: granTotal,
+          items: itemsFormateados,
+          status: 'pending',
+          type: 'fiber_quote',
+          pdf_url: pdfPublicUrl,
+          empresa: nombreEmpresa,
+          representante: representante,
+          email: mailCliente,
+          fecha_estimada_entrega: calcularFechaEntrega()
+        }])
+        .select()
+        .single();
     }
-    return data;
+
+    if (resultado.error) {
+      console.error("ERROR DETALLADO DE SUPABASE:", resultado.error);
+      throw new Error(resultado.error.message);
+    }
+    return resultado.data;
   };
 
   const generarDocumentoPDF = () => {
