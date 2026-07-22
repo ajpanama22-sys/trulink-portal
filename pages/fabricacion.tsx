@@ -20,12 +20,16 @@ type Item = {
 export default function Fabricacion() {
   const router = useRouter();
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
+  const [referenciaActual, setReferenciaActual] = useState<string>("");
 
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
 
   useEffect(() => {
+    // Generar la referencia única al cargar la vista de cotización por primera vez
+    setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
+
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -68,7 +72,7 @@ export default function Fabricacion() {
     return hoy.toISOString().split('T')[0];
   };
 
-  const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
+  const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
       descripcion: `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
@@ -79,8 +83,8 @@ export default function Fabricacion() {
 
     const { data, error } = await supabase
       .from('quotes')
-      .insert([{ 
-        referencia: referenciaUnica,
+      .upsert([{ 
+        referencia: referenciaActual,
         total: granTotal, 
         items: itemsFormateados,
         status: 'pending',
@@ -90,7 +94,7 @@ export default function Fabricacion() {
         representante: representante,
         email: mailCliente,
         fecha_estimada_entrega: calcularFechaEntrega()
-      }])
+      }], { onConflict: 'referencia' })
       .select()
       .single();
 
@@ -101,105 +105,7 @@ export default function Fabricacion() {
     return data;
   };
 
-  const procesarPago = async () => {
-    if (cotizacion.length === 0) {
-      alert("La cotización está vacía. Por favor, agregue artículos.");
-      return;
-    }
-
-    try {
-      const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
-      const fechaActual = new Date().toLocaleDateString();
-      const horaActual = new Date().toLocaleTimeString();
-
-      const doc = new jsPDF();
-      doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
-      
-      doc.setFontSize(10);
-      doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
-      doc.text(`Fecha: ${fechaActual}`, 150, 26);
-      doc.text(`Hora: ${horaActual}`, 150, 32);
-
-      doc.setFontSize(9);
-      doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
-      doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
-      doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-
-      doc.setFontSize(16);
-      doc.text("TRULINK FIBER LLC", 14, 66);
-      doc.setFontSize(10);
-      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
-      doc.text("Tel: +507 6640 3720", 14, 78);
-      doc.text("www.trulinkfiber.com", 14, 84);
-      
-      const rows = cotizacion.map(item => [
-        item.tipo,
-        item.hilos.toString(),
-        item.cantidad.toString(),
-        `$${item.precioMetro.toFixed(2)}`,
-        `$${item.precioCarrete.toFixed(2)}`,
-        `$${(item.precioCarrete * item.cantidad).toFixed(2)}`
-      ]);
-      
-      (doc as any).autoTable({
-        head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
-        body: rows,
-        startY: 92,
-        styles: { fontSize: 10, halign: "center" },
-        headStyles: { fillColor: [218, 165, 32] }
-      });
-
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(12);
-      doc.text(`TOTAL : $${granTotal.toFixed(2)}`, 150, finalY);
-
-      doc.setFontSize(10);
-      doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
-      doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-      doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
-      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
-
-      try {
-        const firma = "/images/firmaco.png";
-        const props = doc.getImageProperties(firma);
-        const firmaWidth = 40;
-        const firmaHeight = (props.height * firmaWidth) / props.width;
-        doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
-      } catch (e) {
-        console.error("No se pudo cargar la firma:", e);
-      }
-
-      const pdfBlob = doc.output("blob");
-      const fileName = `${referenciaUnica}.pdf`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-
-      if (uploadError) {
-        console.error("Error al subir PDF al bucket:", uploadError.message);
-      }
-
-      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
-      const pdfPublicUrl = publicUrlData?.publicUrl || "";
-
-      await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
-      
-      router.push(`/checkout?id=${referenciaUnica}`);
-
-    } catch (err: any) {
-      console.error("ERROR INESPERADO:", err);
-      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
-    }
-  };
-
-  const generarPDF = async (): Promise<void> => {
-    if (cotizacion.length === 0) {
-      alert("La cotización está vacía.");
-      return;
-    }
-
-    const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
+  const generarDocumentoPDF = () => {
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
 
@@ -207,7 +113,7 @@ export default function Fabricacion() {
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
     
     doc.setFontSize(10);
-    doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
+    doc.text(`Referencia: ${referenciaActual}`, 150, 20);
     doc.text(`Fecha: ${fechaActual}`, 150, 26);
     doc.text(`Hora: ${horaActual}`, 150, 32);
 
@@ -260,9 +166,19 @@ export default function Fabricacion() {
       console.error("No se pudo cargar la firma:", e);
     }
 
+    return doc;
+  };
+
+  const procesarPago = async () => {
+    if (cotizacion.length === 0) {
+      alert("La cotización está vacía. Por favor, agregue artículos.");
+      return;
+    }
+
     try {
+      const doc = generarDocumentoPDF();
       const pdfBlob = doc.output("blob");
-      const fileName = `${referenciaUnica}.pdf`;
+      const fileName = `${referenciaActual}.pdf`;
 
       const { error: uploadError } = await supabase.storage
         .from("documentos")
@@ -275,10 +191,42 @@ export default function Fabricacion() {
       const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
-      await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
-      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+      await guardarCotizacionEnSupabase(pdfPublicUrl);
+      router.push(`/checkout?id=${referenciaActual}`);
+
+    } catch (err: any) {
+      console.error("ERROR INESPERADO:", err);
+      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
+    }
+  };
+
+  const generarPDF = async (): Promise<void> => {
+    if (cotizacion.length === 0) {
+      alert("La cotización está vacía.");
+      return;
+    }
+
+    try {
+      const doc = generarDocumentoPDF();
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaActual}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
+
+      await guardarCotizacionEnSupabase(pdfPublicUrl);
+      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
     } catch (err) {
-      doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
+      const doc = generarDocumentoPDF();
+      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
     }
   };
 
@@ -323,13 +271,14 @@ export default function Fabricacion() {
         }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "flex-start", marginBottom: "15px" }}>
+      <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
         <button 
           onClick={() => router.back()} 
           style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
         >
           ⬅ Volver
         </button>
+        <span style={{ color: "#FFF", fontSize: "0.9rem" }}>Ref: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong></span>
       </div>
 
       <div style={{ textAlign: "center", marginBottom: "20px", maxWidth: "800px" }}>
@@ -473,7 +422,7 @@ export default function Fabricacion() {
         width: "100%",
         margin: "0 auto"
       }}>
-        <h2 style={{ color: "#DAA520", textAlign: "center", marginBottom: "15px" }}>Mi Cotización</h2>
+        <h2 style={{ color: "#DAA520", textAlign: "center", marginBottom: "15px" }}>Mi Cotización ({referenciaActual})</h2>
         
         {cotizacion.length === 0 ? (
           <p style={{ textAlign: "center", color: "#FFF", fontSize: "0.9rem" }}>No has agregado artículos aún.</p>
