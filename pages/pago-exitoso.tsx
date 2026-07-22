@@ -48,8 +48,8 @@ export default function PagoExitoso() {
 
   const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
 
-  // Cálculos basados en la orden o el monto pasado por URL
-  const totalAmount = orderInfo?.total_amount || orderInfo?.total || (rawAmount ? Number(rawAmount) : 3.00);
+  // Cálculos basados estrictamente en la base de datos o en los parámetros reales recibidos
+  const totalAmount = orderInfo?.total_amount || orderInfo?.total || (rawAmount ? Number(rawAmount) : 0);
   const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
   const balanceAmount = Math.max(0, totalAmount - paidAmount);
   const isFullPayment = balanceAmount === 0;
@@ -125,7 +125,7 @@ export default function PagoExitoso() {
 
           <div style={{ fontSize: "7.5pt", color: "#333", marginBottom: "10px", borderBottom: "1px solid #ddd", paddingBottom: "8px", lineHeight: "1.5" }}>
             <div><strong>Fecha:</strong> {currentDate}</div>
-            <div><strong>Referencia / ID:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{singleOrderId || "QT-014504"}</span></div>
+            <div><strong>Referencia / ID:</strong> <span style={{ color: "#DAA520", fontWeight: "bold" }}>#{singleOrderId || "N/D"}</span></div>
             <div><strong>Cliente:</strong> {orderInfo?.client_name || orderInfo?.nombre || "Cliente General"}</div>
             <div><strong>Método de Pago:</strong> {methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"}</div>
           </div>
