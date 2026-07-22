@@ -54,7 +54,7 @@ export default function Checkout() {
         const { data, error } = await supabase
           .from('quotes')
           .select('*')
-          .eq('id', id)
+          .or(`id.eq.${id},referencia.eq.${id}`)
           .single();
         
         if (error) {
@@ -180,7 +180,7 @@ export default function Checkout() {
           monto_pagado: valorIngresado,
           updated_at: new Date().toISOString()
         })
-        .eq('id', id);
+        .eq('id', order?.id || id);
 
       if (updateError) {
         console.error('Advertencia al actualizar la tabla quotes:', updateError);
@@ -191,7 +191,7 @@ export default function Checkout() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipient: 'fred.jurado@trulinkfiber.com',
-          quoteId: id,
+          quoteId: refLabel,
           clientName: clientId,
           total: granTotal,
           montoPagado: valorIngresado,
@@ -268,7 +268,7 @@ export default function Checkout() {
         ) : order ? (
           <div>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", fontSize: "0.9rem", color: "#ccc" }}>
-              <span><strong>Referencia:</strong> {order.referencia || order.id}</span>
+              <span><strong>Referencia:</strong> {refLabel}</span>
               <span><strong>Fecha:</strong> {order.created_at ? new Date(order.created_at).toLocaleDateString() : ""}</span>
             </div>
 
