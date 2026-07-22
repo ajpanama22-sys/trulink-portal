@@ -50,6 +50,38 @@ export default function Fabricacion() {
     fetchClientInfo();
   }, []);
 
+  // Lógica de inactividad (5 minutos) y cierre de sesión automático
+  useEffect(() => {
+    let inactivityTimer: NodeJS.Timeout;
+
+    const resetInactivityTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(async () => {
+        await supabase.auth.signOut();
+        router.push("/portal.trulinkfiber.org/portal-cliente");
+      }, 5 * 60 * 1000); // 5 minutos
+    };
+
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    events.forEach((event) => {
+      window.addEventListener(event, resetInactivityTimer);
+    });
+
+    resetInactivityTimer();
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      events.forEach((event) => {
+        window.removeEventListener(event, resetInactivityTimer);
+      });
+    };
+  }, [router]);
+
+  const handleLogOut = async () => {
+    await supabase.auth.signOut();
+    router.push("/portal.trulinkfiber.org/portal-cliente");
+  };
+
   const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
 
   const agregarItem = (tipo: string, hilos: number, longitudKm: number, cantidad: number): void => {
@@ -299,13 +331,17 @@ export default function Fabricacion() {
       `}</style>
 
       <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
-        <button 
-          onClick={() => router.back()} 
-          style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
-        >
-          ⬅ Volver
-        </button>
-        <span style={{ color: "#FFF", fontSize: "0.9rem" }}>Ref: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong></span>
+        {/* Sin botón superior izquierdo en esta vista específica de base de datos de fabricación */}
+        <div />
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <span style={{ color: "#FFF", fontSize: "0.9rem" }}>Ref: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong></span>
+          <button 
+            onClick={handleLogOut}
+            style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" }}
+          >
+            Cerrar Sesión
+          </button>
+        </div>
       </div>
 
       <div style={{ textAlign: "center", marginBottom: "20px", maxWidth: "800px" }}>

@@ -115,7 +115,7 @@ export default function Productos() {
       total: item.precio * item.cantidad
     }));
 
-    // Verificamos si ya existe la cotización con esta referencia usando maybeSingle de forma segura
+    // Verificamos si ya existe la cotización con esta referencia usando la tabla 'quotes'
     const { data: existente } = await supabase
       .from('quotes')
       .select('id')
