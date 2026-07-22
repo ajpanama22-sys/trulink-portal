@@ -64,7 +64,7 @@ export default function Fabricacion() {
 
   const calcularFechaEntrega = () => {
     const hoy = new Date();
-    hoy.setDate(hoy.getDate() + 3); // 3 días por defecto para fecha estimada de finalización
+    hoy.setDate(hoy.getDate() + 3);
     return hoy.toISOString().split('T')[0];
   };
 
@@ -185,7 +185,6 @@ export default function Fabricacion() {
 
       await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
       
-      // CORRECCIÓN CLAVE: Pasar la referencia real (ej. QT-597622) en lugar del ID secuencial numérico
       router.push(`/checkout?id=${referenciaUnica}`);
 
     } catch (err: any) {

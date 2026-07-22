@@ -3,11 +3,11 @@ import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-
+ 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
-
+ 
 type Producto = {
   SKU: string;
   Ítem: string;
@@ -21,7 +21,7 @@ type Producto = {
   estado_inventario: string;
   image_url?: string;
 };
-
+ 
 type ItemCarrito = {
   SKU: string;
   nombre: string;
@@ -29,7 +29,7 @@ type ItemCarrito = {
   precio: number;
   descripcion?: string;
 };
-
+ 
 export default function Productos() {
   const router = useRouter();
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -37,12 +37,12 @@ export default function Productos() {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
-
+ 
   // Estados para los datos del cliente automatizados
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
-
+ 
   useEffect(() => {
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -52,7 +52,7 @@ export default function Productos() {
           .select('empresa, representante, email')
           .eq('user_id', user.id)
           .single();
-
+ 
         if (data) {
           setNombreEmpresa(data.empresa || '');
           setRepresentante(data.representante || '');
@@ -60,38 +60,38 @@ export default function Productos() {
         }
       }
     };
-
+ 
     fetchClientInfo();
   }, []);
-
+ 
   const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
   const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-
+ 
   const handleCantidadChange = (sku: string, valor: number) => {
     setCantidades({ ...cantidades, [sku]: valor });
   };
-
+ 
   const agregarAlCarrito = (prod: Producto) => {
     const qty = cantidades[prod.SKU] || 1;
     const precioSeleccionado = prod.precio_a || 0;
     setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción || prod.Ítem, cantidad: qty, precio: precioSeleccionado, descripcion: prod.Descripción }]);
     setCantidades({ ...cantidades, [prod.SKU]: 1 });
   };
-
+ 
   const eliminarDelCarrito = (index: number) => {
     setCarrito(carrito.filter((_, i) => i !== index));
   };
-
+ 
   const vaciarCarrito = () => {
     setCarrito([]);
   };
-
+ 
   const calcularFechaEntrega = () => {
     const hoy = new Date();
     hoy.setDate(hoy.getDate() + 3); // 3 días por defecto para productos terminados
     return hoy.toISOString().split('T')[0];
   };
-
+ 
   const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
     const itemsFormateados = carrito.map(item => ({
       SKU: item.SKU,
@@ -100,12 +100,12 @@ export default function Productos() {
       precioUnitario: item.precio,
       total: item.precio * item.cantidad
     }));
-
+ 
     const { data, error } = await supabase
       .from('quotes')
-      .insert([{ 
+      .insert([{
         referencia: referenciaUnica,
-        total: totalCotizacion, 
+        total: totalCotizacion,
         items: itemsFormateados,
         status: 'pending',
         type: 'producto',
@@ -117,25 +117,25 @@ export default function Productos() {
       }])
       .select()
       .single();
-
+ 
     if (error) {
       console.error("ERROR DETALLADO DE SUPABASE:", error);
       throw new Error(error.message);
     }
     return data;
   };
-
+ 
   const procesarPago = async () => {
     if (carrito.length === 0) {
       alert("La cotización está vacía. Por favor, agregue artículos.");
       return;
     }
-
+ 
     try {
       const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
       const fechaActual = new Date().toLocaleDateString();
       const horaActual = new Date().toLocaleTimeString();
-
+ 
       const doc = new jsPDF();
       doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
       
@@ -143,13 +143,13 @@ export default function Productos() {
       doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
       doc.text(`Fecha: ${fechaActual}`, 150, 26);
       doc.text(`Hora: ${horaActual}`, 150, 32);
-
+ 
       // Datos del Cliente (Exactamente en el recuadro superior izquierdo)
       doc.setFontSize(9);
       doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
       doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
       doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-
+ 
       doc.setFontSize(16);
       doc.text("TRULINK FIBER LLC", 14, 66);
       doc.setFontSize(10);
@@ -158,10 +158,10 @@ export default function Productos() {
       doc.text("www.trulinkfiber.com", 14, 84);
       
       const rows = carrito.map(item => [
-        item.SKU, 
-        item.nombre, 
-        item.cantidad.toString(), 
-        `$${item.precio.toFixed(2)}`, 
+        item.SKU,
+        item.nombre,
+        item.cantidad.toString(),
+        `$${item.precio.toFixed(2)}`,
         `$${(item.precio * item.cantidad).toFixed(2)}`
       ]);
       
@@ -172,17 +172,17 @@ export default function Productos() {
         styles: { fontSize: 10, halign: "center" },
         headStyles: { fillColor: [218, 165, 32] }
       });
-
+ 
       const finalY = (doc as any).lastAutoTable.finalY + 10;
       doc.setFontSize(12);
       doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
-
+ 
       doc.setFontSize(10);
       doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
       doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
       doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
       doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
-
+ 
       try {
         const firma = "/images/firmaco.png";
         const props = doc.getImageProperties(firma);
@@ -192,42 +192,42 @@ export default function Productos() {
       } catch (e) {
         console.error("No se pudo cargar la firma:", e);
       }
-
+ 
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaUnica}.pdf`;
-
+ 
       const { error: uploadError } = await supabase.storage
         .from("documentos")
         .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-
+ 
       if (uploadError) {
         console.error("Error al subir PDF al bucket:", uploadError.message);
       }
-
+ 
       const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
-
+ 
       await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
       
       // CORRECCIÓN CLAVE: Pasar la referencia real (ej. QT-597622) en lugar del ID secuencial numérico
       router.push(`/checkout?id=${referenciaUnica}`);
-
+ 
     } catch (err: any) {
       console.error("ERROR INESPERADO:", err);
       alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
     }
   };
-
+ 
   const generarPDF = async () => {
     if (carrito.length === 0) {
       alert("La cotización está vacía.");
       return;
     }
-
+ 
     const referenciaUnica = `QT-${Date.now().toString().slice(-6)}`;
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
-
+ 
     const doc = new jsPDF();
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
     
@@ -235,13 +235,13 @@ export default function Productos() {
     doc.text(`Referencia: ${referenciaUnica}`, 150, 20);
     doc.text(`Fecha: ${fechaActual}`, 150, 26);
     doc.text(`Hora: ${horaActual}`, 150, 32);
-
+ 
     // Datos del Cliente
     doc.setFontSize(9);
     doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
     doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
     doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-
+ 
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 66);
     doc.setFontSize(10);
@@ -250,10 +250,10 @@ export default function Productos() {
     doc.text("www.trulinkfiber.com", 14, 84);
     
     const rows = carrito.map(item => [
-      item.SKU, 
-      item.nombre, 
-      item.cantidad.toString(), 
-      `$${item.precio.toFixed(2)}`, 
+      item.SKU,
+      item.nombre,
+      item.cantidad.toString(),
+      `$${item.precio.toFixed(2)}`,
       `$${(item.precio * item.cantidad).toFixed(2)}`
     ]);
     
@@ -264,17 +264,17 @@ export default function Productos() {
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
-
+ 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(12);
     doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
-
+ 
     doc.setFontSize(10);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
     doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
     doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
     doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
-
+ 
     try {
       const firma = "/images/firmaco.png";
       const props = doc.getImageProperties(firma);
@@ -284,29 +284,30 @@ export default function Productos() {
     } catch (e) {
       console.error("No se pudo cargar la firma:", e);
     }
-
+ 
     try {
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaUnica}.pdf`;
-
+ 
       const { error: uploadError } = await supabase.storage
         .from("documentos")
         .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-
+ 
       if (uploadError) {
         console.error("Error al subir PDF al bucket:", uploadError.message);
       }
-
+ 
       const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
-
+ 
       await guardarCotizacionEnSupabase(referenciaUnica, pdfPublicUrl);
+      
       doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
     } catch (err) {
       doc.save(`${referenciaUnica}_TrulinkFiber.pdf`);
     }
   };
-
+ 
   const seleccionarCategoria = async (tabla: string) => {
     const { data, error } = await supabase.from(tabla).select("*");
     if (!error) {
@@ -314,7 +315,7 @@ export default function Productos() {
       setCategoria(tabla);
     }
   };
-
+ 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
       <style jsx global>{`
@@ -324,7 +325,7 @@ export default function Productos() {
         th, td { border: 1px solid #DAA520; padding: 12px; text-align: center; color: #FFF; }
         th { background-color: #DAA520; color: #000; }
       `}</style>
-
+ 
       {/* Botón superior de Volver y Carrito */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <button 
@@ -340,12 +341,12 @@ export default function Productos() {
           🛒 Carrito ({totalItems})
         </button>
       </div>
-
+ 
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
         <h1>{categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}</h1>
       </div>
-
+ 
       {!categoria ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "30px", maxWidth: "1000px", margin: "0 auto" }}>
           {[
@@ -376,7 +377,7 @@ export default function Productos() {
           </div>
         </div>
       )}
-
+ 
       <div id="carrito-seccion" style={{ maxWidth: "900px", margin: "60px auto", padding: "30px", borderRadius: "20px", border: "2px solid #DAA520", backgroundColor: "#050505" }}>
         <h2 style={{ textAlign: "center", color: "#DAA520" }}>Mi Cotización</h2>
         {carrito.length === 0 ? (
@@ -407,18 +408,18 @@ export default function Productos() {
                 ))}
               </tbody>
             </table>
-            
+             
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "15px" }}>
               <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.2rem" }}>TOTAL : ${totalCotizacion.toFixed(2)}</h2>
             </div>
-
+ 
             <div style={{ marginTop: "15px", color: "#FFF", fontSize: "0.85rem", borderTop: "1px dashed #DAA520", paddingTop: "10px" }}>
               <p style={{ margin: "4px 0" }}><strong>Precios:</strong> EXW PANAMÁ</p>
               <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
               <p style={{ margin: "4px 0" }}><strong>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
               <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
             </div>
-            
+             
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
               <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
               <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
