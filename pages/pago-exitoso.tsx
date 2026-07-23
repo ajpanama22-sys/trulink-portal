@@ -42,7 +42,7 @@ export default function PagoExitoso() {
           const activeData = data || {};
           setOrderInfo(activeData);
 
-          const dbTotal = Number(activeData.total || activeData.monto || 0);
+          const dbTotal = Number(activeData.total || activeData.monto || activeData.subtotal || 0);
           const currentTotal = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
           const currentPaid = rawAmount ? Number(rawAmount) : currentTotal;
           const balance = Math.max(0, currentTotal - currentPaid);
@@ -95,7 +95,7 @@ export default function PagoExitoso() {
     }
   }, [singleOrderId, methodStr, rawAmount]);
 
-  const dbTotal = Number(orderInfo?.total || orderInfo?.monto || 0);
+  const dbTotal = Number(orderInfo?.total || orderInfo?.monto || orderInfo?.subtotal || 0);
   const totalAmount = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
   const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
   const balanceAmount = Math.max(0, totalAmount - paidAmount);
