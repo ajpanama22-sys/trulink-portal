@@ -29,18 +29,46 @@ export default function Login() {
 
     setMensaje("Verificando...");
 
-    const { error } = await supabase!.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
     if (error) {
       setMensaje("Acceso denegado: " + error.message);
-    } else {
-      setMensaje("Acceso concedido");
-      // Redirección al selector de opciones para Superusers
-      window.location.href = '/selector';
+      return;
+    } 
+
+    setMensaje("Acceso concedido");
+
+    // Verificar si el usuario está registrado en la tabla de clientes
+    const { data: clienteData } = await supabase
+      .from('clientes')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (clienteData) {
+      // Si es cliente, redirigir directo a la unidad de usuario/cliente
+      window.location.href = '/unidad-cliente'; // Ajusta la ruta exacta si es distinta
+      return;
     }
+
+    // Verificar si es colaborador (Unidad Administrativa)
+    const { data: colaboradorData } = await supabase
+      .from('colaboradores')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (colaboradorData) {
+      // Si es colaborador, enviar al selector administrativo
+      window.location.href = '/selector';
+      return;
+    }
+
+    // Por defecto si no está explícitamente en ninguna de las dos tablas
+    window.location.href = '/selector';
   };
 
   return (
