@@ -86,10 +86,9 @@ export default function AdminInventario() {
     if (!file || !supabase) return;
 
     setSubiendoImagen(true);
-    // Determinar el bucket según la tabla de creación (cablesdb -> cables, herrajesdb -> herrajes, accesoriosdb -> accesorios)
     const nombreBucket = tablaCreacion.replace("db", "");
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36.substring(2, 9))}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}.${fileExt}`;
     const filePath = `${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -297,7 +296,7 @@ export default function AdminInventario() {
           <button onClick={() => { setListaResultados(todosItems); setSubModulo("lista"); }} style={subTabBtn(subModulo === "lista")}>2. Ver Todos / Familia</button>
           <button 
             onClick={() => { 
-              setTablaCreacion(tablaActiva); // Hereda automáticamente la tabla activa actual
+              setTablaCreacion(tablaActiva);
               setSubModulo("crear"); 
             }} 
             style={subTabBtn(subModulo === "crear")}
