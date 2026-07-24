@@ -302,7 +302,7 @@ export default function Productos() {
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(12);
-    doc.text(`TOTAL : ${totalCotizacion.toFixed(2)}`, 150, finalY);
+    doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
 
     doc.setFontSize(10);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
@@ -369,13 +369,21 @@ export default function Productos() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <button 
           onClick={() => router.push("/portal")} 
-          style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
+          style={{ 
+            backgroundColor: "transparent", 
+            color: "#DAA520", 
+            border: "2px solid #DAA520", 
+            padding: "10px 20px", 
+            borderRadius: "20px", 
+            fontWeight: "bold", 
+            cursor: "pointer" 
+          }}
         >
-          ⬅ Volver
+          ← Volver al Portal
         </button>
         <button 
           onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })} 
-          style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
+          style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "15px", fontWeight: "bold", border: "none", cursor: "pointer" }}
         >
           🛒 Carrito ({totalItems})
         </button>
@@ -401,7 +409,21 @@ export default function Productos() {
         </div>
       ) : (
         <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-          <button onClick={() => setCategoria(null)} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px", borderRadius: "10px", border: "none", cursor: "pointer", marginBottom: "20px" }}>⬅ Volver a Categorías</button>
+          <button 
+            onClick={() => setCategoria(null)} 
+            style={{ 
+              backgroundColor: "transparent", 
+              color: "#DAA520", 
+              border: "2px solid #DAA520", 
+              padding: "10px 20px", 
+              borderRadius: "20px", 
+              fontWeight: "bold", 
+              cursor: "pointer", 
+              marginBottom: "20px" 
+            }}
+          >
+            ← Volver a Categorías
+          </button>
           
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
             {productosActuales.map((prod) => (
