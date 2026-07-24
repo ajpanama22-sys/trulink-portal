@@ -25,7 +25,13 @@ export default function PortalCliente() {
 
       <h1 style={{ color: "#DAA520", marginBottom: "50px" }}>Seleccione Servicio</h1>
 
-      <div style={{ display: "flex", gap: "40px" }}>
+      <div style={{ display: "flex", gap: "40px", flexWrap: "wrap", justifyContent: "center" }}>
+        {/* Pedidos Especiales (Lado Izquierdo) */}
+        <div className="card" style={cardStyle} onClick={() => router.push("/especiales")}>
+          <img src="/images/especiales.jpg" alt="Pedidos Especiales" style={imgStyle} />
+          <h2 style={{ color: "#DAA520" }}>Pedidos Especiales</h2>
+        </div>
+
         {/* Fabricación */}
         <div className="card" style={cardStyle} onClick={() => router.push("/fabricacion")}>
           <img src="/images/fabrica.png" alt="Fabricación" style={imgStyle} />
