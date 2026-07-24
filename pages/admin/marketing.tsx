@@ -10,7 +10,7 @@ export default function AdminMarketing() {
   const [cargando, setCargando] = useState(false);
   const [totalDestinatarios, setTotalDestinatarios] = useState(0);
 
-  // Cargar estadísticas rápidas de la base de datos para mostrar el alcance potencial
+  // Cargar estadísticas reales desde la tabla solicitudes_acceso en Supabase
   useEffect(() => {
     calcularAlcance(segmento);
   }, [segmento]);
@@ -20,15 +20,29 @@ export default function AdminMarketing() {
     if (!supabase) return;
 
     try {
-      let query = supabase.from("users").select("*", { count: "exact", head: true });
+      let query = supabase
+        .from("solicitudes_acceso")
+        .select("*", { count: "exact", head: true });
+
+      // Descomenta la siguiente línea si deseas enviar campañas UNICAMENTE a clientes aprobados:
+      // query = query.eq("estado", "aprobado");
+
       if (seg !== "todos") {
-        query = query.eq("perfil_cliente", seg);
+        query = query.contains("datos_completos", { perfil_cliente: seg });
       }
-      const { count } = await query;
-      setTotalDestinatarios(count || 14); // Valor por defecto estimado
+
+      const { count, error } = await query;
+      
+      if (error) {
+        console.error("Error de Supabase:", error);
+        setTotalDestinatarios(0);
+        return;
+      }
+
+      setTotalDestinatarios(count || 0); 
     } catch (error) {
       console.error("Error calculando alcance:", error);
-      setTotalDestinatarios(14);
+      setTotalDestinatarios(0);
     }
   };
 
@@ -47,7 +61,6 @@ export default function AdminMarketing() {
 
     setCargando(true);
     try {
-      // Registro del envío de campaña en Supabase para auditoría y analítica
       const { error } = await supabase.from("solicitudes_acceso").insert([{
         tipo_solicitud: `Campaña: ${tipoCampana}`,
         razon_social: `Segmento: ${segmento}`,
