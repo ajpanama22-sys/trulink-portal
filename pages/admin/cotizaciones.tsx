@@ -28,6 +28,7 @@ export default function Cotizaciones() {
   };
 
   const abrirDetalle = async (item: any) => {
+    if (!supabase) return;
     setCotizacionSeleccionada(item);
     setModalAbierto(true);
     setCargandoPdf(false);
