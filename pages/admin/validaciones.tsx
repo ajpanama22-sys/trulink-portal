@@ -116,7 +116,8 @@ export default function AdminValidaciones() {
           dataList.map((item: any) => {
             let docUrl = item.documentos_url || item.url || "";
             if (!docUrl && supabase) {
-              const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`${item.id}_documento`);
+              // CORRECCIÓN: Se agrega la carpeta 'registros/' antes del ID del documento
+              const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`registros/${item.id}_documento`);
               docUrl = publicData?.publicUrl || "#";
             }
 
