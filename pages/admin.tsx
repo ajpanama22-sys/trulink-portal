@@ -4,8 +4,9 @@ import AdminValidaciones from "./admin/validaciones";
 
 export default function AdminRoot() {
   const [mostrarModalNotif, setMostrarModalNotif] = useState(false);
-  const [emailNotif, setEmailNotif] = useState("");
   const [pushNotif, setPushNotif] = useState(true);
+  const [userEmail, setUserEmail] = useState("");
+  const [userCelular, setUserCelular] = useState("");
   const [mensajeModal, setMensajeModal] = useState("");
 
   useEffect(() => {
@@ -13,8 +14,28 @@ export default function AdminRoot() {
     const debeMostrar = sessionStorage.getItem("trulink_mostrar_modal_notif");
     if (debeMostrar === "true") {
       setMostrarModalNotif(true);
+      cargarDatosUsuario();
     }
   }, []);
+
+  const cargarDatosUsuario = async () => {
+    if (!supabase) return;
+    const tabla = sessionStorage.getItem("trulink_usuario_tabla");
+    const idUsuario = sessionStorage.getItem("trulink_usuario_id");
+
+    if (tabla && idUsuario) {
+      const { data } = await supabase
+        .from(tabla)
+        .select("email, telefono_celular")
+        .eq("id", idUsuario)
+        .single();
+
+      if (data) {
+        setUserEmail(data.email || "");
+        setUserCelular(data.telefono_celular || "No registrado");
+      }
+    }
+  };
 
   const handleGuardarNotificaciones = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +49,7 @@ export default function AdminRoot() {
         .from(tabla)
         .update({
           notificaciones_configuradas: true,
-          email_notificaciones: emailNotif,
+          email_notificaciones: userEmail,
           push_activado: pushNotif
         })
         .eq('id', idUsuario);
@@ -48,7 +69,7 @@ export default function AdminRoot() {
 
   return (
     <div style={{ position: "relative", minHeight: "100vh", backgroundColor: "#000" }}>
-      {/* MODAL DE CONFIGURACIÓN DE NOTIFICACIONES (Primer Login Colaborador / Admin) */}
+      {/* MODAL DE CONFIGURACIÓN DE NOTIFICACIONES INFORMATIVO (Admin) */}
       {mostrarModalNotif && (
         <div style={{
           position: "fixed",
@@ -68,36 +89,26 @@ export default function AdminRoot() {
             padding: "30px",
             borderRadius: "20px",
             width: "100%",
-            maxWidth: "450px",
+            maxWidth: "480px",
             boxShadow: "0 0 30px rgba(218, 165, 32, 0.4)",
             color: "#DAA520",
             fontFamily: "sans-serif"
           }}>
-            <h2 style={{ marginBottom: "15px", textAlign: "center", fontSize: "1.3rem" }}>Configuración de Notificaciones</h2>
+            <h2 style={{ marginBottom: "15px", textAlign: "center", fontSize: "1.3rem" }}>Canales de Notificación Activos</h2>
             <p style={{ fontSize: "0.9rem", color: "#ccc", marginBottom: "20px", textAlign: "center" }}>
-              Es su primer acceso al panel administrativo. Por favor, configure sus preferencias para recibir avisos del sistema.
+              Es su primer acceso al panel administrativo. Los avisos y actualizaciones del sistema se enviarán automáticamente a sus medios registrados:
             </p>
 
-            <form onSubmit={handleGuardarNotificaciones}>
-              <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem" }}>Correo para notificaciones:</label>
-              <input
-                type="email"
-                placeholder="correo@trulinkfiber.com"
-                value={emailNotif}
-                onChange={(e) => setEmailNotif(e.target.value)}
-                required
-                style={{
-                  width: "100%",
-                  padding: "10px",
-                  marginBottom: "15px",
-                  backgroundColor: "#111",
-                  border: "1px solid #DAA520",
-                  color: "#DAA520",
-                  borderRadius: "8px",
-                  boxSizing: "border-box"
-                }}
-              />
+            <div style={{ backgroundColor: "#111", border: "1px solid #333", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
+              <p style={{ fontSize: "0.9rem", marginBottom: "8px", color: "#aaa" }}>
+                📧 <strong style={{ color: "#DAA520" }}>Correo:</strong> {userEmail || "Cargando..."}
+              </p>
+              <p style={{ fontSize: "0.9rem", color: "#aaa" }}>
+                📱 <strong style={{ color: "#DAA520" }}>Celular:</strong> {userCelular}
+              </p>
+            </div>
 
+            <form onSubmit={handleGuardarNotificaciones}>
               <div style={{ display: "flex", alignItems: "center", marginBottom: "25px", gap: "10px" }}>
                 <input
                   type="checkbox"
@@ -106,7 +117,7 @@ export default function AdminRoot() {
                   onChange={(e) => setPushNotif(e.target.checked)}
                   style={{ accentColor: "#DAA520", width: "18px", height: "18px" }}
                 />
-                <label htmlFor="pushCheckAdmin" style={{ fontSize: "0.9rem", cursor: "pointer" }}>Habilitar notificaciones Push</label>
+                <label htmlFor="pushCheckAdmin" style={{ fontSize: "0.9rem", cursor: "pointer", color: "#ddd" }}>Habilitar notificaciones Push adicionales en navegador</label>
               </div>
 
               <button
@@ -123,7 +134,7 @@ export default function AdminRoot() {
                   fontSize: "1rem"
                 }}
               >
-                Guardar y Continuar
+                Entendido y Continuar
               </button>
 
               {mensajeModal && (

@@ -17,7 +17,8 @@ export default function Clientes() {
     nombre_representante: "",
     cargo: "",
     email: "",
-    telefono: "",
+    telefono_oficina: "",
+    telefono_celular: "",
     perfil_cliente: "ISP",
   });
 
@@ -65,6 +66,8 @@ export default function Clientes() {
           tipo_solicitud: formData.tipo_solicitud,
           razon_social: formData.razon_social,
           email: formData.email,
+          telefono_oficina: formData.telefono_oficina,
+          telefono_celular: formData.telefono_celular,
           estado: "pendiente",
           datos_completos: formData,
         }])
@@ -181,7 +184,8 @@ export default function Clientes() {
           <input name="nombre_representante" type="text" placeholder="Nombre Completo del Representante" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
           <input name="cargo" type="text" placeholder="Cargo en la Empresa" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
           <input name="email" type="email" placeholder="Correo Electrónico Corporativo" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
-          <input name="telefono" type="tel" placeholder="Teléfono Fijo o Móvil de Empresa" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
+          <input name="telefono_oficina" type="tel" placeholder="Teléfono de Oficina" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
+          <input name="telefono_celular" type="tel" placeholder="Teléfono Celular / Móvil" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
 
           <h3 style={{ color: "#DAA520" }}>Documentación de Soporte</h3>
           <input type="file" onChange={handleFileChange} style={{ ...inputStyle, padding: "10px" }} />

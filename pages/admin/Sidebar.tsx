@@ -56,6 +56,12 @@ export default function Sidebar({ currentActive }: SidebarProps) {
                   textAlign: "left",
                   transition: "all 0.2s ease"
                 }}
+                onMouseOver={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.05)";
+                }}
+                onMouseOut={(e) => {
+                  if (!isActive) e.currentTarget.style.backgroundColor = "transparent";
+                }}
               >
                 {item.label}
               </button>
@@ -75,7 +81,14 @@ export default function Sidebar({ currentActive }: SidebarProps) {
             color: "#DAA520",
             width: "100%",
             cursor: "pointer",
-            fontWeight: "bold"
+            fontWeight: "bold",
+            transition: "all 0.2s ease"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
           }}
         >
           ← Volver al Portal
