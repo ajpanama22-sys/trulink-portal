@@ -38,15 +38,16 @@ export default function PortalCliente() {
 
     // 2. Intentar buscar por ID de usuario en la tabla correspondiente
     if (idUsuario) {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from(tabla)
-        .select("email, telefono_celular, phone")
+        .select("email, telefono, telefono_celular, phone")
         .eq("id", idUsuario)
         .single();
 
       if (data) {
         setUserEmail(data.email || emailSession || "No registrado");
-        setUserCelular(data.telefono_celular || data.phone || "No registrado");
+        // Se busca primero en "telefono" (la columna real en Supabase) y luego alternativas
+        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
         return;
       }
     }
@@ -55,13 +56,13 @@ export default function PortalCliente() {
     if (emailSession) {
       const { data } = await supabase
         .from(tabla)
-        .select("email, telefono_celular, phone")
+        .select("email, telefono, telefono_celular, phone")
         .eq("email", emailSession)
         .single();
 
       if (data) {
         setUserEmail(data.email || emailSession);
-        setUserCelular(data.telefono_celular || data.phone || "No registrado");
+        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
         return;
       }
       setUserEmail(emailSession);
@@ -80,7 +81,7 @@ export default function PortalCliente() {
     const idUsuario = sessionStorage.getItem("trulink_usuario_id");
 
     if (idUsuario) {
-      await supabase
+      const { error } = await supabase
         .from(tabla)
         .update({
           notificaciones_configuradas: true,
@@ -88,6 +89,11 @@ export default function PortalCliente() {
           push_activado: pushNotif
         })
         .eq('id', idUsuario);
+
+      if (error) {
+        setMensajeModal("Error al guardar: " + error.message);
+        return;
+      }
     }
 
     sessionStorage.removeItem("trulink_mostrar_modal_notif");

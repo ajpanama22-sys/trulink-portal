@@ -34,24 +34,40 @@ export default function AdminRoot() {
 
     const tabla = sessionStorage.getItem("trulink_usuario_tabla");
     const idUsuario = sessionStorage.getItem("trulink_usuario_id");
+    const emailSession = authEmail || sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
 
     if (tabla && idUsuario) {
       const { data } = await supabase
         .from(tabla)
-        .select("email, telefono_celular")
+        .select("email, telefono, telefono_celular, phone")
         .eq("id", idUsuario)
         .single();
 
       if (data) {
-        setUserEmail(data.email || authEmail || "No registrado");
-        setUserCelular(data.telefono_celular || "No registrado");
+        setUserEmail(data.email || emailSession || "No registrado");
+        // Buscamos primero en "telefono" (la columna real de tu Supabase)
+        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
         return;
       }
     }
 
-    // Fallback si no hay ID pero sí authEmail
-    if (authEmail) {
-      setUserEmail(authEmail);
+    // Fallback si no hay ID pero sí emailSession
+    if (emailSession) {
+      const { data } = await supabase
+        .from(tabla || "clients")
+        .select("email, telefono, telefono_celular, phone")
+        .eq("email", emailSession)
+        .single();
+
+      if (data) {
+        setUserEmail(data.email || emailSession);
+        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
+        return;
+      }
+      setUserEmail(emailSession);
+      setUserCelular("No registrado");
+    } else {
+      setUserEmail("No registrado");
       setUserCelular("No registrado");
     }
   };
