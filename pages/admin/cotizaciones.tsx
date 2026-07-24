@@ -33,8 +33,6 @@ export default function Cotizaciones() {
     setModalAbierto(true);
     setCargandoPdf(false);
 
-    // Si la cotización tiene un archivo registrado pero no una URL pública directa, 
-    // intentamos obtenerla desde el bucket "documentos" de Supabase Storage.
     if (item.pdf_url && !item.pdf_url.startsWith("http")) {
       setCargandoPdf(true);
       try {
@@ -59,7 +57,6 @@ export default function Cotizaciones() {
         pdf_url_final: item.pdf_url
       }));
     } else if (item.referencia) {
-      // Intento opcional por si el PDF se guarda usando la referencia exacta en el bucket
       setCargandoPdf(true);
       try {
         const possiblePaths = [`${item.referencia}.pdf`, `${item.referencia.toLowerCase()}.pdf`];
@@ -250,20 +247,40 @@ export default function Cotizaciones() {
                 </div>
               </div>
 
-              {/* ÍTEMS / PRODUCTOS DE LA COTIZACIÓN */}
+              {/* ÍTEMS / PRODUCTOS FORMATEADOS EN TABLA LIMPIA */}
               <div style={{ marginBottom: "20px" }}>
                 <p style={{ ...labelStyle, marginBottom: "8px" }}>Ítems Solicitados:</p>
-                <div style={{ backgroundColor: "#000", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "4px", padding: "12px", maxHeight: "150px", overflowY: "auto", fontSize: "0.85rem" }}>
-                  {cotizacionSeleccionada.items ? (
-                    typeof cotizacionSeleccionada.items === 'object' ? (
-                      <pre style={{ margin: 0, color: "#fff", fontFamily: "inherit", whiteSpace: "pre-wrap" }}>
-                        {JSON.stringify(cotizacionSeleccionada.items, null, 2)}
-                      </pre>
-                    ) : (
-                      <p style={{ color: "#fff", margin: 0 }}>{cotizacionSeleccionada.items}</p>
-                    )
+                <div style={{ backgroundColor: "#000", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "4px", maxHeight: "180px", overflowY: "auto" }}>
+                  {Array.isArray(cotizacionSeleccionada.items) && cotizacionSeleccionada.items.length > 0 ? (
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#080808" }}>
+                          <th style={{ padding: "8px 12px" }}>SKU</th>
+                          <th style={{ padding: "8px 12px" }}>Descripción</th>
+                          <th style={{ padding: "8px 12px", textAlign: "center" }}>Cant.</th>
+                          <th style={{ padding: "8px 12px", textAlign: "right" }}>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cotizacionSeleccionada.items.map((prod: any, idx: number) => (
+                          <tr key={idx} style={{ borderBottom: "1px solid #141414" }}>
+                            <td style={{ padding: "8px 12px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || "N/D"}</td>
+                            <td style={{ padding: "8px 12px", color: "#fff" }}>{prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
+                            <td style={{ padding: "8px 12px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
+                            <td style={{ padding: "8px 12px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || 0).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : typeof cotizacionSeleccionada.items === 'object' && cotizacionSeleccionada.items !== null ? (
+                    // Si es un objeto único pero no array
+                    <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
+                      <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU:</strong> {cotizacionSeleccionada.items.sku || cotizacionSeleccionada.items.SKU || "N/D"}</p>
+                      <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {cotizacionSeleccionada.items.descripcion || cotizacionSeleccionada.items.description || "N/D"}</p>
+                      <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(cotizacionSeleccionada.items.total || 0).toFixed(2)}</p>
+                    </div>
                   ) : (
-                    <p style={{ color: "#666", fontStyle: "italic", margin: 0 }}>No hay ítems detallados guardados en formato JSON.</p>
+                    <p style={{ color: "#666", fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados.</p>
                   )}
                 </div>
               </div>
