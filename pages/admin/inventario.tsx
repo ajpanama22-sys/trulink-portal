@@ -14,13 +14,15 @@ export default function AdminInventario() {
   const [listaResultados, setListaResultados] = useState<any[]>([]);
   const [todosItems, setTodosItems] = useState<any[]>([]);
 
-  // Estados para Creación de Producto
+  // Estados para Creación de Producto (hereda la tabla activa por defecto)
   const [tablaCreacion, setTablaCreacion] = useState<"cablesdb" | "herrajesdb" | "accesoriosdb">("cablesdb");
+  const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
   const [nuevoSku, setNuevoSku] = useState("");
   const [nuevaFamilia, setNuevaFamilia] = useState("");
   const [nuevaDescripcion, setNuevaDescripcion] = useState("");
   const [nuevasEspecificaciones, setNuevasEspecificaciones] = useState("");
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
 
   // Estados para Edición
   const [editDescripcion, setEditDescripcion] = useState("");
@@ -35,13 +37,17 @@ export default function AdminInventario() {
     cargarBaseDatos(tablaActiva);
   }, [tablaActiva]);
 
+  // Actualizar familias disponibles para el formulario de creación según la tabla elegida para crear
+  useEffect(() => {
+    cargarFamiliasCreacion(tablaCreacion);
+  }, [tablaCreacion]);
+
   const cargarBaseDatos = async (tabla: string) => {
     if (!supabase) return;
     const { data, error } = await supabase.from(tabla).select("*").order("SKU", { ascending: true });
     if (!error && data) {
       setTodosItems(data);
       
-      // Extraer únicamente las familias de ESTA base de datos activa
       const familiasSet = new Set<string>();
       data.forEach((item: any) => {
         const fam = item.Familia || item.familia;
@@ -57,12 +63,57 @@ export default function AdminInventario() {
     }
   };
 
+  const cargarFamiliasCreacion = async (tabla: string) => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from(tabla).select("Familia, familia");
+    if (!error && data) {
+      const familiasSet = new Set<string>();
+      data.forEach((item: any) => {
+        const fam = item.Familia || item.familia;
+        if (fam && typeof fam === "string" && fam.trim() !== "") {
+          familiasSet.add(fam.trim());
+        }
+      });
+      const lista = Array.from(familiasSet).sort();
+      setFamiliasCreacion(lista);
+      setNuevaFamilia(lista.length > 0 ? lista[0] : "");
+    }
+  };
+
+  // Subir imagen al bucket correspondiente en Supabase Storage
+  const manejarSubidaImagen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !supabase) return;
+
+    setSubiendoImagen(true);
+    // Determinar el bucket según la tabla de creación (cablesdb -> cables, herrajesdb -> herrajes, accesoriosdb -> accesorios)
+    const nombreBucket = tablaCreacion.replace("db", "");
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36.substring(2, 9))}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(nombreBucket)
+      .upload(filePath, file);
+
+    if (uploadError) {
+      alert("Error al subir la imagen al bucket: " + uploadError.message);
+      setSubiendoImagen(false);
+      return;
+    }
+
+    const { data } = supabase.storage.from(nombreBucket).getPublicUrl(filePath);
+    if (data?.publicUrl) {
+      setNuevaImagenUrl(data.publicUrl);
+    }
+    setSubiendoImagen(false);
+  };
+
   // Buscar por SKU exacto
   const buscarPorSku = async () => {
     if (!skuInput.trim() || !supabase) return;
     
     const skuBuscado = skuInput.trim();
-
     const { data, error } = await supabase
       .from(tablaActiva)
       .select("*")
@@ -87,7 +138,6 @@ export default function AdminInventario() {
     }
   };
 
-  // Filtrar por Familia seleccionada de la base de datos actual o Mostrar Todas
   const filtrarPorFamiliaAction = () => {
     if (!familiaSeleccionada || familiaSeleccionada === "TODAS") {
       setListaResultados(todosItems);
@@ -115,7 +165,6 @@ export default function AdminInventario() {
     setEditImagenUrl(item.Image_url || item.image_url || "");
   };
 
-  // Guardar cambios
   const guardarCambios = async () => {
     if (!supabase || !productoSeleccionado) return;
 
@@ -126,7 +175,8 @@ export default function AdminInventario() {
       .from(tablaActiva)
       .update({
         Descripción: editDescripcion,
-        Especificaciones: editEspecificaciones
+        Especificaciones: editEspecificaciones,
+        Image_url: editImagenUrl
       })
       .eq(skuKey, skuValue);
 
@@ -139,7 +189,6 @@ export default function AdminInventario() {
     }
   };
 
-  // Crear Nuevo Producto
   const guardarNuevoProducto = async () => {
     if (!supabase) return;
     if (!nuevoSku.trim() || !nuevaDescripcion.trim()) {
@@ -167,7 +216,6 @@ export default function AdminInventario() {
     } else {
       alert("¡Producto creado con éxito en " + tablaCreacion + "!");
       setNuevoSku("");
-      setNuevaFamilia("");
       setNuevaDescripcion("");
       setNuevasEspecificaciones("");
       setNuevaImagenUrl("");
@@ -176,7 +224,6 @@ export default function AdminInventario() {
     }
   };
 
-  // Eliminar Producto
   const confirmarEliminacion = async (decision: 'S' | 'N') => {
     if (decision === 'N') {
       setPasoEliminar(1);
@@ -248,7 +295,15 @@ export default function AdminInventario() {
         <div style={{ display: "flex", gap: "10px", marginBottom: "30px", borderBottom: "1px solid #1a1a1a", paddingBottom: "15px", flexWrap: "wrap" }}>
           <button onClick={() => setSubModulo("buscador")} style={subTabBtn(subModulo === "buscador")}>1. Buscar / SKU</button>
           <button onClick={() => { setListaResultados(todosItems); setSubModulo("lista"); }} style={subTabBtn(subModulo === "lista")}>2. Ver Todos / Familia</button>
-          <button onClick={() => setSubModulo("crear")} style={subTabBtn(subModulo === "crear")}>+ Crear Producto</button>
+          <button 
+            onClick={() => { 
+              setTablaCreacion(tablaActiva); // Hereda automáticamente la tabla activa actual
+              setSubModulo("crear"); 
+            }} 
+            style={subTabBtn(subModulo === "crear")}
+          >
+            + Crear Producto
+          </button>
           {productoSeleccionado && (
             <>
               <button onClick={() => setSubModulo("editar")} style={subTabBtn(subModulo === "editar")}>3. Editar Producto</button>
@@ -257,7 +312,7 @@ export default function AdminInventario() {
           )}
         </div>
 
-        {/* VISTA 1: BUSCADOR POR SKU O FAMILIA ESPECÍFICA DE LA BD ACTIVA */}
+        {/* VISTA 1: BUSCADOR */}
         {subModulo === "buscador" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "25px", maxWidth: "500px" }}>
             <div style={cardBox}>
@@ -300,7 +355,7 @@ export default function AdminInventario() {
           </div>
         )}
 
-        {/* VISTA 2: LISTADO GENERAL / FILTRADO */}
+        {/* VISTA 2: LISTADO GENERAL */}
         {subModulo === "lista" && (
           <div>
             <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -384,14 +439,18 @@ export default function AdminInventario() {
                   />
                 </div>
                 <div>
-                  <label style={labelStyle}>Familia</label>
-                  <input
-                    type="text"
-                    placeholder="Ej. Cables / Herrajes"
+                  <label style={labelStyle}>Familia (Bucket: {tablaCreacion.replace("db", "")})</label>
+                  <select
                     value={nuevaFamilia}
                     onChange={(e) => setNuevaFamilia(e.target.value)}
                     style={inputStyleFull}
-                  />
+                  >
+                    {familiasCreacion.map((fam) => (
+                      <option key={fam} value={fam} style={{ backgroundColor: "#050505", color: "#DAA520" }}>
+                        {fam}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -418,21 +477,24 @@ export default function AdminInventario() {
               </div>
 
               <div>
-                <label style={labelStyle}>Imagen del Producto (URL / Llamada)</label>
-                <input
-                  type="text"
-                  placeholder="Pegar enlace de imagen..."
-                  value={nuevaImagenUrl}
-                  onChange={(e) => setNuevaImagenUrl(e.target.value)}
-                  style={{ ...inputStyleFull, marginBottom: "10px" }}
-                />
+                <label style={labelStyle}>Imagen del Producto (Se guardará en el bucket: <b style={{ color: "#DAA520", textTransform: "uppercase" }}>{tablaCreacion.replace("db", "")}</b>)</label>
+                <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={manejarSubidaImagen}
+                    style={{ color: "#aaa", fontSize: "0.85rem" }}
+                  />
+                  {subiendoImagen && <span style={{ color: "#DAA520", fontSize: "0.85rem" }}>Subiendo imagen...</span>}
+                </div>
                 {nuevaImagenUrl && (
-                  <div style={{ padding: "10px", backgroundColor: "#050505", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "4px", display: "inline-block" }}>
+                  <div style={{ marginTop: "10px", padding: "10px", backgroundColor: "#050505", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "4px", display: "inline-block" }}>
                     <img 
                       src={nuevaImagenUrl} 
                       alt="Vista previa" 
                       style={{ width: "80px", height: "80px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#000" }} 
                     />
+                    <p style={{ fontSize: "0.7rem", color: "#888", marginTop: "4px", wordBreak: "break-all" }}>{nuevaImagenUrl}</p>
                   </div>
                 )}
               </div>
@@ -476,8 +538,13 @@ export default function AdminInventario() {
                     </div>
                   )}
                   <div>
-                    <p style={{ fontSize: "0.85rem", color: "#fff", marginBottom: "5px" }}>Referencia visual activa desde la base de datos.</p>
-                    <span style={{ fontSize: "0.75rem", color: "#DAA520", wordBreak: "break-all" }}>{editImagenUrl || "No hay enlace registrado"}</span>
+                    <p style={{ fontSize: "0.85rem", color: "#fff", marginBottom: "5px" }}>Enlace actual de la imagen.</p>
+                    <input
+                      type="text"
+                      value={editImagenUrl}
+                      onChange={(e) => setEditImagenUrl(e.target.value)}
+                      style={inputStyleFull}
+                    />
                   </div>
                 </div>
               </div>
