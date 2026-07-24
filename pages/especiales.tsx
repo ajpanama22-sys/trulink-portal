@@ -39,11 +39,17 @@ export default function PedidosEspeciales() {
       return;
     }
 
+    if (!supabase) {
+      setMensaje("Error de configuración: Cliente de Supabase no inicializado.");
+      setCargando(false);
+      return;
+    }
+
     try {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("No se pudo verificar la sesión del usuario.");
 
-      const clienteEmail = user.email;
+      const clienteEmail = user.email || "";
       const fileExt = archivo.name.split('.').pop();
       const fileName = `${clienteEmail}_${Date.now()}.${fileExt}`;
 
