@@ -6,9 +6,6 @@ export default function PushAlertModal() {
   const [guardando, setGuardando] = useState(false);
   const [usuarioActual, setUsuarioActual] = useState<any>(null);
   const [tablaUsuario, setTablaUsuario] = useState<"clientes" | "colaboradores">("clientes");
-  
-  const [aceptaEmail, setAceptaEmail] = useState(true);
-  const [aceptaPush, setAceptaPush] = useState(true);
 
   useEffect(() => {
     verificarPrimerLogin();
@@ -77,8 +74,6 @@ export default function PushAlertModal() {
       const { error } = await supabase
         .from(tablaUsuario)
         .update({
-          acepta_email: aceptaEmail,
-          acepta_push: aceptaPush,
           notificaciones_configuradas: true
         })
         .eq("id", usuarioActual.id);
@@ -124,33 +119,20 @@ export default function PushAlertModal() {
         color: "#DAA520"
       }}>
         <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", textTransform: "uppercase", letterSpacing: "1px" }}>
-          Configuración de Notificaciones
+          Canales de Notificación Activos
         </h2>
 
         <p style={{ color: "#ccc", fontSize: "0.95rem", lineHeight: "1.5", marginBottom: "25px", textAlign: "left" }}>
-          Para recibir cotizaciones de fábrica en tiempo real, alertas de inventario y estado de despacho, seleccione sus canales preferidos:
+          Es tu primer acceso. Los avisos y actualizaciones del sistema se enviarán automáticamente a tus medios registrados:
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "15px", marginBottom: "30px", textAlign: "left" }}>
-          <label style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer", fontSize: "0.95rem", color: "#fff" }}>
-            <input 
-              type="checkbox" 
-              checked={aceptaEmail} 
-              onChange={(e) => setAceptaEmail(e.target.checked)}
-              style={{ width: "18px", height: "18px", accentColor: "#DAA520", cursor: "pointer" }}
-            />
-            Recibir avisos vía <strong style={{ color: "#DAA520" }}>Email</strong>
-          </label>
-
-          <label style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer", fontSize: "0.95rem", color: "#fff" }}>
-            <input 
-              type="checkbox" 
-              checked={aceptaPush} 
-              onChange={(e) => setAceptaPush(e.target.checked)}
-              style={{ width: "18px", height: "18px", accentColor: "#DAA520", cursor: "pointer" }}
-            />
-            Recibir notificaciones <strong style={{ color: "#DAA520" }}>Push en mi Móvil / Celular</strong>
-          </label>
+        <div style={{ backgroundColor: "#111", border: "1px solid #333", padding: "15px", borderRadius: "10px", marginBottom: "25px", textAlign: "left" }}>
+          <p style={{ fontSize: "0.9rem", marginBottom: "8px", color: "#aaa" }}>
+            📧 <strong style={{ color: "#DAA520" }}>Correo:</strong> {usuarioActual?.email || "No registrado"}
+          </p>
+          <p style={{ fontSize: "0.9rem", color: "#aaa" }}>
+            📱 <strong style={{ color: "#DAA520" }}>Celular:</strong> {usuarioActual?.telefono_celular || usuarioActual?.telefono || usuarioActual?.phone || "No registrado"}
+          </p>
         </div>
 
         <button
@@ -171,7 +153,7 @@ export default function PushAlertModal() {
             letterSpacing: "0.5px"
           }}
         >
-          {guardando ? "Guardando Preferencias..." : "GUARDAR Y CONTINUAR"}
+          {guardando ? "Guardando..." : "Entendido y Continuar"}
         </button>
 
         <p style={{ color: "#666", fontSize: "0.75rem", marginTop: "20px" }}>

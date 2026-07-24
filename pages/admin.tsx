@@ -92,9 +92,8 @@ export default function AdminRoot() {
       const { error } = await supabase
         .from(tabla)
         .update({
-          notificaciones_configuradas: true,
-          email_notificaciones: userEmail,
-          push_activado: pushNotif
+          email: userEmail,
+          telefono_celular: userCelular !== "No registrado" ? userCelular : null
         })
         .eq('id', idUsuario);
 

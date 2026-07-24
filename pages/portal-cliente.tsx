@@ -92,9 +92,8 @@ export default function PortalCliente() {
       const { error } = await supabase
         .from(tabla)
         .update({
-          notificaciones_configuradas: true,
-          email_notificaciones: userEmail,
-          push_activado: pushNotif
+          email: userEmail,
+          telefono_celular: userCelular !== "No registrado" ? userCelular : null
         })
         .eq('id', idUsuario);
 
@@ -258,6 +257,6 @@ export default function PortalCliente() {
           <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Control de Pedidos</h2>
         </div>
       </div>
-  </div>
-);
+    </div>
+  );
 }
