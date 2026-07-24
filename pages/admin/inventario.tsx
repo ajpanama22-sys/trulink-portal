@@ -264,7 +264,8 @@ export default function AdminInventario() {
     }
   };
 
-  const guardarNuevoProducto = async () => {
+  const guardarNuevoProducto = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     if (!supabase) return;
     if (!nuevoSku.trim() || !nuevaDescripcion.trim()) {
       mostrarNotificacion("Por favor complete al menos el SKU y la Descripción.", "error");
@@ -366,7 +367,7 @@ export default function AdminInventario() {
           fontSize: "0.9rem",
           letterSpacing: "0.5px",
           display: "flex",
-          alignItem: "center",
+          alignItems: "center",
           gap: "10px",
           animation: "fadeIn 0.3s ease-out"
         }}>
@@ -435,8 +436,15 @@ export default function AdminInventario() {
                   type="text"
                   placeholder="Ingrese SKU exacto..."
                   value={skuInput}
-                  onChange={(e) => setSkuInput(e.target.value)}
+                  onChange={(e) => {
+                    setSkuInput(e.target.value);
+                    e.target.setCustomValidity("");
+                  }}
+                  onInvalid={(e) => {
+                    (e.target as HTMLInputElement).setCustomValidity("Por favor, ingresa el SKU del producto para continuar.");
+                  }}
                   onKeyDown={(e) => { if (e.key === 'Enter') buscarPorSku(); }}
+                  required
                   style={inputStyle}
                 />
                 <button onClick={buscarPorSku} style={btnAccion}>BUSCAR</button>
@@ -505,7 +513,7 @@ export default function AdminInventario() {
         )}
 
         {subModulo === "crear" && (
-          <div style={{ ...cardBox, maxWidth: "700px" }}>
+          <form onSubmit={guardarNuevoProducto} style={{ ...cardBox, maxWidth: "700px" }}>
             <h2 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "#fff" }}>
               CREAR NUEVO PRODUCTO
             </h2>
@@ -545,7 +553,14 @@ export default function AdminInventario() {
                     type="text"
                     placeholder="Ej. GJPFJH-4F"
                     value={nuevoSku}
-                    onChange={(e) => setNuevoSku(e.target.value)}
+                    onChange={(e) => {
+                      setNuevoSku(e.target.value);
+                      e.target.setCustomValidity("");
+                    }}
+                    onInvalid={(e) => {
+                      (e.target as HTMLInputElement).setCustomValidity("Por favor, ingresa un código SKU válido para el nuevo producto.");
+                    }}
+                    required
                     style={inputStyleFull}
                   />
                 </div>
@@ -575,7 +590,14 @@ export default function AdminInventario() {
                     type="text"
                     placeholder="Escribe el nombre de la nueva familia..."
                     value={nombreNuevaFamilia}
-                    onChange={(e) => setNombreNuevaFamilia(e.target.value)}
+                    onChange={(e) => {
+                      setNombreNuevaFamilia(e.target.value);
+                      e.target.setCustomValidity("");
+                    }}
+                    onInvalid={(e) => {
+                      (e.target as HTMLInputElement).setCustomValidity("Por favor, asigna un nombre para la nueva familia.");
+                    }}
+                    required
                     style={inputStyleFull}
                   />
                 </div>
@@ -587,7 +609,14 @@ export default function AdminInventario() {
                   rows={3}
                   placeholder="Descripción detallada del producto..."
                   value={nuevaDescripcion}
-                  onChange={(e) => setNuevaDescripcion(e.target.value)}
+                  onChange={(e) => {
+                    setNuevaDescripcion(e.target.value);
+                    e.target.setCustomValidity("");
+                  }}
+                  onInvalid={(e) => {
+                    (e.target as HTMLInputElement).setCustomValidity("Por favor, ingresa una descripción para este producto.");
+                  }}
+                  required
                   style={{ ...inputStyleFull, resize: "vertical" }}
                 />
               </div>
@@ -628,10 +657,10 @@ export default function AdminInventario() {
             </div>
 
             <div style={{ display: "flex", gap: "15px", marginTop: "30px" }}>
-              <button onClick={guardarNuevoProducto} style={btnAccion}>GUARDAR NUEVO PRODUCTO</button>
-              <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
+              <button type="submit" style={btnAccion}>GUARDAR NUEVO PRODUCTO</button>
+              <button type="button" onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
             </div>
-          </div>
+          </form>
         )}
 
         {subModulo === "editar" && productoSeleccionado && (
@@ -749,39 +778,39 @@ export default function AdminInventario() {
                 <label style={labelStyle}>Especificaciones</label>
                 <textarea rows={4} value={editEspecificaciones} onChange={(e) => setEditEspecificaciones(e.target.value)} style={{ ...inputStyleFull, resize: "vertical" }} />
               </div>
-            </div>
 
-            <div style={{ display: "flex", gap: "15px", marginTop: "25px" }}>
-              <button onClick={guardarCambiosInteligente} style={btnAccion}>GUARDAR CAMBIOS</button>
-              <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
+              <div style={{ display: "flex", gap: "15px", marginTop: "10px" }}>
+                <button onClick={guardarCambiosInteligente} style={btnAccion}>GUARDAR CAMBIOS</button>
+                <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
+              </div>
             </div>
           </div>
         )}
 
         {subModulo === "eliminar" && productoSeleccionado && (
-          <div style={{ ...cardBox, maxWidth: "500px", textAlign: "center", padding: "40px" }}>
-            <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", color: "#e74c3c" }}>ELIMINAR PRODUCTO</h2>
-            
+          <div style={{ ...cardBox, maxWidth: "500px", border: "1px solid #e74c3c" }}>
+            <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", color: "#e74c3c" }}>
+              ⚠️ ELIMINAR PRODUCTO DE LA BASE DE DATOS
+            </h2>
+            <p style={{ color: "#fff", fontSize: "0.9rem", marginBottom: "20px" }}>
+              Estás a punto de eliminar el SKU: <b style={{ color: "#DAA520" }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</b> ({productoSeleccionado.Descripción || productoSeleccionado.descripcion}).
+            </p>
+
             {pasoEliminar === 1 ? (
-              <>
-                <p style={{ fontSize: "1rem", marginBottom: "25px", color: "#fff" }}>
-                  ¿Desea eliminar el producto SKU <b>{productoSeleccionado.SKU || productoSeleccionado.sku}</b>?
-                </p>
-                <div style={{ display: "flex", justifyContent: "center", gap: "20px" }}>
-                  <button onClick={() => confirmarEliminacion('S')} style={btnSi}>S (Sí)</button>
-                  <button onClick={() => confirmarEliminacion('N')} style={btnNo}>N (No)</button>
-                </div>
-              </>
+              <div style={{ display: "flex", gap: "15px" }}>
+                <button onClick={() => confirmarEliminacion('S')} style={btnPeligro}>SÍ, ELIMINAR</button>
+                <button onClick={() => confirmarEliminacion('N')} style={btnSecundario}>CANCELAR</button>
+              </div>
             ) : (
-              <>
-                <p style={{ fontSize: "1rem", marginBottom: "25px", color: "#e74c3c", fontWeight: "bold" }}>
-                  ¿ESTÁ SEGURO? Esta acción es irreversible.
+              <div style={{ padding: "15px", backgroundColor: "#110000", border: "1px dashed #e74c3c", borderRadius: "4px" }}>
+                <p style={{ color: "#e74c3c", fontWeight: "bold", fontSize: "0.9rem", marginBottom: "15px" }}>
+                  ¿Estás totalmente seguro? Esta acción es irreversible.
                 </p>
-                <div style={{ display: "flex", justifyContent: "center", gap: "20px" }}>
-                  <button onClick={() => confirmarEliminacion('S')} style={btnSiRoho}>S (Sí, eliminar)</button>
-                  <button onClick={() => confirmarEliminacion('N')} style={btnNo}>N (No, regresar)</button>
+                <div style={{ display: "flex", gap: "15px" }}>
+                  <button onClick={() => confirmarEliminacion('S')} style={btnPeligro}>CONFIRMAR ELIMINACIÓN</button>
+                  <button onClick={() => confirmarEliminacion('N')} style={btnSecundario}>REGRESAR</button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
@@ -791,131 +820,119 @@ export default function AdminInventario() {
   );
 }
 
-// Estilos
-const cardBox = {
+// Estilos Reutilizables en Línea para el diseño Negro y Dorado
+const cardBox: React.CSSProperties = {
   backgroundColor: "#080808",
-  border: "1px solid rgba(218, 165, 32, 0.2)",
-  borderRadius: "6px",
-  padding: "25px"
+  border: "1px solid rgba(218, 165, 32, 0.3)",
+  borderRadius: "8px",
+  padding: "25px",
+  boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
 };
 
-const inputStyle = {
+const inputStyle: React.CSSProperties = {
   flex: 1,
-  padding: "10px 14px",
-  backgroundColor: "#050505",
+  backgroundColor: "#000",
   border: "1px solid rgba(218, 165, 32, 0.4)",
   borderRadius: "4px",
-  color: "#DAA520",
-  outline: "none",
-  fontSize: "0.9rem"
-};
-
-const inputStyleFull = {
-  width: "100%",
-  padding: "10px 14px",
-  backgroundColor: "#050505",
-  border: "1px solid rgba(218, 165, 32, 0.4)",
-  borderRadius: "4px",
-  color: "#DAA520",
-  outline: "none",
+  padding: "10px 15px",
+  color: "#fff",
   fontSize: "0.9rem",
-  boxSizing: "border-box" as const
+  outline: "none"
 };
 
-const labelStyle = {
+const inputStyleFull: React.CSSProperties = {
+  width: "100%",
+  backgroundColor: "#000",
+  border: "1px solid rgba(218, 165, 32, 0.4)",
+  borderRadius: "4px",
+  padding: "10px 15px",
+  color: "#fff",
+  fontSize: "0.9rem",
+  outline: "none",
+  marginTop: "5px",
+  boxSizing: "border-box"
+};
+
+const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: "0.8rem",
-  color: "#aaa",
-  marginBottom: "6px",
+  color: "#DAA520",
+  fontWeight: "600",
+  textTransform: "uppercase",
   letterSpacing: "0.5px",
-  textTransform: "uppercase" as const
+  marginBottom: "5px"
 };
 
-const btnAccion = {
-  padding: "10px 20px",
+const btnAccion: React.CSSProperties = {
   backgroundColor: "#DAA520",
   color: "#000",
-  fontWeight: "600",
-  fontSize: "0.8rem",
-  letterSpacing: "0.8px",
   border: "none",
   borderRadius: "4px",
-  cursor: "pointer"
+  padding: "10px 20px",
+  fontWeight: "bold",
+  fontSize: "0.8rem",
+  cursor: "pointer",
+  letterSpacing: "0.8px",
+  textTransform: "uppercase"
 };
 
-const btnAccionSmall = {
-  padding: "6px 12px",
+const btnAccionSmall: React.CSSProperties = {
   backgroundColor: "transparent",
   color: "#DAA520",
-  border: "1px solid rgba(218, 165, 32, 0.4)",
-  fontWeight: "600",
-  fontSize: "0.75rem",
+  border: "1px solid #DAA520",
   borderRadius: "4px",
-  cursor: "pointer"
+  padding: "5px 10px",
+  fontWeight: "600",
+  fontSize: "0.7rem",
+  cursor: "pointer",
+  letterSpacing: "0.5px"
 };
 
-const btnSecundario = {
-  padding: "10px 20px",
+const btnSecundario: React.CSSProperties = {
   backgroundColor: "transparent",
   color: "#aaa",
   border: "1px solid #444",
+  borderRadius: "4px",
+  padding: "10px 20px",
   fontWeight: "600",
   fontSize: "0.8rem",
-  borderRadius: "4px",
-  cursor: "pointer"
+  cursor: "pointer",
+  letterSpacing: "0.8px"
 };
 
-const btnSi = {
-  padding: "10px 25px",
-  backgroundColor: "transparent",
-  color: "#2ecc71",
-  border: "1px solid rgba(46, 204, 113, 0.5)",
-  fontWeight: "bold",
-  borderRadius: "4px",
-  cursor: "pointer"
-};
-
-const btnSiRoho = {
-  padding: "10px 25px",
+const btnPeligro: React.CSSProperties = {
   backgroundColor: "#e74c3c",
   color: "#fff",
   border: "none",
-  fontWeight: "bold",
   borderRadius: "4px",
-  cursor: "pointer"
+  padding: "10px 20px",
+  fontWeight: "bold",
+  fontSize: "0.8rem",
+  cursor: "pointer",
+  letterSpacing: "0.8px",
+  textTransform: "uppercase"
 };
 
-const btnNo = {
-  padding: "10px 25px",
-  backgroundColor: "transparent",
-  color: "#aaa",
-  border: "1px solid #555",
-  fontWeight: "bold",
+const subTabBtn = (isActive: boolean, isDanger = false): React.CSSProperties => ({
+  backgroundColor: isActive ? (isDanger ? "#e74c3c" : "#DAA520") : "transparent",
+  color: isActive ? "#000" : (isDanger ? "#e74c3c" : "#DAA520"),
+  border: `1px solid ${isDanger ? "#e74c3c" : "rgba(218, 165, 32, 0.4)"}`,
   borderRadius: "4px",
-  cursor: "pointer"
-};
-
-const subTabBtn = (activo: boolean, esPeligro = false) => ({
-  padding: "8px 16px",
-  backgroundColor: activo ? (esPeligro ? "#e74c3c" : "#DAA520") : "transparent",
-  color: activo ? (esPeligro ? "#fff" : "#000") : (esPeligro ? "#e74c3c" : "#DAA520"),
-  border: `1px solid ${esPeligro ? "#e74c3c" : "rgba(218, 165, 32, 0.4)"}`,
-  borderRadius: "4px",
+  padding: "8px 14px",
   fontWeight: "600",
   fontSize: "0.75rem",
-  letterSpacing: "0.8px",
-  cursor: "pointer"
+  cursor: "pointer",
+  letterSpacing: "0.5px",
+  textTransform: "uppercase"
 });
 
-const thStyle = {
-  padding: "12px 16px",
-  fontWeight: "600",
-  letterSpacing: "0.8px",
-  fontSize: "0.75rem",
-  textTransform: "uppercase" as const
+const thStyle: React.CSSProperties = {
+  padding: "12px 15px",
+  fontSize: "0.8rem",
+  letterSpacing: "0.5px",
+  textTransform: "uppercase"
 };
 
-const tdStyle = {
-  padding: "12px 16px",
-  letterSpacing: "0.4px"
+const tdStyle: React.CSSProperties = {
+  padding: "12px 15px"
 };
