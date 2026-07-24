@@ -1,57 +1,62 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import checkoutNodeJssdk from '@paypal/checkout-server-sdk';
+import type { NextApiRequest, NextApiResponse } from 'next';
+import checkoutNodeJSSDK from '@paypal/checkout-server-sdk';
 
-function environment() {
-  const clientId = process.env.PAYPAL_CLIENT_ID || '';
-  const clientSecret = process.env.PAYPAL_CLIENT_SECRET || '';
-  return process.env.PAYPAL_MODE === 'live'
-    ? new checkoutNodeJssdk.core.LiveEnvironment(clientId, clientSecret)
-    : new checkoutNodeJssdk.core.SandboxEnvironment(clientId, clientSecret);
+function ambientePayPal() {
+  return process.env.NODE_ENV === 'production'
+    ? new checkoutNodeJSSDK.core.LiveEnvironment(
+        process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
+        process.env.PAYPAL_CLIENT_SECRET || ''
+      )
+    : new checkoutNodeJSSDK.core.SandboxEnvironment(
+        process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
+        process.env.PAYPAL_CLIENT_SECRET || ''
+      );
 }
 
-function client() {
-  return new checkoutNodeJssdk.core.PayPalHttpClient(environment());
+function clientePayPal() {
+  return new checkoutNodeJSSDK.core.PayPalHttpClient(ambientePayPal());
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).end('Method Not Allowed');
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).end(`Método ${req.method} no permitido`);
   }
 
-  const { orderId, amount } = req.body;
+  const { amount } = req.body;
 
-  const request = new checkoutNodeJssdk.orders.OrdersCreateRequest();
-  request.prefer("return=representation");
+  if (!amount) {
+    return res.status(400).json({ error: 'Falta el monto total de la orden' });
+  }
+
+  const request = new checkoutNodeJSSDK.orders.OrdersCreateRequest();
+  request.prefer('return=representation');
   request.requestBody({
     intent: 'CAPTURE',
     purchase_units: [
       {
-        reference_id: orderId,
-        description: `Cotización Trulink Fiber #${orderId}`,
         amount: {
           currency_code: 'USD',
-          value: Number(amount).toFixed(2),
+          value: amount.toString(),
         },
       },
     ],
-    application_context: {
-      brand_name: 'Trulink Fiber LLC',
-      landing_page: 'NO_PREFERENCE',
-      user_action: 'PAY_NOW',
-      return_url: `${req.headers.origin}/pago-exitoso?order_id=${orderId}&method=paypal`,
-      cancel_url: `${req.headers.origin}/checkout?id=${orderId}`,
-    },
   });
 
   try {
-    const paypalClient = client();
-    const response = await paypalClient.execute(request);
+    const client = clientePayPal();
+    const response = await client.execute(request);
     
-    const approveLink = response.result.links.find((link: any) => link.rel === 'approve');
+    const approvalUrl = response.result.links.find(
+      (link: any) => link.rel === 'approve'
+    )?.href;
 
-    return res.status(200).json({ id: response.result.id, url: approveLink?.href });
+    return res.status(200).json({
+      id: response.result.id,
+      approvalUrl,
+    });
   } catch (err: any) {
-    console.error("Error al crear orden de PayPal:", err);
+    console.error('Error al crear orden de PayPal:', err);
     return res.status(500).json({ error: err.message || 'Error al conectar con PayPal' });
   }
+}
