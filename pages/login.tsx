@@ -44,8 +44,9 @@ export default function Login() {
     const userEmail = (authData.user?.email || email).trim().toLowerCase();
     const EMAIL_SUPERUSER = "fred.jurado@trulinkfiber.com";
 
-    // Función auxiliar para comprobar y activar la bandera de primer login de forma inteligente
+    // Función auxiliar protegida contra null para TypeScript
     const verificarPrimerLoginInteligente = async (tabla: string, columnaId: string, idValor: string) => {
+      if (!supabase) return;
       const { data: record } = await supabase
         .from(tabla)
         .select("notificaciones_configuradas")
@@ -105,7 +106,7 @@ export default function Login() {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      justifyContent: "center"
+.      justifyContent: "center"
     }}>
       
       <style jsx global>{`
