@@ -1,5 +1,6 @@
 import React from 'react';
 import { useRouter } from 'next/router';
+import { supabase } from '../lib/supabaseClient';
 
 interface SidebarProps {
   currentActive: string;
@@ -19,8 +20,17 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     { key: 'marketing', label: 'Marketing', path: '/admin/marketing' },
   ];
 
+  const handleCerrarSesion = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    sessionStorage.clear();
+    localStorage.clear();
+    router.push('/');
+  };
+
   return (
-    <aside style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px", backgroundColor: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+    <aside style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px", backgroundColor: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" }}>
       <div>
         <div style={{ textAlign: "center", marginBottom: "30px" }}>
           <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "100px", marginBottom: "10px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.3))" }} />
@@ -54,9 +64,9 @@ export default function Sidebar({ currentActive }: SidebarProps) {
         </nav>
       </div>
 
-      <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
         <button
-          onClick={() => router.push('https://portal.trulinkfiber.org/portal-cliente')}
+          onClick={() => router.push('/portal-cliente')}
           style={{
             padding: "10px",
             borderRadius: "8px",
@@ -65,11 +75,34 @@ export default function Sidebar({ currentActive }: SidebarProps) {
             color: "#DAA520",
             width: "100%",
             cursor: "pointer",
-            fontWeight: "bold",
-            marginBottom: "10px"
+            fontWeight: "bold"
           }}
         >
           ← Volver al Portal
+        </button>
+
+        <button
+          onClick={handleCerrarSesion}
+          style={{
+            padding: "12px",
+            borderRadius: "8px",
+            border: "1px solid rgba(231, 76, 60, 0.5)",
+            background: "transparent",
+            color: "#e74c3c",
+            width: "100%",
+            cursor: "pointer",
+            fontWeight: "bold",
+            letterSpacing: "0.5px",
+            transition: "all 0.2s ease"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.backgroundColor = "rgba(231, 76, 60, 0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.backgroundColor = "transparent";
+          }}
+        >
+          Cerrar Sesión
         </button>
       </div>
     </aside>
