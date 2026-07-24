@@ -258,6 +258,6 @@ export default function PortalCliente() {
           <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Control de Pedidos</h2>
         </div>
       </div>
-    </div>
-  );
+  </div>
+);
 }
