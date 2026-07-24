@@ -111,7 +111,7 @@ export default function Fabricacion() {
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
-      descripcion: `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
+      "Descripción": `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
       cantidad: item.cantidad,
       precioUnitario: item.precioCarrete,
       total: item.precioCarrete * item.cantidad
@@ -335,6 +335,20 @@ export default function Fabricacion() {
           background-color: #DAA520 !important;
           color: #000 !important;
         }
+        /* Efectos interactivos para los productos */
+        .product-card {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .product-card:hover {
+          transform: scale(1.03);
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.6);
+        }
+        .product-card img {
+          transition: transform 0.3s ease;
+        }
+        .product-card:hover img {
+          transform: scale(1.05);
+        }
       `}</style>
 
       {/* Botón Volver al Portal Estándar Arriba a la Izquierda */}
@@ -390,7 +404,7 @@ export default function Fabricacion() {
       }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
           
-          <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
+          <div className="product-card" style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
             <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
             <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>ASU</h3>
             
@@ -427,7 +441,7 @@ export default function Fabricacion() {
             </button>
           </div>
 
-          <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
+          <div className="product-card" style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
             <img src="/images/ADSS.png" alt="Cable ADSS" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
             <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>ADSS</h3>
             
@@ -464,7 +478,7 @@ export default function Fabricacion() {
             </button>
           </div>
 
-          <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
+          <div className="product-card" style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
             <img src="/images/FTTX.png" alt="Cable FTTX" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
             <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>FTTX</h3>
 
