@@ -41,7 +41,7 @@ export default function Login() {
 
     setMensaje("Acceso concedido");
 
-    // 1. Verificar si el usuario está registrado en la tabla de clientes
+    // Verificar si el usuario está registrado en la tabla de clientes
     const { data: clienteData } = await supabase
       .from('clientes')
       .select('email')
@@ -49,12 +49,12 @@ export default function Login() {
       .single();
 
     if (clienteData) {
-      // Si es cliente, redirigir directo al portal de clientes
+      // Si es cliente, redirigir directo a portal-cliente
       window.location.href = '/portal-cliente'; 
       return;
     }
 
-    // 2. Verificar si es colaborador (Unidad Administrativa)
+    // Verificar si es colaborador (Unidad Administrativa)
     const { data: colaboradorData } = await supabase
       .from('colaboradores')
       .select('email')
@@ -62,7 +62,7 @@ export default function Login() {
       .single();
 
     if (colaboradorData) {
-      // Si es colaborador, enviar directo al panel admin
+      // Si es colaborador, enviar al panel admin
       window.location.href = '/admin';
       return;
     }
