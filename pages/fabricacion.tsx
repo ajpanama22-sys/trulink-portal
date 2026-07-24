@@ -337,20 +337,29 @@ export default function Fabricacion() {
         }
       `}</style>
 
+      {/* Botón Volver al Portal Estándar Arriba a la Izquierda */}
       <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
-        <div />
+        <button 
+          onClick={handleVolverPortal}
+          className="nav-btn"
+          style={{ 
+            backgroundColor: "transparent", 
+            color: "#DAA520", 
+            border: "1px solid #DAA520", 
+            padding: "6px 12px", 
+            borderRadius: "8px", 
+            fontWeight: "bold", 
+            cursor: "pointer", 
+            fontSize: "0.85rem", 
+            transition: "all 0.3s ease" 
+          }}
+        >
+          ← Volver al Portal
+        </button>
+
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <span style={{ color: "#FFF", fontSize: "0.9rem" }}>Ref: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong></span>
           
-          {/* Botón Volver al Portal */}
-          <button 
-            onClick={handleVolverPortal}
-            className="nav-btn"
-            style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem", transition: "all 0.3s ease" }}
-          >
-            Volver al Portal
-          </button>
-
           {/* Botón Cerrar Sesión */}
           <button 
             onClick={handleLogOut}
