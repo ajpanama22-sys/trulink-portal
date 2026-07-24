@@ -6,7 +6,6 @@ export default function AdminInventario() {
   const [subModulo, setSubModulo] = useState<"buscador" | "lista" | "crear" | "editar" | "eliminar">("buscador");
   const [tablaActiva, setTablaActiva] = useState<"cablesdb" | "herrajesdb" | "accesoriosdb">("cablesdb");
   
-  // Estados para búsqueda por SKU o Selector de Familia
   const [skuInput, setSkuInput] = useState("");
   const [familiaSeleccionada, setFamiliaSeleccionada] = useState("");
   const [familiasDisponibles, setFamiliasDisponibles] = useState<string[]>([]);
@@ -25,11 +24,14 @@ export default function AdminInventario() {
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
 
-  // Estados para Edición y Ajustes Inteligentes
+  // Estados para Edición de los 4 Precios Comerciales y Stock
   const [editDescripcion, setEditDescripcion] = useState("");
   const [editEspecificaciones, setEditEspecificaciones] = useState("");
   const [editImagenUrl, setEditImagenUrl] = useState("");
-  const [editPrecio, setEditPrecio] = useState<number | "">("");
+  const [editPrecioA, setEditPrecioA] = useState<number | "">("");
+  const [editPrecioB, setEditPrecioB] = useState<number | "">("");
+  const [editPrecioC, setEditPrecioC] = useState<number | "">("");
+  const [editPrecioD, setEditPrecioD] = useState<number | "">("");
   const [editCantidad, setEditCantidad] = useState<number | "">("");
 
   // Estados para Eliminación
@@ -162,11 +164,14 @@ export default function AdminInventario() {
     setEditDescripcion(item.Descripción || item.descripcion || "");
     setEditEspecificaciones(item.Especificaciones || item.especificaciones || "");
     setEditImagenUrl(item.image_url || item.Image_url || "");
-    setEditPrecio(item.Precio ?? item.precio ?? "");
+    setEditPrecioA(item.precio_a ?? item.Precio_A ?? "");
+    setEditPrecioB(item.precio_b ?? item.Precio_B ?? "");
+    setEditPrecioC(item.precio_c ?? item.Precio_C ?? "");
+    setEditPrecioD(item.precio_d ?? item.Precio_D ?? "");
     setEditCantidad(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? "");
   };
 
-  // Guardado Inteligente: detecta exclusivamente qué campos cambiaron
+  // Guardado Inteligente: detecta cambios campo por campo
   const guardarCambiosInteligente = async () => {
     if (!supabase || !productoSeleccionado) return;
 
@@ -175,22 +180,18 @@ export default function AdminInventario() {
 
     const datosModificados: any = {};
 
-    // Detectar cambios en Descripción
     const descOriginal = productoSeleccionado.Descripción || productoSeleccionado.descripcion || "";
     if (editDescripcion !== descOriginal) {
       datosModificados.Descripción = editDescripcion;
     }
 
-    // Detectar cambios en Especificaciones
     const specOriginal = productoSeleccionado.Especificaciones || productoSeleccionado.especificaciones || "";
     if (editEspecificaciones !== specOriginal) {
       datosModificados.Especificaciones = editEspecificaciones;
     }
 
-    // Detectar cambios en Imagen (soporta image_url o Image_url según la tabla)
     const imgOriginal = productoSeleccionado.image_url || productoSeleccionado.Image_url || "";
     if (editImagenUrl !== imgOriginal) {
-      // Verificamos cuál columna usa el registro original para mantener consistencia
       if (productoSeleccionado.image_url !== undefined) {
         datosModificados.image_url = editImagenUrl;
       } else {
@@ -198,14 +199,30 @@ export default function AdminInventario() {
       }
     }
 
-    // Detectar cambios en Precio
-    const precioOriginal = productoSeleccionado.Precio ?? productoSeleccionado.precio ?? "";
-    const precioFinal = editPrecio === "" ? null : Number(editPrecio);
-    if (precioFinal !== (precioOriginal === "" ? null : Number(precioOriginal))) {
-      datosModificados.Precio = precioFinal;
+    const paOriginal = productoSeleccionado.precio_a ?? productoSeleccionado.Precio_A ?? "";
+    const paFinal = editPrecioA === "" ? null : Number(editPrecioA);
+    if (paFinal !== (paOriginal === "" ? null : Number(paOriginal))) {
+      datosModificados.precio_a = paFinal;
     }
 
-    // Detectar cambios en Cantidad (soporta cantidad o Cantidad)
+    const pbOriginal = productoSeleccionado.precio_b ?? productoSeleccionado.Precio_B ?? "";
+    const pbFinal = editPrecioB === "" ? null : Number(editPrecioB);
+    if (pbFinal !== (pbOriginal === "" ? null : Number(pbOriginal))) {
+      datosModificados.precio_b = pbFinal;
+    }
+
+    const pcOriginal = productoSeleccionado.precio_c ?? productoSeleccionado.Precio_C ?? "";
+    const pcFinal = editPrecioC === "" ? null : Number(editPrecioC);
+    if (pcFinal !== (pcOriginal === "" ? null : Number(pcOriginal))) {
+      datosModificados.precio_c = pcFinal;
+    }
+
+    const pdOriginal = productoSeleccionado.precio_d ?? productoSeleccionado.Precio_D ?? "";
+    const pdFinal = editPrecioD === "" ? null : Number(editPrecioD);
+    if (pdFinal !== (pdOriginal === "" ? null : Number(pdOriginal))) {
+      datosModificados.precio_d = pdFinal;
+    }
+
     const cantOriginal = productoSeleccionado.cantidad ?? productoSeleccionado.Cantidad ?? productoSeleccionado.Stock ?? productoSeleccionado.stock ?? "";
     const cantFinal = editCantidad === "" ? 0 : Number(editCantidad);
     if (cantFinal !== (cantOriginal === "" ? 0 : Number(cantOriginal))) {
@@ -216,7 +233,6 @@ export default function AdminInventario() {
       }
     }
 
-    // Si no hay ningún cambio detectado
     if (Object.keys(datosModificados).length === 0) {
       alert("No se detectó ningún cambio para guardar.");
       return;
@@ -230,7 +246,7 @@ export default function AdminInventario() {
     if (error) {
       alert("Error al actualizar el producto: " + error.message);
     } else {
-      alert("¡Cambios actualizados inteligentemente con éxito!");
+      alert("¡Precios comerciales y cambios actualizados inteligentemente con éxito!");
       cargarBaseDatos(tablaActiva);
       setSubModulo("buscador");
     }
@@ -257,6 +273,10 @@ export default function AdminInventario() {
       Descripción: nuevaDescripcion.trim(),
       Especificaciones: nuevasEspecificaciones.trim(),
       image_url: nuevaImagenUrl.trim(),
+      precio_a: 1.00,
+      precio_b: 2.00,
+      precio_c: 3.00,
+      precio_d: 4.00,
       cantidad: 0
     };
 
@@ -271,7 +291,7 @@ export default function AdminInventario() {
     if (error) {
       alert("Error al crear el producto: " + error.message);
     } else {
-      alert("¡Producto creado con éxito en " + tablaCreacion + (familiaFinal ? ` con la familia "${familiaFinal}"` : "") + "!");
+      alert("¡Producto creado con éxito en " + tablaCreacion + "!");
       setNuevoSku("");
       setNuevaDescripcion("");
       setNuevasEspecificaciones("");
@@ -584,32 +604,68 @@ export default function AdminInventario() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               
+              {/* Sección de las Listas de Precios Comerciales y Stock */}
               <div style={{ padding: "15px", backgroundColor: "#0c0c0c", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "4px" }}>
                 <h3 style={{ fontSize: "0.95rem", color: "#DAA520", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Ajustes de Precio y Cantidad
+                  Listas de Precios Comerciales y Stock
                 </h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "12px" }}>
                   <div>
-                    <label style={labelStyle}>Precio ($)</label>
+                    <label style={labelStyle}>Precio A (ISP) — <span style={{ color: "#DAA520" }}>precio_a</span></label>
                     <input
                       type="number"
                       step="0.01"
                       placeholder="0.00"
-                      value={editPrecio}
-                      onChange={(e) => setEditPrecio(e.target.value === "" ? "" : Number(e.target.value))}
+                      value={editPrecioA}
+                      onChange={(e) => setEditPrecioA(e.target.value === "" ? "" : Number(e.target.value))}
                       style={inputStyleFull}
                     />
                   </div>
                   <div>
-                    <label style={labelStyle}>Cantidad / Stock</label>
+                    <label style={labelStyle}>Precio B (Mayorista) — <span style={{ color: "#DAA520" }}>precio_b</span></label>
                     <input
                       type="number"
-                      placeholder="0"
-                      value={editCantidad}
-                      onChange={(e) => setEditCantidad(e.target.value === "" ? "" : Number(e.target.value))}
+                      step="0.01"
+                      placeholder="0.00"
+                      value={editPrecioB}
+                      onChange={(e) => setEditPrecioB(e.target.value === "" ? "" : Number(e.target.value))}
                       style={inputStyleFull}
                     />
                   </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                  <div>
+                    <label style={labelStyle}>Precio C (Integrador) — <span style={{ color: "#DAA520" }}>precio_c</span></label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={editPrecioC}
+                      onChange={(e) => setEditPrecioC(e.target.value === "" ? "" : Number(e.target.value))}
+                      style={inputStyleFull}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Precio D (Cliente Final) — <span style={{ color: "#DAA520" }}>precio_d</span></label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={editPrecioD}
+                      onChange={(e) => setEditPrecioD(e.target.value === "" ? "" : Number(e.target.value))}
+                      style={inputStyleFull}
+                    />
+                  </div>
+                </div>
+                <div style={{ marginTop: "15px" }}>
+                  <label style={labelStyle}>Cantidad / Stock — <span style={{ color: "#DAA520" }}>cantidad</span></label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={editCantidad}
+                    onChange={(e) => setEditCantidad(e.target.value === "" ? "" : Number(e.target.value))}
+                    style={inputStyleFull}
+                  />
                 </div>
               </div>
 
