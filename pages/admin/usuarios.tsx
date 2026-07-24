@@ -42,9 +42,10 @@ export default function AdminUsuarios() {
   };
 
   // Cambiar estado de activación (Activo / Inactivo) para Clientes o Colaboradores
-  const toggleEstadoUsuario = async (id: string, estadoActual: boolean, tabla: "clientes" | "colaboradores") => {
+  const toggleEstadoUsuario = async (id: string, estadoActual: boolean, vista: "clientes" | "equipo") => {
     if (!supabase) return;
     const nuevoEstado = !estadoActual;
+    const tabla = vista === "clientes" ? "clientes" : "colaboradores";
 
     const { error } = await supabase
       .from(tabla)
