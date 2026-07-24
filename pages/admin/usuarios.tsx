@@ -41,13 +41,13 @@ export default function AdminUsuarios() {
     setCargando(false);
   };
 
-  // Cambiar estado de activación del cliente (Activo / Inactivo)
-  const toggleEstadoCliente = async (id: string, estadoActual: boolean) => {
+  // Cambiar estado de activación (Activo / Inactivo) para Clientes o Colaboradores
+  const toggleEstadoUsuario = async (id: string, estadoActual: boolean, tabla: "clientes" | "colaboradores") => {
     if (!supabase) return;
     const nuevoEstado = !estadoActual;
 
     const { error } = await supabase
-      .from("clientes")
+      .from(tabla)
       .update({ activo: nuevoEstado })
       .eq("id", id);
 
@@ -89,7 +89,7 @@ export default function AdminUsuarios() {
       return;
     }
 
-    // 2. Replicar automáticamente en la tabla colaboradores
+    // 2. Replicar automáticamente en la tabla colaboradores con estado activo por defecto
     const { error: dbError } = await supabase
       .from("colaboradores")
       .insert([
@@ -97,7 +97,8 @@ export default function AdminUsuarios() {
           nombre: nuevoNombre, 
           email: nuevoEmail, 
           rol: nuevoRol,
-          auth_id: authData.user?.id 
+          auth_id: authData.user?.id,
+          activo: true 
         }
       ]);
 
@@ -226,7 +227,10 @@ export default function AdminUsuarios() {
               <select value={nuevoRol} onChange={(e) => setNuevoRol(e.target.value)} style={{ width: "100%", padding: "10px", marginBottom: "20px", backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "5px", boxSizing: "border-box" }}>
                 <option value="Administrador">Administrador</option>
                 <option value="Ventas">Ventas</option>
-                <option value="Soporte">Soporte Técnico</option>
+                <option value="Soporte Técnico">Soporte Técnico</option>
+                <option value="Producción">Producción</option>
+                <option value="Bodega">Bodega</option>
+                <option value="Utility">Utility</option>
               </select>
 
               <div style={{ display: "flex", gap: "10px" }}>
@@ -245,7 +249,7 @@ export default function AdminUsuarios() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {usuariosFiltrados.map((user: any) => {
-              const estaActivo = user.activo !== false; // Por defecto activo si es null/undefined
+              const estaActivo = user.activo !== false; 
               return (
                 <div
                   key={user.id}
@@ -274,48 +278,47 @@ export default function AdminUsuarios() {
                     )}
 
                     {vistaActiva === "equipo" && (
-                      <div style={{ fontSize: "0.85rem", color: "#888" }}>
-                        Rol: <span style={{ color: "#DAA520" }}>{user.rol || "Administrador"}</span>
+                      <div style={{ fontSize: "0.85rem", color: "#888", display: "flex", gap: "10px", alignItems: "center" }}>
+                        <span>Rol: <span style={{ color: "#DAA520" }}>{user.rol || "Administrador"}</span></span> | 
+                        <span>Estado: <strong style={{ color: estaActivo ? "#00FF00" : "#FF0000" }}>{estaActivo ? "Activo" : "Inactivo"}</strong></span>
                       </div>
                     )}
                   </div>
 
                   <div style={{ display: "flex", gap: "10px" }}>
                     {vistaActiva === "clientes" && (
-                      <>
-                        <button
-                          onClick={() => enviarInvitacionCliente(user.email)}
-                          style={{
-                            padding: "8px 12px",
-                            backgroundColor: "transparent",
-                            border: "1px solid #DAA520",
-                            color: "#DAA520",
-                            borderRadius: "5px",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            fontSize: "0.8rem"
-                          }}
-                        >
-                          ENVIAR ACCESO / PASS
-                        </button>
-
-                        <button
-                          onClick={() => toggleEstadoCliente(user.id, estaActivo)}
-                          style={{
-                            padding: "8px 12px",
-                            backgroundColor: estaActivo ? "#550000" : "#003300",
-                            border: `1px solid ${estaActivo ? "#FF0000" : "#00FF00"}`,
-                            color: "#fff",
-                            borderRadius: "5px",
-                            cursor: "pointer",
-                            fontWeight: "bold",
-                            fontSize: "0.8rem"
-                          }}
-                        >
-                          {estaActivo ? "INACTIVAR" : "ACTIVAR"}
-                        </button>
-                      </>
+                      <button
+                        onClick={() => enviarInvitacionCliente(user.email)}
+                        style={{
+                          padding: "8px 12px",
+                          backgroundColor: "transparent",
+                          border: "1px solid #DAA520",
+                          color: "#DAA520",
+                          borderRadius: "5px",
+                          cursor: "pointer",
+                          fontWeight: "bold",
+                          fontSize: "0.8rem"
+                        }}
+                      >
+                        ENVIAR ACCESO / PASS
+                      </button>
                     )}
+
+                    <button
+                      onClick={() => toggleEstadoUsuario(user.id, estaActivo, vistaActiva)}
+                      style={{
+                        padding: "8px 12px",
+                        backgroundColor: estaActivo ? "#550000" : "#003300",
+                        border: `1px solid ${estaActivo ? "#FF0000" : "#00FF00"}`,
+                        color: "#fff",
+                        borderRadius: "5px",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        fontSize: "0.8rem"
+                      }}
+                    >
+                      {estaActivo ? "INACTIVAR" : "ACTIVAR"}
+                    </button>
                   </div>
                 </div>
               );
