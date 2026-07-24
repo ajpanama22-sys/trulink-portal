@@ -13,7 +13,7 @@ export default function AdminInventario() {
   const [listaResultados, setListaResultados] = useState<any[]>([]);
   const [todosItems, setTodosItems] = useState<any[]>([]);
 
-  // Estados para Edición (Solo nombre, especificaciones/descripción, imagen)
+  // Estados para Edición (Nombre, Descripción, Imagen)
   const [editNombre, setEditNombre] = useState("");
   const [editDescripcion, setEditDescripcion] = useState("");
   const [editImagen, setEditImagen] = useState("");
@@ -21,43 +21,60 @@ export default function AdminInventario() {
   // Estados para Eliminación con doble confirmación
   const [pasoEliminar, setPasoEliminar] = useState<1 | 2>(1);
 
-  // Cargar todos los elementos de la base de datos activa para listados o filtros rápidos
+  // Cargar todos los elementos ordenados por SKU
   useEffect(() => {
     cargarBaseDatos(tablaActiva);
   }, [tablaActiva]);
 
   const cargarBaseDatos = async (tabla: string) => {
     if (!supabase) return;
-    const { data, error } = await supabase.from(tabla).select("*").order("id", { ascending: true });
+    const { data, error } = await supabase.from(tabla).select("*").order("SKU", { ascending: true });
     if (!error) {
       setTodosItems(data || []);
+    } else {
+      console.error("Error al cargar base de datos:", error.message);
     }
   };
 
-  // Buscar por SKU exacto (al presionar Enter o botón)
-  const buscarPorSku = () => {
-    if (!skuInput.trim()) return;
-    const encontrado = todosItems.find(
-      (item) => item.sku?.toLowerCase() === skuInput.trim().toLowerCase()
-    );
-    if (encontrado) {
+  // Buscar por SKU exacto usando la columna primaria SKU
+  const buscarPorSku = async () => {
+    if (!skuInput.trim() || !supabase) return;
+    
+    const skuBuscado = skuInput.trim();
+
+    const { data, error } = await supabase
+      .from(tablaActiva)
+      .select("*")
+      .ilike("SKU", skuBuscado);
+
+    if (!error && data && data.length > 0) {
+      const encontrado = data[0];
       setProductoSeleccionado(encontrado);
       inicializarEdicion(encontrado);
       setSubModulo("editar");
     } else {
-      alert("No se encontró ningún producto con ese SKU en la base de datos activa.");
+      const encontradoLocal = todosItems.find(
+        (item) => item.SKU?.toString().toLowerCase() === skuBuscado.toLowerCase()
+      );
+      if (encontradoLocal) {
+        setProductoSeleccionado(encontradoLocal);
+        inicializarEdicion(encontradoLocal);
+        setSubModulo("editar");
+      } else {
+        alert("No se encontró ningún producto con ese SKU en la base de datos activa.");
+      }
     }
   };
 
-  // Filtrar por Familia (si aplica el campo o categoría)
+  // Filtrar por Familia / Mostrar Todos
   const buscarPorFamilia = () => {
     if (!familiaInput.trim()) {
       setListaResultados(todosItems);
     } else {
       const filtrados = todosItems.filter(
         (item) => 
-          item.familia?.toLowerCase().includes(familiaInput.trim().toLowerCase()) ||
-          item.categoria?.toLowerCase().includes(familiaInput.trim().toLowerCase())
+          item.Familia?.toLowerCase().includes(familiaInput.trim().toLowerCase()) ||
+          item.familia?.toLowerCase().includes(familiaInput.trim().toLowerCase())
       );
       setListaResultados(filtrados);
     }
@@ -72,23 +89,26 @@ export default function AdminInventario() {
   };
 
   const inicializarEdicion = (item: any) => {
-    setEditNombre(item.nombre || item.title || "");
-    setEditDescripcion(item.descripcion || item.description || "");
-    setEditImagen(item.imagen || item.image_url || "");
+    setEditNombre(item.nombre || item.Nombre || item.title || "");
+    setEditDescripcion(item.Descripción || item.descripcion || item.description || "");
+    setEditImagen(item.Image_url || item.image_url || item.imagen || "");
   };
 
-  // Guardar cambios (restringido a Nombre, Especificaciones/Descripción e Imagen)
+  // Guardar cambios usando SKU como llave primaria
   const guardarCambios = async () => {
     if (!supabase || !productoSeleccionado) return;
+
+    const skuKey = productoSeleccionado.SKU !== undefined ? "SKU" : "sku";
+    const skuValue = productoSeleccionado[skuKey];
 
     const { error } = await supabase
       .from(tablaActiva)
       .update({
         nombre: editNombre,
-        descripcion: editDescripcion,
-        imagen: editImagen
+        Descripción: editDescripcion,
+        Image_url: editImagen
       })
-      .eq("id", productoSeleccionado.id);
+      .eq(skuKey, skuValue);
 
     if (error) {
       alert("Error al actualizar el producto: " + error.message);
@@ -99,7 +119,7 @@ export default function AdminInventario() {
     }
   };
 
-  // Proceso de eliminación con doble confirmación S/N
+  // Proceso de eliminación con doble confirmación S/N usando SKU
   const confirmarEliminacion = async (decision: 'S' | 'N') => {
     if (decision === 'N') {
       setPasoEliminar(1);
@@ -111,10 +131,13 @@ export default function AdminInventario() {
     } else if (pasoEliminar === 2) {
       if (!supabase || !productoSeleccionado) return;
 
+      const skuKey = productoSeleccionado.SKU !== undefined ? "SKU" : "sku";
+      const skuValue = productoSeleccionado[skuKey];
+
       const { error } = await supabase
         .from(tablaActiva)
         .delete()
-        .eq("id", productoSeleccionado.id);
+        .eq(skuKey, skuValue);
 
       if (error) {
         alert("Error al eliminar el producto: " + error.message);
@@ -225,18 +248,16 @@ export default function AdminInventario() {
                   <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#0a0a0a" }}>
                     <th style={thStyle}>SKU</th>
                     <th style={thStyle}>NOMBRE</th>
-                    <th style={thStyle}>PRECIO (Fijo)</th>
-                    <th style={thStyle}>STOCK (Fijo)</th>
+                    <th style={thStyle}>FAMILIA</th>
                     <th style={{ ...thStyle, textAlign: "center" }}>SELECCIONAR</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {listaResultados.map((item: any) => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #141414" }}>
-                      <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "600" }}>{item.sku || "N/A"}</td>
-                      <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>{item.nombre || item.title}</td>
-                      <td style={{ ...tdStyle, color: "#aaa" }}>${Number(item.precio || item.price || 0).toFixed(2)}</td>
-                      <td style={{ ...tdStyle, color: "#aaa" }}>{item.stock ?? "N/A"}</td>
+                  {listaResultados.map((item: any, idx: number) => (
+                    <tr key={item.SKU || idx} style={{ borderBottom: "1px solid #141414" }}>
+                      <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "600" }}>{item.SKU || item.sku || "N/A"}</td>
+                      <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>{item.nombre || item.Nombre || "N/A"}</td>
+                      <td style={{ ...tdStyle, color: "#aaa" }}>{item.Familia || item.familia || "N/A"}</td>
                       <td style={{ ...tdStyle, textAlign: "center" }}>
                         <button onClick={() => seleccionarProducto(item)} style={btnAccionSmall}>SELECCIONAR</button>
                       </td>
@@ -248,23 +269,12 @@ export default function AdminInventario() {
           </div>
         )}
 
-        {/* VISTA 3: EDITAR PRODUCTO (Restringido: Solo Nombre, Especificaciones e Imagen) */}
+        {/* VISTA 3: EDITAR PRODUCTO (Restringido: Solo Nombre, Descripción e Imagen) */}
         {subModulo === "editar" && productoSeleccionado && (
           <div style={{ ...cardBox, maxWidth: "700px" }}>
             <h2 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "#fff" }}>
-              Editando Producto: <span style={{ color: "#DAA520" }}>{productoSeleccionado.sku}</span>
+              Editando Producto SKU: <span style={{ color: "#DAA520" }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</span>
             </h2>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-              <div>
-                <label style={labelStyle}>Precio (Bloqueado por seguridad)</label>
-                <input type="text" disabled value={`$${Number(productoSeleccionado.precio || productoSeleccionado.price || 0).toFixed(2)}`} style={inputDisabled} />
-              </div>
-              <div>
-                <label style={labelStyle}>Cantidad / Stock (Bloqueado)</label>
-                <input type="text" disabled value={productoSeleccionado.stock ?? "N/A"} style={inputDisabled} />
-              </div>
-            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
               <div>
@@ -273,12 +283,12 @@ export default function AdminInventario() {
               </div>
 
               <div>
-                <label style={labelStyle}>Especificaciones / Descripción</label>
+                <label style={labelStyle}>Descripción</label>
                 <textarea rows={4} value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} style={{ ...inputStyleFull, resize: "vertical" }} />
               </div>
 
               <div>
-                <label style={labelStyle}>URL de la Imagen</label>
+                <label style={labelStyle}>URL de la Imagen (Image_url)</label>
                 <input type="text" value={editImagen} onChange={(e) => setEditImagen(e.target.value)} style={inputStyleFull} />
                 {editImagen && (
                   <div style={{ marginTop: "10px" }}>
@@ -303,7 +313,7 @@ export default function AdminInventario() {
             {pasoEliminar === 1 ? (
               <>
                 <p style={{ fontSize: "1rem", marginBottom: "25px", color: "#fff" }}>
-                  ¿Desea eliminar el producto <b>{productoSeleccionado.nombre || productoSeleccionado.sku}</b>?
+                  ¿Desea eliminar el producto SKU <b>{productoSeleccionado.SKU || productoSeleccionado.sku}</b>?
                 </p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "20px" }}>
                   <button onClick={() => confirmarEliminacion('S')} style={btnSi}>S (Sí)</button>
@@ -358,14 +368,6 @@ const inputStyleFull = {
   outline: "none",
   fontSize: "0.9rem",
   boxSizing: "border-box" as const
-};
-
-const inputDisabled = {
-  ...inputStyleFull,
-  backgroundColor: "#111",
-  color: "#666",
-  cursor: "not-allowed",
-  border: "1px solid #222"
 };
 
 const labelStyle = {
