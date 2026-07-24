@@ -20,6 +20,18 @@ export default function AdminRoot() {
 
   const cargarDatosUsuario = async () => {
     if (!supabase) return;
+
+    // 1. Obtener correo directamente de la sesión actual de Supabase Auth (ideal si se creó manualmente)
+    let authEmail = "";
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email) {
+        authEmail = user.email;
+      }
+    } catch (e) {
+      console.error("Error obteniendo usuario auth en admin:", e);
+    }
+
     const tabla = sessionStorage.getItem("trulink_usuario_tabla");
     const idUsuario = sessionStorage.getItem("trulink_usuario_id");
 
@@ -31,9 +43,16 @@ export default function AdminRoot() {
         .single();
 
       if (data) {
-        setUserEmail(data.email || "");
+        setUserEmail(data.email || authEmail || "No registrado");
         setUserCelular(data.telefono_celular || "No registrado");
+        return;
       }
+    }
+
+    // Fallback si no hay ID pero sí authEmail
+    if (authEmail) {
+      setUserEmail(authEmail);
+      setUserCelular("No registrado");
     }
   };
 

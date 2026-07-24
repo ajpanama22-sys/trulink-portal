@@ -21,16 +21,22 @@ export default function PortalCliente() {
   const cargarDatosUsuario = async () => {
     if (!supabase) return;
 
-    // Intentamos recuperar la tabla y el ID del sessionStorage
-    let tabla = sessionStorage.getItem("trulink_usuario_tabla");
-    let idUsuario = sessionStorage.getItem("trulink_usuario_id");
-    let emailSession = sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
-
-    // Si no hay tabla definida en el storage, por defecto buscamos en la tabla de clientes común
-    if (!tabla) {
-      tabla = "clients"; 
+    // 1. Obtener correo directamente de la sesión actual de Supabase Auth (ideal para cuentas creadas manualmente)
+    let authEmail = "";
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && user.email) {
+        authEmail = user.email;
+      }
+    } catch (e) {
+      console.error("Error obteniendo usuario auth:", e);
     }
 
+    let tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clients";
+    let idUsuario = sessionStorage.getItem("trulink_usuario_id");
+    let emailSession = authEmail || sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
+
+    // 2. Intentar buscar por ID de usuario en la tabla correspondiente
     if (idUsuario) {
       const { data, error } = await supabase
         .from(tabla)
@@ -45,7 +51,7 @@ export default function PortalCliente() {
       }
     }
 
-    // Fallback: Si tenemos el correo en sesión pero no el ID exacto, lo buscamos por email
+    // 3. Fallback: Buscar por correo electrónico
     if (emailSession) {
       const { data } = await supabase
         .from(tabla)
@@ -154,7 +160,7 @@ export default function PortalCliente() {
                 📧 <strong style={{ color: "#DAA520" }}>Correo:</strong> {userEmail || "Cargando..."}
               </p>
               <p style={{ fontSize: "0.9rem", color: "#aaa" }}>
-                📱 <strong style={{ color: "#DAA520" }}>Celular:</strong> {userCelular || "Cargando..."}
+                📱 <strong style={{ color: "#DAA520" }}>Celular:</strong> {userCelular || "No registrado"}
               </p>
             </div>
 
