@@ -43,7 +43,7 @@ export default function AdminInventario() {
     if (encontrado) {
       setProductoSeleccionado(encontrado);
       inicializarEdicion(encontrado);
-      setSubModulo("editar"); // o una vista de detalle/producto
+      setSubModulo("editar");
     } else {
       alert("No se encontró ningún producto con ese SKU en la base de datos activa.");
     }
@@ -107,10 +107,8 @@ export default function AdminInventario() {
     }
 
     if (pasoEliminar === 1) {
-      // Primera confirmación S -> Pasa a la segunda pregunta
       setPasoEliminar(2);
     } else if (pasoEliminar === 2) {
-      // Segunda confirmación S -> Ejecuta el borrado en Supabase
       if (!supabase || !productoSeleccionado) return;
 
       const { error } = await supabase
@@ -305,7 +303,7 @@ export default function AdminInventario() {
             {pasoEliminar === 1 ? (
               <>
                 <p style={{ fontSize: "1rem", marginBottom: "25px", color: "#fff" }}>
-                  ¿Desea eliminar el producto <b>{productoSeleccionado.nombre || productoSeleucionado.sku}</b>?
+                  ¿Desea eliminar el producto <b>{productoSeleccionado.nombre || productoSeleccionado.sku}</b>?
                 </p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "20px" }}>
                   <button onClick={() => confirmarEliminacion('S')} style={btnSi}>S (Sí)</button>
