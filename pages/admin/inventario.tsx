@@ -17,8 +17,9 @@ export default function AdminInventario() {
   // Estados para Creación de Producto (hereda la tabla activa por defecto)
   const [tablaCreacion, setTablaCreacion] = useState<"cablesdb" | "herrajesdb" | "accesoriosdb">("cablesdb");
   const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
+  const [nuevaFamiliaSeleccionada, setNuevaFamiliaSeleccionada] = useState("");
+  const [nombreNuevaFamilia, setNombreNuevaFamilia] = useState("");
   const [nuevoSku, setNuevoSku] = useState("");
-  const [nuevaFamilia, setNuevaFamilia] = useState("");
   const [nuevaDescripcion, setNuevaDescripcion] = useState("");
   const [nuevasEspecificaciones, setNuevasEspecificaciones] = useState("");
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
@@ -76,7 +77,8 @@ export default function AdminInventario() {
       });
       const lista = Array.from(familiasSet).sort();
       setFamiliasCreacion(lista);
-      setNuevaFamilia(lista.length > 0 ? lista[0] : "");
+      setNuevaFamiliaSeleccionada(lista.length > 0 ? lista[0] : "CREAR_NUEVA");
+      setNombreNuevaFamilia("");
     }
   };
 
@@ -195,6 +197,16 @@ export default function AdminInventario() {
       return;
     }
 
+    // Determinar la familia final a guardar
+    let familiaFinal = nuevaFamiliaSeleccionada;
+    if (familiaFinal === "CREAR_NUEVA") {
+      if (!nombreNuevaFamilia.trim()) {
+        alert("Por favor ingrese el nombre de la nueva familia.");
+        return;
+      }
+      familiaFinal = nombreNuevaFamilia.trim();
+    }
+
     const nuevoObjeto: any = {
       SKU: nuevoSku.trim(),
       Descripción: nuevaDescripcion.trim(),
@@ -202,8 +214,8 @@ export default function AdminInventario() {
       Image_url: nuevaImagenUrl.trim()
     };
 
-    if (nuevaFamilia.trim()) {
-      nuevoObjeto.Familia = nuevaFamilia.trim();
+    if (familiaFinal) {
+      nuevoObjeto.Familia = familiaFinal;
     }
 
     const { error } = await supabase
@@ -213,11 +225,12 @@ export default function AdminInventario() {
     if (error) {
       alert("Error al crear el producto: " + error.message);
     } else {
-      alert("¡Producto creado con éxito en " + tablaCreacion + "!");
+      alert("¡Producto creado con éxito en " + tablaCreacion + (familiaFinal ? ` con la familia "${familiaFinal}"` : "") + "!");
       setNuevoSku("");
       setNuevaDescripcion("");
       setNuevasEspecificaciones("");
       setNuevaImagenUrl("");
+      setNombreNuevaFamilia("");
       cargarBaseDatos(tablaActiva);
       setSubModulo("buscador");
     }
@@ -440,8 +453,8 @@ export default function AdminInventario() {
                 <div>
                   <label style={labelStyle}>Familia (Bucket: {tablaCreacion.replace("db", "")})</label>
                   <select
-                    value={nuevaFamilia}
-                    onChange={(e) => setNuevaFamilia(e.target.value)}
+                    value={nuevaFamiliaSeleccionada}
+                    onChange={(e) => setNuevaFamiliaSeleccionada(e.target.value)}
                     style={inputStyleFull}
                   >
                     {familiasCreacion.map((fam) => (
@@ -449,9 +462,25 @@ export default function AdminInventario() {
                         {fam}
                       </option>
                     ))}
+                    <option value="CREAR_NUEVA" style={{ backgroundColor: "#050505", color: "#DAA520", fontWeight: "bold" }}>
+                      + Crear nueva familia...
+                    </option>
                   </select>
                 </div>
               </div>
+
+              {nuevaFamiliaSeleccionada === "CREAR_NUEVA" && (
+                <div style={{ padding: "15px", backgroundColor: "#050505", border: "1px dashed rgba(218, 165, 32, 0.5)", borderRadius: "4px" }}>
+                  <label style={labelStyle}>Nombre de la Nueva Familia *</label>
+                  <input
+                    type="text"
+                    placeholder="Escribe el nombre de la nueva familia..."
+                    value={nombreNuevaFamilia}
+                    onChange={(e) => setNombreNuevaFamilia(e.target.value)}
+                    style={inputStyleFull}
+                  />
+                </div>
+              )}
 
               <div>
                 <label style={labelStyle}>Descripción *</label>
