@@ -29,7 +29,7 @@ export default function Login() {
 
     setMensaje("Verificando...");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -41,33 +41,40 @@ export default function Login() {
 
     setMensaje("Acceso concedido");
 
-    // Verificar si el usuario está registrado en la tabla de clientes
-    const { data: clienteData } = await supabase
-      .from('clientes')
-      .select('email')
-      .eq('email', email)
-      .single();
+    const userEmail = (authData.user?.email || email).trim().toLowerCase();
 
-    if (clienteData) {
-      // Si es cliente, redirigir directo a portal-cliente
-      window.location.href = '/portal-cliente'; 
-      return;
-    }
-
-    // Verificar si es colaborador (Unidad Administrativa)
-    const { data: colaboradorData } = await supabase
-      .from('colaboradores')
-      .select('email')
-      .eq('email', email)
-      .single();
-
-    if (colaboradorData) {
-      // Si es colaborador, enviar al panel admin
+    // 1. RECONOCIMIENTO DE SUPERUSUARIO (Control absoluto)
+    const EMAIL_SUPERUSER = "fred.jurado@trulinkfiber.com";
+    if (userEmail === EMAIL_SUPERUSER) {
       window.location.href = '/admin';
       return;
     }
 
-    // Por defecto si no está explícitamente en ninguna de las dos tablas
+    // 2. VERIFICAR EN TABLA COLABORADORES
+    const { data: colaboradorData } = await supabase
+      .from('colaboradores')
+      .select('email')
+      .eq('email', userEmail)
+      .single();
+
+    if (colaboradorData) {
+      window.location.href = '/admin';
+      return;
+    }
+
+    // 3. VERIFICAR EN TABLA CLIENTES
+    const { data: clienteData } = await supabase
+      .from('clientes')
+      .select('email')
+      .eq('email', userEmail)
+      .single();
+
+    if (clienteData) {
+      window.location.href = '/portal-cliente'; 
+      return;
+    }
+
+    // Por defecto si está autenticado pero no clasificado en ninguna tabla
     window.location.href = '/selector';
   };
 
