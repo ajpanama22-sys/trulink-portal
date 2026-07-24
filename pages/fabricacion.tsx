@@ -20,6 +20,8 @@ type Item = {
 export default function Fabricacion() {
   const router = useRouter();
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
+  
+  // Estandarizado con la referencia única robusta y controlada por crypto/marca temporal idéntica a productos.tsx
   const [referenciaActual, setReferenciaActual] = useState<string>("");
 
   const [nombreEmpresa, setNombreEmpresa] = useState("");
@@ -27,8 +29,13 @@ export default function Fabricacion() {
   const [mailCliente, setMailCliente] = useState("");
 
   useEffect(() => {
-    // Generar la referencia única al cargar la vista de cotización por primera vez
-    setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
+    const generarReferenciaUnica = () => {
+      const cryptoRef = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : Math.random().toString(36).substring(2, 15);
+      return `QT-${Date.now()}-${cryptoRef}`.toUpperCase();
+    };
+    setReferenciaActual(generarReferenciaUnica());
 
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -108,6 +115,7 @@ export default function Fabricacion() {
     return hoy.toISOString().split('T')[0];
   };
 
+  // Sincronización exacta con el flujo de quotes y tipo fabricacion de productos.tsx
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
@@ -121,7 +129,7 @@ export default function Fabricacion() {
       .from('quotes')
       .select('id')
       .eq('referencia', referenciaActual)
-      .single();
+      .maybeSingle();
 
     let resultado;
     if (existente) {
@@ -131,7 +139,7 @@ export default function Fabricacion() {
           total: granTotal,
           items: itemsFormateados,
           status: 'pending',
-          type: 'fiber_quote',
+          type: 'fabricacion',
           pdf_url: pdfPublicUrl,
           empresa: nombreEmpresa,
           representante: representante,
@@ -149,7 +157,7 @@ export default function Fabricacion() {
           total: granTotal,
           items: itemsFormateados,
           status: 'pending',
-          type: 'fiber_quote',
+          type: 'fabricacion',
           pdf_url: pdfPublicUrl,
           empresa: nombreEmpresa,
           representante: representante,
@@ -335,7 +343,6 @@ export default function Fabricacion() {
           background-color: #DAA520 !important;
           color: #000 !important;
         }
-        /* Efectos interactivos para los productos */
         .product-card {
           transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
@@ -351,7 +358,6 @@ export default function Fabricacion() {
         }
       `}</style>
 
-      {/* Botón Volver al Portal Estándar Arriba a la Izquierda */}
       <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
         <button 
           onClick={handleVolverPortal}
@@ -374,7 +380,6 @@ export default function Fabricacion() {
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <span style={{ color: "#FFF", fontSize: "0.9rem" }}>Ref: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong></span>
           
-          {/* Botón Cerrar Sesión */}
           <button 
             onClick={handleLogOut}
             className="nav-btn"
