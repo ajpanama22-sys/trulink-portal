@@ -116,8 +116,8 @@ export default function AdminValidaciones() {
           dataList.map((item: any) => {
             let docUrl = item.documentos_url || item.url || "";
             if (!docUrl && supabase) {
-              // CORRECCIÓN: Se agrega la carpeta 'registros/' antes del ID del documento
-              const { data: publicData } = supabase.storage.from("documentos").getPublicUrl(`registros/${item.id}_documento`);
+              // CORRECCIÓN: Apuntando al bucket 'registros'
+              const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
               docUrl = publicData?.publicUrl || "#";
             }
 
@@ -159,7 +159,9 @@ const btnDocumentos = {
   ...baseBtn,
   background: "transparent",
   color: "#DAA520",
-  border: "1px solid rgba(218, 165, 32, 0.4)"
+  border: "1px solid rgba(218, 165, 32, 0.4)",
+  width: "220px",       // CORRECCIÓN: Tamaño estandarizado para todos los botones de documentos
+  boxSizing: "border-box" as const
 };
 
 const btnActivar = {
