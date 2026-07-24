@@ -11,7 +11,6 @@ export default function PortalCliente() {
   const [mensajeModal, setMensajeModal] = useState("");
 
   useEffect(() => {
-    // Comprobar si la bandera del primer login está activa en el sessionStorage
     const debeMostrar = sessionStorage.getItem("trulink_mostrar_modal_notif");
     if (debeMostrar === "true") {
       setMostrarModalNotif(true);
@@ -61,7 +60,6 @@ export default function PortalCliente() {
       }
     }
 
-    // Limpiar banderas del sessionStorage y cerrar modal
     sessionStorage.removeItem("trulink_mostrar_modal_notif");
     sessionStorage.removeItem("trulink_usuario_tabla");
     sessionStorage.removeItem("trulink_usuario_id");
@@ -84,21 +82,20 @@ export default function PortalCliente() {
     borderRadius: "20px",
     cursor: "pointer",
     transition: "all 0.3s ease",
-    boxShadow: "0 0 10px #DAA520",
-    width: "300px",
+    boxShadow: "0 0 15px rgba(218, 165, 32, 0.3)",
+    width: "280px",
     textAlign: "center"
   };
 
   const imgStyle: React.CSSProperties = { width: "100%", borderRadius: "15px", marginBottom: "15px" };
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", padding: "40px" }}>
+    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", padding: "40px 20px" }}>
       <style jsx>{`
-        .card:hover { transform: scale(1.05); box-shadow: 0 0 30px #DAA520; }
+        .card:hover { transform: scale(1.03); box-shadow: 0 0 30px #DAA520; }
         .logout-btn:hover { background-color: #DAA520 !important; color: #000 !important; }
       `}</style>
 
-      {/* MODAL DE CONFIGURACIÓN DE NOTIFICACIONES INFORMATIVO */}
       {mostrarModalNotif && (
         <div style={{
           position: "fixed",
@@ -174,7 +171,6 @@ export default function PortalCliente() {
         </div>
       )}
 
-      {/* Botón de Cerrar Sesión */}
       <button
         onClick={handleLogout}
         className="logout-btn"
@@ -195,33 +191,35 @@ export default function PortalCliente() {
         Cerrar Sesión
       </button>
 
-      <h1 style={{ color: "#DAA520", marginBottom: "50px" }}>Seleccione Servicio</h1>
+      <h1 style={{ color: "#DAA520", marginBottom: "40px", letterSpacing: "1px" }}>Seleccione Servicio</h1>
 
-      <div style={{ display: "flex", gap: "40px", flexWrap: "wrap", justifyContent: "center" }}>
+      {/* Contenedor Grid optimizado para distribuir las 4 tarjetas elegantemente */}
+      <div style={{ display: "flex", gap: "30px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1300px" }}>
+        
         {/* Pedidos Especiales */}
         <div className="card" style={cardStyle} onClick={() => router.push("/especiales")}>
           <img src="/images/especiales.jpg" alt="Pedidos Especiales" style={imgStyle} />
-          <h2 style={{ color: "#DAA520" }}>Pedidos Especiales</h2>
+          <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Pedidos Especiales</h2>
         </div>
 
         {/* Fabricación */}
         <div className="card" style={cardStyle} onClick={() => router.push("/fabricacion")}>
           <img src="/images/fabrica.png" alt="Fabricación" style={imgStyle} />
-          <h2 style={{ color: "#DAA520" }}>Fabricación de Cables</h2>
+          <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Fabricación de Cables</h2>
         </div>
 
         {/* Productos */}
         <div className="card" style={cardStyle} onClick={() => router.push("/productos")}>
           <img src="/images/terminado.png" alt="Productos" style={imgStyle} />
-          <h2 style={{ color: "#DAA520" }}>Productos Terminados</h2>
+          <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Productos Terminados</h2>
         </div>
 
         {/* Control de Pedidos - Seguimiento */}
         <div className="card" style={cardStyle} onClick={() => router.push("/seguimiento")}>
           <img src="/images/pedidos.png" alt="Control de Pedidos" style={imgStyle} />
-          <h2 style={{ color: "#DAA520", fontSize: "1.3rem", margin: "10px 0 5px 0" }}>Control de pedidos</h2>
-          <p style={{ color: "#888", fontSize: "0.85rem", margin: 0 }}>Seguimiento</p>
+          <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Control de Pedidos</h2>
         </div>
+
       </div>
     </div>
   );
