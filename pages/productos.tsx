@@ -302,7 +302,7 @@ export default function Productos() {
 
     const finalY = (doc as any).lastAutoTable.finalY + 10;
     doc.setFontSize(12);
-    doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
+    doc.text(`TOTAL : ${totalCotizacion.toFixed(2)}`, 150, finalY);
 
     doc.setFontSize(10);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
@@ -368,7 +368,7 @@ export default function Productos() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <button 
-          onClick={() => router.back()} 
+          onClick={() => router.push("/portal")} 
           style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}
         >
           ⬅ Volver
