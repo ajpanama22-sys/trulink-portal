@@ -21,7 +21,6 @@ export default function Fabricacion() {
   const router = useRouter();
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
   
-  // Estandarizado con la referencia única robusta y controlada por crypto/marca temporal idéntica a productos.tsx
   const [referenciaActual, setReferenciaActual] = useState<string>("");
 
   const [nombreEmpresa, setNombreEmpresa] = useState("");
@@ -29,22 +28,22 @@ export default function Fabricacion() {
   const [mailCliente, setMailCliente] = useState("");
 
   useEffect(() => {
+    // Generación de referencia corta (idéntica a productos.tsx)
     const generarReferenciaUnica = () => {
-      const cryptoRef = typeof crypto !== 'undefined' && crypto.randomUUID 
-        ? crypto.randomUUID() 
-        : Math.random().toString(36).substring(2, 15);
-      return `QT-${Date.now()}-${cryptoRef}`.toUpperCase();
+      const timestamp = Date.now().toString().slice(-6);
+      const randomNum = Math.floor(100 + Math.random() * 900);
+      return `QT-${timestamp}-${randomNum}`;
     };
     setReferenciaActual(generarReferenciaUnica());
 
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('clients')
           .select('empresa, representante, email')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (data) {
           setNombreEmpresa(data.empresa || '');
@@ -115,7 +114,6 @@ export default function Fabricacion() {
     return hoy.toISOString().split('T')[0];
   };
 
-  // Sincronización exacta con el flujo de quotes y tipo fabricacion de productos.tsx
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
@@ -227,7 +225,7 @@ export default function Fabricacion() {
     doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
 
     try {
-      const firma = "/images/firmaco.png";
+            const firma = "/images/firmaco.png";
       const props = doc.getImageProperties(firma);
       const firmaWidth = 40;
       const firmaHeight = (props.height * firmaWidth) / props.width;
@@ -424,81 +422,7 @@ export default function Fabricacion() {
                 <select id="asuCarrete" style={controlStyle}><option value="3">3 km</option></select>
               </div>
               
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Cant:</label>
-                <input
-                  id="asuCantidad"
-                  type="number"
-                  min="1"
-                  defaultValue="1"
-                  style={{ ...controlStyle, width: "50px" }}
-                />
-              </div>
-            </div>
-
-            <button onClick={() => {
-              const hilos = parseInt((document.getElementById("asuHilos") as HTMLSelectElement).value);
-              const carrete = parseInt((document.getElementById("asuCarrete") as HTMLSelectElement).value);
-              const cantidad = parseInt((document.getElementById("asuCantidad") as HTMLInputElement).value);
-              agregarItem("ASU", hilos, carrete, cantidad);
-            }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
-              Agregar
-            </button>
-          </div>
-
-          <div className="product-card" style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
-            <img src="/images/ADSS.png" alt="Cable ADSS" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
-            <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>ADSS</h3>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Hilos:</label>
-                <select id="adssHilos" style={controlStyle}><option value="72">72</option><option value="96">96</option><option value="144">144</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Carrete:</label>
-                <select id="adssCarrete" style={controlStyle}><option value="3">3 km</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Cant:</label>
-                <input
-                  id="adssCantidad"
-                  type="number"
-                  min="1"
-                  defaultValue="1"
-                  style={{ ...controlStyle, width: "50px" }}
-                />
-              </div>
-            </div>
-
-            <button onClick={() => {
-              const hilos = parseInt((document.getElementById("adssHilos") as HTMLSelectElement)?.value || "0");
-              const carrete = parseInt((document.getElementById("adssCarrete") as HTMLSelectElement)?.value || "0");
-              const cantidad = parseInt((document.getElementById("adssCantidad") as HTMLInputElement)?.value || "0");
-              agregarItem("ADSS", hilos, carrete, cantidad);
-            }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
-              Agregar
-            </button>
-          </div>
-
-          <div className="product-card" style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
-            <img src="/images/FTTX.png" alt="Cable FTTX" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
-            <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>FTTX</h3>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Hilos:</label>
-                <select id="fttxHilos" style={controlStyle}><option value="1">1</option><option value="2">2</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Carrete:</label>
-                <select id="fttxCarrete" style={controlStyle}><option value="1">1 km</option><option value="2">2 km</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <label style={{ color: "#fff", fontSize: "0.9rem" }}>Cant:</label>
                 <input
                   id="fttxCantidad"
