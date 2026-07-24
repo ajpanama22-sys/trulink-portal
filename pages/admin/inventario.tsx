@@ -28,10 +28,10 @@ export default function AdminInventario() {
   const [editDescripcion, setEditDescripcion] = useState("");
   const [editEspecificaciones, setEditEspecificaciones] = useState("");
   const [editImagenUrl, setEditImagenUrl] = useState("");
-  const [editPrecioA, setEditPrecioA] = useState<number | "">("");
-  const [editPrecioB, setEditPrecioB] = useState<number | "">("");
-  const [editPrecioC, setEditPrecioC] = useState<number | "">("");
-  const [editPrecioD, setEditPrecioD] = useState<number | "">("");
+  const [editPrecioA, setEditPrecioA] = useState<number | string>("");
+  const [editPrecioB, setEditPrecioB] = useState<number | string>("");
+  const [editPrecioC, setEditPrecioC] = useState<number | string>("");
+  const [editPrecioD, setEditPrecioD] = useState<number | string>("");
   const [editCantidad, setEditCantidad] = useState<number | "">("");
 
   // Estados para Eliminación
@@ -164,10 +164,13 @@ export default function AdminInventario() {
     setEditDescripcion(item.Descripción || item.descripcion || "");
     setEditEspecificaciones(item.Especificaciones || item.especificaciones || "");
     setEditImagenUrl(item.image_url || item.Image_url || "");
-    setEditPrecioA(item.precio_a ?? item.Precio_A ?? "");
-    setEditPrecioB(item.precio_b ?? item.Precio_B ?? "");
-    setEditPrecioC(item.precio_c ?? item.Precio_C ?? "");
-    setEditPrecioD(item.precio_d ?? item.Precio_D ?? "");
+    
+    const formatPrecio = (val: any) => (val !== null && val !== undefined && val !== "" ? Number(val).toFixed(2) : "");
+    setEditPrecioA(formatPrecio(item.precio_a ?? item.Precio_A));
+    setEditPrecioB(formatPrecio(item.precio_b ?? item.Precio_B));
+    setEditPrecioC(formatPrecio(item.precio_c ?? item.Precio_C));
+    setEditPrecioD(formatPrecio(item.precio_d ?? item.Precio_D));
+    
     setEditCantidad(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? "");
   };
 
@@ -617,7 +620,7 @@ export default function AdminInventario() {
                       step="0.01"
                       placeholder="0.00"
                       value={editPrecioA}
-                      onChange={(e) => setEditPrecioA(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) => setEditPrecioA(e.target.value)}
                       style={inputStyleFull}
                     />
                   </div>
@@ -628,7 +631,7 @@ export default function AdminInventario() {
                       step="0.01"
                       placeholder="0.00"
                       value={editPrecioB}
-                      onChange={(e) => setEditPrecioB(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) => setEditPrecioB(e.target.value)}
                       style={inputStyleFull}
                     />
                   </div>
@@ -641,7 +644,7 @@ export default function AdminInventario() {
                       step="0.01"
                       placeholder="0.00"
                       value={editPrecioC}
-                      onChange={(e) => setEditPrecioC(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) => setEditPrecioC(e.target.value)}
                       style={inputStyleFull}
                     />
                   </div>
@@ -652,7 +655,7 @@ export default function AdminInventario() {
                       step="0.01"
                       placeholder="0.00"
                       value={editPrecioD}
-                      onChange={(e) => setEditPrecioD(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) => setEditPrecioD(e.target.value)}
                       style={inputStyleFull}
                     />
                   </div>
