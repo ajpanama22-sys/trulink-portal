@@ -14,7 +14,7 @@ export default function AdminInventario() {
   const [listaResultados, setListaResultados] = useState<any[]>([]);
   const [todosItems, setTodosItems] = useState<any[]>([]);
 
-  // Estados para Creación de Producto (hereda la tabla activa por defecto)
+  // Estados para Creación de Producto
   const [tablaCreacion, setTablaCreacion] = useState<"cablesdb" | "herrajesdb" | "accesoriosdb">("cablesdb");
   const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
   const [nuevaFamiliaSeleccionada, setNuevaFamiliaSeleccionada] = useState("");
@@ -25,7 +25,7 @@ export default function AdminInventario() {
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
 
-  // Estados para Edición y Ajustes de Precio / Cantidad
+  // Estados para Edición y Ajustes Inteligentes
   const [editDescripcion, setEditDescripcion] = useState("");
   const [editEspecificaciones, setEditEspecificaciones] = useState("");
   const [editImagenUrl, setEditImagenUrl] = useState("");
@@ -35,12 +35,10 @@ export default function AdminInventario() {
   // Estados para Eliminación
   const [pasoEliminar, setPasoEliminar] = useState<1 | 2>(1);
 
-  // Cargar elementos y extraer familias exclusivas de la base de datos seleccionada
   useEffect(() => {
     cargarBaseDatos(tablaActiva);
   }, [tablaActiva]);
 
-  // Actualizar familias disponibles para el formulario de creación según la tabla elegida para crear
   useEffect(() => {
     cargarFamiliasCreacion(tablaCreacion);
   }, [tablaCreacion]);
@@ -84,7 +82,6 @@ export default function AdminInventario() {
     }
   };
 
-  // Subir imagen al bucket correspondiente en Supabase Storage
   const manejarSubidaImagen = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !supabase) return;
@@ -112,7 +109,6 @@ export default function AdminInventario() {
     setSubiendoImagen(false);
   };
 
-  // Búsqueda robusta por SKU exacto (restaurada y mejorada)
   const buscarPorSku = async () => {
     if (!skuInput.trim() || !supabase) return;
     
@@ -165,35 +161,76 @@ export default function AdminInventario() {
   const inicializarEdicion = (item: any) => {
     setEditDescripcion(item.Descripción || item.descripcion || "");
     setEditEspecificaciones(item.Especificaciones || item.especificaciones || "");
-    setEditImagenUrl(item.Image_url || item.image_url || "");
+    setEditImagenUrl(item.image_url || item.Image_url || "");
     setEditPrecio(item.Precio ?? item.precio ?? "");
-    setEditCantidad(item.Cantidad ?? item.cantidad ?? item.Stock ?? item.stock ?? "");
+    setEditCantidad(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? "");
   };
 
-  const guardarCambios = async () => {
+  // Guardado Inteligente: detecta exclusivamente qué campos cambiaron
+  const guardarCambiosInteligente = async () => {
     if (!supabase || !productoSeleccionado) return;
 
     const skuKey = productoSeleccionado.SKU !== undefined ? "SKU" : "sku";
     const skuValue = productoSeleccionado[skuKey];
 
-    const datosActualizados: any = {
-      Descripción: editDescripcion,
-      Especificaciones: editEspecificaciones,
-      Image_url: editImagenUrl
-    };
+    const datosModificados: any = {};
 
-    if (editPrecio !== "") datosActualizados.Precio = Number(editPrecio);
-    if (editCantidad !== "") datosActualizados.Cantidad = Number(editCantidad);
+    // Detectar cambios en Descripción
+    const descOriginal = productoSeleccionado.Descripción || productoSeleccionado.descripcion || "";
+    if (editDescripcion !== descOriginal) {
+      datosModificados.Descripción = editDescripcion;
+    }
+
+    // Detectar cambios en Especificaciones
+    const specOriginal = productoSeleccionado.Especificaciones || productoSeleccionado.especificaciones || "";
+    if (editEspecificaciones !== specOriginal) {
+      datosModificados.Especificaciones = editEspecificaciones;
+    }
+
+    // Detectar cambios en Imagen (soporta image_url o Image_url según la tabla)
+    const imgOriginal = productoSeleccionado.image_url || productoSeleccionado.Image_url || "";
+    if (editImagenUrl !== imgOriginal) {
+      // Verificamos cuál columna usa el registro original para mantener consistencia
+      if (productoSeleccionado.image_url !== undefined) {
+        datosModificados.image_url = editImagenUrl;
+      } else {
+        datosModificados.Image_url = editImagenUrl;
+      }
+    }
+
+    // Detectar cambios en Precio
+    const precioOriginal = productoSeleccionado.Precio ?? productoSeleccionado.precio ?? "";
+    const precioFinal = editPrecio === "" ? null : Number(editPrecio);
+    if (precioFinal !== (precioOriginal === "" ? null : Number(precioOriginal))) {
+      datosModificados.Precio = precioFinal;
+    }
+
+    // Detectar cambios en Cantidad (soporta cantidad o Cantidad)
+    const cantOriginal = productoSeleccionado.cantidad ?? productoSeleccionado.Cantidad ?? productoSeleccionado.Stock ?? productoSeleccionado.stock ?? "";
+    const cantFinal = editCantidad === "" ? 0 : Number(editCantidad);
+    if (cantFinal !== (cantOriginal === "" ? 0 : Number(cantOriginal))) {
+      if (productoSeleccionado.cantidad !== undefined) {
+        datosModificados.cantidad = cantFinal;
+      } else {
+        datosModificados.Cantidad = cantFinal;
+      }
+    }
+
+    // Si no hay ningún cambio detectado
+    if (Object.keys(datosModificados).length === 0) {
+      alert("No se detectó ningún cambio para guardar.");
+      return;
+    }
 
     const { error } = await supabase
       .from(tablaActiva)
-      .update(datosActualizados)
+      .update(datosModificados)
       .eq(skuKey, skuValue);
 
     if (error) {
       alert("Error al actualizar el producto: " + error.message);
     } else {
-      alert("¡Producto y ajustes actualizados con éxito!");
+      alert("¡Cambios actualizados inteligentemente con éxito!");
       cargarBaseDatos(tablaActiva);
       setSubModulo("buscador");
     }
@@ -219,7 +256,8 @@ export default function AdminInventario() {
       SKU: nuevoSku.trim(),
       Descripción: nuevaDescripcion.trim(),
       Especificaciones: nuevasEspecificaciones.trim(),
-      Image_url: nuevaImagenUrl.trim()
+      image_url: nuevaImagenUrl.trim(),
+      cantidad: 0
     };
 
     if (familiaFinal) {
@@ -284,7 +322,6 @@ export default function AdminInventario() {
           CONTROL DE INVENTARIO Y PRODUCTOS
         </h1>
 
-        {/* Selector Principal de Bases de Datos */}
         <div style={{ display: "flex", gap: "15px", marginBottom: "20px" }}>
           {(["cablesdb", "herrajesdb", "accesoriosdb"] as const).map((tabla) => {
             const isActive = tablaActiva === tabla;
@@ -311,7 +348,6 @@ export default function AdminInventario() {
           })}
         </div>
 
-        {/* Submenús de Navegación */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "30px", borderBottom: "1px solid #1a1a1a", paddingBottom: "15px", flexWrap: "wrap" }}>
           <button onClick={() => setSubModulo("buscador")} style={subTabBtn(subModulo === "buscador")}>1. Buscar / SKU</button>
           <button onClick={() => { setListaResultados(todosItems); setSubModulo("lista"); }} style={subTabBtn(subModulo === "lista")}>2. Ver Todos / Familia</button>
@@ -332,7 +368,6 @@ export default function AdminInventario() {
           )}
         </div>
 
-        {/* VISTA 1: BUSCADOR */}
         {subModulo === "buscador" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "25px", maxWidth: "500px" }}>
             <div style={cardBox}>
@@ -375,7 +410,6 @@ export default function AdminInventario() {
           </div>
         )}
 
-        {/* VISTA 2: LISTADO GENERAL */}
         {subModulo === "lista" && (
           <div>
             <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -412,7 +446,6 @@ export default function AdminInventario() {
           </div>
         )}
 
-        {/* VISTA: CREAR PRODUCTO */}
         {subModulo === "crear" && (
           <div style={{ ...cardBox, maxWidth: "700px" }}>
             <h2 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "#fff" }}>
@@ -513,7 +546,7 @@ export default function AdminInventario() {
               </div>
 
               <div>
-                <label style={labelStyle}>Imagen del Producto (Se guardará en el bucket: <b style={{ color: "#DAA520", textTransform: "uppercase" }}>{tablaCreacion.replace("db", "")}</b>)</label>
+                <label style={labelStyle}>Imagen del Producto</label>
                 <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
                   <input
                     type="file"
@@ -543,7 +576,6 @@ export default function AdminInventario() {
           </div>
         )}
 
-        {/* VISTA 3: EDITAR PRODUCTO Y AJUSTES DE PRECIO/CANTIDAD */}
         {subModulo === "editar" && productoSeleccionado && (
           <div style={{ ...cardBox, maxWidth: "700px" }}>
             <h2 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "#fff" }}>
@@ -552,7 +584,6 @@ export default function AdminInventario() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               
-              {/* Sección de Ajustes de Precio y Cantidad */}
               <div style={{ padding: "15px", backgroundColor: "#0c0c0c", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "4px" }}>
                 <h3 style={{ fontSize: "0.95rem", color: "#DAA520", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Ajustes de Precio y Cantidad
@@ -628,13 +659,12 @@ export default function AdminInventario() {
             </div>
 
             <div style={{ display: "flex", gap: "15px", marginTop: "25px" }}>
-              <button onClick={guardarCambios} style={btnAccion}>GUARDAR CAMBIOS</button>
+              <button onClick={guardarCambiosInteligente} style={btnAccion}>GUARDAR CAMBIOS</button>
               <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
             </div>
           </div>
         )}
 
-        {/* VISTA 4: ELIMINAR PRODUCTO */}
         {subModulo === "eliminar" && productoSeleccionado && (
           <div style={{ ...cardBox, maxWidth: "500px", textAlign: "center", padding: "40px" }}>
             <h2 style={{ fontSize: "1.3rem", marginBottom: "15px", color: "#e74c3c" }}>ELIMINAR PRODUCTO</h2>
