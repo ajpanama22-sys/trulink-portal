@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
 export default function AdminInventario() {
-  const [subModulo, setSubModulo] = useState<"buscador" | "lista" | "editar" | "eliminar">("buscador");
+  const [subModulo, setSubModulo] = useState<"buscador" | "lista" | "crear" | "editar" | "eliminar">("buscador");
   const [tablaActiva, setTablaActiva] = useState<"cablesdb" | "herrajesdb" | "accesoriosdb">("cablesdb");
   
   // Estados para búsqueda por SKU o Familia
@@ -13,7 +13,15 @@ export default function AdminInventario() {
   const [listaResultados, setListaResultados] = useState<any[]>([]);
   const [todosItems, setTodosItems] = useState<any[]>([]);
 
-  // Estados para Edición (Descripción, Especificaciones y la URL interna para la llamada a la imagen)
+  // Estados para Creación de Producto (Selección previa de BD, SKU, Familia, Descripción, Especificaciones, Imagen)
+  const [tablaCreacion, setTablaCreacion] = useState<"cablesdb" | "herrajesdb" | "accesoriosdb">("cablesdb");
+  const [nuevoSku, setNuevoSku] = useState("");
+  const [nuevaFamilia, setNuevaFamilia] = useState("");
+  const [nuevaDescripcion, setNuevaDescripcion] = useState("");
+  const [ nuevasEspecificaciones, setNuevasEspecificaciones] = useState("");
+  const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
+
+  // Estados para Edición (Descripción, Especificaciones y Llamada Visual a la Imagen)
   const [editDescripcion, setEditDescripcion] = useState("");
   const [editEspecificaciones, setEditEspecificaciones] = useState("");
   const [editImagenUrl, setEditImagenUrl] = useState("");
@@ -118,6 +126,45 @@ export default function AdminInventario() {
     }
   };
 
+  // Crear Nuevo Producto en la Base de Datos seleccionada
+  const guardarNuevoProducto = async () => {
+    if (!supabase) return;
+    if (!nuevoSku.trim() || !nuevaDescripcion.trim()) {
+      alert("Por favor complete al menos el SKU y la Descripción.");
+      return;
+    }
+
+    const nuevoObjeto: any = {
+      SKU: nuevoSku.trim(),
+      Descripción: nuevaDescripcion.trim(),
+      Especificaciones: nuevasEspecificaciones.trim(),
+      Image_url: nuevaImagenUrl.trim()
+    };
+
+    if (nuevaFamilia.trim()) {
+      nuevoObjeto.Familia = nuevaFamilia.trim();
+    }
+
+    const { error } = await supabase
+      .from(tablaCreacion)
+      .insert([nuevoObjeto]);
+
+    if (error) {
+      alert("Error al crear el producto: " + error.message);
+    } else {
+      alert("¡Producto creado con éxito en " + tablaCreacion + "!");
+      // Limpiar formulario
+      setNuevoSku("");
+      setNuevaFamilia("");
+      setNuevaDescripcion("");
+      setNuevasEspecificaciones("");
+      setNuevaImagenUrl("");
+      // Recargar y regresar
+      cargarBaseDatos(tablaActiva);
+      setSubModulo("buscador");
+    }
+  };
+
   // Proceso de eliminación con doble confirmación S/N
   const confirmarEliminacion = async (decision: 'S' | 'N') => {
     if (decision === 'N') {
@@ -187,9 +234,10 @@ export default function AdminInventario() {
         </div>
 
         {/* Submenús de Navegación del Módulo */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "30px", borderBottom: "1px solid #1a1a1a", paddingBottom: "15px" }}>
+        <div style={{ display: "flex", gap: "10px", marginBottom: "30px", borderBottom: "1px solid #1a1a1a", paddingBottom: "15px", flexWrap: "wrap" }}>
           <button onClick={() => setSubModulo("buscador")} style={subTabBtn(subModulo === "buscador")}>1. Buscar / SKU</button>
           <button onClick={() => { setListaResultados(todosItems); setSubModulo("lista"); }} style={subTabBtn(subModulo === "lista")}>2. Ver Todos / Familia</button>
+          <button onClick={() => setSubModulo("crear")} style={subTabBtn(subModulo === "crear")}>+ Crear Producto</button>
           {productoSeleccionado && (
             <>
               <button onClick={() => setSubModulo("editar")} style={subTabBtn(subModulo === "editar")}>3. Editar Producto</button>
@@ -268,6 +316,121 @@ export default function AdminInventario() {
           </div>
         )}
 
+        {/* VISTA NUEVA: CREAR PRODUCTO (Con selección de Base de Datos y campos completos) */}
+        {subModulo === "crear" && (
+          <div style={{ ...cardBox, maxWidth: "700px" }}>
+            <h2 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "#fff" }}>
+              CREAR NUEVO PRODUCTO
+            </h2>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* 1. Seleccionar Base de Datos de Destino */}
+              <div>
+                <label style={labelStyle}>Seleccionar Base de Datos de Destino</label>
+                <div style={{ display: "flex", gap: "10px", marginTop: "5px" }}>
+                  {(["cablesdb", "herrajesdb", "accesoriosdb"] as const).map((db) => (
+                    <button
+                      key={db}
+                      type="button"
+                      onClick={() => setTablaCreacion(db)}
+                      style={{
+                        flex: 1,
+                        padding: "10px",
+                        borderRadius: "4px",
+                        border: `1px solid ${tablaCreacion === db ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`,
+                        backgroundColor: tablaCreacion === db ? "#DAA520" : "#050505",
+                        color: tablaCreacion === db ? "#000" : "#DAA520",
+                        fontWeight: "600",
+                        fontSize: "0.8rem",
+                        cursor: "pointer",
+                        textTransform: "uppercase"
+                      }}
+                    >
+                      {db.replace("db", "")}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 2. SKU y Familia */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                <div>
+                  <label style={labelStyle}>SKU *</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. GJPFJH-4F"
+                    value={nuevoSku}
+                    onChange={(e) => setNuevoSku(e.target.value)}
+                    style={inputStyleFull}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Familia</label>
+                  <input
+                    type="text"
+                    placeholder="Ej. Cables / Herrajes"
+                    value={nuevaFamilia}
+                    onChange={(e) => setNuevaFamilia(e.target.value)}
+                    style={inputStyleFull}
+                  />
+                </div>
+              </div>
+
+              {/* 3. Descripción */}
+              <div>
+                <label style={labelStyle}>Descripción *</label>
+                <textarea
+                  rows={3}
+                  placeholder="Descripción detallada del producto..."
+                  value={nuevaDescripcion}
+                  onChange={(e) => setNuevaDescripcion(e.target.value)}
+                  style={{ ...inputStyleFull, resize: "vertical" }}
+                />
+              </div>
+
+              {/* 4. Especificaciones */}
+              <div>
+                <label style={labelStyle}>Especificaciones</label>
+                <textarea
+                  rows={4}
+                  placeholder="Especificaciones técnicas..."
+                  value={nuevasEspecificaciones}
+                  onChange={(e) => setNuevasEspecificaciones(e.target.value)}
+                  style={{ ...inputStyleFull, resize: "vertical" }}
+                />
+              </div>
+
+              {/* 5. Llamada visual y enlace de la Imagen */}
+              <div>
+                <label style={labelStyle}>Imagen del Producto (URL / Llamada)</label>
+                <div style={{ display: "flex", gap: "15px", alignItems: "center", marginBottom: "10px" }}>
+                  <input
+                    type="text"
+                    placeholder="Pegar enlace de imagen..."
+                    value={nuevaImagenUrl}
+                    onChange={(e) => setNuevaImagenUrl(e.target.value)}
+                    style={{ ...inputStyleFull, flex: 1 }}
+                  />
+                </div>
+                {nuevaImagenUrl && (
+                  <div style={{ padding: "10px", backgroundColor: "#050505", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "4px", display: "inline-block" }}>
+                    <img 
+                      src={nuevaImagenUrl} 
+                      alt="Vista previa" 
+                      style={{ width: "80px", height: "80px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#000" }} 
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: "15px", marginTop: "30px" }}>
+              <button onClick={guardarNuevoProducto} style={btnAccion}>GUARDAR NUEVO PRODUCTO</button>
+              <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
+            </div>
+          </div>
+        )}
+
         {/* VISTA 3: EDITAR PRODUCTO (Descripción, Especificaciones y Llamada Visual a la Imagen) */}
         {subModulo === "editar" && productoSeleccionado && (
           <div style={{ ...cardBox, maxWidth: "700px" }}>
@@ -276,7 +439,7 @@ export default function AdminInventario() {
             </h2>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-              {/* Llamada visual a la imagen en lugar de input de URL */}
+              {/* Llamada visual a la imagen */}
               <div>
                 <label style={labelStyle}>Imagen del Producto</label>
                 <div style={{ 
