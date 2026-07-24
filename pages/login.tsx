@@ -44,7 +44,6 @@ export default function Login() {
     const userEmail = (authData.user?.email || email).trim().toLowerCase();
     const EMAIL_SUPERUSER = "fred.jurado@trulinkfiber.com";
 
-    // Función auxiliar protegida contra null para TypeScript
     const verificarPrimerLoginInteligente = async (tabla: string, columnaId: string, idValor: string) => {
       if (!supabase) return;
       const { data: record } = await supabase
@@ -60,13 +59,11 @@ export default function Login() {
       }
     };
 
-    // 1. RECONOCIMIENTO DE SUPERUSUARIO (Control absoluto)
     if (userEmail === EMAIL_SUPERUSER) {
       window.location.href = '/admin';
       return;
     }
 
-    // 2. VERIFICAR EN TABLA COLABORADORES
     const { data: colaboradorData } = await supabase
       .from('colaboradores')
       .select('id, email')
@@ -79,7 +76,6 @@ export default function Login() {
       return;
     }
 
-    // 3. VERIFICAR EN TABLA CLIENTES
     const { data: clienteData } = await supabase
       .from('clientes')
       .select('id, email')
@@ -92,7 +88,6 @@ export default function Login() {
       return;
     }
 
-    // Por defecto si está autenticado pero no clasificado en ninguna tabla
     window.location.href = '/selector';
   };
 
@@ -106,7 +101,7 @@ export default function Login() {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-.      justifyContent: "center"
+      justifyContent: "center"
     }}>
       
       <style jsx global>{`
@@ -126,15 +121,12 @@ export default function Login() {
         }
       `}</style>
 
-      {/* Logo */}
       <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px", marginBottom: "20px" }} />
 
-      {/* Nombre institucional */}
       <h1 style={{ color: "#DAA520", marginBottom: "30px" }}>
         Trulink Fiber LLC
       </h1>
 
-      {/* Formulario de acceso */}
       <form 
         onSubmit={handleLogin} 
         className="container-fiber"
@@ -170,7 +162,6 @@ export default function Login() {
           required
         />
 
-        {/* Botón biselado */}
         <button type="submit" style={{ 
           backgroundColor: "#DAA520", 
           color: "#000", 
@@ -186,7 +177,6 @@ export default function Login() {
           Acceder
         </button>
 
-        {/* Mensaje dinámico */}
         {mensaje && (
           <p style={{ marginTop: "15px", color: mensaje.includes("concedido") ? "#00FF00" : "red" }}>
             {mensaje}
@@ -194,7 +184,6 @@ export default function Login() {
         )}
       </form>
 
-      {/* Footer institucional */}
       <p style={{ marginTop: "40px", fontSize: "12px", color: "#DAA520" }}>
         © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
       </p>
