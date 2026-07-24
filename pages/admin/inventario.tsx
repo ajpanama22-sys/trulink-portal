@@ -13,10 +13,10 @@ export default function AdminInventario() {
   const [listaResultados, setListaResultados] = useState<any[]>([]);
   const [todosItems, setTodosItems] = useState<any[]>([]);
 
-  // Estados para Edición (Nombre, Descripción, Imagen)
-  const [editNombre, setEditNombre] = useState("");
+  // Estados para Edición (Descripción, Especificaciones y la URL interna para la llamada a la imagen)
   const [editDescripcion, setEditDescripcion] = useState("");
-  const [editImagen, setEditImagen] = useState("");
+  const [editEspecificaciones, setEditEspecificaciones] = useState("");
+  const [editImagenUrl, setEditImagenUrl] = useState("");
 
   // Estados para Eliminación con doble confirmación
   const [pasoEliminar, setPasoEliminar] = useState<1 | 2>(1);
@@ -36,7 +36,7 @@ export default function AdminInventario() {
     }
   };
 
-  // Buscar por SKU exacto usando la columna primaria SKU
+  // Buscar por SKU exacto
   const buscarPorSku = async () => {
     if (!skuInput.trim() || !supabase) return;
     
@@ -89,12 +89,12 @@ export default function AdminInventario() {
   };
 
   const inicializarEdicion = (item: any) => {
-    setEditNombre(item.nombre || item.Nombre || item.title || "");
-    setEditDescripcion(item.Descripción || item.descripcion || item.description || "");
-    setEditImagen(item.Image_url || item.image_url || item.imagen || "");
+    setEditDescripcion(item.Descripción || item.descripcion || "");
+    setEditEspecificaciones(item.Especificaciones || item.especificaciones || "");
+    setEditImagenUrl(item.Image_url || item.image_url || "");
   };
 
-  // Guardar cambios usando SKU como llave primaria
+  // Guardar cambios actualizando Descripción y Especificaciones
   const guardarCambios = async () => {
     if (!supabase || !productoSeleccionado) return;
 
@@ -104,9 +104,8 @@ export default function AdminInventario() {
     const { error } = await supabase
       .from(tablaActiva)
       .update({
-        nombre: editNombre,
         Descripción: editDescripcion,
-        Image_url: editImagen
+        Especificaciones: editEspecificaciones
       })
       .eq(skuKey, skuValue);
 
@@ -119,7 +118,7 @@ export default function AdminInventario() {
     }
   };
 
-  // Proceso de eliminación con doble confirmación S/N usando SKU
+  // Proceso de eliminación con doble confirmación S/N
   const confirmarEliminacion = async (decision: 'S' | 'N') => {
     if (decision === 'N') {
       setPasoEliminar(1);
@@ -247,7 +246,7 @@ export default function AdminInventario() {
                 <thead>
                   <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#0a0a0a" }}>
                     <th style={thStyle}>SKU</th>
-                    <th style={thStyle}>NOMBRE</th>
+                    <th style={thStyle}>DESCRIPCIÓN</th>
                     <th style={thStyle}>FAMILIA</th>
                     <th style={{ ...thStyle, textAlign: "center" }}>SELECCIONAR</th>
                   </tr>
@@ -256,7 +255,7 @@ export default function AdminInventario() {
                   {listaResultados.map((item: any, idx: number) => (
                     <tr key={item.SKU || idx} style={{ borderBottom: "1px solid #141414" }}>
                       <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "600" }}>{item.SKU || item.sku || "N/A"}</td>
-                      <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>{item.nombre || item.Nombre || "N/A"}</td>
+                      <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>{item.Descripción || item.descripcion || "N/A"}</td>
                       <td style={{ ...tdStyle, color: "#aaa" }}>{item.Familia || item.familia || "N/A"}</td>
                       <td style={{ ...tdStyle, textAlign: "center" }}>
                         <button onClick={() => seleccionarProducto(item)} style={btnAccionSmall}>SELECCIONAR</button>
@@ -269,32 +268,52 @@ export default function AdminInventario() {
           </div>
         )}
 
-        {/* VISTA 3: EDITAR PRODUCTO (Restringido: Solo Nombre, Descripción e Imagen) */}
+        {/* VISTA 3: EDITAR PRODUCTO (Descripción, Especificaciones y Llamada Visual a la Imagen) */}
         {subModulo === "editar" && productoSeleccionado && (
           <div style={{ ...cardBox, maxWidth: "700px" }}>
             <h2 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "#fff" }}>
               Editando Producto SKU: <span style={{ color: "#DAA520" }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</span>
             </h2>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Llamada visual a la imagen en lugar de input de URL */}
               <div>
-                <label style={labelStyle}>Nombre del Producto</label>
-                <input type="text" value={editNombre} onChange={(e) => setEditNombre(e.target.value)} style={inputStyleFull} />
+                <label style={labelStyle}>Imagen del Producto</label>
+                <div style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: "20px", 
+                  padding: "15px", 
+                  backgroundColor: "#050505", 
+                  border: "1px solid rgba(218, 165, 32, 0.3)", 
+                  borderRadius: "4px" 
+                }}>
+                  {editImagenUrl ? (
+                    <img 
+                      src={editImagenUrl} 
+                      alt="Producto" 
+                      style={{ width: "90px", height: "90px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#000", border: "1px solid #333" }} 
+                    />
+                  ) : (
+                    <div style={{ width: "90px", height: "90px", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#111", color: "#666", fontSize: "0.75rem", borderRadius: "4px" }}>
+                      Sin Imagen
+                    </div>
+                  )}
+                  <div>
+                    <p style={{ fontSize: "0.85rem", color: "#fff", marginBottom: "5px" }}>Referencia visual activa desde la base de datos.</p>
+                    <span style={{ fontSize: "0.75rem", color: "#DAA520", wordBreak: "break-all" }}>{editImagenUrl || "No hay enlace registrado"}</span>
+                  </div>
+                </div>
               </div>
 
               <div>
                 <label style={labelStyle}>Descripción</label>
-                <textarea rows={4} value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} style={{ ...inputStyleFull, resize: "vertical" }} />
+                <textarea rows={3} value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} style={{ ...inputStyleFull, resize: "vertical" }} />
               </div>
 
               <div>
-                <label style={labelStyle}>URL de la Imagen (Image_url)</label>
-                <input type="text" value={editImagen} onChange={(e) => setEditImagen(e.target.value)} style={inputStyleFull} />
-                {editImagen && (
-                  <div style={{ marginTop: "10px" }}>
-                    <img src={editImagen} alt="Vista previa" style={{ maxWidth: "120px", maxHeight: "120px", borderRadius: "4px", border: "1px solid #333" }} />
-                  </div>
-                )}
+                <label style={labelStyle}>Especificaciones</label>
+                <textarea rows={4} value={editEspecificaciones} onChange={(e) => setEditEspecificaciones(e.target.value)} style={{ ...inputStyleFull, resize: "vertical" }} />
               </div>
             </div>
 
