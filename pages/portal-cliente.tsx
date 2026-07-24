@@ -1,7 +1,15 @@
 import { useRouter } from "next/router";
+import { supabase } from "../lib/supabaseClient";
 
 export default function PortalCliente() {
   const router = useRouter();
+
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    router.push("/");
+  };
 
   const cardStyle: React.CSSProperties = {
     padding: "20px",
@@ -18,10 +26,32 @@ export default function PortalCliente() {
   const imgStyle: React.CSSProperties = { width: "100%", borderRadius: "15px", marginBottom: "15px" };
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", position: "relative", padding: "40px" }}>
       <style jsx>{`
         .card:hover { transform: scale(1.05); box-shadow: 0 0 30px #DAA520; }
+        .logout-btn:hover { background-color: #DAA520 !important; color: #000 !important; }
       `}</style>
+
+      {/* Botón de Cerrar Sesión */}
+      <button
+        onClick={handleLogout}
+        className="logout-btn"
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "30px",
+          backgroundColor: "transparent",
+          color: "#DAA520",
+          border: "1px solid #DAA520",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          cursor: "pointer",
+          fontWeight: "bold",
+          transition: "all 0.3s ease"
+        }}
+      >
+        Cerrar Sesión
+      </button>
 
       <h1 style={{ color: "#DAA520", marginBottom: "50px" }}>Seleccione Servicio</h1>
 

@@ -58,7 +58,7 @@ export default function Fabricacion() {
       clearTimeout(inactivityTimer);
       inactivityTimer = setTimeout(async () => {
         await supabase.auth.signOut();
-        router.push("/portal.trulinkfiber.org/portal-cliente");
+        router.push("/portal-cliente");
       }, 5 * 60 * 1000); // 5 minutos
     };
 
@@ -79,7 +79,11 @@ export default function Fabricacion() {
 
   const handleLogOut = async () => {
     await supabase.auth.signOut();
-    router.push("/portal.trulinkfiber.org/portal-cliente");
+    router.push("/portal-cliente");
+  };
+
+  const handleVolverPortal = () => {
+    router.push("/portal-cliente");
   };
 
   const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
@@ -113,7 +117,6 @@ export default function Fabricacion() {
       total: item.precioCarrete * item.cantidad
     }));
 
-    // Verificamos si ya existe la cotización con esta referencia en la tabla quotes
     const { data: existente } = await supabase
       .from('quotes')
       .select('id')
@@ -328,16 +331,31 @@ export default function Fabricacion() {
         .container-fiber {
           animation: pulse-border 2s infinite;
         }
+        .nav-btn:hover {
+          background-color: #DAA520 !important;
+          color: #000 !important;
+        }
       `}</style>
 
       <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
-        {/* Sin botón superior izquierdo en esta vista específica de base de datos de fabricación */}
         <div />
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <span style={{ color: "#FFF", fontSize: "0.9rem" }}>Ref: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong></span>
+          
+          {/* Botón Volver al Portal */}
+          <button 
+            onClick={handleVolverPortal}
+            className="nav-btn"
+            style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem", transition: "all 0.3s ease" }}
+          >
+            Volver al Portal
+          </button>
+
+          {/* Botón Cerrar Sesión */}
           <button 
             onClick={handleLogOut}
-            style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem" }}
+            className="nav-btn"
+            style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem", transition: "all 0.3s ease" }}
           >
             Cerrar Sesión
           </button>
