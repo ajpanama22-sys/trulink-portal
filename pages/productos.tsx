@@ -368,7 +368,7 @@ export default function Productos() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
         <button 
-          onClick={() => router.push("/portal")} 
+          onClick={() => router.push("/portal-cliente")} 
           style={{ 
             backgroundColor: "transparent", 
             color: "#DAA520", 
