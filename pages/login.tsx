@@ -42,9 +42,24 @@ export default function Login() {
     setMensaje("Acceso concedido");
 
     const userEmail = (authData.user?.email || email).trim().toLowerCase();
+    const EMAIL_SUPERUSER = "fred.jurado@trulinkfiber.com";
+
+    // Función auxiliar para comprobar y activar la bandera de primer login de forma inteligente
+    const verificarPrimerLoginInteligente = async (tabla: string, columnaId: string, idValor: string) => {
+      const { data: record } = await supabase
+        .from(tabla)
+        .select("notificaciones_configuradas")
+        .eq(columnaId, idValor)
+        .single();
+
+      if (record && !record.notificaciones_configuradas) {
+        sessionStorage.setItem("trulink_mostrar_modal_notif", "true");
+        sessionStorage.setItem("trulink_usuario_tabla", tabla);
+        sessionStorage.setItem("trulink_usuario_id", idValor);
+      }
+    };
 
     // 1. RECONOCIMIENTO DE SUPERUSUARIO (Control absoluto)
-    const EMAIL_SUPERUSER = "fred.jurado@trulinkfiber.com";
     if (userEmail === EMAIL_SUPERUSER) {
       window.location.href = '/admin';
       return;
@@ -53,11 +68,12 @@ export default function Login() {
     // 2. VERIFICAR EN TABLA COLABORADORES
     const { data: colaboradorData } = await supabase
       .from('colaboradores')
-      .select('email')
+      .select('id, email')
       .eq('email', userEmail)
       .single();
 
     if (colaboradorData) {
+      await verificarPrimerLoginInteligente('colaboradores', 'id', colaboradorData.id);
       window.location.href = '/admin';
       return;
     }
@@ -65,11 +81,12 @@ export default function Login() {
     // 3. VERIFICAR EN TABLA CLIENTES
     const { data: clienteData } = await supabase
       .from('clientes')
-      .select('email')
+      .select('id, email')
       .eq('email', userEmail)
       .single();
 
     if (clienteData) {
+      await verificarPrimerLoginInteligente('clientes', 'id', clienteData.id);
       window.location.href = '/portal-cliente'; 
       return;
     }
