@@ -32,44 +32,53 @@ export default function PortalCliente() {
       console.error("Error obteniendo usuario auth:", e);
     }
 
-    let tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clientes";
-    let idUsuario = sessionStorage.getItem("trulink_usuario_id");
-    let emailSession = authEmail || sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
+    const tablaSesion = sessionStorage.getItem("trulink_usuario_tabla");
+    const idUsuario = sessionStorage.getItem("trulink_usuario_id");
+    const emailSession = authEmail || sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
 
-    // 2. Intentar buscar por ID de usuario en la tabla correspondiente
-    if (idUsuario) {
+    // Lista de tablas posibles en tu base de datos para buscar el celular en cualquiera de las dos tablas
+    const tablasAConsultar = [tablaSesion, "clientes", "clients"].filter(Boolean) as string[];
+    const tablasUnicas = Array.from(new Set(tablasAConsultar));
+
+    let telefonoEncontrado = "";
+    let emailEncontrado = emailSession || "";
+
+    // 2. Intentar buscar por ID de usuario si existe en la tabla de sesión
+    if (idUsuario && tablaSesion) {
       const { data, error } = await supabase
-        .from(tabla)
-        .select("email, telefono_celular, telefono_oficina, phone")
+        .from(tablaSesion)
+        .select("email, telefono_celular, telefono_oficina, phone, telefono")
         .eq("id", idUsuario)
         .maybeSingle();
 
       if (data && !error) {
-        setUserEmail(data.email || emailSession || "No registrado");
-        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
-        return;
+        telefonoEncontrado = data.telefono_celular || data.phone || data.telefono_oficina || data.telefono || "";
+        if (data.email) emailEncontrado = data.email;
       }
     }
 
-    // 3. Fallback: Buscar por correo electrónico de manera estricta
-    if (emailSession) {
-      const { data, error } = await supabase
-        .from(tabla)
-        .select("email, telefono_celular, telefono_oficina, phone")
-        .eq("email", emailSession)
-        .maybeSingle();
+    // 3. Si no se encontró el teléfono por ID, buscar de forma estricta por correo en todas las tablas posibles ("clientes", "clients", etc.)
+    if (!telefonoEncontrado && emailSession) {
+      for (const t of tablasUnicas) {
+        const { data, error } = await supabase
+          .from(t)
+          .select("email, telefono_celular, telefono_oficina, phone, telefono")
+          .eq("email", emailSession)
+          .maybeSingle();
 
-      if (data && !error) {
-        setUserEmail(data.email || emailSession);
-        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
-        return;
+        if (data && !error) {
+          const tel = data.telefono_celular || data.phone || data.telefono_oficina || data.telefono;
+          if (tel) {
+            telefonoEncontrado = tel;
+            if (data.email) emailEncontrado = data.email;
+            break; // Encontrado, salimos del ciclo
+          }
+        }
       }
-      setUserEmail(emailSession);
-      setUserCelular("No registrado");
-    } else {
-      setUserEmail("No registrado");
-      setUserCelular("No registrado");
     }
+
+    setUserEmail(emailEncontrado || emailSession || "No registrado");
+    setUserCelular(telefonoEncontrado || "No registrado");
   };
 
   const handleGuardarNotificaciones = async (e: React.FormEvent) => {

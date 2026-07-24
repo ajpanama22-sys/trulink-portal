@@ -21,7 +21,7 @@ export default function AdminRoot() {
   const cargarDatosUsuario = async () => {
     if (!supabase) return;
 
-    // 1. Obtener correo directamente de la sesión actual de Supabase Auth (ideal si se creó manualmente)
+    // 1. Obtener correo directamente de la sesión actual de Supabase Auth
     let authEmail = "";
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -32,53 +32,63 @@ export default function AdminRoot() {
       console.error("Error obteniendo usuario auth en admin:", e);
     }
 
-    const tabla = sessionStorage.getItem("trulink_usuario_tabla");
+    const tablaSesion = sessionStorage.getItem("trulink_usuario_tabla");
     const idUsuario = sessionStorage.getItem("trulink_usuario_id");
     const emailSession = authEmail || sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
 
-    if (tabla && idUsuario) {
+    // Lista de tablas posibles en la base de datos para buscar el celular de forma robusta
+    const tablasAConsultar = [tablaSesion, "clientes", "clients", "admin", "administradores"].filter(Boolean) as string[];
+    const tablasUnicas = Array.from(new Set(tablasAConsultar));
+
+    let telefonoEncontrado = "";
+    let emailEncontrado = emailSession || "";
+
+    // 2. Intentar buscar por ID de usuario si existe en la tabla de sesión
+    if (idUsuario && tablaSesion) {
       const { data, error } = await supabase
-        .from(tabla)
-        .select("email, telefono_celular, telefono_oficina, phone")
+        .from(tablaSesion)
+        .select("email, telefono_celular, telefono_oficina, phone, telefono")
         .eq("id", idUsuario)
         .maybeSingle();
 
       if (data && !error) {
-        setUserEmail(data.email || emailSession || "No registrado");
-        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
-        return;
+        telefonoEncontrado = data.telefono_celular || data.phone || data.telefono_oficina || data.telefono || "";
+        if (data.email) emailEncontrado = data.email;
       }
     }
 
-    // Fallback si no hay ID pero sí emailSession
-    if (emailSession) {
-      const { data, error } = await supabase
-        .from(tabla || "clients")
-        .select("email, telefono_celular, telefono_oficina, phone")
-        .eq("email", emailSession)
-        .maybeSingle();
+    // 3. Si no se encontró el teléfono por ID, buscar de forma estricta por correo en todas las tablas posibles
+    if (!telefonoEncontrado && emailSession) {
+      for (const t of tablasUnicas) {
+        const { data, error } = await supabase
+          .from(t)
+          .select("email, telefono_celular, telefono_oficina, phone, telefono")
+          .eq("email", emailSession)
+          .maybeSingle();
 
-      if (data && !error) {
-        setUserEmail(data.email || emailSession);
-        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
-        return;
+        if (data && !error) {
+          const tel = data.telefono_celular || data.phone || data.telefono_oficina || data.telefono;
+          if (tel) {
+            telefonoEncontrado = tel;
+            if (data.email) emailEncontrado = data.email;
+            break;
+          }
+        }
       }
-      setUserEmail(emailSession);
-      setUserCelular("No registrado");
-    } else {
-      setUserEmail("No registrado");
-      setUserCelular("No registrado");
     }
+
+    setUserEmail(emailEncontrado || emailSession || "No registrado");
+    setUserCelular(telefonoEncontrado || "No registrado");
   };
 
   const handleGuardarNotificaciones = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase) return;
 
-    const tabla = sessionStorage.getItem("trulink_usuario_tabla");
+    const tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clientes";
     const idUsuario = sessionStorage.getItem("trulink_usuario_id");
 
-    if (tabla && idUsuario) {
+    if (idUsuario) {
       const { error } = await supabase
         .from(tabla)
         .update({
