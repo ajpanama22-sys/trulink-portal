@@ -20,20 +20,49 @@ export default function PortalCliente() {
 
   const cargarDatosUsuario = async () => {
     if (!supabase) return;
-    const tabla = sessionStorage.getItem("trulink_usuario_tabla");
-    const idUsuario = sessionStorage.getItem("trulink_usuario_id");
 
-    if (tabla && idUsuario) {
-      const { data } = await supabase
+    // Intentamos recuperar la tabla y el ID del sessionStorage
+    let tabla = sessionStorage.getItem("trulink_usuario_tabla");
+    let idUsuario = sessionStorage.getItem("trulink_usuario_id");
+    let emailSession = sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
+
+    // Si no hay tabla definida en el storage, por defecto buscamos en la tabla de clientes común
+    if (!tabla) {
+      tabla = "clients"; 
+    }
+
+    if (idUsuario) {
+      const { data, error } = await supabase
         .from(tabla)
-        .select("email, telefono_celular")
+        .select("email, telefono_celular, phone")
         .eq("id", idUsuario)
         .single();
 
       if (data) {
-        setUserEmail(data.email || "");
-        setUserCelular(data.telefono_celular || "No registrado");
+        setUserEmail(data.email || emailSession || "No registrado");
+        setUserCelular(data.telefono_celular || data.phone || "No registrado");
+        return;
       }
+    }
+
+    // Fallback: Si tenemos el correo en sesión pero no el ID exacto, lo buscamos por email
+    if (emailSession) {
+      const { data } = await supabase
+        .from(tabla)
+        .select("email, telefono_celular, phone")
+        .eq("email", emailSession)
+        .single();
+
+      if (data) {
+        setUserEmail(data.email || emailSession);
+        setUserCelular(data.telefono_celular || data.phone || "No registrado");
+        return;
+      }
+      setUserEmail(emailSession);
+      setUserCelular("No registrado");
+    } else {
+      setUserEmail("No registrado");
+      setUserCelular("No registrado");
     }
   };
 
@@ -41,11 +70,11 @@ export default function PortalCliente() {
     e.preventDefault();
     if (!supabase) return;
 
-    const tabla = sessionStorage.getItem("trulink_usuario_tabla");
+    const tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clients";
     const idUsuario = sessionStorage.getItem("trulink_usuario_id");
 
-    if (tabla && idUsuario) {
-      const { error } = await supabase
+    if (idUsuario) {
+      await supabase
         .from(tabla)
         .update({
           notificaciones_configuradas: true,
@@ -53,11 +82,6 @@ export default function PortalCliente() {
           push_activado: pushNotif
         })
         .eq('id', idUsuario);
-
-      if (error) {
-        setMensajeModal("Error al guardar: " + error.message);
-        return;
-      }
     }
 
     sessionStorage.removeItem("trulink_mostrar_modal_notif");
@@ -130,7 +154,7 @@ export default function PortalCliente() {
                 📧 <strong style={{ color: "#DAA520" }}>Correo:</strong> {userEmail || "Cargando..."}
               </p>
               <p style={{ fontSize: "0.9rem", color: "#aaa" }}>
-                📱 <strong style={{ color: "#DAA520" }}>Celular:</strong> {userCelular}
+                📱 <strong style={{ color: "#DAA520" }}>Celular:</strong> {userCelular || "Cargando..."}
               </p>
             </div>
 
@@ -193,33 +217,26 @@ export default function PortalCliente() {
 
       <h1 style={{ color: "#DAA520", marginBottom: "40px", letterSpacing: "1px" }}>Seleccione Servicio</h1>
 
-      {/* Contenedor Grid optimizado para distribuir las 4 tarjetas elegantemente */}
       <div style={{ display: "flex", gap: "30px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1300px" }}>
-        
-        {/* Pedidos Especiales */}
         <div className="card" style={cardStyle} onClick={() => router.push("/especiales")}>
           <img src="/images/especiales.jpg" alt="Pedidos Especiales" style={imgStyle} />
           <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Pedidos Especiales</h2>
         </div>
 
-        {/* Fabricación */}
         <div className="card" style={cardStyle} onClick={() => router.push("/fabricacion")}>
           <img src="/images/fabrica.png" alt="Fabricación" style={imgStyle} />
           <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Fabricación de Cables</h2>
         </div>
 
-        {/* Productos */}
         <div className="card" style={cardStyle} onClick={() => router.push("/productos")}>
           <img src="/images/terminado.png" alt="Productos" style={imgStyle} />
           <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Productos Terminados</h2>
         </div>
 
-        {/* Control de Pedidos - Seguimiento */}
         <div className="card" style={cardStyle} onClick={() => router.push("/seguimiento")}>
           <img src="/images/pedidos.png" alt="Control de Pedidos" style={imgStyle} />
           <h2 style={{ color: "#DAA520", fontSize: "1.2rem", margin: "10px 0" }}>Control de Pedidos</h2>
         </div>
-
       </div>
     </div>
   );
