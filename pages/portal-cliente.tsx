@@ -21,7 +21,7 @@ export default function PortalCliente() {
   const cargarDatosUsuario = async () => {
     if (!supabase) return;
 
-    // 1. Obtener correo directamente de la sesión actual de Supabase Auth (ideal para cuentas creadas manualmente)
+    // 1. Obtener correo directamente de la sesión actual de Supabase Auth
     let authEmail = "";
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -32,37 +32,36 @@ export default function PortalCliente() {
       console.error("Error obteniendo usuario auth:", e);
     }
 
-    let tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clients";
+    let tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clientes";
     let idUsuario = sessionStorage.getItem("trulink_usuario_id");
     let emailSession = authEmail || sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
 
     // 2. Intentar buscar por ID de usuario en la tabla correspondiente
     if (idUsuario) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from(tabla)
-        .select("email, telefono, telefono_celular, phone")
+        .select("email, telefono_celular, telefono_oficina, phone")
         .eq("id", idUsuario)
-        .single();
+        .maybeSingle();
 
-      if (data) {
+      if (data && !error) {
         setUserEmail(data.email || emailSession || "No registrado");
-        // Se busca primero en "telefono" (la columna real en Supabase) y luego alternativas
-        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
+        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
         return;
       }
     }
 
-    // 3. Fallback: Buscar por correo electrónico
+    // 3. Fallback: Buscar por correo electrónico de manera estricta
     if (emailSession) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from(tabla)
-        .select("email, telefono, telefono_celular, phone")
+        .select("email, telefono_celular, telefono_oficina, phone")
         .eq("email", emailSession)
-        .single();
+        .maybeSingle();
 
-      if (data) {
+      if (data && !error) {
         setUserEmail(data.email || emailSession);
-        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
+        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
         return;
       }
       setUserEmail(emailSession);
@@ -77,7 +76,7 @@ export default function PortalCliente() {
     e.preventDefault();
     if (!supabase) return;
 
-    const tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clients";
+    const tabla = sessionStorage.getItem("trulink_usuario_tabla") || "clientes";
     const idUsuario = sessionStorage.getItem("trulink_usuario_id");
 
     if (idUsuario) {

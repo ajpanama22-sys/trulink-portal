@@ -37,31 +37,30 @@ export default function AdminRoot() {
     const emailSession = authEmail || sessionStorage.getItem("trulink_usuario_email") || sessionStorage.getItem("userEmail");
 
     if (tabla && idUsuario) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from(tabla)
-        .select("email, telefono, telefono_celular, phone")
+        .select("email, telefono_celular, telefono_oficina, phone")
         .eq("id", idUsuario)
-        .single();
+        .maybeSingle();
 
-      if (data) {
+      if (data && !error) {
         setUserEmail(data.email || emailSession || "No registrado");
-        // Buscamos primero en "telefono" (la columna real de tu Supabase)
-        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
+        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
         return;
       }
     }
 
     // Fallback si no hay ID pero sí emailSession
     if (emailSession) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from(tabla || "clients")
-        .select("email, telefono, telefono_celular, phone")
+        .select("email, telefono_celular, telefono_oficina, phone")
         .eq("email", emailSession)
-        .single();
+        .maybeSingle();
 
-      if (data) {
+      if (data && !error) {
         setUserEmail(data.email || emailSession);
-        setUserCelular(data.telefono || data.telefono_celular || data.phone || "No registrado");
+        setUserCelular(data.telefono_celular || data.phone || data.telefono_oficina || "No registrado");
         return;
       }
       setUserEmail(emailSession);
