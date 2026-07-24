@@ -12,6 +12,7 @@ export default function Clientes() {
     identificacion_fiscal: "",
     sitio_web: "",
     industria: "",
+    pais: "",
     direccion: "",
     nombre_representante: "",
     cargo: "",
@@ -173,6 +174,7 @@ export default function Clientes() {
           <input name="identificacion_fiscal" type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
           <input name="sitio_web" type="url" placeholder="Sitio Web Corporativo" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
           <input name="industria" type="text" placeholder="Industria / Sector" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
+          <input name="pais" type="text" placeholder="País" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
           <input name="direccion" type="text" placeholder="Dirección de Facturación" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
 
           <h3 style={{ color: "#DAA520" }}>Información del Contacto</h3>
