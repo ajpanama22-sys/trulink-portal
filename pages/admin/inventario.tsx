@@ -25,10 +25,12 @@ export default function AdminInventario() {
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
 
-  // Estados para Edición
+  // Estados para Edición y Ajustes de Precio / Cantidad
   const [editDescripcion, setEditDescripcion] = useState("");
   const [editEspecificaciones, setEditEspecificaciones] = useState("");
   const [editImagenUrl, setEditImagenUrl] = useState("");
+  const [editPrecio, setEditPrecio] = useState<number | "">("");
+  const [editCantidad, setEditCantidad] = useState<number | "">("");
 
   // Estados para Eliminación
   const [pasoEliminar, setPasoEliminar] = useState<1 | 2>(1);
@@ -77,7 +79,6 @@ export default function AdminInventario() {
       });
       const lista = Array.from(familiasSet).sort();
       setFamiliasCreacion(lista);
-      // Por defecto seleccionamos la primera o dejamos vacío si no hay
       setNuevaFamiliaSeleccionada(lista.length > 0 ? lista[0] : "CREAR_NUEVA");
       setNombreNuevaFamilia("");
     }
@@ -111,7 +112,7 @@ export default function AdminInventario() {
     setSubiendoImagen(false);
   };
 
-  // Buscar por SKU exacto
+  // Búsqueda robusta por SKU exacto (restaurada y mejorada)
   const buscarPorSku = async () => {
     if (!skuInput.trim() || !supabase) return;
     
@@ -165,6 +166,8 @@ export default function AdminInventario() {
     setEditDescripcion(item.Descripción || item.descripcion || "");
     setEditEspecificaciones(item.Especificaciones || item.especificaciones || "");
     setEditImagenUrl(item.Image_url || item.image_url || "");
+    setEditPrecio(item.Precio ?? item.precio ?? "");
+    setEditCantidad(item.Cantidad ?? item.cantidad ?? item.Stock ?? item.stock ?? "");
   };
 
   const guardarCambios = async () => {
@@ -173,19 +176,24 @@ export default function AdminInventario() {
     const skuKey = productoSeleccionado.SKU !== undefined ? "SKU" : "sku";
     const skuValue = productoSeleccionado[skuKey];
 
+    const datosActualizados: any = {
+      Descripción: editDescripcion,
+      Especificaciones: editEspecificaciones,
+      Image_url: editImagenUrl
+    };
+
+    if (editPrecio !== "") datosActualizados.Precio = Number(editPrecio);
+    if (editCantidad !== "") datosActualizados.Cantidad = Number(editCantidad);
+
     const { error } = await supabase
       .from(tablaActiva)
-      .update({
-        Descripción: editDescripcion,
-        Especificaciones: editEspecificaciones,
-        Image_url: editImagenUrl
-      })
+      .update(datosActualizados)
       .eq(skuKey, skuValue);
 
     if (error) {
       alert("Error al actualizar el producto: " + error.message);
     } else {
-      alert("¡Producto actualizado con éxito!");
+      alert("¡Producto y ajustes actualizados con éxito!");
       cargarBaseDatos(tablaActiva);
       setSubModulo("buscador");
     }
@@ -198,7 +206,6 @@ export default function AdminInventario() {
       return;
     }
 
-    // Determinar la familia final a guardar
     let familiaFinal = nuevaFamiliaSeleccionada;
     if (familiaFinal === "CREAR_NUEVA") {
       if (!nombreNuevaFamilia.trim()) {
@@ -319,7 +326,7 @@ export default function AdminInventario() {
           </button>
           {productoSeleccionado && (
             <>
-              <button onClick={() => setSubModulo("editar")} style={subTabBtn(subModulo === "editar")}>3. Editar Producto</button>
+              <button onClick={() => setSubModulo("editar")} style={subTabBtn(subModulo === "editar")}>3. Editar / Ajustes</button>
               <button onClick={() => { setSubModulo("eliminar"); setPasoEliminar(1); }} style={subTabBtn(subModulo === "eliminar", true)}>4. Eliminar Producto</button>
             </>
           )}
@@ -458,13 +465,11 @@ export default function AdminInventario() {
                     onChange={(e) => setNuevaFamiliaSeleccionada(e.target.value)}
                     style={inputStyleFull}
                   >
-                    {/* Listado real de familias existentes */}
                     {familiasCreacion.map((fam) => (
                       <option key={fam} value={fam} style={{ backgroundColor: "#050505", color: "#DAA520" }}>
                         {fam}
                       </option>
                     ))}
-                    {/* Opción para crear nueva familia siempre al final */}
                     <option value="CREAR_NUEVA" style={{ backgroundColor: "#050505", color: "#DAA520", fontWeight: "bold" }}>
                       + Crear nueva familia...
                     </option>
@@ -472,7 +477,6 @@ export default function AdminInventario() {
                 </div>
               </div>
 
-              {/* Input dinámico para capturar el nuevo nombre si escoge la opción de crear nueva */}
               {nuevaFamiliaSeleccionada === "CREAR_NUEVA" && (
                 <div style={{ padding: "15px", backgroundColor: "#050505", border: "1px dashed rgba(218, 165, 32, 0.5)", borderRadius: "4px" }}>
                   <label style={labelStyle}>Nombre de la Nueva Familia *</label>
@@ -539,7 +543,7 @@ export default function AdminInventario() {
           </div>
         )}
 
-        {/* VISTA 3: EDITAR PRODUCTO */}
+        {/* VISTA 3: EDITAR PRODUCTO Y AJUSTES DE PRECIO/CANTIDAD */}
         {subModulo === "editar" && productoSeleccionado && (
           <div style={{ ...cardBox, maxWidth: "700px" }}>
             <h2 style={{ fontSize: "1.2rem", marginBottom: "20px", color: "#fff" }}>
@@ -547,6 +551,37 @@ export default function AdminInventario() {
             </h2>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              
+              {/* Sección de Ajustes de Precio y Cantidad */}
+              <div style={{ padding: "15px", backgroundColor: "#0c0c0c", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "4px" }}>
+                <h3 style={{ fontSize: "0.95rem", color: "#DAA520", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Ajustes de Precio y Cantidad
+                </h3>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
+                  <div>
+                    <label style={labelStyle}>Precio ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={editPrecio}
+                      onChange={(e) => setEditPrecio(e.target.value === "" ? "" : Number(e.target.value))}
+                      style={inputStyleFull}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Cantidad / Stock</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={editCantidad}
+                      onChange={(e) => setEditCantidad(e.target.value === "" ? "" : Number(e.target.value))}
+                      style={inputStyleFull}
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label style={labelStyle}>Imagen del Producto</label>
                 <div style={{ 
