@@ -13,6 +13,16 @@ export default function AdminInventario() {
   const [listaResultados, setListaResultados] = useState<any[]>([]);
   const [todosItems, setTodosItems] = useState<any[]>([]);
 
+  // Notificación flotante personalizada
+  const [notificacion, setNotificacion] = useState<{ mensaje: string; tipo: "exito" | "error" } | null>(null);
+
+  const mostrarNotificacion = (mensaje: string, tipo: "exito" | "error" = "exito") => {
+    setNotificacion({ mensaje, tipo });
+    setTimeout(() => {
+      setNotificacion(null);
+    }, 4000);
+  };
+
   // Estados para Creación de Producto
   const [tablaCreacion, setTablaCreacion] = useState<"cablesdb" | "herrajesdb" | "accesoriosdb">("cablesdb");
   const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
@@ -99,7 +109,7 @@ export default function AdminInventario() {
       .upload(filePath, file);
 
     if (uploadError) {
-      alert("Error al subir la imagen al bucket: " + uploadError.message);
+      mostrarNotificacion("Error al subir la imagen al bucket: " + uploadError.message, "error");
       setSubiendoImagen(false);
       return;
     }
@@ -134,7 +144,7 @@ export default function AdminInventario() {
         inicializarEdicion(encontradoLocal);
         setSubModulo("editar");
       } else {
-        alert("No se encontró ningún producto con ese SKU en la base de datos activa.");
+        mostrarNotificacion("No se encontró ningún producto con ese SKU en la base de datos activa.", "error");
       }
     }
   };
@@ -174,7 +184,6 @@ export default function AdminInventario() {
     setEditCantidad(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? "");
   };
 
-  // Guardado Inteligente: detecta cambios campo por campo
   const guardarCambiosInteligente = async () => {
     if (!supabase || !productoSeleccionado) return;
 
@@ -237,7 +246,7 @@ export default function AdminInventario() {
     }
 
     if (Object.keys(datosModificados).length === 0) {
-      alert("No se detectó ningún cambio para guardar.");
+      mostrarNotificacion("No se detectó ningún cambio para guardar.", "error");
       return;
     }
 
@@ -247,9 +256,9 @@ export default function AdminInventario() {
       .eq(skuKey, skuValue);
 
     if (error) {
-      alert("Error al actualizar el producto: " + error.message);
+      mostrarNotificacion("Error al actualizar el producto: " + error.message, "error");
     } else {
-      alert("¡Precios comerciales y cambios actualizados inteligentemente con éxito!");
+      mostrarNotificacion("¡Precios comerciales y cambios actualizados inteligentemente con éxito!");
       cargarBaseDatos(tablaActiva);
       setSubModulo("buscador");
     }
@@ -258,14 +267,14 @@ export default function AdminInventario() {
   const guardarNuevoProducto = async () => {
     if (!supabase) return;
     if (!nuevoSku.trim() || !nuevaDescripcion.trim()) {
-      alert("Por favor complete al menos el SKU y la Descripción.");
+      mostrarNotificacion("Por favor complete al menos el SKU y la Descripción.", "error");
       return;
     }
 
     let familiaFinal = nuevaFamiliaSeleccionada;
     if (familiaFinal === "CREAR_NUEVA") {
       if (!nombreNuevaFamilia.trim()) {
-        alert("Por favor ingrese el nombre de la nueva familia.");
+        mostrarNotificacion("Por favor ingrese el nombre de la nueva familia.", "error");
         return;
       }
       familiaFinal = nombreNuevaFamilia.trim();
@@ -292,9 +301,9 @@ export default function AdminInventario() {
       .insert([nuevoObjeto]);
 
     if (error) {
-      alert("Error al crear el producto: " + error.message);
+      mostrarNotificacion("Error al crear el producto: " + error.message, "error");
     } else {
-      alert("¡Producto creado con éxito en " + tablaCreacion + "!");
+      mostrarNotificacion("¡Producto creado con éxito en " + tablaCreacion + "!");
       setNuevoSku("");
       setNuevaDescripcion("");
       setNuevasEspecificaciones("");
@@ -325,9 +334,9 @@ export default function AdminInventario() {
         .eq(skuKey, skuValue);
 
       if (error) {
-        alert("Error al eliminar el producto: " + error.message);
+        mostrarNotificacion("Error al eliminar el producto: " + error.message, "error");
       } else {
-        alert("El producto ha sido eliminado correctamente.");
+        mostrarNotificacion("El producto ha sido eliminado correctamente.");
         cargarBaseDatos(tablaActiva);
         setProductoSeleccionado(null);
         setSubModulo("buscador");
@@ -337,8 +346,34 @@ export default function AdminInventario() {
   };
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
+    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif", position: "relative" }}>
       <Sidebar currentActive="inventario" />
+
+      {/* Notificación Toast Flotante Personalizada */}
+      {notificacion && (
+        <div style={{
+          position: "fixed",
+          top: "30px",
+          right: "30px",
+          zIndex: 9999,
+          backgroundColor: "#080808",
+          border: `1px solid ${notificacion.tipo === "exito" ? "#DAA520" : "#e74c3c"}`,
+          color: notificacion.tipo === "exito" ? "#DAA520" : "#e74c3c",
+          padding: "15px 25px",
+          borderRadius: "6px",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.8)",
+          fontWeight: "600",
+          fontSize: "0.9rem",
+          letterSpacing: "0.5px",
+          display: "flex",
+          alignItem: "center",
+          gap: "10px",
+          animation: "fadeIn 0.3s ease-out"
+        }}>
+          <span>{notificacion.tipo === "exito" ? "⚡" : "⚠️"}</span>
+          <span>{notificacion.mensaje}</span>
+        </div>
+      )}
 
       <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
         <h1 style={{ fontSize: "1.5rem", marginBottom: "20px", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "10px", letterSpacing: "1px" }}>
@@ -607,7 +642,6 @@ export default function AdminInventario() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               
-              {/* Sección de las Listas de Precios Comerciales y Stock */}
               <div style={{ padding: "15px", backgroundColor: "#0c0c0c", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "4px" }}>
                 <h3 style={{ fontSize: "0.95rem", color: "#DAA520", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Listas de Precios Comerciales y Stock

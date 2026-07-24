@@ -55,4 +55,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.error("Error al crear orden de PayPal:", err);
     return res.status(500).json({ error: err.message || 'Error al conectar con PayPal' });
   }
-}
