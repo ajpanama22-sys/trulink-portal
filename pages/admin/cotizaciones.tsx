@@ -13,7 +13,7 @@ export default function AdminCotizaciones() {
   const cargarCotizaciones = async () => {
     if (!supabase) return;
     const { data, error } = await supabase
-      .from("quotes") // Mantenemos tu tabla de cotizaciones
+      .from("quotes")
       .select("*")
       .order("created_at", { ascending: false });
 
@@ -35,7 +35,7 @@ export default function AdminCotizaciones() {
       <Sidebar currentActive="cotizaciones" />
 
       <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "20px", borderBottom: "1px solid #333", paddingBottom: "10px" }}>
+        <h1 style={{ fontSize: "1.5rem", marginBottom: "20px", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "10px", letterSpacing: "1px" }}>
           CONTROL DE COTIZACIONES
         </h1>
 
@@ -49,11 +49,12 @@ export default function AdminCotizaciones() {
               width: "100%",
               maxWidth: "400px",
               padding: "12px",
-              backgroundColor: "#111",
-              border: "1px solid #DAA520",
-              borderRadius: "5px",
+              backgroundColor: "#0a0a0a",
+              border: "1px solid rgba(218, 165, 32, 0.4)",
+              borderRadius: "4px",
               color: "#DAA520",
-              outline: "none"
+              outline: "none",
+              letterSpacing: "0.5px"
             }}
           />
         </div>
@@ -61,47 +62,80 @@ export default function AdminCotizaciones() {
         {cotizacionesFiltradas.length === 0 ? (
           <p style={{ color: "#666", fontStyle: "italic" }}>No se encontraron cotizaciones registradas.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-            {cotizacionesFiltradas.map((item: any) => (
-              <div
-                key={item.id}
-                style={{
-                  backgroundColor: "#0a0a0a",
-                  border: "1px solid #333",
-                  borderRadius: "8px",
-                  padding: "20px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center"
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <div style={{ fontSize: "0.9rem", color: "#888" }}>ID: #{item.id} | Fecha: {new Date(item.created_at).toLocaleDateString()}</div>
-                  <div style={{ fontWeight: "bold", fontSize: "1.1rem" }}>CLIENTE: <span style={{ color: "#DAA520" }}>{item.razon_social || item.email}</span></div>
-                  <div style={{ fontSize: "0.95rem" }}>TOTAL: <span style={{ color: "#2ecc71", fontWeight: "bold" }}>${item.total_amount || item.total || "0.00"}</span></div>
-                </div>
+          <div style={{ overflowX: "auto", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "6px", backgroundColor: "#050505" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#0a0a0a" }}>
+                  <th style={thStyle}>ID / FECHA</th>
+                  <th style={thStyle}>CLIENTE / RAZÓN SOCIAL</th>
+                  <th style={thStyle}>EMAIL</th>
+                  <th style={thStyle}>TOTAL</th>
+                  <th style={{ ...thStyle, textAlign: "center" }}>ACCIÓN</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cotizacionesFiltradas.map((item: any) => {
+                  const fechaFormateada = item.created_at ? new Date(item.created_at).toLocaleDateString() : "N/D";
+                  const totalVal = Number(item.total_amount || item.total || 0).toFixed(2);
 
-                <div>
-                  <button
-                    onClick={() => alert(`Detalles de la cotización #${item.id}`)}
-                    style={{
-                      padding: "10px 20px",
-                      backgroundColor: "transparent",
-                      border: "1px solid #DAA520",
-                      color: "#DAA520",
-                      borderRadius: "5px",
-                      cursor: "pointer",
-                      fontWeight: "bold"
-                    }}
-                  >
-                    VER DETALLE
-                  </button>
-                </div>
-              </div>
-            ))}
+                  return (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #141414", transition: "background 0.2s" }}>
+                      <td style={{ ...tdStyle, color: "#888", fontSize: "0.85srem" }}>
+                        <span style={{ color: "#DAA520", fontWeight: "600" }}>#{item.id}</span>
+                        <div style={{ fontSize: "0.75rem", color: "#666", marginTop: "2px" }}>{fechaFormateada}</div>
+                      </td>
+                      <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>
+                        {item.razon_social || item.email || "Sin especificar"}
+                      </td>
+                      <td style={{ ...tdStyle, color: "#DAA520", fontSize: "0.85rem" }}>
+                        {item.email || "N/D"}
+                      </td>
+                      <td style={{ ...tdStyle, color: "#fff", fontWeight: "600" }}>
+                        ${totalVal}
+                      </td>
+                      <td style={{ ...tdStyle, textAlign: "center" }}>
+                        <button
+                          onClick={() => alert(`Detalles de la cotización #${item.id}`)}
+                          style={btnDetalle}
+                        >
+                          VER DETALLE
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
     </div>
   );
 }
+
+const thStyle = {
+  padding: "14px 16px",
+  fontWeight: "600",
+  letterSpacing: "0.8px",
+  fontSize: "0.75rem",
+  textTransform: "uppercase" as const
+};
+
+const tdStyle = {
+  padding: "14px 16px",
+  letterSpacing: "0.4px"
+};
+
+const btnDetalle = {
+  padding: "6px 14px",
+  cursor: "pointer",
+  borderRadius: "4px",
+  fontWeight: "600",
+  fontSize: "0.75rem",
+  letterSpacing: "0.8px",
+  background: "transparent",
+  color: "#DAA520",
+  border: "1px solid rgba(218, 165, 32, 0.4)",
+  textAlign: "center" as const,
+  transition: "all 0.2s ease"
+};

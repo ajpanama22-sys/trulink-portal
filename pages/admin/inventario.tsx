@@ -41,7 +41,7 @@ export default function AdminInventario() {
       <Sidebar currentActive="inventario" />
 
       <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "20px", borderBottom: "1px solid #333", paddingBottom: "10px" }}>
+        <h1 style={{ fontSize: "1.5rem", marginBottom: "20px", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "10px", letterSpacing: "1px" }}>
           CONTROL DE INVENTARIO Y PRODUCTOS
         </h1>
 
@@ -55,11 +55,13 @@ export default function AdminInventario() {
                 onClick={() => setTablaActiva(tabla)}
                 style={{
                   padding: "10px 20px",
-                  borderRadius: "6px",
-                  border: "1px solid #DAA520",
+                  borderRadius: "4px",
+                  border: "1px solid rgba(218, 165, 32, 0.4)",
                   backgroundColor: isActive ? "#DAA520" : "transparent",
                   color: isActive ? "#000" : "#DAA520",
-                  fontWeight: "bold",
+                  fontWeight: "600",
+                  fontSize: "0.8rem",
+                  letterSpacing: "0.8px",
                   cursor: "pointer",
                   textTransform: "uppercase",
                   transition: "all 0.2s ease"
@@ -82,52 +84,77 @@ export default function AdminInventario() {
               width: "100%",
               maxWidth: "400px",
               padding: "12px",
-              backgroundColor: "#111",
-              border: "1px solid #DAA520",
-              borderRadius: "5px",
+              backgroundColor: "#0a0a0a",
+              border: "1px solid rgba(218, 165, 32, 0.4)",
+              borderRadius: "4px",
               color: "#DAA520",
-              outline: "none"
+              outline: "none",
+              letterSpacing: "0.5px"
             }}
           />
         </div>
 
-        {/* Listado de Productos */}
+        {/* Listado de Productos en Tabla HTML Elegante */}
         {cargando ? (
           <p style={{ color: "#888", fontStyle: "italic" }}>Cargando registros de {tablaActiva}...</p>
         ) : itemsFiltrados.length === 0 ? (
           <p style={{ color: "#666", fontStyle: "italic" }}>No se encontraron elementos en {tablaActiva}.</p>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {itemsFiltrados.map((item: any) => (
-              <div
-                key={item.id}
-                style={{
-                  backgroundColor: "#0a0a0a",
-                  border: "1px solid #333",
-                  borderRadius: "8px",
-                  padding: "15px 20px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center"
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <div style={{ fontSize: "0.85rem", color: "#888" }}>SKU: {item.sku || "N/A"} | ID: {item.id}</div>
-                  <div style={{ fontWeight: "bold", fontSize: "1.05rem", color: "#fff" }}>{item.nombre || item.title || "Sin Nombre"}</div>
-                  <div style={{ fontSize: "0.9rem", color: "#aaa" }}>{item.descripcion || item.description || "Sin descripción"}</div>
-                </div>
+          <div style={{ overflowX: "auto", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "6px", backgroundColor: "#050505" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#0a0a0a" }}>
+                  <th style={thStyle}>SKU / ID</th>
+                  <th style={thStyle}>NOMBRE</th>
+                  <th style={thStyle}>DESCRIPCIÓN</th>
+                  <th style={thStyle}>PRECIO</th>
+                  <th style={thStyle}>STOCK</th>
+                </tr>
+              </thead>
+              <tbody>
+                {itemsFiltrados.map((item: any) => {
+                  const precioVal = Number(item.precio || item.price || 0).toFixed(2);
+                  const stockVal = item.stock ?? "N/A";
 
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: "1.1rem", fontWeight: "bold", color: "#2ecc71" }}>
-                    ${item.precio || item.price || "0.00"}
-                  </div>
-                  <div style={{ fontSize: "0.8rem", color: "#666" }}>Stock: {item.stock ?? "N/A"}</div>
-                </div>
-              </div>
-            ))}
+                  return (
+                    <tr key={item.id} style={{ borderBottom: "1px solid #141414", transition: "background 0.2s" }}>
+                      <td style={{ ...tdStyle, color: "#888", fontSize: "0.85rem" }}>
+                        <span style={{ color: "#DAA520", fontWeight: "600" }}>{item.sku || "N/A"}</span>
+                        <div style={{ fontSize: "0.75rem", color: "#666", marginTop: "2px" }}>ID: #{item.id}</div>
+                      </td>
+                      <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>
+                        {item.nombre || item.title || "Sin Nombre"}
+                      </td>
+                      <td style={{ ...tdStyle, color: "#aaa", fontSize: "0.85rem", maxWidth: "300px" }}>
+                        {item.descripcion || item.description || "Sin descripción"}
+                      </td>
+                      <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "600" }}>
+                        ${precioVal}
+                      </td>
+                      <td style={{ ...tdStyle, color: "#fff", fontSize: "0.85rem" }}>
+                        {stockVal}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
     </div>
   );
 }
+
+const thStyle = {
+  padding: "14px 16px",
+  fontWeight: "600",
+  letterSpacing: "0.8px",
+  fontSize: "0.75rem",
+  textTransform: "uppercase" as const
+};
+
+const tdStyle = {
+  padding: "14px 16px",
+  letterSpacing: "0.4px"
+};

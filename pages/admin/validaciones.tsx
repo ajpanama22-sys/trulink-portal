@@ -108,7 +108,7 @@ export default function AdminValidaciones() {
       <Sidebar currentActive="validaciones" />
 
       <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "25px", borderBottom: "1px solid #333", paddingBottom: "10px" }}>VALIDACIÓN DE INSCRIPCIONES</h1>
+        <h1 style={{ fontSize: "1.5rem", marginBottom: "25px", borderBottom: "1px solid #222", paddingBottom: "10px", letterSpacing: "1px" }}>VALIDACIÓN DE INSCRIPCIONES</h1>
         
         {dataList.length === 0 ? (
           <p style={{ color: "#666", fontStyle: "italic" }}>No hay solicitudes pendientes por validar.</p>
@@ -121,14 +121,16 @@ export default function AdminValidaciones() {
             }
 
             return (
-              <div key={item.id} style={{ borderBottom: "1px solid #333", padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <div style={{ fontWeight: "bold" }}>RAZON SOCIAL: <span style={{ color: "#DAA520" }}>{item.razon_social}</span> | EMAIL: <span style={{ color: "#DAA520" }}>{item.email}</span></div>
-                  <a href={docUrl} target="_blank" rel="noreferrer" style={{...btnAccion, background: "blue", color: "#fff", width: "fit-content", textAlign: "center", textDecoration: "none", fontSize: "0.85rem"}}>VER DOCUMENTOS</a>
+              <div key={item.id} style={{ borderBottom: "1px solid #1a1a1a", padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  <div style={{ fontWeight: "500", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
+                    RAZON SOCIAL: <span style={{ color: "#DAA520" }}>{item.razon_social}</span> | EMAIL: <span style={{ color: "#DAA520" }}>{item.email}</span>
+                  </div>
+                  <a href={docUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>VER DOCUMENTOS</a>
                 </div>
-                <div style={{ display: "flex", gap: "10px" }}>
-                  <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={{...btnAccion, background: "green", color: "#000"}}>ACTIVAR</button>
-                  <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={{...btnAccion, background: "red", color: "#000"}}>RECHAZAR</button>
+                <div style={{ display: "flex", gap: "12px" }}>
+                  <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={btnActivar}>ACTIVAR</button>
+                  <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={btnRechazar}>RECHAZAR</button>
                 </div>
               </div>
             );
@@ -139,4 +141,36 @@ export default function AdminValidaciones() {
   );
 }
 
-const btnAccion = { padding: "10px 20px", cursor: "pointer", border: "none", borderRadius: "5px", fontWeight: "bold", display: "inline-block", textDecoration: "none" };
+const baseBtn = {
+  padding: "9px 18px",
+  cursor: "pointer",
+  borderRadius: "4px",
+  fontWeight: "600",
+  fontSize: "0.8rem",
+  letterSpacing: "0.8px",
+  transition: "all 0.2s ease",
+  textDecoration: "none",
+  display: "inline-block",
+  textAlign: "center" as const
+};
+
+const btnDocumentos = {
+  ...baseBtn,
+  background: "transparent",
+  color: "#DAA520",
+  border: "1px solid rgba(218, 165, 32, 0.4)"
+};
+
+const btnActivar = {
+  ...baseBtn,
+  background: "transparent",
+  color: "#2ecc71",
+  border: "1px solid rgba(46, 204, 113, 0.4)"
+};
+
+const btnRechazar = {
+  ...baseBtn,
+  background: "transparent",
+  color: "#e74c3c",
+  border: "1px solid rgba(231, 76, 60, 0.4)"
+};
