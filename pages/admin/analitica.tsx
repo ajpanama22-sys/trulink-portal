@@ -186,14 +186,12 @@ export default function Analitica() {
   const pctAccesorios = Number(((skusAccesorios / totalSkusTerminados) * 100).toFixed(1));
   const granTotalSkus = totalSkusFabricacion + totalSkusTerminados;
 
-  // Porcentajes de Países (Clientes y Ventas)
   const totalClientesCount = clientesPorPais.reduce((acc, curr) => acc + curr.count, 0) || 1;
   const clientesConPct = clientesPorPais.map(c => ({ ...c, pct: Number(((c.count / totalClientesCount) * 100).toFixed(1)) }));
 
   const totalVentasMonto = ventasPorPais.reduce((acc, curr) => acc + curr.total, 0) || 1;
   const ventasConPct = ventasPorPais.map(v => ({ ...v, pct: Number(((v.total / totalVentasMonto) * 100).toFixed(1)) }));
 
-  // Porcentajes de Top Movimiento
   const totalMovimientoTop = productosTop.reduce((acc, curr) => acc + curr.movimientos, 0) || 1;
   const topConPct = productosTop.map(p => ({ ...p, pct: Number(((p.movimientos / totalMovimientoTop) * 100).toFixed(1)) }));
 
@@ -241,7 +239,6 @@ export default function Analitica() {
               <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", borderLeft: "3px solid #DAA520", paddingLeft: "10px" }}>CONVERSIÓN COMERCIAL Y FINANCIERA</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "20px", alignItems: "center" }}>
                 
-                {/* Gráfico circular de conversión */}
                 <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "30px" }}>
                   <div style={{
                     width: "120px",
@@ -270,7 +267,7 @@ export default function Analitica() {
               </div>
             </div>
 
-            {/* 2. PASARELAS DE PAGO CON LOGOS Y GRÁFICO PORCENTUAL */}
+            {/* 2. PASARELAS DE PAGO CON LOGOS .PNG Y GRÁFICO PORCENTUAL */}
             <div style={{ marginBottom: "35px" }}>
               <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", borderLeft: "3px solid #DAA520", paddingLeft: "10px" }}>FLUJO DE INGRESOS POR PASARELA DE PAGO</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "20px" }}>
@@ -278,7 +275,7 @@ export default function Analitica() {
                 {/* Stripe */}
                 <div style={{ backgroundColor: "#080808", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", padding: "16px", borderLeft: "4px solid #635BFF" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <img src="/images/stripelogo" alt="Stripe" style={{ height: "22px", objectFit: "contain" }} />
+                    <img src="/images/stripelogo.png" alt="Stripe" style={{ height: "22px", objectFit: "contain" }} />
                     <span style={{ fontSize: "0.75rem", color: "#DAA520", backgroundColor: "#111", padding: "2px 6px", borderRadius: "4px" }}>{pctStripe}%</span>
                   </div>
                   <h4 style={{ fontSize: "1.2rem", color: "#fff", margin: 0 }}>${pagosStripe.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
@@ -287,7 +284,7 @@ export default function Analitica() {
                 {/* PayPal */}
                 <div style={{ backgroundColor: "#080808", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", padding: "16px", borderLeft: "4px solid #00457C" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <img src="/images/paypallogo" alt="PayPal" style={{ height: "22px", objectFit: "contain" }} />
+                    <img src="/images/paypallogo.png" alt="PayPal" style={{ height: "22px", objectFit: "contain" }} />
                     <span style={{ fontSize: "0.75rem", color: "#DAA520", backgroundColor: "#111", padding: "2px 6px", borderRadius: "4px" }}>{pctPaypal}%</span>
                   </div>
                   <h4 style={{ fontSize: "1.2rem", color: "#fff", margin: 0 }}>${pagosPaypal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
@@ -296,7 +293,7 @@ export default function Analitica() {
                 {/* Wise */}
                 <div style={{ backgroundColor: "#080808", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", padding: "16px", borderLeft: "4px solid #9FE870" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <img src="/images/wiselogo" alt="Wise" style={{ height: "22px", objectFit: "contain" }} />
+                    <img src="/images/wiselogo.png" alt="Wise" style={{ height: "22px", objectFit: "contain" }} />
                     <span style={{ fontSize: "0.75rem", color: "#DAA520", backgroundColor: "#111", padding: "2px 6px", borderRadius: "4px" }}>{pctWise}%</span>
                   </div>
                   <h4 style={{ fontSize: "1.2rem", color: "#fff", margin: 0 }}>${pagosWise.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
@@ -313,21 +310,19 @@ export default function Analitica() {
 
               </div>
 
-              {/* Barra de Porcentaje Segmentada */}
               <div style={{ backgroundColor: "#111", borderRadius: "6px", height: "28px", display: "flex", overflow: "hidden", border: "1px solid rgba(218,165,32,0.3)", padding: "2px", gap: "2px" }}>
-                <div style={{ width: `${pctStripe}%`, backgroundColor: "#635BFF", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#fff", fontWeight: "bold" }} title={`Stripe: ${pctStripe}%`}>{pctStripe > 5 ? `${pctStripe}%` : ""}</div>
-                <div style={{ width: `${pctPaypal}%`, backgroundColor: "#00457C", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#fff", fontWeight: "bold" }} title={`PayPal: ${pctPaypal}%`}>{pctPaypal > 5 ? `${pctPaypal}%` : ""}</div>
-                <div style={{ width: `${pctWise}%`, backgroundColor: "#9FE870", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }} title={`Wise: ${pctWise}%`}>{pctWise > 5 ? `${pctWise}%` : ""}</div>
-                <div style={{ width: `${pctTrans}%`, backgroundColor: "#DAA520", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }} title={`Transferencia: ${pctTrans}%`}>{pctTrans > 5 ? `${pctTrans}%` : ""}</div>
+                <div style={{ width: `${pctStripe}%`, backgroundColor: "#635BFF", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#fff", fontWeight: "bold" }}>{pctStripe > 5 ? `${pctStripe}%` : ""}</div>
+                <div style={{ width: `${pctPaypal}%`, backgroundColor: "#00457C", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#fff", fontWeight: "bold" }}>{pctPaypal > 5 ? `${pctPaypal}%` : ""}</div>
+                <div style={{ width: `${pctWise}%`, backgroundColor: "#9FE870", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }}>{pctWise > 5 ? `${pctWise}%` : ""}</div>
+                <div style={{ width: `${pctTrans}%`, backgroundColor: "#DAA520", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }}>{pctTrans > 5 ? `${pctTrans}%` : ""}</div>
               </div>
             </div>
 
-            {/* 3. GEOLOCALIZACIÓN: VENTAS Y CLIENTES POR PAÍS CON GRÁFICO DE BARRAS PORCENTUALES */}
+            {/* 3. GEOLOCALIZACIÓN: VENTAS Y CLIENTES POR PAÍS */}
             <div style={{ marginBottom: "35px" }}>
               <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", borderLeft: "3px solid #DAA520", paddingLeft: "10px" }}>GEOLOCALIZACIÓN: VENTAS Y CLIENTES POR PAÍS</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
                 
-                {/* Clientes con Porcentaje */}
                 <div style={cardBoxStyle}>
                   <h4 style={{ color: "#DAA520", marginBottom: "12px", fontSize: "0.95rem" }}>Registros de Clientes por País (%)</h4>
                   {clientesConPct.length === 0 ? <p style={{ color: "#777" }}>Sin registros</p> : clientesConPct.map((item, idx) => (
@@ -343,7 +338,6 @@ export default function Analitica() {
                   ))}
                 </div>
 
-                {/* Ventas con Porcentaje */}
                 <div style={cardBoxStyle}>
                   <h4 style={{ color: "#DAA520", marginBottom: "12px", fontSize: "0.95rem" }}>Ventas Consolidadas por País (%)</h4>
                   {ventasConPct.length === 0 ? <p style={{ color: "#777" }}>Sin ventas</p> : ventasConPct.map((item, idx) => (
@@ -362,7 +356,7 @@ export default function Analitica() {
               </div>
             </div>
 
-            {/* 4. REPORTE DE INVENTARIO Y SKUS CON GRÁFICO PORCENTUAL */}
+            {/* 4. REPORTE DE INVENTARIO Y SKUS */}
             <div style={{ marginBottom: "35px" }}>
               <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", borderLeft: "3px solid #DAA520", paddingLeft: "10px" }}>REPORTE GLOBAL DE INVENTARIO Y SKUS</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "20px" }}>
@@ -372,7 +366,6 @@ export default function Analitica() {
                 <CardMetric title="Auditoría de Cambios" value={`+${productosCreados} / -${productosEliminados}`} sub="Creados / Eliminados (Periodo)" />
               </div>
 
-              {/* Distribución Porcentual Terminados */}
               <div style={cardBoxStyle}>
                 <h4 style={{ color: "#DAA520", marginBottom: "15px", fontSize: "0.95rem" }}>Distribución Porcentual de SKUs Terminados</h4>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px", marginBottom: "15px" }}>
@@ -391,19 +384,18 @@ export default function Analitica() {
                 </div>
 
                 <div style={{ backgroundColor: "#111", borderRadius: "6px", height: "24px", display: "flex", overflow: "hidden", border: "1px solid rgba(218,165,32,0.3)", padding: "2px", gap: "2px" }}>
-                  <div style={{ width: `${pctCables}%`, backgroundColor: "#DAA520", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }} title={`Cables: ${pctCables}%`}>{pctCables > 5 ? `${pctCables}%` : ""}</div>
-                  <div style={{ width: `${pctHerrajes}%`, backgroundColor: "#B8860B", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }} title={`Herrajes: ${pctHerrajes}%`}>{pctHerrajes > 5 ? `${pctHerrajes}%` : ""}</div>
-                  <div style={{ width: `${pctAccesorios}%`, backgroundColor: "#555", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#fff", fontWeight: "bold" }} title={`Accesorios: ${pctAccesorios}%`}>{pctAccesorios > 5 ? `${pctAccesorios}%` : ""}</div>
+                  <div style={{ width: `${pctCables}%`, backgroundColor: "#DAA520", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }}>{pctCables > 5 ? `${pctCables}%` : ""}</div>
+                  <div style={{ width: `${pctHerrajes}%`, backgroundColor: "#B8860B", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#000", fontWeight: "bold" }}>{pctHerrajes > 5 ? `${pctHerrajes}%` : ""}</div>
+                  <div style={{ width: `${pctAccesorios}%`, backgroundColor: "#555", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.7rem", color: "#fff", fontWeight: "bold" }}>{pctAccesorios > 5 ? `${pctAccesorios}%` : ""}</div>
                 </div>
               </div>
             </div>
 
-            {/* 5. ROTACIÓN DE INVENTARIO: MAYOR Y MENOR MOVIMIENTO CON GRÁFICO PORCENTUAL */}
+            {/* 5. ROTACIÓN DE INVENTARIO: MAYOR Y MENOR MOVIMIENTO */}
             <div>
               <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", borderLeft: "3px solid #DAA520", paddingLeft: "10px" }}>ROTACIÓN DE INVENTARIO: MAYOR Y MENOR MOVIMIENTO</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
                 
-                {/* Mayor Movimiento con Porcentajes */}
                 <div style={cardBoxStyle}>
                   <h4 style={{ color: "#DAA520", marginBottom: "12px", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px" }}>
                     <span>📈</span> Top Mayor Movimiento (%)
@@ -424,7 +416,6 @@ export default function Analitica() {
                   ))}
                 </div>
 
-                {/* Menor Movimiento */}
                 <div style={cardBoxStyle}>
                   <h4 style={{ color: "#DAA520", marginBottom: "12px", fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px" }}>
                     <span>📉</span> Productos con Menor Movimiento (Baja Rotación)
