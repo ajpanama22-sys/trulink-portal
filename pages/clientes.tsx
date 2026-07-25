@@ -63,7 +63,6 @@ export default function Clientes() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      // Convertimos la lista de archivos seleccionados a un arreglo estándar
       setSelectedFiles(Array.from(e.target.files));
     }
   };
@@ -99,7 +98,6 @@ export default function Clientes() {
         telefono_celular: telefonoCelularCompleto
       };
 
-      // 1. Insertar la solicitud principal en Supabase
       const { data: insertData, error: dbError } = await supabase
         .from("solicitudes_acceso")
         .insert([{
@@ -118,26 +116,26 @@ export default function Clientes() {
 
       const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
 
-      // 2. Subir y asociar automáticamente TODOS los archivos seleccionados en un ciclo
       const urlsSubidas: string[] = [];
       for (const file of selectedFiles) {
-        const resultadoDoc = await uploadAndLinkDocument(file, categoria, insertData.id, "solicitudes_acceso");
+        const resultadoDoc: any = await uploadAndLinkDocument(file, categoria, insertData.id, "solicitudes_acceso");
         if (resultadoDoc) {
-          urlsSubidas.push(resultadoDoc);
+          // Extraemos la ruta o fullPath en formato string de manera segura
+          const urlString = typeof resultadoDoc === 'string' ? resultadoDoc : (resultadoDoc.fullPath || resultadoDoc.path || "");
+          if (urlString) {
+            urlsSubidas.push(urlString);
+          }
         }
       }
 
-      // 3. Opcional: Actualizar la solicitud con la primera URL principal o arreglo si tu BD lo requiere
       if (urlsSubidas.length > 0) {
         await supabase
           .from("solicitudes_acceso")
-          .update({ documento_url: urlsSubidas[0] }) // Guarda la principal para compatibilidad con la vista de administración
+          .update({ documento_url: urlsSubidas[0] })
           .eq("id", insertData.id);
       }
 
       alert("¡Solicitud y documentos enviados con éxito de forma automática!");
-      
-      // Limpiar formulario o recargar
       window.location.reload();
 
     } catch (error: any) {
