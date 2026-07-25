@@ -114,28 +114,6 @@ export default function PortalCliente() {
     router.push("/");
   };
 
-  const cardStyle: React.CSSProperties = {
-    padding: "24px 20px",
-    backgroundColor: "#080808",
-    border: "1px solid rgba(218, 165, 32, 0.4)",
-    borderRadius: "12px",
-    cursor: "pointer",
-    transition: "all 0.3s ease",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.8)",
-    width: "280px",
-    textAlign: "center" as const,
-    boxSizing: "border-box"
-  };
-
-  const imgStyle: React.CSSProperties = { 
-    width: "100%", 
-    height: "160px",
-    objectFit: "cover",
-    borderRadius: "8px", 
-    marginBottom: "15px",
-    border: "1px solid rgba(218, 165, 32, 0.2)"
-  };
-
   return (
     <div style={{ 
       backgroundColor: "#000", 
@@ -144,10 +122,10 @@ export default function PortalCliente() {
       display: "flex", 
       flexDirection: "column", 
       alignItems: "center", 
-      justifyContent: "center", 
+      justifyContent: "space-between", 
       position: "relative", 
-      padding: "50px 20px",
-      fontFamily: "sans-serif",
+      padding: "40px 20px",
+      fontFamily: "'Inter', sans-serif",
       overflowX: "hidden"
     }}>
       <style jsx global>{`
@@ -157,25 +135,83 @@ export default function PortalCliente() {
           background-color: #000 !important;
           color: #DAA520;
         }
-        .card:hover { 
-          transform: translateY(-5px); 
-          border-color: #DAA520 !important;
-          box-shadow: 0 0 30px rgba(218, 165, 32, 0.3) !important; 
+        .trulink-card {
+          background: linear-gradient(145deg, #0a0a0a, #050505);
+          border: 1px solid rgba(218, 165, 32, 0.25);
+          border-radius: 16px;
+          padding: 22px;
+          width: 270px;
+          cursor: pointer;
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.9);
+          position: relative;
+          overflow: hidden;
+          box-sizing: border-box;
+          text-align: center;
+        }
+        .trulink-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -100%;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(90deg, transparent, rgba(218, 165, 32, 0.08), transparent);
+          transition: 0.5s;
+        }
+        .trulink-card:hover::before {
+          left: 100%;
+        }
+        .trulink-card:hover { 
+          transform: translateY(-8px); 
+          border-color: #DAA520; 
+          box-shadow: 0 0 35px rgba(218, 165, 32, 0.25), 0 15px 35px rgba(0,0,0,0.9); 
+        }
+        .card-img-container {
+          width: 100%;
+          height: 155px;
+          border-radius: 10px;
+          overflow: hidden;
+          margin-bottom: 18px;
+          border: 1px solid rgba(218, 165, 32, 0.15);
+        }
+        .card-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .trulink-card:hover .card-img {
+          transform: scale(1.08);
+        }
+        .logout-btn {
+          background: transparent;
+          color: #DAA520;
+          border: 1px solid rgba(218, 165, 32, 0.4);
+          padding: 10px 22px;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 500;
+          font-size: 0.8rem;
+          letter-spacing: 1px;
+          text-transform: uppercase;
+          transition: all 0.3s ease;
         }
         .logout-btn:hover { 
-          background-color: #DAA520 !important; 
-          color: #000 !important; 
-          box-shadow: 0 0 15px rgba(218, 165, 32, 0.4);
+          background-color: #DAA520; 
+          color: #000; 
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
         }
-        @keyframes fadeIn {
-          from { opacity: 0; transform: scale(0.95); }
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.96); }
           to { opacity: 1; transform: scale(1); }
         }
         .modal-content {
-          animation: fadeIn 0.3s ease forwards;
+          animation: fadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
 
+      {/* Modal de Notificaciones */}
       {mostrarModalNotif && (
         <div style={{
           position: "fixed",
@@ -184,7 +220,7 @@ export default function PortalCliente() {
           width: "100vw",
           height: "100vh",
           backgroundColor: "rgba(0, 0, 0, 0.85)",
-          backdropFilter: "blur(5px)",
+          backdropFilter: "blur(8px)",
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
@@ -192,29 +228,29 @@ export default function PortalCliente() {
           padding: "20px"
         }}>
           <div className="modal-content" style={{
-            backgroundColor: "#080808",
-            border: "1px solid rgba(218, 165, 32, 0.6)",
-            padding: "35px 30px",
-            borderRadius: "12px",
+            backgroundColor: "#070707",
+            border: "1px solid rgba(218, 165, 32, 0.5)",
+            padding: "40px 30px",
+            borderRadius: "16px",
             width: "100%",
             maxWidth: "460px",
-            boxShadow: "0 15px 40px rgba(0,0,0,0.9), 0 0 25px rgba(218, 165, 32, 0.2)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.95), 0 0 30px rgba(218, 165, 32, 0.15)",
             color: "#DAA520",
             boxSizing: "border-box"
           }}>
-            <h2 style={{ marginBottom: "15px", textAlign: "center", fontSize: "1.2rem", fontWeight: "500", letterSpacing: "1px", textTransform: "uppercase" }}>
+            <h2 style={{ marginBottom: "12px", textAlign: "center", fontSize: "1.1rem", fontWeight: "600", letterSpacing: "1.5px", textTransform: "uppercase" }}>
               Canales de Notificación Activos
             </h2>
-            <p style={{ fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.7)", marginBottom: "25px", textAlign: "center", lineHeight: "1.5" }}>
+            <p style={{ fontSize: "0.85rem", color: "rgba(255, 255, 255, 0.65)", marginBottom: "25px", textAlign: "center", lineHeight: "1.6" }}>
               Es tu primer acceso. Las alertas de pedidos y actualizaciones del sistema se enviarán automáticamente a tus medios registrados:
             </p>
 
-            <div style={{ backgroundColor: "#050505", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "18px", borderRadius: "8px", marginBottom: "25px" }}>
-              <p style={{ fontSize: "0.9rem", marginBottom: "10px", color: "rgba(255, 255, 255, 0.8)" }}>
-                📧 <strong style={{ color: "#DAA520", marginLeft: "5px" }}>Correo:</strong> {userEmail || "Cargando..."}
+            <div style={{ backgroundColor: "#030303", border: "1px solid rgba(218, 165, 32, 0.2)", padding: "18px", borderRadius: "10px", marginBottom: "25px" }}>
+              <p style={{ fontSize: "0.88rem", marginBottom: "10px", color: "rgba(255, 255, 255, 0.85)" }}>
+                📧 <strong style={{ color: "#DAA520", marginLeft: "6px" }}>Correo:</strong> {userEmail || "Cargando..."}
               </p>
-              <p style={{ fontSize: "0.9rem", color: "rgba(255, 255, 255, 0.8)", margin: 0 }}>
-                📱 <strong style={{ color: "#DAA520", marginLeft: "5px" }}>Celular:</strong> {userCelular || "No registrado"}
+              <p style={{ fontSize: "0.88rem", color: "rgba(255, 255, 255, 0.85)", margin: 0 }}>
+                📱 <strong style={{ color: "#DAA520", marginLeft: "6px" }}>Celular:</strong> {userCelular || "No registrado"}
               </p>
             </div>
 
@@ -227,7 +263,7 @@ export default function PortalCliente() {
                   onChange={(e) => setPushNotif(e.target.checked)}
                   style={{ accentColor: "#DAA520", width: "18px", height: "18px", cursor: "pointer" }}
                 />
-                <label htmlFor="pushCheck" style={{ fontSize: "0.85rem", cursor: "pointer", color: "rgba(255, 255, 255, 0.9)" }}>
+                <label htmlFor="pushCheck" style={{ fontSize: "0.83rem", cursor: "pointer", color: "rgba(255, 255, 255, 0.85)" }}>
                   Habilitar notificaciones Push adicionales en navegador
                 </label>
               </div>
@@ -240,13 +276,14 @@ export default function PortalCliente() {
                   backgroundColor: "#DAA520",
                   color: "#000",
                   border: "none",
-                  borderRadius: "8px",
-                  fontWeight: "bold",
+                  borderRadius: "10px",
+                  fontWeight: "700",
                   cursor: "pointer",
-                  fontSize: "0.9rem",
-                  letterSpacing: "1px",
+                  fontSize: "0.85rem",
+                  letterSpacing: "1.5px",
                   textTransform: "uppercase",
-                  transition: "opacity 0.2s ease"
+                  transition: "all 0.3s ease",
+                  boxShadow: "0 4px 15px rgba(218, 165, 32, 0.3)"
                 }}
               >
                 Entendido y Continuar
@@ -260,60 +297,67 @@ export default function PortalCliente() {
         </div>
       )}
 
-      <button
-        onClick={handleLogout}
-        className="logout-btn"
-        style={{
-          position: "absolute",
-          top: "30px",
-          right: "35px",
-          backgroundColor: "transparent",
-          color: "#DAA520",
-          border: "1px solid rgba(218, 165, 32, 0.5)",
-          padding: "10px 20px",
-          borderRadius: "8px",
-          cursor: "pointer",
-          fontWeight: "600",
-          fontSize: "0.85rem",
-          letterSpacing: "0.5px",
-          transition: "all 0.3s ease"
-        }}
-      >
-        Cerrar Sesión
-      </button>
+      {/* Encabezado Superior */}
+      <div style={{ width: "100%", maxWidth: "1200px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <img src="/images/trulink-logo.png" alt="Trulink Fiber" style={{ height: "36px", objectFit: "contain" }} onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
+          <span style={{ fontSize: "0.75rem", letterSpacing: "3px", color: "rgba(218, 165, 32, 0.6)", textTransform: "uppercase" }}>Portal B2B</span>
+        </div>
+        <button onClick={handleLogout} className="logout-btn">
+          Cerrar Sesión
+        </button>
+      </div>
 
-      <h1 style={{ 
-        color: "#DAA520", 
-        marginBottom: "45px", 
-        letterSpacing: "2px", 
-        fontSize: "1.6rem", 
-        fontWeight: "300", 
-        textTransform: "uppercase",
-        textAlign: "center"
-      }}>
-        Seleccione Servicio
-      </h1>
-
-      <div style={{ display: "flex", gap: "25px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1200px" }}>
-        <div className="card" style={cardStyle} onClick={() => router.push("/especiales")}>
-          <img src="/images/especiales.jpg" alt="Pedidos Especiales" style={imgStyle} />
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", margin: "10px 0 0 0", fontWeight: "500", letterSpacing: "0.5px" }}>Pedidos Especiales</h2>
+      {/* Contenido Principal */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", margin: "auto 0" }}>
+        <div style={{ textAlign: "center", marginBottom: "45px" }}>
+          <h1 style={{ 
+            color: "#DAA520", 
+            margin: "0 0 10px 0", 
+            letterSpacing: "3px", 
+            fontSize: "1.7rem", 
+            fontWeight: "400", 
+            textTransform: "uppercase"
+          }}>
+            Seleccione Servicio
+          </h1>
+          <div style={{ width: "60px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto", opacity: "0.6" }}></div>
         </div>
 
-        <div className="card" style={cardStyle} onClick={() => router.push("/fabricacion")}>
-          <img src="/images/fabrica.png" alt="Fabricación" style={imgStyle} />
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", margin: "10px 0 0 0", fontWeight: "500", letterSpacing: "0.5px" }}>Fabricación de Cables</h2>
-        </div>
+        <div style={{ display: "flex", gap: "25px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1200px" }}>
+          <div className="trulink-card" onClick={() => router.push("/especiales")}>
+            <div className="card-img-container">
+              <img src="/images/especiales.jpg" alt="Pedidos Especiales" className="card-img" />
+            </div>
+            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSpacing: "0.8px" }}>Pedidos Especiales</h2>
+          </div>
 
-        <div className="card" style={cardStyle} onClick={() => router.push("/productos")}>
-          <img src="/images/terminado.png" alt="Productos" style={imgStyle} />
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", margin: "10px 0 0 0", fontWeight: "500", letterSpacing: "0.5px" }}>Productos Terminados</h2>
-        </div>
+          <div className="trulink-card" onClick={() => router.push("/fabricacion")}>
+            <div className="card-img-container">
+              <img src="/images/fabrica.png" alt="Fabricación" className="card-img" />
+            </div>
+            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSpacing: "0.8px" }}>Fabricación de Cables</h2>
+          </div>
 
-        <div className="card" style={cardStyle} onClick={() => router.push("/seguimiento")}>
-          <img src="/images/pedidos.png" alt="Control de Pedidos" style={imgStyle} />
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", margin: "10px 0 0 0", fontWeight: "500", letterSpacing: "0.5px" }}>Control de Pedidos</h2>
+          <div className="trulink-card" onClick={() => router.push("/productos")}>
+            <div className="card-img-container">
+              <img src="/images/terminado.png" alt="Productos" className="card-img" />
+            </div>
+            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSpacing: "0.8px" }}>Productos Terminados</h2>
+          </div>
+
+          <div className="trulink-card" onClick={() => router.push("/seguimiento")}>
+            <div className="card-img-container">
+              <img src="/images/pedidos.png" alt="Control de Pedidos" className="card-img" />
+            </div>
+            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSpacing: "0.8px" }}>Control de Pedidos</h2>
+          </div>
         </div>
+      </div>
+
+      {/* Pie de página discreto */}
+      <div style={{ width: "100%", textAlign: "center", marginTop: "40px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.4)", letterSpacing: "1px" }}>
+        © 2026 Trulink Fiber LLC — Excelencia y Vanguardia Tecnológica
       </div>
     </div>
   );
