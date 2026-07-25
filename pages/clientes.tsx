@@ -98,6 +98,7 @@ export default function Clientes() {
         telefono_celular: telefonoCelularCompleto
       };
 
+      // 1. Primero insertamos la solicitud en la base de datos para obtener el ID asignado
       const { data: insertData, error: dbError } = await supabase
         .from("solicitudes_acceso")
         .insert([{
@@ -115,24 +116,33 @@ export default function Clientes() {
       if (dbError) throw dbError;
 
       const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
+      let primerUrlSubida = "";
 
-      const urlsSubidas: string[] = [];
+      // 2. Iteramos los archivos seleccionados y los subimos usando el ID real de la tabla
       for (const file of selectedFiles) {
         const resultadoDoc: any = await uploadAndLinkDocument(file, categoria, insertData.id, "solicitudes_acceso");
         if (resultadoDoc) {
-          // Extraemos la ruta o fullPath en formato string de manera segura
-          const urlString = typeof resultadoDoc === 'string' ? resultadoDoc : (resultadoDoc.fullPath || resultadoDoc.path || "");
-          if (urlString) {
-            urlsSubidas.push(urlString);
+          // Extraemos la ruta asegurando compatibilidad con diferentes estructuras de respuesta
+          const urlString = typeof resultadoDoc === 'string' 
+            ? resultadoDoc 
+            : (resultadoDoc.fullPath || resultadoDoc.path || resultadoDoc.url || resultadoDoc.data?.path || "");
+          
+          if (urlString && !primerUrlSubida) {
+            primerUrlSubida = urlString;
           }
         }
       }
 
-      if (urlsSubidas.length > 0) {
-        await supabase
+      // 3. Actualizamos inmediatamente el registro con la ruta del documento obtenido
+      if (primerUrlSubida) {
+        const { error: updateError } = await supabase
           .from("solicitudes_acceso")
-          .update({ documento_url: urlsSubidas[0] })
+          .update({ documento_url: primerUrlSubida })
           .eq("id", insertData.id);
+
+        if (updateError) {
+          console.error("Error al asociar el documento_url en la base de datos:", updateError);
+        }
       }
 
       alert("¡Solicitud y documentos enviados con éxito de forma automática!");
