@@ -34,6 +34,8 @@ export default function Productos() {
   const router = useRouter();
   const [categoria, setCategoria] = useState<string | null>(null);
   const [productos, setProductos] = useState<Producto[]>([]);
+  const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([]);
+  const [busqueda, setBusqueda] = useState<string>("");
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
   
@@ -77,6 +79,23 @@ export default function Productos() {
 
     fetchClientInfo();
   }, []);
+
+  // Lógica de filtrado en tiempo real por SKU, Descripción, Ítem o Familia
+  useEffect(() => {
+    if (!busqueda.trim()) {
+      setProductosFiltrados(productos);
+    } else {
+      const termino = busqueda.toLowerCase();
+      const filtrados = productos.filter((prod) => 
+        (prod.SKU && prod.SKU.toLowerCase().includes(termino)) ||
+        (prod.Descripción && prod.Descripción.toLowerCase().includes(termino)) ||
+        (prod.Ítem && prod.Ítem.toLowerCase().includes(termino)) ||
+        (prod.Familia && prod.Familia.toLowerCase().includes(termino))
+      );
+      setProductosFiltrados(filtrados);
+    }
+    setPaginaActual(1);
+  }, [busqueda, productos]);
 
   const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
   const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
@@ -346,15 +365,17 @@ export default function Productos() {
     const { data, error } = await supabase.from(tabla).select("*");
     if (!error) {
       setProductos(data || []);
+      setProductosFiltrados(data || []);
       setCategoria(tabla);
+      setBusqueda("");
       setPaginaActual(1);
     }
   };
 
   const indiceUltimoProducto = paginaActual * productosPorPagina;
   const indicePrimerProducto = indiceUltimoProducto - productosPorPagina;
-  const productosActuales = productos.slice(indicePrimerProducto, indiceUltimoProducto);
-  const totalPaginas = Math.ceil(productos.length / productosPorPagina);
+  const productosActuales = productosFiltrados.slice(indicePrimerProducto, indiceUltimoProducto);
+  const totalPaginas = Math.ceil(productosFiltrados.length / productosPorPagina);
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "50px 30px", fontFamily: "sans-serif" }}>
@@ -460,49 +481,64 @@ export default function Productos() {
         </div>
       ) : (
         <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          <button 
-            onClick={() => setCategoria(null)} 
-            className="custom-btn"
-            style={{ marginBottom: "30px" }}
-          >
-            ← Volver a Selección de Bases de Datos
-          </button>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "25px" }}>
-            {productosActuales.map((prod) => (
-              <div key={prod.SKU} className="card-item" style={{ padding: "20px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                <div>
-                  <img 
-                    src={prod.image_url || "/placeholder.png"} 
-                    alt={prod.Ítem} 
-                    className="image-zoom" 
-                    onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')} 
-                    style={{ width: "100%", height: "160px", objectFit: "contain", borderRadius: "8px", marginBottom: "15px", backgroundColor: "#050505", padding: "10px", boxSizing: "border-box", border: "1px solid rgba(218, 165, 32, 0.15)" }} 
-                  />
-                  <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", letterSpacing: "1px", display: "block", marginBottom: "5px" }}>{prod.SKU}</span>
-                  <h3 style={{ fontSize: "0.95rem", color: "#DAA520", fontWeight: "500", height: "45px", overflow: "hidden", margin: "0 0 10px 0", lineHeight: "1.4" }}>{prod.Descripción || prod.Ítem}</h3>
-                  <p style={{ fontSize: "1rem", color: "#FFF", fontWeight: "600", margin: "0 0 15px 0" }}>${prod.precio_a?.toFixed(2) || "0.00"}</p>
-                </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", flexWrap: "wrap", gap: "20px" }}>
+            <button 
+              onClick={() => { setCategoria(null); setBusqueda(""); }} 
+              className="custom-btn"
+            >
+              ← Volver a Selección de Bases de Datos
+            </button>
 
-                <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    value={cantidades[prod.SKU] || 1} 
-                    onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} 
-                    style={{ width: "55px", padding: "8px", backgroundColor: "#050505", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "6px", textAlign: "center", fontWeight: "bold" }} 
-                  />
-                  <button 
-                    onClick={() => agregarAlCarrito(prod)} 
-                    className="gold-btn"
-                    style={{ padding: "9px 16px", fontSize: "0.85rem", flex: 1 }}
-                  >
-                    Agregar
-                  </button>
-                </div>
-              </div>
-            ))}
+            <div style={{ flex: 1, maxWidth: "400px", minWidth: "260px" }}>
+              <input 
+                type="text" 
+                placeholder="Buscar por SKU, Descripción, Ítem..." 
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                style={{ width: "100%", padding: "10px 15px", backgroundColor: "#080808", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "8px", outline: "none", fontSize: "0.9rem" }}
+              />
+            </div>
           </div>
+          
+          {productosFiltrados.length === 0 ? (
+            <p style={{ textAlign: "center", color: "rgba(255, 255, 255, 0.5)", fontSize: "1rem", fontStyle: "italic", marginTop: "50px" }}>No se encontraron productos coincidentes.</p>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "25px" }}>
+              {productosActuales.map((prod) => (
+                <div key={prod.SKU} className="card-item" style={{ padding: "20px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <div>
+                    <img 
+                      src={prod.image_url || "/placeholder.png"} 
+                      alt={prod.Ítem} 
+                      className="image-zoom" 
+                      onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')} 
+                      style={{ width: "100%", height: "160px", objectFit: "contain", borderRadius: "8px", marginBottom: "15px", backgroundColor: "#050505", padding: "10px", boxSizing: "border-box", border: "1px solid rgba(218, 165, 32, 0.15)" }} 
+                    />
+                    <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", letterSpacing: "1px", display: "block", marginBottom: "5px" }}>{prod.SKU}</span>
+                    <h3 style={{ fontSize: "0.95rem", color: "#DAA520", fontWeight: "500", height: "45px", overflow: "hidden", margin: "0 0 10px 0", lineHeight: "1.4" }}>{prod.Descripción || prod.Ítem}</h3>
+                    <p style={{ fontSize: "1rem", color: "#FFF", fontWeight: "600", margin: "0 0 15px 0" }}>${prod.precio_a?.toFixed(2) || "0.00"}</p>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      value={cantidades[prod.SKU] || 1} 
+                      onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} 
+                      style={{ width: "55px", padding: "8px", backgroundColor: "#050505", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "6px", textAlign: "center", fontWeight: "bold" }} 
+                    />
+                    <button 
+                      onClick={() => agregarAlCarrito(prod)} 
+                      className="gold-btn"
+                      style={{ padding: "9px 16px", fontSize: "0.85rem", flex: 1 }}
+                    >
+                      Agregar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {totalPaginas > 1 && (
             <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginTop: "50px", alignItems: "center" }}>
