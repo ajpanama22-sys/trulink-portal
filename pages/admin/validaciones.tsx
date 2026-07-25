@@ -298,12 +298,6 @@ export default function AdminValidaciones() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
             {filteredList.map((item: any) => {
-              let docUrl = item.documentos_url || item.url || "";
-              if (!docUrl && supabase) {
-                const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
-                docUrl = publicData?.publicUrl || "#";
-              }
-
               const fechaCreacion = item.created_at ? new Date(item.created_at).toLocaleString() : 'Reciente';
               const currentPago = formasPago[item.id] || { tipo: "50%", porcentaje: 50 };
 
@@ -326,10 +320,36 @@ export default function AdminValidaciones() {
                       Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
                     </div>
 
+                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS */}
                     <div>
-                      <a href={docUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                        VER DOCUMENTOS ADJUNTOS
-                      </a>
+                      {(() => {
+                        try {
+                          // Intentamos parsear si guardaste un JSON con varios archivos
+                          const parsedUrls = JSON.parse(item.documento_url || "[]");
+                          if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                            return parsedUrls.map((urlObj, idx) => (
+                              <a key={idx} href={urlObj.url || urlObj} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
+                                VER DOCUMENTO {idx + 1}
+                              </a>
+                            ));
+                          }
+                        } catch (e) {
+                          // Si no es JSON, cae aquí por compatibilidad
+                        }
+
+                        // Si hay una URL directa guardada
+                        let singleUrl = item.documento_url || item.documentos_url || item.url || "";
+                        if (!singleUrl && supabase) {
+                          const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
+                          singleUrl = publicData?.publicUrl || "#";
+                        }
+
+                        return (
+                          <a href={singleUrl || "#"} target="_blank" rel="noreferrer" style={btnDocumentos}>
+                            VER DOCUMENTOS ADJUNTOS
+                          </a>
+                        );
+                      })()}
                     </div>
 
                     {/* CONFIGURACIÓN DE FORMA DE PAGO */}

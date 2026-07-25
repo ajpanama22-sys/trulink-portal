@@ -102,7 +102,7 @@ export default function Clientes() {
       let rutasArchivos: string[] = [];
       const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
 
-      // 1. Subimos los archivos al bucket "registros"
+      // 1. Subimos cada archivo al bucket "registros" conservando su nombre real y extensión
       for (const file of selectedFiles) {
         const timestamp = Date.now();
         const limpiarNombre = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
@@ -126,9 +126,11 @@ export default function Clientes() {
         }
       }
 
-      const documentosConcatenados = rutasArchivos.join(", ");
+      if (rutasArchivos.length === 0) {
+        throw new Error("No se pudo completar la subida de los archivos al Storage.");
+      }
 
-      // 2. Insertamos el registro completo con las URLs de los documentos ya listas en una sola operación
+      // 2. Guardamos las URLs serializadas en formato JSON para evitar errores con múltiples archivos
       const { error: dbError } = await supabase
         .from("solicitudes_acceso")
         .insert([{
@@ -139,7 +141,7 @@ export default function Clientes() {
           telefono_celular: telefonoCelularCompleto,
           status: "pendiente",
           datos_completos: datosCompletosConTelefonos,
-          documento_url: documentosConcatenados,
+          documento_url: JSON.stringify(rutasArchivos),
         }]);
 
       if (dbError) throw dbError;
