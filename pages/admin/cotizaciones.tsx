@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
-// Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
 export const dynamic = 'force-dynamic';
 
 export default function Cotizaciones() {
@@ -30,17 +29,32 @@ export default function Cotizaciones() {
     }
   };
 
+  const resolverDatosCliente = (item: any) => {
+    // Extraer datos dependiendo de si están en columnas planas o anidados en objetos de cliente/items
+    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
+    
+    // Si items es un objeto con datos de cliente (común en fiber_quote / fabricacion)
+    const primerItem = Array.isArray(item.items) ? item.items[0] : (item.items || {});
+
+    const empresa = item.empresa || clienteInfo.razon_social || clienteInfo.empresa || clienteInfo.nombre || primerItem.empresa || "Sin especificar";
+    const representante = item.representante || clienteInfo.representante || clienteInfo.atn || primerItem.representante || "N/D";
+    const email = item.email || clienteInfo.email || primerItem.email || "N/D";
+    const telefono = item.telefono || clienteInfo.telefono || primerItem.telefono || "N/D";
+
+    return { empresa, representante, email, telefono };
+  };
+
   const abrirDetalle = async (item: any) => {
     if (!supabase) return;
     
-    // Extraer datos de cliente si vienen anidados o planos
-    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
+    const { empresa, representante, email, telefono } = resolverDatosCliente(item);
+    
     const itemEnriquecido = {
       ...item,
-      empresaResuelto: item.empresa || clienteInfo.razon_social || clienteInfo.empresa || "Sin especificar",
-      representanteResuelto: item.representante || clienteInfo.representante || clienteInfo.atn || "N/D",
-      emailResuelto: item.email || clienteInfo.email || "N/D",
-      telefonoResuelto: item.telefono || clienteInfo.telefono || "N/D"
+      empresaResuelto: empresa,
+      representanteResuelto: representante,
+      emailResuelto: email,
+      telefonoResuelto: telefono
     };
 
     setCotizacionSeleccionada(itemEnriquecido);
@@ -102,12 +116,9 @@ export default function Cotizaciones() {
   };
 
   const cotizacionesFiltradas = cotizaciones.filter((item) => {
-    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
-    const empresa = item.empresa || clienteInfo.razon_social || clienteInfo.empresa || "";
-    const representante = item.representante || clienteInfo.representante || "";
-    const email = item.email || clienteInfo.email || "";
-    const telefono = item.telefono || clienteInfo.telefono || "";
+    const { empresa, representante, email, telefono } = resolverDatosCliente(item);
     const referencia = item.referencia || `QT-${item.id}`;
+    const tipo = item.type || item.tipo || "";
 
     const termino = busqueda.toLowerCase();
     return (
@@ -116,6 +127,7 @@ export default function Cotizaciones() {
       representante.toLowerCase().includes(termino) ||
       email.toLowerCase().includes(termino) ||
       telefono.toLowerCase().includes(termino) ||
+      tipo.toLowerCase().includes(termino) ||
       item.id?.toString().includes(termino)
     );
   });
@@ -126,7 +138,6 @@ export default function Cotizaciones() {
 
       <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
         
-        {/* Header Superior con Estilo Premium Black & Gold */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
           <div>
             <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
@@ -144,12 +155,12 @@ export default function Cotizaciones() {
         <div style={{ marginBottom: "25px" }}>
           <input
             type="text"
-            placeholder="Filtrar por referencia (QT-XXXX), empresa, representante, email, teléfono o ID..."
+            placeholder="Filtrar por referencia (QT-XXXX), tipo (producto/fiber_quote), empresa, representante, email o teléfono..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             style={{
               width: "100%",
-              maxWidth: "500px",
+              maxWidth: "550px",
               padding: "12px 16px",
               backgroundColor: "#111111",
               border: "1px solid rgba(218, 165, 32, 0.4)",
@@ -187,13 +198,9 @@ export default function Cotizaciones() {
                   const fechaFormateada = item.created_at ? new Date(item.created_at).toLocaleDateString() : "N/D";
                   const totalVal = Number(item.total || 0).toFixed(2);
                   const referenciaStr = item.referencia || `QT-${item.id}`;
-                  
-                  const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
-                  const empresaStr = item.empresa || clienteInfo.razon_social || clienteInfo.empresa || clienteInfo.nombre || "Sin especificar";
-                  const representanteStr = item.representante || clienteInfo.representante || clienteInfo.atn || "";
-                  const emailStr = item.email || clienteInfo.email || "N/D";
-                  const telefonoStr = item.telefono || clienteInfo.telefono || "N/D";
                   const tipoStr = item.type || item.tipo || "N/D";
+                  
+                  const { empresa, representante, email, telefono } = resolverDatosCliente(item);
 
                   return (
                     <tr 
@@ -207,14 +214,14 @@ export default function Cotizaciones() {
                         <div style={{ fontSize: "0.75rem", color: "#666", marginTop: "2px" }}>{fechaFormateada}</div>
                       </td>
                       <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>
-                        {empresaStr}
-                        {representanteStr && (
-                          <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>Atn: {representanteStr}</div>
+                        {empresa}
+                        {representante !== "N/D" && representante && (
+                          <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>Atn: {representante}</div>
                         )}
                       </td>
                       <td style={{ ...tdStyle, fontSize: "0.85rem" }}>
-                        <div style={{ color: "#DAA520" }}>{emailStr}</div>
-                        <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>{telefonoStr}</div>
+                        <div style={{ color: "#DAA520" }}>{email}</div>
+                        <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>{telefono}</div>
                       </td>
                       <td style={{ ...tdStyle, color: "#fff", fontSize: "0.85rem" }}>
                         <span style={{ 
@@ -288,21 +295,23 @@ export default function Cotizaciones() {
                     {cotizacionSeleccionada.created_at ? new Date(cotizacionSeleccionada.created_at).toLocaleString() : "N/D"}
                   </p>
                 </div>
-                <div>
-                  <p style={labelStyle}>Tipo de Carrete / Hilos:</p>
-                  <p style={valueStyle}>
-                    Carrete: {cotizacionSeleccionada.tipo_carrete || "N/D"} | Hilos: {cotizacionSeleccionada.hilos || "N/D"}
-                  </p>
-                </div>
+                {(cotizacionSeleccionada.tipo_carrete || cotizacionSeleccionada.hilos) && (
+                  <div>
+                    <p style={labelStyle}>Especificaciones Técnicas:</p>
+                    <p style={valueStyle}>
+                      Carrete: {cotizacionSeleccionada.tipo_carrete || "N/D"} | Hilos: {cotizacionSeleccionada.hilos || "N/D"}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p style={labelStyle}>Estado de Pago:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.estado_pago || "pendiente"} (${cotizacionSeleccionada.monto_abonado || 0} abonado)</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.estado_pago || cotizacionSeleccionada.status || "pendiente"} (${cotizacionSeleccionada.monto_abonado || 0} abonado)</p>
                 </div>
               </div>
 
-              {/* ÍTEMS / PRODUCTOS FORMATEADOS EN TABLA LIMPIA */}
+              {/* ÍTEMS / PRODUCTOS FORMATEADOS SEGÚN EL TIPO DE COTIZACIÓN */}
               <div style={{ marginBottom: "20px" }}>
-                <p style={{ ...labelStyle, marginBottom: "8px" }}>Ítems Solicitados:</p>
+                <p style={{ ...labelStyle, marginBottom: "8px" }}>Ítems / Contenido de la Cotización:</p>
                 <div style={{ backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px", maxHeight: "180px", overflowY: "auto" }}>
                   {(() => {
                     const itemsList = cotizacionSeleccionada.items || cotizacionSeleccionada.productos || cotizacionSeleccionada.details;
@@ -311,7 +320,7 @@ export default function Cotizaciones() {
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
                           <thead>
                             <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#141414" }}>
-                              <th style={{ padding: "10px 14px" }}>SKU</th>
+                              <th style={{ padding: "10px 14px" }}>SKU / Ref</th>
                               <th style={{ padding: "10px 14px" }}>Descripción</th>
                               <th style={{ padding: "10px 14px", textAlign: "center" }}>Cant.</th>
                               <th style={{ padding: "10px 14px", textAlign: "right" }}>Total</th>
@@ -320,25 +329,25 @@ export default function Cotizaciones() {
                           <tbody>
                             {itemsList.map((prod: any, idx: number) => (
                               <tr key={idx} style={{ borderBottom: "1px solid #161616" }}>
-                                <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || "N/D"}</td>
+                                <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || prod.codigo || "N/D"}</td>
                                 <td style={{ padding: "10px 14px", color: "#fff" }}>{prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
                                 <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
-                                <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || prod.precio || 0).toFixed(2)}</td>
+                                <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || prod.precio || prod.subtotal || 0).toFixed(2)}</td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       );
-                    } else if (typeof itemsList === 'object' && itemsList !== null) {
+                    } else if (typeof itemsList === 'object' && itemsList !== null && Object.keys(itemsList).length > 0) {
                       return (
                         <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
-                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU:</strong> {itemsList.sku || itemsList.SKU || "N/D"}</p>
-                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.descripcion || itemsList.description || "N/D"}</p>
-                          <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || 0).toFixed(2)}</p>
+                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU / Ref:</strong> {itemsList.sku || itemsList.SKU || "N/D"}</p>
+                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.descripcion || itemsList.description || itemsList.nombre || "N/D"}</p>
+                          <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || itemsList.precio || 0).toFixed(2)}</p>
                         </div>
                       );
                     } else {
-                      return <p style={{ color: "#666", fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados.</p>;
+                      return <p style={{ color: "#666", fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados en esta cotización.</p>;
                     }
                   })()}
                 </div>
