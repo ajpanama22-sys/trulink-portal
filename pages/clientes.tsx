@@ -62,7 +62,18 @@ export default function Clientes() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
+      const filesArray = Array.from(e.target.files);
+      
+      // Validación estricta: verificar que todos los archivos sean formato PDF
+      for (const file of filesArray) {
+        if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+          alert("Restricción del sistema: Solo se permiten archivos en formato PDF.");
+          e.target.value = ""; // Limpiar el input de archivos
+          return;
+        }
+      }
+
+      setSelectedFiles(filesArray);
     }
   };
 
@@ -75,7 +86,7 @@ export default function Clientes() {
     }
 
     if (selectedFiles.length === 0) {
-      alert("Por favor, adjunta al menos un documento de soporte.");
+      alert("Por favor, adjunta al menos un documento PDF de soporte.");
       return;
     }
 
@@ -146,7 +157,7 @@ export default function Clientes() {
 
       if (dbError) throw dbError;
 
-      alert("¡Solicitud y documentos enviados con éxito de forma automática!");
+      alert("¡Solicitud y documentos PDF enviados con éxito de forma automática!");
       window.location.reload();
 
     } catch (error: any) {
@@ -316,11 +327,12 @@ export default function Clientes() {
             <input name="telefono_celular" type="tel" placeholder="Número Celular" value={formData.telefono_celular} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} required />
           </div>
 
-          <h3 style={sectionHeaderStyle}>Documentación de Soporte (Múltiples Archivos)</h3>
+          <h3 style={sectionHeaderStyle}>Documentación de Soporte (Solo Archivos PDF)</h3>
           <div style={{ ...inputStyle, padding: "12px", display: "flex", alignItems: "center", backgroundColor: "#0a0a0a" }}>
             <input 
               type="file" 
               multiple 
+              accept="application/pdf"
               onChange={handleFileChange} 
               style={{ 
                 color: "#DAA520", 
@@ -334,10 +346,11 @@ export default function Clientes() {
           </div>
           {selectedFiles.length > 0 && (
             <div style={{ fontSize: "0.85rem", color: "#DAA520", marginBottom: "15px" }}>
-              Archivos seleccionados ({selectedFiles.length}): {selectedFiles.map(f => f.name).join(", ")}
+              Archivos PDF seleccionados ({selectedFiles.length}): {selectedFiles.map(f => f.name).join(", ")}
             </div>
           )}
           <ul style={{ fontSize: "0.85rem", color: "#C0C0C0", marginBottom: "25px", paddingLeft: "20px", lineHeight: "1.6" }}>
+            <li><strong style={{ color: "#DAA520" }}>Nota Obligatoria:</strong> Únicamente se aceptan documentos en formato <strong style={{ color: "#DAA520" }}>PDF</strong>.</li>
             <li>Registro Fiscal vigente</li>
             <li>Certificación Legal (últimos 90 días)</li>
             <li>Identificación Oficial o Pasaporte</li>
@@ -348,8 +361,8 @@ export default function Clientes() {
           <h3 style={sectionHeaderStyle}>Términos y Condiciones</h3>
           <textarea rows={6} style={{ ...inputStyle, resize: "vertical", color: "#C0C0C0", fontSize: "0.9rem", lineHeight: "1.5" }} readOnly>
             El acceso al Portal B2B de Trulink Fiber LLC está sujeto a estricta verificación corporativa. 
-            El solicitante se compromete a entregar documentación válida y vigente. 
-            El incumplimiento de requisitos legales, fiscales o de confidencialidad será motivo de rechazo inmediato. 
+            El solicitante se compromete a entregar documentación válida, vigente y exclusivamente en formato PDF. 
+            El incumplimiento de requisitos legales, fiscales o de formato será motivo de rechazo inmediato. 
             Toda la información enviada será tratada bajo confidencialidad y protección de datos. 
             El acceso aprobado implica aceptación plena de estas condiciones.
           </textarea>

@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+
+// Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
+export const dynamic = 'force-dynamic';
 
 export default function AdminValidaciones() {
   const [dataList, setDataList] = useState<any[]>([]);
@@ -28,7 +31,11 @@ export default function AdminValidaciones() {
   }, [dataList, sortOrder, filterType, selectedYear, selectedMonth, selectedDate, dateFrom, dateTo]);
 
   const cargarSolicitudes = async () => {
-    if (!supabase) return;
+    const supabase = getSupabase();
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     // Filtrar solicitudes con status 'pendiente' o nulo (excluyendo 'active' y 'rejected')
     const { data, error } = await supabase
@@ -115,6 +122,7 @@ export default function AdminValidaciones() {
   };
 
   const procesarSolicitud = async (id: string, tipoAccion: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
+    const supabase = getSupabase();
     if (!supabase) return;
 
     const pagoInfo = formasPago[id] || { tipo: "50%", porcentaje: 50 };
@@ -342,8 +350,11 @@ export default function AdminValidaciones() {
                                   if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
                                     finalLink = fileUrl;
                                   } else {
-                                    const { data: publicData } = supabase.storage.from("registros").getPublicUrl(fileUrl);
-                                    finalLink = publicData?.publicUrl || "#";
+                                    const supabase = getSupabase();
+                                    if (supabase) {
+                                      const { data: publicData } = supabase.storage.from("registros").getPublicUrl(fileUrl);
+                                      finalLink = publicData?.publicUrl || "#";
+                                    }
                                   }
                                 }
 
@@ -360,8 +371,11 @@ export default function AdminValidaciones() {
                               if (rawVal.startsWith("http://") || rawVal.startsWith("https://")) {
                                 finalLink = rawVal;
                               } else {
-                                const { data: publicData } = supabase.storage.from("registros").getPublicUrl(rawVal);
-                                finalLink = publicData?.publicUrl || "#";
+                                const supabase = getSupabase();
+                                if (supabase) {
+                                  const { data: publicData } = supabase.storage.from("registros").getPublicUrl(rawVal);
+                                  finalLink = publicData?.publicUrl || "#";
+                                }
                               }
                             }
 
@@ -373,6 +387,7 @@ export default function AdminValidaciones() {
                           }
                         }
 
+                        const supabase = getSupabase();
                         if (supabase) {
                           const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
                           const fallbackUrl = publicData?.publicUrl || "#";
