@@ -143,15 +143,12 @@ export default function AdminValidaciones() {
     if (tipoAccion === 'ACTIVAR') {
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       
+      // 1. Actualizar solo la tabla solicitudes_acceso con su estado y token
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
           status: 'active', 
-          password_token: passwordToken,
-          forma_pago: pagoInfo.tipo,
-          porcentaje_pago: porcentajeInicialReal,
-          porcentaje_saldo: porcentajeSaldoReal,
-          regla_saldo_plazo: '3_dias_antes_despacho'
+          password_token: passwordToken
         })
         .eq('id', id);
 
@@ -164,7 +161,8 @@ export default function AdminValidaciones() {
       const tipoClienteVal = datosCompletos.tipo_cliente || itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = datosCompletos.price_list || 'C';
 
-      await supabase
+      // 2. Volcar la información comercial y de pago en la tabla clientes
+      const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
           razon_social: razonSocialParam,
@@ -179,6 +177,10 @@ export default function AdminValidaciones() {
           regla_saldo_plazo: '3_dias_antes_despacho'
         }, { onConflict: 'email' });
 
+      if (clienteError) {
+        console.error("Error al guardar en clientes:", clienteError.message);
+      }
+
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
@@ -187,7 +189,7 @@ export default function AdminValidaciones() {
             tipo: "ACTIVACION",
             email: emailCliente,
             razon_social: razonSocialParam,
-            link: `${window.location.origin}/auth/crear-password?token=${passwordToken}`,
+            link: `https://portal.trulinkfiber.org/auth/crear-password?token=${passwordToken}`,
             forma_pago_texto: descripcionFormaPago,
             porcentaje_inicial: porcentajeInicialReal,
             porcentaje_saldo: porcentajeSaldoReal
