@@ -323,31 +323,55 @@ export default function AdminValidaciones() {
                     {/* SECCIÓN DE DOCUMENTOS ADJUNTOS */}
                     <div>
                       {(() => {
-                        try {
-                          // Intentamos parsear si guardaste un JSON con varios archivos
-                          const parsedUrls = JSON.parse(item.documento_url || "[]");
-                          if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
-                            return parsedUrls.map((urlObj, idx) => (
-                              <a key={idx} href={urlObj.url || urlObj} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
-                                VER DOCUMENTO {idx + 1}
+                        // 1. Extraer el valor real de la columna (puede venir en documento_url, documentos_url o url)
+                        const rawVal = item.documento_url || item.documentos_url || item.url;
+
+                        if (rawVal) {
+                          try {
+                            // Intentamos parsear si está guardado como JSON string (ej: array de objetos o strings)
+                            const parsed = JSON.parse(rawVal);
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                              return parsed.map((fileItem, idx) => {
+                                const fileUrl = typeof fileItem === "string" ? fileItem : (fileItem.url || fileItem.path);
+                                // Si la ruta es relativa y no empieza con http, armamos la URL pública de Supabase Storage
+                                const finalLink = fileUrl && fileUrl.startsWith("http") 
+                                   ? fileUrl 
+                                   : (supabase && fileUrl ? supabase.storage.from("registros").getPublicUrl(fileUrl).data.publicUrl : "#");
+
+                                return (
+                                  <a key={idx} href={finalLink} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
+                                    VER DOCUMENTO {idx + 1}
+                                  </a>
+                                );
+                              });
+                            }
+                          } catch (e) {
+                            // Si no es un JSON válido, tratamos rawVal como una cadena de texto directa (URL o ruta)
+                            const finalLink = rawVal.startsWith("http") 
+                              ? rawVal 
+                              : (supabase ? supabase.storage.from("registros").getPublicUrl(rawVal).data.publicUrl : "#");
+
+                            return (
+                              <a href={finalLink} target="_blank" rel="noreferrer" style={btnDocumentos}>
+                                VER DOCUMENTO ADJUNTO
                               </a>
-                            ));
+                            );
                           }
-                        } catch (e) {
-                          // Si no es JSON, cae aquí por compatibilidad
                         }
 
-                        // Si hay una URL directa guardada
-                        let singleUrl = item.documento_url || item.documentos_url || item.url || "";
-                        if (!singleUrl && supabase) {
+                        // 2. Si no hay valor en la columna, recurrimos al respaldo por convención de ID
+                        if (supabase) {
                           const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
-                          singleUrl = publicData?.publicUrl || "#";
+                          const fallbackUrl = publicData?.publicUrl || "#";
+                          return (
+                            <a href={fallbackUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
+                              VER DOCUMENTO ADJUNTO
+                            </a>
+                          );
                         }
 
                         return (
-                          <a href={singleUrl || "#"} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                            VER DOCUMENTOS ADJUNTOS
-                          </a>
+                          <span style={{ fontSize: "0.8rem", color: "#666" }}>Sin documentos</span>
                         );
                       })()}
                     </div>
