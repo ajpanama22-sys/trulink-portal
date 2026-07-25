@@ -30,7 +30,12 @@ export default function AdminValidaciones() {
   const cargarSolicitudes = async () => {
     if (!supabase) return;
     setLoading(true);
-    const { data, error } = await supabase.from("solicitudes_acceso").select("*");
+    // Filtrar solicitudes con status 'pendiente' o nulo (excluyendo 'active' y 'rejected')
+    const { data, error } = await supabase
+      .from("solicitudes_acceso")
+      .select("*")
+      .or("status.is.null,status.eq.pendiente");
+      
     if (error) {
       console.error("Error al cargar solicitudes:", error);
     } else {
@@ -320,52 +325,60 @@ export default function AdminValidaciones() {
                       Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
                     </div>
 
-                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS */}
+                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS (Soporte PDF, Word, Excel, etc.) */}
                     <div>
                       {(() => {
-                        // 1. Extraer el valor real de la columna (puede venir en documento_url, documentos_url o url)
                         const rawVal = item.documento_url || item.documentos_url || item.url;
 
                         if (rawVal) {
                           try {
-                            // Intentamos parsear si está guardado como JSON string (ej: array de objetos o strings)
                             const parsed = JSON.parse(rawVal);
                             if (Array.isArray(parsed) && parsed.length > 0) {
                               return parsed.map((fileItem, idx) => {
-                                const fileUrl = typeof fileItem === "string" ? fileItem : (fileItem.url || fileItem.path);
-                                // Si la ruta es relativa y no empieza con http, armamos la URL pública de Supabase Storage
+                                const fileUrl = typeof fileItem === "string" ? fileItem : (fileItem.url || fileItem.path || fileItem.name);
                                 const finalLink = fileUrl && fileUrl.startsWith("http") 
                                    ? fileUrl 
                                    : (supabase && fileUrl ? supabase.storage.from("registros").getPublicUrl(fileUrl).data.publicUrl : "#");
 
+                                // Detectar etiqueta según la extensión del archivo
+                                let etiquetaDoc = `VER DOCUMENTO ${idx + 1}`;
+                                const lowerUrl = (fileUrl || "").toLowerCase();
+                                if (lowerUrl.includes(".pdf")) etiquetaDoc = `📄 VER PDF ${idx + 1}`;
+                                else if (lowerUrl.includes(".xls") || lowerUrl.includes(".xlsx") || lowerUrl.includes(".csv")) etiquetaDoc = `📊 VER EXCEL ${idx + 1}`;
+                                else if (lowerUrl.includes(".doc") || lowerUrl.includes(".docx")) etiquetaDoc = `📝 VER WORD ${idx + 1}`;
+
                                 return (
                                   <a key={idx} href={finalLink} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
-                                    VER DOCUMENTO {idx + 1}
+                                    {etiquetaDoc}
                                   </a>
                                 );
                               });
                             }
                           } catch (e) {
-                            // Si no es un JSON válido, tratamos rawVal como una cadena de texto directa (URL o ruta)
                             const finalLink = rawVal.startsWith("http") 
                               ? rawVal 
                               : (supabase ? supabase.storage.from("registros").getPublicUrl(rawVal).data.publicUrl : "#");
 
+                            let etiquetaDoc = "VER DOCUMENTO ADJUNTO";
+                            const lowerVal = rawVal.toLowerCase();
+                            if (lowerVal.includes(".pdf")) etiquetaDoc = "📄 VER ARCHIVO PDF";
+                            else if (lowerVal.includes(".xls") || lowerVal.includes(".xlsx") || lowerVal.includes(".csv")) etiquetaDoc = "📊 VER ARCHIVO EXCEL";
+                            else if (lowerVal.includes(".doc") || lowerVal.includes(".docx")) etiquetaDoc = "📝 VER ARCHIVO WORD";
+
                             return (
                               <a href={finalLink} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                                VER DOCUMENTO ADJUNTO
+                                {etiquetaDoc}
                               </a>
                             );
                           }
                         }
 
-                        // 2. Si no hay valor en la columna, recurrimos al respaldo por convención de ID
                         if (supabase) {
                           const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
                           const fallbackUrl = publicData?.publicUrl || "#";
                           return (
                             <a href={fallbackUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                              VER DOCUMENTO ADJUNTO
+                              📁 VER DOCUMENTO ADJUNTO
                             </a>
                           );
                         }
@@ -469,7 +482,7 @@ const baseBtn = {
 const btnDocumentos = {
   ...baseBtn,
   background: "rgba(218, 165, 32, 0.05)",
-  color: "#DAA520",
+  color: "#DAA525",
   border: "1px solid rgba(218, 165, 32, 0.4)",
   width: "220px",
   boxSizing: "border-box" as const,
