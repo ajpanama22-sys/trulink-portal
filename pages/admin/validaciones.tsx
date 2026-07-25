@@ -123,14 +123,21 @@ export default function AdminValidaciones() {
 
     const pagoInfo = formasPago[id] || { tipo: "50%", porcentaje: 50 };
     let descripcionFormaPago = "";
+    let porcentajeInicialReal = 50;
+    let porcentajeSaldoReal = 50;
+
     if (pagoInfo.tipo === "50%") {
-      descripcionFormaPago = "50% a la orden de compra / aceptación de cotización y 50% restante 3 días antes del despacho.";
+      porcentajeInicialReal = 50;
+      porcentajeSaldoReal = 50;
+      descripcionFormaPago = "50% a la orden de compra / aceptación de cotización y el 50% restante exactos 3 días antes de la fecha estimada de despacho.";
     } else if (pagoInfo.tipo === "100%") {
-      descripcionFormaPago = "100% de pago a la aceptación de la cotización o emisión de orden de compra.";
+      porcentajeInicialReal = 100;
+      porcentajeSaldoReal = 0;
+      descripcionFormaPago = "100% de pago anticipado a la aceptación de la cotización o emisión de orden de compra.";
     } else {
-      const pAnticipo = pagoInfo.porcentaje;
-      const pDiferencial = 100 - pAnticipo;
-      descripcionFormaPago = `Especial: ${pAnticipo}% a la aceptación de cotización / orden de compra y el diferencial de ${pDiferencial}% sujeto a acuerdo interno.`;
+      porcentajeInicialReal = pagoInfo.porcentaje;
+      porcentajeSaldoReal = 100 - porcentajeInicialReal;
+      descripcionFormaPago = `Especial: ${porcentajeInicialReal}% a la aceptación de cotización / orden de compra y el diferencial de saldo de ${porcentajeSaldoReal}% exigible obligatoriamente 3 días antes de la fecha estimada de despacho.`;
     }
 
     if (tipoAccion === 'ACTIVAR') {
@@ -142,7 +149,9 @@ export default function AdminValidaciones() {
           status: 'active', 
           password_token: passwordToken,
           forma_pago: pagoInfo.tipo,
-          porcentaje_pago: pagoInfo.porcentaje 
+          porcentaje_pago: porcentajeInicialReal,
+          porcentaje_saldo: porcentajeSaldoReal,
+          regla_saldo_plazo: '3_dias_antes_despacho'
         })
         .eq('id', id);
 
@@ -165,7 +174,9 @@ export default function AdminValidaciones() {
           status: 'pendiente_password',
           password_token: passwordToken,
           forma_pago: pagoInfo.tipo,
-          porcentaje_pago: pagoInfo.porcentaje
+          porcentaje_pago: porcentajeInicialReal,
+          porcentaje_saldo: porcentajeSaldoReal,
+          regla_saldo_plazo: '3_dias_antes_despacho'
         }, { onConflict: 'email' });
 
       try {
@@ -177,7 +188,9 @@ export default function AdminValidaciones() {
             email: emailCliente,
             razon_social: razonSocialParam,
             link: `${window.location.origin}/auth/crear-password?token=${passwordToken}`,
-            forma_pago_texto: descripcionFormaPago
+            forma_pago_texto: descripcionFormaPago,
+            porcentaje_inicial: porcentajeInicialReal,
+            porcentaje_saldo: porcentajeSaldoReal
           })
         });
         if (!response.ok) throw new Error("Fallo al enviar correo de activación");
@@ -333,7 +346,6 @@ export default function AdminValidaciones() {
                           let filePaths: string[] = [];
 
                           if (typeof rawVal === 'string') {
-                            // Intentar parsear si es JSON string, si falla limpiar por comas, espacios o saltos de línea
                             try {
                               const parsed = JSON.parse(rawVal);
                               if (Array.isArray(parsed)) {
@@ -344,14 +356,12 @@ export default function AdminValidaciones() {
                                 filePaths = [rawVal];
                               }
                             } catch (e) {
-                              // Separar por coma, punto y coma o espacios múltiples donde vengan las URLs
                               filePaths = rawVal.split(/[,;\s]+/).filter(Boolean);
                             }
                           } else if (Array.isArray(rawVal)) {
                             filePaths = rawVal.map(p => typeof p === 'string' ? p : (p.url || p.path || ''));
                           }
 
-                          // Filtrar rutas válidas y armar botones con plural "VER ARCHIVOS PDF"
                           const validLinks = filePaths.map(pathItem => {
                             let cleanPath = pathItem.trim();
                             if (!cleanPath) return null;
@@ -359,7 +369,6 @@ export default function AdminValidaciones() {
                             if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://")) {
                               return cleanPath;
                             } else if (supabaseClient) {
-                              // Limpiar prefijos de URL pública si ya vinieran incrustados parcialmente
                               if (cleanPath.includes('/storage/v1/object/public/')) {
                                 const parts = cleanPath.split('/storage/v1/object/public/');
                                 cleanPath = parts[parts.length - 1];
@@ -406,7 +415,7 @@ export default function AdminValidaciones() {
                           onChange={(e) => handleTipoPagoChange(item.id, e.target.value)}
                           style={selectStyle}
                         >
-                          <option value="50%">50% Anticipo / 50% antes despacho</option>
+                          <option value="50%">50% Anticipo / 50% antes despacho (3 días antes)</option>
                           <option value="100%">100% a la Orden de Compra</option>
                           <option value="ESPECIAL">ESPECIAL (Negociación Interna)</option>
                         </select>
@@ -426,7 +435,7 @@ export default function AdminValidaciones() {
                             />
                           </div>
                           <div style={{ fontSize: "0.75rem", color: "#AAA", alignSelf: "flex-end", paddingBottom: "4px" }}>
-                            Diferencial Saldo: <strong style={{ color: "#2ecc71" }}>{100 - currentPago.porcentaje}%</strong>
+                            Saldo (3 días antes despacho): <strong style={{ color: "#2ecc71" }}>{100 - currentPago.porcentaje}%</strong>
                           </div>
                         </div>
                       )}
