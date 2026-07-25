@@ -147,7 +147,7 @@ export default function AdminValidaciones() {
       const tipoClienteVal = datosCompletos.tipo_cliente || itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = datosCompletos.price_list || 'C';
 
-      // 1. Guardar/Actualizar primero en la tabla clientes usando upsert con el email como conflicto
+      // 1. Guardar/Actualizar primero en la tabla clientes usando upsert con el email como conflicto (solo columnas existentes)
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -158,9 +158,7 @@ export default function AdminValidaciones() {
           status: 'pendiente_password',
           password_token: passwordToken,
           forma_pago: pagoInfo.tipo,
-          porcentaje_pago: porcentajeInicialReal,
-          porcentaje_saldo: porcentajeSaldoReal,
-          regla_saldo_plazo: '3_dias_antes_despacho'
+          porcentaje_pago: porcentajeInicialReal
         }, { onConflict: 'email' });
 
       if (clienteError) {
