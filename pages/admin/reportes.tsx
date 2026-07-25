@@ -185,23 +185,27 @@ export default function Reportes() {
                   </tr>
                 </thead>
                 <tbody>
-                  {datosReporte.slice(0, 10).map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid #1c1c1c", color: "#ccc" }}>
-                      <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>{row.id?.substring(0, 8) || row.sku || "N/A"}</td>
-                      <td style={{ padding: "12px" }}>{row.descripcion || row.nombre || row.client_name || row.email || "Registro General"}</td>
-                      <td style={{ padding: "12px", fontWeight: "bold", color: "#fff" }}>
-                        {row.total ? `$${Number(row.total).toFixed(2)}` : row.precio ? `$${Number(row.precio).toFixed(2)}` : row.stock || "---"}
-                      </td>
-                      <td style={{ padding: "12px" }}>
-                        <span style={{ backgroundColor: "rgba(218,165,32,0.1)", color: "#FFD700", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid rgba(218,165,32,0.3)" }}>
-                          {row.estado_pago || row.tipo || row.role || "Activo"}
-                        </span>
-                      </td>
-                      <td style={{ padding: "12px", color: "#888", fontSize: "0.8rem" }}>
-                        {row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}
-                      </td>
-                    </tr>
-                  ))}
+                  {datosReporte.slice(0, 10).map((row, idx) => {
+                    const idSeguro = row.id ? String(row.id).substring(0, 8) : (row.sku ? String(row.sku) : "N/A");
+                    const descSegura = row.descripcion || row.nombre || row.client_name || row.email || "Registro General";
+                    const montoSeguro = row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---"));
+                    const estadoSeguro = row.estado_pago || row.tipo || row.role || "Activo";
+                    const fechaSegura = row.created_at ? new Date(row.created_at).toLocaleDateString() : "---";
+
+                    return (
+                      <tr key={idx} style={{ borderBottom: "1px solid #1c1c1c", color: "#ccc" }}>
+                        <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>{idSeguro}</td>
+                        <td style={{ padding: "12px" }}>{descSegura}</td>
+                        <td style={{ padding: "12px", fontWeight: "bold", color: "#fff" }}>{montoSeguro}</td>
+                        <td style={{ padding: "12px" }}>
+                          <span style={{ backgroundColor: "rgba(218,165,32,0.1)", color: "#FFD700", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid rgba(218,165,32,0.3)" }}>
+                            {estadoSeguro}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px", color: "#888", fontSize: "0.8rem" }}>{fechaSegura}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
