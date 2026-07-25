@@ -35,8 +35,6 @@ export default function Reportes() {
     setCargando(true);
 
     try {
-      // CORRECCIÓN: Apuntar exactamente a los nombres reales de las tablas en Supabase
-      // cablesdb, herrajesdb, accesoriosdb
       let query = supabase.from(tipo).select("*");
 
       if (desde && hasta && tipo === "quotes") {
@@ -72,7 +70,7 @@ export default function Reportes() {
         estadoFiltro: "Cotizaciones y Finanzas"
       });
     } else if (tipo === "cablesdb" || tipo === "herrajesdb" || tipo === "accesoriosdb") {
-      const sumaInv = registros.reduce((acc, item) => acc + Number(item.precio || item.stock || 0), 0);
+      const sumaInv = registros.reduce((acc, item) => acc + (Number(item.precio_a ?? item.Precio_A || 0) * Number(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? 0)), 0);
       setResumenEjecutivo({
         totalRegistros: total,
         montoTotal: sumaInv,
@@ -107,7 +105,6 @@ export default function Reportes() {
     cargarDatosReporte(tipoReporte, fechaDesde, fechaHasta);
   };
 
-  // GENERADOR DE PDF CORPORATIVO CON ESTÉTICA NEGRO/DORADO Y CAMPOS ESPECÍFICOS PARA CLIENTES/COLABORADORES
   const handleDescargarReporteOficial = () => {
     if (datosReporte.length === 0) {
       alert("No hay registros disponibles para exportar en este rango.");
@@ -115,22 +112,20 @@ export default function Reportes() {
     }
 
     const esDirectorio = tipoReporte === "clientes" || tipoReporte === "colaboradores";
+    const esInventario = tipoReporte === "cablesdb" || tipoReporte === "herrajesdb" || tipoReporte === "accesoriosdb";
 
     if (formatoExportacion === "pdf") {
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
       const fechaEmision = new Date().toLocaleDateString();
       const horaEmision = new Date().toLocaleTimeString();
 
-      // Fondo de la cabecera (Estética Corporativa Oscura)
       doc.setFillColor(15, 15, 15);
       doc.rect(0, 0, 210, 45, "F");
 
-      // Línea Dorada Decorativa Superior
       doc.setDrawColor(218, 165, 32);
       doc.setLineWidth(1.2);
       doc.line(0, 45, 210, 45);
 
-      // Marca y Título
       doc.setTextColor(255, 215, 0);
       doc.setFont("helvetica", "bold");
       doc.setFontSize(22);
@@ -142,7 +137,6 @@ export default function Reportes() {
       doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 30);
       doc.text("Tel: +507 6640 3720 | www.trulinkfiber.com", 14, 35);
 
-      // Metadatos de Fecha, Hora y Referencia a la derecha
       doc.setTextColor(255, 215, 0);
       doc.setFontSize(11);
       doc.text(`REPORTE OFICIAL: ${tipoReporte.toUpperCase()}`, 200, 18, { align: "right" });
@@ -151,7 +145,6 @@ export default function Reportes() {
       doc.text(`Fecha: ${fechaEmision} | Hora: ${horaEmision}`, 200, 25, { align: "right" });
       doc.text(`Rango: ${fechaDesde} al ${fechaHasta}`, 200, 31, { align: "right" });
 
-      // Información de Resumen Ejecutivo
       let currentY = 55;
       doc.setTextColor(30, 30, 30);
       doc.setFontSize(12);
@@ -166,7 +159,6 @@ export default function Reportes() {
       }
       currentY += 10;
 
-      // Generación de Gráfica Analítica Vectorial en el PDF
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(184, 134, 11);
@@ -195,7 +187,12 @@ export default function Reportes() {
       const barWidth = (chartWidth - 20) / (maxBars || 1);
 
       for (let i = 0; i < maxBars; i++) {
-        const valRandom = Number(datosReporte[i].total || datosReporte[i].precio || datosReporte[i].stock || (i + 1) * 10);
+        const item = datosReporte[i];
+        const valRandom = Number(
+          esInventario 
+            ? (Number(item.precio_a ?? item.Precio_A || 0) * Number(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? 0))
+            : (item.total || item.precio || (i + 1) * 10)
+        );
         const barHeight = Math.min(Math.max((valRandom / (resumenEjecutivo.montoTotal || 100)) * 18, 5), 20);
         const color = barColors[i % barColors.length];
 
@@ -205,7 +202,6 @@ export default function Reportes() {
 
       currentY += chartHeight + 12;
 
-      // Tabla de Datos con Autotable adaptada para Clientes/Colaboradores (Sin monto/stock, con Email y Teléfono Móvil)
       let tableColumns = ["ID / SKU", "Nombre / Empresa", "Correo Electrónico (Mail)", "Teléfono Móvil", "Fecha Registro"];
       let tableRows = datosReporte.map((row) => [
         row.id ? String(row.id).substring(0, 8) : (row.sku || "N/A"),
@@ -215,7 +211,16 @@ export default function Reportes() {
         row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"
       ]);
 
-      if (!esDirectorio) {
+      if (esInventario) {
+        tableColumns = ["SKU", "Descripción", "Stock", "Precio A (ISP)", "Estado"];
+        tableRows = datosReporte.map((row) => [
+          row.SKU || row.sku || "N/A",
+          row.Descripción || row.descripcion || "N/A",
+          row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0,
+          `$${Number(row.precio_a ?? row.Precio_A || 0).toFixed(2)}`,
+          "Activo"
+        ]);
+      } else if (!esDirectorio) {
         tableColumns = ["ID / SKU", "Descripción / Nombre", "Monto / Stock", "Estado", "Fecha"];
         tableRows = datosReporte.map((row) => [
           row.id ? String(row.id).substring(0, 8) : (row.sku || "N/A"),
@@ -249,7 +254,6 @@ export default function Reportes() {
         }
       });
 
-      // Pie de Página Corporativo
       const pageCount = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -262,21 +266,30 @@ export default function Reportes() {
       doc.save(`Reporte_Oficial_${tipoReporte}_${new Date().toISOString().slice(0, 10)}.pdf`);
 
     } else {
-      // Exportación en formato CSV
       let csvHeader = esDirectorio 
         ? "data:text/csv;charset=utf-8,ID_SKU,Nombre,Email,Telefono_Movil,Fecha\n" 
+        : esInventario
+        ? "data:text/csv;charset=utf-8,SKU,Descripcion,Stock,Precio_A,Estado\n"
         : "data:text/csv;charset=utf-8,ID_SKU,Descripcion,Monto_Stock,Estado_Tipo,Fecha\n";
       
       let csvContent = csvHeader;
       datosReporte.forEach((row) => {
-        const idSeguro = `"${row.id || row.sku || "N/A"}"`;
         if (esDirectorio) {
+          const idSeguro = `"${row.id || "N/A"}"`;
           const nombreSeguro = `"${(row.nombre || row.client_name || row.empresa || "---").replace(/"/g, '""')}"`;
           const emailSeguro = `"${(row.email || row.correo || "---").replace(/"/g, '""')}"`;
           const telSeguro = `"${(row.telefono || row.phone || row.movil || "---").replace(/"/g, '""')}"`;
           const fechaSegura = `"${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}"`;
           csvContent += [idSeguro, nombreSeguro, emailSeguro, telSeguro, fechaSegura].join(",") + "\n";
+        } else if (esInventario) {
+          const skuSeguro = `"${row.SKU || row.sku || "N/A"}"`;
+          const descSegura = `"${(row.Descripción || row.descripcion || "N/A").replace(/"/g, '""')}"`;
+          const stockSeguro = `"${row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0}"`;
+          const precioASeguro = `"${Number(row.precio_a ?? row.Precio_A || 0).toFixed(2)}"`;
+          const estadoSeguro = `"Activo"`;
+          csvContent += [skuSeguro, descSegura, stockSeguro, precioASeguro, estadoSeguro].join(",") + "\n";
         } else {
+          const idSeguro = `"${row.id || row.sku || "N/A"}"`;
           const descSegura = `"${(row.descripcion || row.nombre || row.client_name || row.email || "General").replace(/"/g, '""')}"`;
           const montoSeguro = `"${row.total || row.precio || row.stock || 0}"`;
           const estadoSeguro = `"${row.estado_pago || row.tipo || row.role || "Activo"}"`;
@@ -296,6 +309,7 @@ export default function Reportes() {
   };
 
   const esDirectorio = tipoReporte === "clientes" || tipoReporte === "colaboradores";
+  const esInventario = tipoReporte === "cablesdb" || tipoReporte === "herrajesdb" || tipoReporte === "accesoriosdb";
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
@@ -386,24 +400,24 @@ export default function Reportes() {
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.88rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid rgba(218, 165, 32, 0.4)", color: "#FFD700" }}>
-                    <th style={{ padding: "12px" }}>ID / SKU</th>
-                    <th style={{ padding: "12px" }}>{esDirectorio ? "Nombre / Empresa" : "Descripción / Nombre"}</th>
-                    <th style={{ padding: "12px" }}>{esDirectorio ? "Correo Electrónico (Mail)" : "Monto / Stock"}</th>
-                    <th style={{ padding: "12px" }}>{esDirectorio ? "Teléfono Móvil" : "Estado / Tipo"}</th>
-                    <th style={{ padding: "12px" }}>Fecha Creación</th>
+                    <th style={{ padding: "12px" }}>{esInventario ? "SKU" : "ID / SKU"}</th>
+                    <th style={{ padding: "12px" }}>{esDirectorio ? "Nombre / Empresa" : esInventario ? "Descripción" : "Descripción / Nombre"}</th>
+                    <th style={{ padding: "12px" }}>{esDirectorio ? "Correo Electrónico (Mail)" : esInventario ? "Stock" : "Monto / Stock"}</th>
+                    <th style={{ padding: "12px" }}>{esDirectorio ? "Teléfono Móvil" : esInventario ? "Precio A (ISP)" : "Estado / Tipo"}</th>
+                    <th style={{ padding: "12px" }}>{esInventario ? "Estado" : "Fecha Creación"}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {datosReporte.slice(0, 10).map((row, idx) => {
-                    const idSeguro = row.id ? String(row.id).substring(0, 8) : (row.sku ? String(row.sku) : "N/A");
-                    const col2 = esDirectorio ? (row.nombre || row.client_name || row.empresa || "---") : (row.descripcion || row.nombre || row.client_name || row.email || "Registro General");
-                    const col3 = esDirectorio ? (row.email || row.correo || "---") : (row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---")));
-                    const col4 = esDirectorio ? (row.telefono || row.phone || row.movil || "---") : (row.estado_pago || row.tipo || row.role || "Activo");
-                    const fechaSegura = row.created_at ? new Date(row.created_at).toLocaleDateString() : "---";
+                    const col1 = esInventario ? (row.SKU || row.sku || "N/A") : (row.id ? String(row.id).substring(0, 8) : (row.sku ? String(row.sku) : "N/A"));
+                    const col2 = esDirectorio ? (row.nombre || row.client_name || row.empresa || "---") : esInventario ? (row.Descripción || row.descripcion || "---") : (row.descripcion || row.nombre || row.client_name || row.email || "Registro General");
+                    const col3 = esDirectorio ? (row.email || row.correo || "---") : esInventario ? (row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0) : (row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---")));
+                    const col4 = esDirectorio ? (row.telefono || row.phone || row.movil || "---") : esInventario ? `$${Number(row.precio_a ?? row.Precio_A || 0).toFixed(2)}` : (row.estado_pago || row.tipo || row.role || "Activo");
+                    const col5 = esInventario ? "Activo" : (row.created_at ? new Date(row.created_at).toLocaleDateString() : "---");
 
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid #1c1c1c", color: "#ccc" }}>
-                        <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>{idSeguro}</td>
+                        <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>{col1}</td>
                         <td style={{ padding: "12px" }}>{col2}</td>
                         <td style={{ padding: "12px", fontWeight: "bold", color: "#fff" }}>{col3}</td>
                         <td style={{ padding: "12px" }}>
@@ -415,7 +429,7 @@ export default function Reportes() {
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: "12px", color: "#888", fontSize: "0.8rem" }}>{fechaSegura}</td>
+                        <td style={{ padding: "12px", color: "#888", fontSize: "0.8rem" }}>{col5}</td>
                       </tr>
                     );
                   })}
