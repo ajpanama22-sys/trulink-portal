@@ -325,7 +325,7 @@ export default function AdminValidaciones() {
                       Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
                     </div>
 
-                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS (Soporte PDF, Word, Excel, etc.) */}
+                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS (Restringido exclusivamente a PDF y URLs absolutas/relativas del bucket) */}
                     <div>
                       {(() => {
                         const rawVal = item.documento_url || item.documentos_url || item.url;
@@ -336,38 +336,38 @@ export default function AdminValidaciones() {
                             if (Array.isArray(parsed) && parsed.length > 0) {
                               return parsed.map((fileItem, idx) => {
                                 const fileUrl = typeof fileItem === "string" ? fileItem : (fileItem.url || fileItem.path || fileItem.name);
-                                const finalLink = fileUrl && fileUrl.startsWith("http") 
-                                   ? fileUrl 
-                                   : (supabase && fileUrl ? supabase.storage.from("registros").getPublicUrl(fileUrl).data.publicUrl : "#");
-
-                                // Detectar etiqueta según la extensión del archivo
-                                let etiquetaDoc = `VER DOCUMENTO ${idx + 1}`;
-                                const lowerUrl = (fileUrl || "").toLowerCase();
-                                if (lowerUrl.includes(".pdf")) etiquetaDoc = `📄 VER PDF ${idx + 1}`;
-                                else if (lowerUrl.includes(".xls") || lowerUrl.includes(".xlsx") || lowerUrl.includes(".csv")) etiquetaDoc = `📊 VER EXCEL ${idx + 1}`;
-                                else if (lowerUrl.includes(".doc") || lowerUrl.includes(".docx")) etiquetaDoc = `📝 VER WORD ${idx + 1}`;
+                                
+                                let finalLink = "#";
+                                if (fileUrl) {
+                                  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+                                    finalLink = fileUrl;
+                                  } else {
+                                    const { data: publicData } = supabase.storage.from("registros").getPublicUrl(fileUrl);
+                                    finalLink = publicData?.publicUrl || "#";
+                                  }
+                                }
 
                                 return (
                                   <a key={idx} href={finalLink} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
-                                    {etiquetaDoc}
+                                    📄 VER ARCHIVOS PDF {idx + 1}
                                   </a>
                                 );
                               });
                             }
                           } catch (e) {
-                            const finalLink = rawVal.startsWith("http") 
-                              ? rawVal 
-                              : (supabase ? supabase.storage.from("registros").getPublicUrl(rawVal).data.publicUrl : "#");
-
-                            let etiquetaDoc = "VER DOCUMENTO ADJUNTO";
-                            const lowerVal = rawVal.toLowerCase();
-                            if (lowerVal.includes(".pdf")) etiquetaDoc = "📄 VER ARCHIVO PDF";
-                            else if (lowerVal.includes(".xls") || lowerVal.includes(".xlsx") || lowerVal.includes(".csv")) etiquetaDoc = "📊 VER ARCHIVO EXCEL";
-                            else if (lowerVal.includes(".doc") || lowerVal.includes(".docx")) etiquetaDoc = "📝 VER ARCHIVO WORD";
+                            let finalLink = "#";
+                            if (rawVal) {
+                              if (rawVal.startsWith("http://") || rawVal.startsWith("https://")) {
+                                finalLink = rawVal;
+                              } else {
+                                const { data: publicData } = supabase.storage.from("registros").getPublicUrl(rawVal);
+                                finalLink = publicData?.publicUrl || "#";
+                              }
+                            }
 
                             return (
                               <a href={finalLink} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                                {etiquetaDoc}
+                                📄 VER ARCHIVOS PDF ADJUNTOS
                               </a>
                             );
                           }
@@ -378,13 +378,13 @@ export default function AdminValidaciones() {
                           const fallbackUrl = publicData?.publicUrl || "#";
                           return (
                             <a href={fallbackUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                              📁 VER DOCUMENTO ADJUNTO
+                              📄 VER ARCHIVOS PDF ADJUNTOS
                             </a>
                           );
                         }
 
                         return (
-                          <span style={{ fontSize: "0.8rem", color: "#666" }}>Sin documentos</span>
+                          <span style={{ fontSize: "0.8rem", color: "#666" }}>Sin documentos PDF adjuntos</span>
                         );
                       })()}
                     </div>
