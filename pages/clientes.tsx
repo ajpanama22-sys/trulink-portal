@@ -53,7 +53,7 @@ export default function Clientes() {
   });
 
   const [cargando, setCargando] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [terminosAceptados, setTerminosAceptados] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -62,8 +62,9 @@ export default function Clientes() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+    if (e.target.files) {
+      // Convertimos la lista de archivos seleccionados a un arreglo estándar
+      setSelectedFiles(Array.from(e.target.files));
     }
   };
 
@@ -75,8 +76,8 @@ export default function Clientes() {
       return;
     }
 
-    if (!selectedFile) {
-      alert("Por favor, adjunta un documento de soporte.");
+    if (selectedFiles.length === 0) {
+      alert("Por favor, adjunta al menos un documento de soporte.");
       return;
     }
 
@@ -98,6 +99,7 @@ export default function Clientes() {
         telefono_celular: telefonoCelularCompleto
       };
 
+      // 1. Insertar la solicitud principal en Supabase
       const { data: insertData, error: dbError } = await supabase
         .from("solicitudes_acceso")
         .insert([{
@@ -115,9 +117,29 @@ export default function Clientes() {
       if (dbError) throw dbError;
 
       const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
-      await uploadAndLinkDocument(selectedFile, categoria, insertData.id, "solicitudes_acceso");
 
-      alert("Solicitud y documentos enviados con éxito.");
+      // 2. Subir y asociar automáticamente TODOS los archivos seleccionados en un ciclo
+      const urlsSubidas: string[] = [];
+      for (const file of selectedFiles) {
+        const resultadoDoc = await uploadAndLinkDocument(file, categoria, insertData.id, "solicitudes_acceso");
+        if (resultadoDoc) {
+          urlsSubidas.push(resultadoDoc);
+        }
+      }
+
+      // 3. Opcional: Actualizar la solicitud con la primera URL principal o arreglo si tu BD lo requiere
+      if (urlsSubidas.length > 0) {
+        await supabase
+          .from("solicitudes_acceso")
+          .update({ documento_url: urlsSubidas[0] }) // Guarda la principal para compatibilidad con la vista de administración
+          .eq("id", insertData.id);
+      }
+
+      alert("¡Solicitud y documentos enviados con éxito de forma automática!");
+      
+      // Limpiar formulario o recargar
+      window.location.reload();
+
     } catch (error: any) {
       alert("Error al procesar la solicitud: " + error.message);
     } finally {
@@ -196,12 +218,7 @@ export default function Clientes() {
           border-color: #DAA520 !important;
           box-shadow: 0 0 12px rgba(218, 165, 32, 0.3), inset 0 1px 3px rgba(0,0,0,0.8) !important;
         }
-        input[type="radio"] {
-          accent-color: #DAA520;
-          cursor: pointer;
-          transform: scale(1.1);
-        }
-        input[type="checkbox"] {
+        input[type="radio"], input[type="checkbox"] {
           accent-color: #DAA520;
           cursor: pointer;
           transform: scale(1.1);
@@ -220,7 +237,6 @@ export default function Clientes() {
         margin: "0 auto",
         boxSizing: "border-box"
       }}>
-        {/* Header / Brand Logo */}
         <div style={{ textAlign: "center", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "25px" }}>
           <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "130px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
           <h1 style={{ color: "#DAA520", fontSize: "1.8rem", fontWeight: "700", letterSpacing: "1.5px", margin: "0 0 5px 0" }}>
@@ -232,7 +248,6 @@ export default function Clientes() {
         </div>
 
         <form onSubmit={handleSubmit} style={{ width: "100%" }}>
-          {/* Tipo de Solicitud */}
           <div style={{ 
             display: "flex", 
             justifyContent: "center", 
@@ -272,7 +287,6 @@ export default function Clientes() {
           <input name="cargo" type="text" placeholder="Cargo en la Empresa" style={inputStyle} onChange={handleInputChange} />
           <input name="email" type="email" placeholder="Correo Electrónico Corporativo" style={inputStyle} onChange={handleInputChange} required />
 
-          {/* Teléfono de Oficina */}
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: "600", color: "#DAA520" }}>Teléfono de Oficina</label>
           <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
             <select name="codigo_pais_oficina" value={formData.codigo_pais_oficina} onChange={handleInputChange} style={{ ...selectStyle, width: "150px", marginBottom: 0 }}>
@@ -283,7 +297,6 @@ export default function Clientes() {
             <input name="telefono_oficina" type="tel" placeholder="Número de Oficina" value={formData.telefono_oficina} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
           </div>
 
-          {/* Teléfono Celular */}
           <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: "600", color: "#DAA520" }}>Teléfono Celular / Móvil</label>
           <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
             <select name="codigo_pais_celular" value={formData.codigo_pais_celular} onChange={handleInputChange} style={{ ...selectStyle, width: "150px", marginBottom: 0 }}>
@@ -294,10 +307,11 @@ export default function Clientes() {
             <input name="telefono_celular" type="tel" placeholder="Número Celular" value={formData.telefono_celular} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} required />
           </div>
 
-          <h3 style={sectionHeaderStyle}>Documentación de Soporte</h3>
+          <h3 style={sectionHeaderStyle}>Documentación de Soporte (Múltiples Archivos)</h3>
           <div style={{ ...inputStyle, padding: "12px", display: "flex", alignItems: "center", backgroundColor: "#0a0a0a" }}>
             <input 
               type="file" 
+              multiple 
               onChange={handleFileChange} 
               style={{ 
                 color: "#DAA520", 
@@ -309,6 +323,11 @@ export default function Clientes() {
               }} 
             />
           </div>
+          {selectedFiles.length > 0 && (
+            <div style={{ fontSize: "0.85rem", color: "#DAA520", marginBottom: "15px" }}>
+              Archivos seleccionados: {selectedFiles.map(f => f.name).join(", ")}
+            </div>
+          )}
           <ul style={{ fontSize: "0.85rem", color: "#C0C0C0", marginBottom: "25px", paddingLeft: "20px", lineHeight: "1.6" }}>
             <li>Registro Fiscal vigente</li>
             <li>Certificación Legal (últimos 90 días)</li>
@@ -351,7 +370,7 @@ export default function Clientes() {
               letterSpacing: "0.5px"
             }}
           >
-            {cargando ? "Procesando solicitud..." : "Enviar Solicitud"}
+            {cargando ? "Procesando y subiendo documentos..." : "Enviar Solicitud"}
           </button>
         </form>
       </div>
