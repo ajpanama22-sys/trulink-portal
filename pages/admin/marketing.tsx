@@ -10,7 +10,6 @@ export default function AdminMarketing() {
   const [cargando, setCargando] = useState(false);
   const [totalDestinatarios, setTotalDestinatarios] = useState(0);
 
-  // Cargar estadísticas reales desde la tabla solicitudes_acceso en Supabase
   useEffect(() => {
     calcularAlcance(segmento);
   }, [segmento]);
@@ -23,9 +22,6 @@ export default function AdminMarketing() {
       let query = supabase
         .from("solicitudes_acceso")
         .select("*", { count: "exact", head: true });
-
-      // Descomenta la siguiente línea si deseas enviar campañas UNICAMENTE a clientes aprobados:
-      // query = query.eq("estado", "aprobado");
 
       if (seg !== "todos") {
         query = query.contains("datos_completos", { perfil_cliente: seg });
@@ -96,16 +92,25 @@ export default function AdminMarketing() {
   };
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
+    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
       <Sidebar currentActive="marketing" />
 
-      <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        <h1 style={{ fontSize: "1.6rem", marginBottom: "10px", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "10px", letterSpacing: "1px" }}>
-          CENTRO DE MARKETING Y COMERCIALIZACIÓN
-        </h1>
-        <p style={{ color: "#888", marginBottom: "30px", fontSize: "0.9rem" }}>
-          Diseña y despacha campañas comerciales directas, boletines técnicos de fábrica y anuncios de inventario para tus integradores.
-        </p>
+      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
+        
+        {/* Header Superior con Estilo Premium Black & Gold */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
+          <div>
+            <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
+              CENTRO DE MARKETING Y COMERCIALIZACIÓN
+            </h1>
+            <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
+              Diseña y despacha campañas comerciales directas, boletines técnicos de fábrica y anuncios de inventario para tus integradores.
+            </p>
+          </div>
+          <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
+            MODALIDAD: B2B ACTIVA
+          </div>
+        </div>
 
         {/* SELECTORES DE TIPO DE CAMPAÑA */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", marginBottom: "30px" }}>
@@ -113,83 +118,92 @@ export default function AdminMarketing() {
           <div 
             onClick={() => seleccionarPlantilla("lanzamiento")}
             style={{ 
-              backgroundColor: tipoCampana === "lanzamiento" ? "#141400" : "#080808", 
-              border: `2px solid ${tipoCampana === "lanzamiento" ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`, 
-              borderRadius: "8px", 
-              padding: "20px", 
+              backgroundColor: tipoCampana === "lanzamiento" ? "#141400" : "#111111", 
+              border: `1px solid ${tipoCampana === "lanzamiento" ? "#DAA520" : "rgba(218, 165, 32, 0.2)"}`, 
+              borderRadius: "12px", 
+              padding: "24px", 
               cursor: "pointer",
+              boxShadow: tipoCampana === "lanzamiento" ? "0 4px 20px rgba(218, 165, 32, 0.15)" : "0 4px 20px rgba(0,0,0,0.5)",
               transition: "all 0.3s ease"
             }}
+            onMouseOver={(e) => { if (tipoCampana !== "lanzamiento") e.currentTarget.style.borderColor = "rgba(218, 165, 32, 0.5)"; }}
+            onMouseOut={(e) => { if (tipoCampana !== "lanzamiento") e.currentTarget.style.borderColor = "rgba(218, 165, 32, 0.2)"; }}
           >
-            <h3 style={{ fontSize: "1rem", color: "#DAA520", marginBottom: "8px" }}>🚀 Lanzamiento de Stock</h3>
-            <p style={{ fontSize: "0.8rem", color: "#888", margin: 0 }}>Anuncia nuevos lotes de fábrica o reposiciones de cables/herrajes.</p>
+            <h3 style={{ fontSize: "1.05rem", color: "#DAA520", marginBottom: "8px", fontWeight: "600", letterSpacing: "0.5px" }}>🚀 Lanzamiento de Stock</h3>
+            <p style={{ fontSize: "0.85rem", color: "#888", margin: 0, lineHeight: "1.4" }}>Anuncia nuevos lotes de fábrica o reposiciones de cables/herrajes.</p>
           </div>
 
           <div 
             onClick={() => seleccionarPlantilla("volumen")}
             style={{ 
-              backgroundColor: tipoCampana === "volumen" ? "#141400" : "#080808", 
-              border: `2px solid ${tipoCampana === "volumen" ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`, 
-              borderRadius: "8px", 
-              padding: "20px", 
+              backgroundColor: tipoCampana === "volumen" ? "#141400" : "#111111", 
+              border: `1px solid ${tipoCampana === "volumen" ? "#DAA520" : "rgba(218, 165, 32, 0.2)"}`, 
+              borderRadius: "12px", 
+              padding: "24px", 
               cursor: "pointer",
+              boxShadow: tipoCampana === "volumen" ? "0 4px 20px rgba(218, 165, 32, 0.15)" : "0 4px 20px rgba(0,0,0,0.5)",
               transition: "all 0.3s ease"
             }}
+            onMouseOver={(e) => { if (tipoCampana !== "volumen") e.currentTarget.style.borderColor = "rgba(218, 165, 32, 0.5)"; }}
+            onMouseOut={(e) => { if (tipoCampana !== "volumen") e.currentTarget.style.borderColor = "rgba(218, 165, 32, 0.2)"; }}
           >
-            <h3 style={{ fontSize: "1rem", color: "#DAA520", marginBottom: "8px" }}>📦 Ofertas por Volumen</h3>
-            <p style={{ fontSize: "0.8rem", color: "#888", margin: 0 }}>Campañas de precios especiales para listas de distribuidores.</p>
+            <h3 style={{ fontSize: "1.05rem", color: "#DAA520", marginBottom: "8px", fontWeight: "600", letterSpacing: "0.5px" }}>📦 Ofertas por Volumen</h3>
+            <p style={{ fontSize: "0.85rem", color: "#888", margin: 0, lineHeight: "1.4" }}>Campañas de precios especiales para listas de distribuidores.</p>
           </div>
 
           <div 
             onClick={() => seleccionarPlantilla("tecnico")}
             style={{ 
-              backgroundColor: tipoCampana === "tecnico" ? "#141400" : "#080808", 
-              border: `2px solid ${tipoCampana === "tecnico" ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`, 
-              borderRadius: "8px", 
-              padding: "20px", 
+              backgroundColor: tipoCampana === "tecnico" ? "#141400" : "#111111", 
+              border: `1px solid ${tipoCampana === "tecnico" ? "#DAA520" : "rgba(218, 165, 32, 0.2)"}`, 
+              borderRadius: "12px", 
+              padding: "24px", 
               cursor: "pointer",
+              boxShadow: tipoCampana === "tecnico" ? "0 4px 20px rgba(218, 165, 32, 0.15)" : "0 4px 20px rgba(0,0,0,0.5)",
               transition: "all 0.3s ease"
             }}
+            onMouseOver={(e) => { if (tipoCampana !== "tecnico") e.currentTarget.style.borderColor = "rgba(218, 165, 32, 0.5)"; }}
+            onMouseOut={(e) => { if (tipoCampana !== "tecnico") e.currentTarget.style.borderColor = "rgba(218, 165, 32, 0.2)"; }}
           >
-            <h3 style={{ fontSize: "1rem", color: "#DAA520", marginBottom: "8px" }}>📄 Boletín Técnico</h3>
-            <p style={{ fontSize: "0.8rem", color: "#888", margin: 0 }}>Informes de especificaciones, normativas y catálogos actualizados.</p>
+            <h3 style={{ fontSize: "1.05rem", color: "#DAA520", marginBottom: "8px", fontWeight: "600", letterSpacing: "0.5px" }}>📄 Boletín Técnico</h3>
+            <p style={{ fontSize: "0.85rem", color: "#888", margin: 0, lineHeight: "1.4" }}>Informes de especificaciones, normativas y catálogos actualizados.</p>
           </div>
 
         </div>
 
         {/* FORMULARIO DE CONFIGURACIÓN DE CAMPAÑA */}
-        <div style={{ backgroundColor: "#080808", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "8px", padding: "30px" }}>
-          <h3 style={{ fontSize: "1rem", textTransform: "uppercase", marginBottom: "20px", color: "#DAA520", borderLeft: "3px solid #DAA520", paddingLeft: "10px" }}>
+        <div style={{ backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "12px", padding: "35px", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+          <h3 style={{ fontSize: "1.1rem", textTransform: "uppercase", marginBottom: "25px", color: "#DAA520", borderLeft: "3px solid #DAA520", paddingLeft: "12px", letterSpacing: "1px" }}>
             Configurar Campaña: {tipoCampana.toUpperCase()}
           </h3>
 
           <form onSubmit={handleDespacharCampana}>
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px", marginBottom: "20px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "25px", marginBottom: "25px" }}>
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Segmento de Destino:</label>
+                <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px", letterSpacing: "0.5px" }}>Segmento de Destino:</label>
                 <select
                   value={segmento}
                   onChange={(e) => setSegmento(e.target.value)}
                   style={inputStyle}
                 >
-                  <option value="todos">Todos los Clientes Registrados</option>
-                  <option value="ISP">ISPs (Proveedores de Internet)</option>
-                  <option value="MAYORISTA">Mayoristas y Distribuidores</option>
-                  <option value="INTEGRADOR">Integradores de Redes</option>
-                  <option value="CLIENTE FINAL">Clientes Finales</option>
+                  <option value="todos" style={{ backgroundColor: "#111", color: "#DAA520" }}>Todos los Clientes Registrados</option>
+                  <option value="ISP" style={{ backgroundColor: "#111", color: "#DAA520" }}>ISPs (Proveedores de Internet)</option>
+                  <option value="MAYORISTA" style={{ backgroundColor: "#111", color: "#DAA520" }}>Mayoristas y Distribuidores</option>
+                  <option value="INTEGRADOR" style={{ backgroundColor: "#111", color: "#DAA520" }}>Integradores de Redes</option>
+                  <option value="CLIENTE FINAL" style={{ backgroundColor: "#111", color: "#DAA520" }}>Clientes Finales</option>
                 </select>
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Alcance Estimado:</label>
-                <div style={{ ...inputStyle, backgroundColor: "#121212", color: "#fff", fontWeight: "bold", display: "flex", alignItems: "center" }}>
+                <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px", letterSpacing: "0.5px" }}>Alcance Estimado:</label>
+                <div style={{ ...inputStyle, backgroundColor: "#0b0b0b", color: "#DAA520", fontWeight: "bold", display: "flex", alignItems: "center", border: "1px solid rgba(218, 165, 32, 0.4)" }}>
                   👥 {totalDestinatarios} Destinatarios
                 </div>
               </div>
             </div>
 
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Asunto del Correo / Mensaje:</label>
+            <div style={{ marginBottom: "25px" }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px", letterSpacing: "0.5px" }}>Asunto del Correo / Mensaje:</label>
               <input
                 type="text"
                 value={asunto}
@@ -199,8 +213,8 @@ export default function AdminMarketing() {
               />
             </div>
 
-            <div style={{ marginBottom: "25px" }}>
-              <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Contenido del Mensaje (Soporta HTML básico):</label>
+            <div style={{ marginBottom: "30px" }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px", letterSpacing: "0.5px" }}>Contenido del Mensaje (Soporta HTML básico):</label>
               <textarea
                 rows={7}
                 value={mensaje}
@@ -217,14 +231,18 @@ export default function AdminMarketing() {
                 backgroundColor: "#DAA520",
                 color: "#000",
                 border: "none",
-                borderRadius: "6px",
-                padding: "14px 28px",
-                fontWeight: "bold",
+                borderRadius: "8px",
+                padding: "16px 28px",
+                fontWeight: "700",
                 cursor: "pointer",
-                fontSize: "1rem",
+                fontSize: "0.95rem",
                 width: "100%",
-                transition: "transform 0.2s"
+                letterSpacing: "1px",
+                boxShadow: "0 4px 15px rgba(218, 165, 32, 0.2)",
+                transition: "all 0.2s ease"
               }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#e6b835"; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#DAA520"; }}
             >
               {cargando ? "Despachando Campaña..." : "DESPACHAR CAMPAÑA DE MARKETING"}
             </button>
@@ -238,11 +256,13 @@ export default function AdminMarketing() {
 
 const inputStyle = {
   width: "100%",
-  backgroundColor: "#0a0a0a",
-  border: "1px solid rgba(218, 165, 32, 0.4)",
-  borderRadius: "6px",
-  padding: "12px 15px",
+  backgroundColor: "#0b0b0b",
+  border: "1px solid rgba(218, 165, 32, 0.3)",
+  borderRadius: "8px",
+  padding: "12px 16px",
   color: "#DAA520",
   outline: "none",
-  fontSize: "0.95rem"
+  fontSize: "0.9rem",
+  letterSpacing: "0.5px",
+  boxSizing: "border-box" as const
 };

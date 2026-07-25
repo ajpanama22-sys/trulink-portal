@@ -22,42 +22,55 @@ export default function AdminNotificaciones() {
   };
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
+    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
       <Sidebar currentActive="notificaciones" />
 
-      <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "20px", borderBottom: "1px solid #333", paddingBottom: "10px" }}>
-          CENTRO DE NOTIFICACIONES Y ALERTAS
-        </h1>
+      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
+        
+        {/* Header Superior con Estilo Premium Black & Gold */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
+          <div>
+            <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
+              CENTRO DE NOTIFICACIONES Y ALERTAS
+            </h1>
+            <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
+              Envía avisos operativos, alertas de despacho o comunicados directos a los usuarios del sistema.
+            </p>
+          </div>
+          <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
+            CANAL ACTIVO
+          </div>
+        </div>
 
-        <p style={{ color: "#aaa", marginBottom: "30px" }}>
-          Envía avisos operativos, alertas de despacho o comunicados directos a los usuarios del sistema.
-        </p>
+        {/* CONTENEDOR DEL FORMULARIO CON ESTÉTICA B2B */}
+        <div style={{ maxWidth: "700px", backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "12px", padding: "35px", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+          <h3 style={{ fontSize: "1.1rem", textTransform: "uppercase", marginBottom: "25px", color: "#DAA520", borderLeft: "3px solid #DAA520", paddingLeft: "12px", letterSpacing: "1px" }}>
+            Nueva Alerta Operativa
+          </h3>
 
-        <div style={{ maxWidth: "600px", backgroundColor: "#0a0a0a", border: "1px solid #333", borderRadius: "8px", padding: "30px" }}>
-          <form onSubmit={enviarAlerta} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <form onSubmit={enviarAlerta} style={{ display: "flex", flexDirection: "column", gap: "25px" }}>
             
             <div>
-              <label style={{ fontSize: "0.85rem", color: "#888", display: "block", marginBottom: "8px" }}>Destinatario:</label>
+              <label style={{ fontSize: "0.85rem", color: "#aaa", display: "block", marginBottom: "8px", letterSpacing: "0.5px" }}>Destinatario:</label>
               <select
                 value={destinatario}
                 onChange={(e) => setDestinatario(e.target.value)}
-                style={{ width: "100%", padding: "12px", backgroundColor: "#111", border: "1px solid #DAA520", color: "#DAA520", borderRadius: "5px", outline: "none" }}
+                style={inputStyle}
               >
-                <option value="todos">Todos los Integradores / Clientes</option>
-                <option value="equipo">Equipo Administrativo y Planta</option>
-                <option value="pendientes">Usuarios con Validaciones Pendientes</option>
+                <option value="todos" style={{ backgroundColor: "#111", color: "#DAA520" }}>Todos los Integradores / Clientes</option>
+                <option value="equipo" style={{ backgroundColor: "#111", color: "#DAA520" }}>Equipo Administrativo y Planta</option>
+                <option value="pendientes" style={{ backgroundColor: "#111", color: "#DAA520" }}>Usuarios con Validaciones Pendientes</option>
               </select>
             </div>
 
             <div>
-              <label style={{ fontSize: "0.85rem", color: "#888", display: "block", marginBottom: "8px" }}>Mensaje / Alerta:</label>
+              <label style={{ fontSize: "0.85rem", color: "#aaa", display: "block", marginBottom: "8px", letterSpacing: "0.5px" }}>Mensaje / Alerta:</label>
               <textarea
-                rows={5}
+                rows={6}
                 placeholder="Escribe el comunicado o alerta..."
                 value={mensaje}
                 onChange={(e) => setMensaje(e.target.value)}
-                style={{ width: "100%", padding: "12px", backgroundColor: "#111", border: "1px solid #DAA520", color: "#DAA520", borderRadius: "5px", outline: "none", resize: "vertical" }}
+                style={{ ...inputStyle, resize: "vertical" }}
               />
             </div>
 
@@ -65,15 +78,21 @@ export default function AdminNotificaciones() {
               type="submit"
               disabled={enviando}
               style={{
-                padding: "12px 20px",
                 backgroundColor: "#DAA520",
                 color: "#000",
                 border: "none",
-                borderRadius: "5px",
-                fontWeight: "bold",
+                borderRadius: "8px",
+                padding: "16px 28px",
+                fontWeight: "700",
                 cursor: "pointer",
-                transition: "opacity 0.2s"
+                fontSize: "0.95rem",
+                width: "100%",
+                letterSpacing: "1px",
+                boxShadow: "0 4px 15px rgba(218, 165, 32, 0.2)",
+                transition: "all 0.2s ease"
               }}
+              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#e6b835"; }}
+              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#DAA520"; }}
             >
               {enviando ? "Transmitiendo Alerta..." : "ENVIAR NOTIFICACIÓN"}
             </button>
@@ -85,3 +104,16 @@ export default function AdminNotificaciones() {
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%",
+  backgroundColor: "#0b0b0b",
+  border: "1px solid rgba(218, 165, 32, 0.3)",
+  borderRadius: "8px",
+  padding: "12px 16px",
+  color: "#DAA520",
+  outline: "none",
+  fontSize: "0.9rem",
+  letterSpacing: "0.5px",
+  boxSizing: "border-box" as const
+};
