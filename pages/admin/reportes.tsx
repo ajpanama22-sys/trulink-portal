@@ -4,7 +4,7 @@ import Sidebar from "./Sidebar";
 
 export default function Reportes() {
   const [cargando, setCargando] = useState(true);
-  const [tipoReporte, setTipoReporte] = useState("financiero");
+  const [tipoReporte, setTipoReporte] = useState("quotes");
   const [formatoExportacion, setFormatoExportacion] = useState("pdf");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
@@ -33,26 +33,20 @@ export default function Reportes() {
     setCargando(true);
 
     try {
-      let tablaConsulta = "quotes";
-      if (tipo === "inventario") {
-        tablaConsulta = "cablesdb";
-      } else if (tipo === "clientes") {
-        tablaConsulta = "users";
-      } else if (tipo === "financiero") {
-        tablaConsulta = "quotes";
-      }
-
+      // 'tipo' contiene directamente el nombre físico de la tabla en Supabase
       const { data, error } = await supabase
-        .from(tablaConsulta)
+        .from(tipo)
         .select("*");
 
       if (error) {
+        console.error("Error en consulta Supabase:", error);
         procesarResultados(tipo, []);
       } else {
         procesarResultados(tipo, data || []);
       }
     } catch (err) {
       console.error("Error generando reporte:", err);
+      procesarResultados(tipo, []);
     } finally {
       setCargando(false);
     }
@@ -62,20 +56,35 @@ export default function Reportes() {
     setDatosReporte(registros);
     const total = registros.length;
 
-    if (tipo === "financiero" || tipo === "ventas") {
+    if (tipo === "quotes") {
       const suma = registros.reduce((acc, item) => acc + Number(item.total || 0), 0);
       setResumenEjecutivo({
         totalRegistros: total,
         montoTotal: suma,
         promedioValor: total > 0 ? suma / total : 0,
-        estadoFiltro: "Consolidado Financiero"
+        estadoFiltro: "Cotizaciones"
       });
-    } else if (tipo === "inventario") {
+    } else if (tipo === "cablesdb" || tipo === "herrajesdb" || tipo === "accesoriosdb") {
+      const sumaInv = registros.reduce((acc, item) => acc + Number(item.precio || item.stock || 0), 0);
       setResumenEjecutivo({
         totalRegistros: total,
-        montoTotal: registros.reduce((acc, item) => acc + Number(item.precio || item.stock || 0), 0),
+        montoTotal: sumaInv,
+        promedioValor: total > 0 ? sumaInv / total : 0,
+        estadoFiltro: `Inventario de SKUs`
+      });
+    } else if (tipo === "clientes") {
+      setResumenEjecutivo({
+        totalRegistros: total,
+        montoTotal: 0,
         promedioValor: 0,
-        estadoFiltro: "Inventario Activo SKUs"
+        estadoFiltro: "Directorio de Clientes"
+      });
+    } else if (tipo === "colaboradores") {
+      setResumenEjecutivo({
+        totalRegistros: total,
+        montoTotal: 0,
+        promedioValor: 0,
+        estadoFiltro: "Directorio de Colaboradores"
       });
     } else {
       setResumenEjecutivo({
@@ -116,9 +125,12 @@ export default function Reportes() {
             <div>
               <label style={labelStyle}>Tipo de Reporte</label>
               <select value={tipoReporte} onChange={(e) => setTipoReporte(e.target.value)} style={inputStyle}>
-                <option value="financiero" style={{ background: "#111", color: "#DAA520" }}>Financiero / Cotizaciones (quotes)</option>
-                <option value="inventario" style={{ background: "#111", color: "#DAA520" }}>Inventario SKUs (cablesdb)</option>
-                <option value="clientes" style={{ background: "#111", color: "#DAA520" }}>Directorio de Clientes (users)</option>
+                <option value="quotes" style={{ background: "#111", color: "#DAA520" }}>Cotizaciones y Finanzas</option>
+                <option value="cablesdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Cables</option>
+                <option value="herrajesdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Herrajes</option>
+                <option value="accesoriosdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Accesorios</option>
+                <option value="clientes" style={{ background: "#111", color: "#DAA520" }}>Directorio de Clientes</option>
+                <option value="colaboradores" style={{ background: "#111", color: "#DAA520" }}>Directorio de Colaboradores</option>
               </select>
             </div>
 
@@ -178,7 +190,7 @@ export default function Reportes() {
                 <thead>
                   <tr style={{ borderBottom: "2px solid rgba(218, 165, 32, 0.4)", color: "#FFD700" }}>
                     <th style={{ padding: "12px" }}>ID / SKU</th>
-                    <th style={{ padding: "12px" }}>Descripción / Cliente</th>
+                    <th style={{ padding: "12px" }}>Descripción / Nombre</th>
                     <th style={{ padding: "12px" }}>Monto / Stock</th>
                     <th style={{ padding: "12px" }}>Estado / Tipo</th>
                     <th style={{ padding: "12px" }}>Fecha Creación</th>
