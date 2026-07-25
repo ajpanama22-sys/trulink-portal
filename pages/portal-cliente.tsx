@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
-import FondoCircuitos from "../components/FondoCircuitos"; // <--- Importamos el fondo
 
 export default function PortalCliente() {
   const router = useRouter();
@@ -129,9 +128,6 @@ export default function PortalCliente() {
       fontFamily: "'Inter', sans-serif",
       overflowX: "hidden"
     }}>
-      {/* Fondo de circuitos animado en todas partes */}
-      <FondoCircuitos />
-
       <style jsx global>{`
         html, body {
           margin: 0;
@@ -352,7 +348,7 @@ export default function PortalCliente() {
             <div className="card-img-container">
               <img src="/images/terminado.png" alt="Productos" className="card-img" />
             </div>
-            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSibing: "0.8px" }}>Productos Terminados</h2>
+            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSpacing: "0.8px" }}>Productos Terminados</h2>
           </div>
 
           <div className="trulink-card" onClick={() => router.push("/seguimiento")}>
