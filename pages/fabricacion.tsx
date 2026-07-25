@@ -314,7 +314,7 @@ export default function Fabricacion() {
       width: "100%",
       display: "flex",
       flexDirection: "column",
-      alignItem: "center",
+      alignItems: "center", // ✅ Propiedad corregida
       boxSizing: "border-box"
     }}>
       
