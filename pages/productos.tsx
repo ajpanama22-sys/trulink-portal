@@ -435,7 +435,7 @@ export default function Productos() {
       <div style={{ textAlign: "center", marginBottom: "50px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "130px", marginBottom: "20px" }} />
         <h1 style={{ color: "#DAA520", fontSize: "1.6rem", fontWeight: "300", letterSpacing: "2px", textTransform: "uppercase", margin: 0 }}>
-          {categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}
+          {categoria ? `Base de Datos: ${categoria.toUpperCase()}` : "SELECCIONAR BASE DE DATOS DE PRODUCTOS"}
         </h1>
       </div>
 
@@ -454,6 +454,7 @@ export default function Productos() {
             >
               <img src={cat.img} alt={cat.name} style={{ width: "100%", height: "180px", objectFit: "cover", borderRadius: "8px", marginBottom: "20px", border: "1px solid rgba(218, 165, 32, 0.2)" }} />
               <h2 style={{ color: "#DAA520", fontSize: "1.2rem", fontWeight: "500", letterSpacing: "1px", margin: 0 }}>{cat.name}</h2>
+              <span style={{ display: "block", marginTop: "10px", fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", textTransform: "uppercase" }}>Base: {cat.tabla}</span>
             </div>
           ))}
         </div>
@@ -464,7 +465,7 @@ export default function Productos() {
             className="custom-btn"
             style={{ marginBottom: "30px" }}
           >
-            ← Volver a Categorías
+            ← Volver a Selección de Bases de Datos
           </button>
           
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "25px" }}>
@@ -479,7 +480,7 @@ export default function Productos() {
                     style={{ width: "100%", height: "160px", objectFit: "contain", borderRadius: "8px", marginBottom: "15px", backgroundColor: "#050505", padding: "10px", boxSizing: "border-box", border: "1px solid rgba(218, 165, 32, 0.15)" }} 
                   />
                   <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", letterSpacing: "1px", display: "block", marginBottom: "5px" }}>{prod.SKU}</span>
-                  <h3 style={{ fontSize: "0.95rem", color: "#DAA520", fontWeight: "500", height: "45px", overflow: "hidden", margin: "0 0 10px 0", lineHeight: "1.4" }}>{prod.Ítem}</h3>
+                  <h3 style={{ fontSize: "0.95rem", color: "#DAA520", fontWeight: "500", height: "45px", overflow: "hidden", margin: "0 0 10px 0", lineHeight: "1.4" }}>{prod.Descripción || prod.Ítem}</h3>
                   <p style={{ fontSize: "1rem", color: "#FFF", fontWeight: "600", margin: "0 0 15px 0" }}>${prod.precio_a?.toFixed(2) || "0.00"}</p>
                 </div>
 
