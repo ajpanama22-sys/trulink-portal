@@ -80,12 +80,12 @@ export default function Productos() {
     fetchClientInfo();
   }, []);
 
-  // Lógica de filtrado en tiempo real por SKU, Descripción, Ítem o Familia
+  // Lógica de filtrado en tiempo real sobre la tabla o categoría activa cargada
   useEffect(() => {
     if (!busqueda.trim()) {
       setProductosFiltrados(productos);
     } else {
-      const termino = busqueda.toLowerCase();
+      const termino = busqueda.toLowerCase().trim();
       const filtrados = productos.filter((prod) => 
         (prod.SKU && prod.SKU.toLowerCase().includes(termino)) ||
         (prod.Descripción && prod.Descripción.toLowerCase().includes(termino)) ||
@@ -362,13 +362,15 @@ export default function Productos() {
   };
 
   const seleccionarCategoria = async (tabla: string) => {
+    setBusqueda(""); // Limpiar búsqueda anterior al cambiar de tabla
     const { data, error } = await supabase.from(tabla).select("*");
     if (!error) {
       setProductos(data || []);
       setProductosFiltrados(data || []);
       setCategoria(tabla);
-      setBusqueda("");
       setPaginaActual(1);
+    } else {
+      console.error("Error al consultar la tabla:", error);
     }
   };
 
@@ -492,7 +494,7 @@ export default function Productos() {
             <div style={{ flex: 1, maxWidth: "400px", minWidth: "260px" }}>
               <input 
                 type="text" 
-                placeholder="Buscar por SKU, Descripción, Ítem..." 
+                placeholder={`Buscar en ${categoria}...`} 
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 style={{ width: "100%", padding: "10px 15px", backgroundColor: "#080808", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "8px", outline: "none", fontSize: "0.9rem" }}
@@ -501,7 +503,7 @@ export default function Productos() {
           </div>
           
           {productosFiltrados.length === 0 ? (
-            <p style={{ textAlign: "center", color: "rgba(255, 255, 255, 0.5)", fontSize: "1rem", fontStyle: "italic", marginTop: "50px" }}>No se encontraron productos coincidentes.</p>
+            <p style={{ textAlign: "center", color: "rgba(255, 255, 255, 0.5)", fontSize: "1rem", fontStyle: "italic", marginTop: "50px" }}>No se encontraron productos coincidentes en esta tabla.</p>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "25px" }}>
               {productosActuales.map((prod) => (
