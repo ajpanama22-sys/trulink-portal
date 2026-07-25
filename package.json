@@ -11,6 +11,8 @@
   "dependencies": {
     "@paypal/checkout-server-sdk": "^1.0.3",
     "@supabase/supabase-js": "^2.110.7",
+    "@types/formidable": "^3.5.1",
+    "formidable": "^3.5.4",
     "framer-motion": "^12.42.2",
     "jspdf": "^2.5.1",
     "jspdf-autotable": "^3.5.25",
