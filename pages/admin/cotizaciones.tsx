@@ -97,13 +97,25 @@ export default function Cotizaciones() {
   );
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
+    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
       <Sidebar currentActive="cotizaciones" />
 
-      <div style={{ flex: 1, padding: "40px", overflowY: "auto", position: "relative" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "20px", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "10px", letterSpacing: "1px" }}>
-          CONTROL DE COTIZACIONES
-        </h1>
+      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
+        
+        {/* Header Superior con Estilo Premium Black & Gold */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
+          <div>
+            <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
+              CONTROL DE COTIZACIONES
+            </h1>
+            <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
+              Gestión y supervisión detallada de cotizaciones emitidas, estados y documentos asociados.
+            </p>
+          </div>
+          <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
+            TOTAL REGISTROS: {cotizacionesFiltradas.length}
+          </div>
+        </div>
 
         <div style={{ marginBottom: "25px" }}>
           <input
@@ -114,24 +126,30 @@ export default function Cotizaciones() {
             style={{
               width: "100%",
               maxWidth: "500px",
-              padding: "12px",
-              backgroundColor: "#0a0a0a",
+              padding: "12px 16px",
+              backgroundColor: "#111111",
               border: "1px solid rgba(218, 165, 32, 0.4)",
-              borderRadius: "4px",
+              borderRadius: "8px",
               color: "#DAA520",
               outline: "none",
-              letterSpacing: "0.5px"
+              letterSpacing: "0.5px",
+              fontSize: "0.9rem",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.5)"
             }}
           />
         </div>
 
         {cotizacionesFiltradas.length === 0 ? (
-          <p style={{ color: "#666", fontStyle: "italic" }}>No se encontraron cotizaciones registradas.</p>
+          <div style={{ background: "#111", border: "1px solid #222", borderRadius: "12px", padding: "60px", textAlign: "center" }}>
+            <p style={{ color: "#777", fontStyle: "italic", fontSize: "1rem", margin: 0, letterSpacing: "0.5px" }}>
+              No se encontraron cotizaciones registradas.
+            </p>
+          </div>
         ) : (
-          <div style={{ overflowX: "auto", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "6px", backgroundColor: "#050505" }}>
+          <div style={{ overflowX: "auto", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "12px", backgroundColor: "#111111", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.9rem" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#0a0a0a" }}>
+                <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#161616" }}>
                   <th style={thStyle}>REFERENCIA / FECHA</th>
                   <th style={thStyle}>CLIENTE / RAZÓN SOCIAL</th>
                   <th style={thStyle}>CONTACTO (EMAIL / TEL)</th>
@@ -151,7 +169,12 @@ export default function Cotizaciones() {
                   const tipoStr = item.type || "N/D";
 
                   return (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #141414", transition: "background 0.2s" }}>
+                    <tr 
+                      key={item.id} 
+                      style={{ borderBottom: "1px solid #1a1a1a", transition: "background 0.2s" }}
+                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.03)"; }}
+                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                    >
                       <td style={{ ...tdStyle, color: "#888", fontSize: "0.85rem" }}>
                         <span style={{ color: "#DAA520", fontWeight: "600" }}>{referenciaStr}</span>
                         <div style={{ fontSize: "0.75rem", color: "#666", marginTop: "2px" }}>{fechaFormateada}</div>
@@ -169,11 +192,12 @@ export default function Cotizaciones() {
                       <td style={{ ...tdStyle, color: "#fff", fontSize: "0.85rem" }}>
                         <span style={{ 
                           padding: "3px 8px", 
-                          borderRadius: "3px", 
+                          borderRadius: "4px", 
                           fontSize: "0.75rem", 
-                          border: "1px solid rgba(218, 165, 32, 0.3)",
-                          backgroundColor: "#0c0c0c",
-                          color: "#DAA520"
+                          border: "1px solid rgba(218, 165, 32, 0.3)", 
+                          backgroundColor: "rgba(218, 165, 32, 0.08)", 
+                          color: "#DAA520",
+                          fontWeight: "600"
                         }}>
                           {tipoStr}
                         </span>
@@ -185,6 +209,8 @@ export default function Cotizaciones() {
                         <button
                           onClick={() => abrirDetalle(item)}
                           style={btnDetalle}
+                          onMouseOver={(e) => { e.currentTarget.style.background = "rgba(218, 165, 32, 0.15)"; }}
+                          onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
                         >
                           VER DETALLE
                         </button>
@@ -202,7 +228,7 @@ export default function Cotizaciones() {
           <div style={modalOverlayStyle}>
             <div style={modalContentStyle}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "12px", marginBottom: "20px" }}>
-                <h2 style={{ fontSize: "1.2rem", color: "#DAA520", letterSpacing: "1px" }}>
+                <h2 style={{ fontSize: "1.2rem", color: "#DAA520", letterSpacing: "1px", margin: 0 }}>
                   DETALLE DE COTIZACIÓN: {cotizacionSeleccionada.referencia || `QT-${cotizacionSeleccionada.id}`}
                 </h2>
                 <button onClick={cerrarDetalle} style={btnCloseStyle}>✕</button>
@@ -250,30 +276,29 @@ export default function Cotizaciones() {
               {/* ÍTEMS / PRODUCTOS FORMATEADOS EN TABLA LIMPIA */}
               <div style={{ marginBottom: "20px" }}>
                 <p style={{ ...labelStyle, marginBottom: "8px" }}>Ítems Solicitados:</p>
-                <div style={{ backgroundColor: "#000", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "4px", maxHeight: "180px", overflowY: "auto" }}>
+                <div style={{ backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px", maxHeight: "180px", overflowY: "auto" }}>
                   {Array.isArray(cotizacionSeleccionada.items) && cotizacionSeleccionada.items.length > 0 ? (
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
                       <thead>
-                        <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#080808" }}>
-                          <th style={{ padding: "8px 12px" }}>SKU</th>
-                          <th style={{ padding: "8px 12px" }}>Descripción</th>
-                          <th style={{ padding: "8px 12px", textAlign: "center" }}>Cant.</th>
-                          <th style={{ padding: "8px 12px", textAlign: "right" }}>Total</th>
+                        <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#141414" }}>
+                          <th style={{ padding: "10px 14px" }}>SKU</th>
+                          <th style={{ padding: "10px 14px" }}>Descripción</th>
+                          <th style={{ padding: "10px 14px", textAlign: "center" }}>Cant.</th>
+                          <th style={{ padding: "10px 14px", textAlign: "right" }}>Total</th>
                         </tr>
                       </thead>
                       <tbody>
                         {cotizacionSeleccionada.items.map((prod: any, idx: number) => (
-                          <tr key={idx} style={{ borderBottom: "1px solid #141414" }}>
-                            <td style={{ padding: "8px 12px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || "N/D"}</td>
-                            <td style={{ padding: "8px 12px", color: "#fff" }}>{prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
-                            <td style={{ padding: "8px 12px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
-                            <td style={{ padding: "8px 12px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || 0).toFixed(2)}</td>
+                          <tr key={idx} style={{ borderBottom: "1px solid #161616" }}>
+                            <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || "N/D"}</td>
+                            <td style={{ padding: "10px 14px", color: "#fff" }}>{prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
+                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || 0).toFixed(2)}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   ) : typeof cotizacionSeleccionada.items === 'object' && cotizacionSeleccionada.items !== null ? (
-                    // Si es un objeto único pero no array
                     <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
                       <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU:</strong> {cotizacionSeleccionada.items.sku || cotizacionSeleccionada.items.SKU || "N/D"}</p>
                       <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {cotizacionSeleccionada.items.descripcion || cotizacionSeleccionada.items.description || "N/D"}</p>
@@ -293,7 +318,7 @@ export default function Cotizaciones() {
                     ${Number(cotizacionSeleccionada.total || 0).toFixed(2)}
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                   {cargandoPdf ? (
                     <span style={{ fontSize: "0.8rem", color: "#DAA520", fontStyle: "italic" }}>Buscando documento en storage...</span>
                   ) : cotizacionSeleccionada.pdf_url_final ? (
@@ -302,13 +327,20 @@ export default function Cotizaciones() {
                       target="_blank"
                       rel="noopener noreferrer"
                       style={btnPdfStyle}
+                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#e6b835"; }}
+                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#DAA520"; }}
                     >
                       VER DOCUMENTO QT (PDF)
                     </a>
                   ) : (
                     <span style={{ fontSize: "0.8rem", color: "#666" }}>Archivo no encontrado en bucket "documentos"</span>
                   )}
-                  <button onClick={cerrarDetalle} style={btnCerrarModalStyle}>
+                  <button 
+                    onClick={cerrarDetalle} 
+                    style={btnCerrarModalStyle}
+                    onMouseOver={(e) => { e.currentTarget.style.background = "rgba(218, 165, 32, 0.15)"; }}
+                    onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
+                  >
                     CERRAR
                   </button>
                 </div>
@@ -335,9 +367,9 @@ const tdStyle = {
 };
 
 const btnDetalle = {
-  padding: "6px 14px",
+  padding: "8px 16px",
   cursor: "pointer",
-  borderRadius: "4px",
+  borderRadius: "6px",
   fontWeight: "600",
   fontSize: "0.75rem",
   letterSpacing: "0.8px",
@@ -362,9 +394,9 @@ const modalOverlayStyle = {
 };
 
 const modalContentStyle = {
-  backgroundColor: "#080808",
+  backgroundColor: "#111111",
   border: "1px solid rgba(218, 165, 32, 0.5)",
-  borderRadius: "8px",
+  borderRadius: "12px",
   padding: "30px",
   width: "90%",
   maxWidth: "700px",
@@ -398,26 +430,28 @@ const valueStyle = {
 };
 
 const btnPdfStyle = {
-  padding: "8px 16px",
+  padding: "10px 20px",
   backgroundColor: "#DAA520",
   color: "#000",
-  borderRadius: "4px",
+  borderRadius: "6px",
   fontWeight: "700",
   fontSize: "0.8rem",
   textDecoration: "none",
   letterSpacing: "0.5px",
   display: "inline-block",
-  textAlign: "center" as const
+  textAlign: "center" as const,
+  transition: "all 0.2s ease"
 };
 
 const btnCerrarModalStyle = {
-  padding: "8px 16px",
+  padding: "10px 20px",
   backgroundColor: "transparent",
   color: "#DAA520",
   border: "1px solid rgba(218, 165, 32, 0.4)",
-  borderRadius: "4px",
+  borderRadius: "6px",
   fontWeight: "600",
   fontSize: "0.8rem",
   cursor: "pointer",
-  letterSpacing: "0.5px"
+  letterSpacing: "0.5px",
+  transition: "all 0.2s ease"
 };
