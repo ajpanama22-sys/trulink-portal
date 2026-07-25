@@ -143,25 +143,11 @@ export default function AdminValidaciones() {
     if (tipoAccion === 'ACTIVAR') {
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       
-      // 1. Actualizar solo la tabla solicitudes_acceso con su estado y token
-      const { error: updateError } = await supabase
-        .from("solicitudes_acceso")
-        .update({ 
-          status: 'active', 
-          password_token: passwordToken
-        })
-        .eq('id', id);
-
-      if (updateError) {
-        alert("Error al activar en base de datos: " + updateError.message);
-        return;
-      }
-
       const datosCompletos = itemCompleto.datos_completos || {};
       const tipoClienteVal = datosCompletos.tipo_cliente || itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = datosCompletos.price_list || 'C';
 
-      // 2. Volcar la información comercial y de pago en la tabla clientes
+      // 1. Guardar/Actualizar primero en la tabla clientes usando upsert con el email como conflicto
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -178,9 +164,25 @@ export default function AdminValidaciones() {
         }, { onConflict: 'email' });
 
       if (clienteError) {
-        console.error("Error al guardar en clientes:", clienteError.message);
+        alert("Error al guardar en clientes: " + clienteError.message);
+        return;
       }
 
+      // 2. Actualizar el estado en solicitudes_acceso a 'active' o 'aprobado' para que salga de pendientes
+      const { error: updateError } = await supabase
+        .from("solicitudes_acceso")
+        .update({ 
+          status: 'active', 
+          password_token: passwordToken
+        })
+        .eq('id', id);
+
+      if (updateError) {
+        alert("Error al actualizar la solicitud en base de datos: " + updateError.message);
+        return;
+      }
+
+      // 3. Enviar el correo de activación
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
@@ -196,9 +198,9 @@ export default function AdminValidaciones() {
           })
         });
         if (!response.ok) throw new Error("Fallo al enviar correo de activación");
-        alert(`Solicitud activada con éxito. Correo enviado a ${emailCliente}`);
+        alert(`¡Solicitud activada con éxito y cliente registrado! Correo enviado a ${emailCliente}`);
       } catch (err: any) {
-        alert("Solicitud activada en BD, pero hubo un error enviando el correo: " + err.message);
+        alert("Cliente registrado en BD, pero hubo un error enviando el correo: " + err.message);
       }
 
     } else {
