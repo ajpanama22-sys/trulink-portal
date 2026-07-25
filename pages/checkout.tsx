@@ -53,8 +53,6 @@ export default function Checkout() {
       const fetchOrder = async () => {
         let query = supabase.from('quotes').select('*');
         
-        // Si el id contiene guiones o letras (como QT-XXXX), buscamos estrictamente por 'referencia'.
-        // Si es puramente numérico, podemos buscar por 'id' o 'referencia'.
         if (typeof id === 'string' && isNaN(Number(id))) {
           query = query.eq('referencia', id);
         } else {
@@ -222,75 +220,101 @@ export default function Checkout() {
   };
 
   return (
-    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
+    <div style={{ backgroundColor: "#000000", color: "#DAA520", minHeight: "100vh", padding: "40px 20px", fontFamily: "'Inter', system-ui, -apple-system, sans-serif", boxSizing: "border-box" }}>
       <style jsx global>{`
+        html, body {
+          margin: 0;
+          padding: 0;
+          background-color: #000000 !important;
+          color: #DAA520;
+        }
+        @keyframes pulse-border {
+          0% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
+          50% { box-shadow: 0 0 35px rgba(218, 165, 32, 0.35), inset 0 0 25px rgba(218, 165, 32, 0.1); }
+          100% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
+        }
+        .container-pulse { 
+          animation: pulse-border 4s infinite ease-in-out; 
+        }
         .btn-gold { 
-          background-color: #DAA520; 
-          color: #000; 
-          padding: 15px 30px; 
-          border-radius: 10px; 
+          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
+          color: #000000 !important;
+          padding: 14px 24px; 
+          border-radius: 12px; 
           border: none; 
           cursor: pointer; 
-          font-weight: bold; 
-          transition: transform 0.3s, box-shadow 0.3s;
+          font-weight: 600; 
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           width: 100%;
           max-width: 350px;
+          font-size: 0.95rem;
+          box-shadow: 0 4px 15px rgba(218, 165, 32, 0.2);
         }
         .btn-gold:hover { 
-          transform: scale(1.05); 
-          box-shadow: 0 0 15px #DAA520; 
+          filter: brightness(1.15);
+          transform: translateY(-2px); 
+          box-shadow: 0 6px 20px rgba(218, 165, 32, 0.4); 
         }
         .btn-outline-gold {
           background-color: transparent;
           color: #DAA520;
-          border: 2px solid #DAA520;
-          padding: 12px 30px;
-          border-radius: 10px;
+          border: 1px solid rgba(218, 165, 32, 0.5);
+          padding: 12px 24px;
+          border-radius: 12px;
           cursor: pointer;
-          font-weight: bold;
-          transition: transform 0.3s, box-shadow 0.3s;
+          font-weight: 600;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           width: 100%;
           max-width: 200px;
+          font-size: 0.95rem;
         }
         .btn-outline-gold:hover {
-          background-color: #DAA520;
-          color: #000;
-          transform: scale(1.05);
-          box-shadow: 0 0 15px #DAA520;
+          background-color: rgba(218, 165, 32, 0.1);
+          border-color: #DAA520;
+          transform: translateY(-2px);
+          box-shadow: 0 0 15px rgba(218, 165, 32, 0.2);
         }
-        .container-pulse { 
-          animation: pulse-border 2s infinite; 
-        }
-        @keyframes pulse-border {
-          0% { box-shadow: 0 0 10px #DAA520; }
-          50% { box-shadow: 0 0 30px #DAA520; }
-          100% { box-shadow: 0 0 10px #DAA520; }
+        input:focus, select:focus {
+          border-color: #DAA520 !important;
+          box-shadow: 0 0 12px rgba(218, 165, 32, 0.3), inset 0 1px 3px rgba(0,0,0,0.8) !important;
+          outline: none;
         }
       `}</style>
 
-      <div className="container-pulse" style={{ maxWidth: "850px", margin: "0 auto", backgroundColor: "#050505", border: "2px solid #DAA520", padding: "40px", borderRadius: "20px", textAlign: "center" }}>
-        <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "120px", marginBottom: "20px" }} />
-        <h1 style={{ color: "#DAA520", marginBottom: "10px" }}>Resumen de Checkout</h1>
+      <div className="container-pulse" style={{ maxWidth: "900px", margin: "0 auto", backgroundColor: "#060606", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "45px", borderRadius: "24px", textAlign: "center", boxSizing: "border-box" }}>
+        
+        {/* Header / Brand Logo */}
+        <div style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "25px", marginBottom: "30px" }}>
+          <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "130px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
+          <h1 style={{ color: "#DAA520", fontSize: "1.8rem", fontWeight: "700", letterSpacing: "1.5px", margin: "0 0 5px 0" }}>
+            RESUMEN DE CHECKOUT
+          </h1>
+          <p style={{ color: "#C0C0C0", fontSize: "0.95rem", margin: 0, letterSpacing: "0.5px" }}>
+            Trulink Fiber LLC — Pasarela de Pago Segura
+          </p>
+        </div>
         
         {loading ? (
-          <p style={{ color: "#FFF" }}>Cargando detalles del pedido...</p>
+          <div style={{ padding: "60px 0" }}>
+            <p style={{ color: "#C0C0C0", fontSize: "1.1rem", fontStyle: "italic" }}>Cargando detalles del pedido...</p>
+          </div>
         ) : order ? (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", fontSize: "0.9rem", color: "#ccc" }}>
-              <span><strong>Referencia:</strong> {refLabel}</span>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "25px", fontSize: "0.95rem", color: "#C0C0C0", backgroundColor: "#0a0a0a", padding: "14px 20px", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)" }}>
+              <span><strong>Referencia:</strong> <span style={{ color: "#DAA520" }}>{refLabel}</span></span>
               <span><strong>Fecha:</strong> {order.created_at ? new Date(order.created_at).toLocaleDateString() : ""}</span>
             </div>
 
-            <div style={{ overflowX: "auto", marginBottom: "20px" }}>
+            <div style={{ overflowX: "auto", marginBottom: "25px", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)" }}>
               <table style={{ margin: "0 auto", borderCollapse: "collapse", color: "#DAA520", width: "100%", fontSize: "0.9rem" }}>
                 <thead>
-                  <tr style={{ backgroundColor: "#111" }}>
-                    {esProducto && <th style={{ border: "1px solid #DAA520", padding: "10px" }}>SKU</th>}
-                    <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Descripción / Tipo</th>
-                    {!esProducto && <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Hilos</th>}
-                    <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Cant</th>
-                    <th style={{ border: "1px solid #DAA520", padding: "10px" }}>{esProducto ? "P. Unitario" : "P. Unitario / Carrete"}</th>
-                    <th style={{ border: "1px solid #DAA520", padding: "10px" }}>Total</th>
+                  <tr style={{ backgroundColor: "#0a0a0a", borderBottom: "1px solid rgba(218, 165, 32, 0.3)" }}>
+                    {esProducto && <th style={{ padding: "14px 12px", fontWeight: "600", letterSpacing: "0.5px" }}>SKU</th>}
+                    <th style={{ padding: "14px 12px", fontWeight: "600", letterSpacing: "0.5px" }}>Descripción / Tipo</th>
+                    {!esProducto && <th style={{ padding: "14px 12px", fontWeight: "600", letterSpacing: "0.5px" }}>Hilos</th>}
+                    <th style={{ padding: "14px 12px", fontWeight: "600", letterSpacing: "0.5px" }}>Cant</th>
+                    <th style={{ padding: "14px 12px", fontWeight: "600", letterSpacing: "0.5px" }}>{esProducto ? "P. Unitario" : "P. Unitario / Carrete"}</th>
+                    <th style={{ padding: "14px 12px", fontWeight: "600", letterSpacing: "0.5px" }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -303,13 +327,13 @@ export default function Checkout() {
                     const itemTotal = item.total ?? (unitPrice * cantVal);
 
                     return (
-                      <tr key={index} style={{ backgroundColor: "#0c0c0c" }}>
-                        {esProducto && <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{skuVal}</td>}
-                        <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{desc}</td>
-                        {!esProducto && <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{hilosVal}</td>}
-                        <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{cantVal}</td>
-                        <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${unitPrice.toFixed(2)}</td>
-                        <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${itemTotal.toFixed(2)}</td>
+                      <tr key={index} style={{ backgroundColor: index % 2 === 0 ? "#050505" : "#080808", borderBottom: "1px solid rgba(218, 165, 32, 0.1)" }}>
+                        {esProducto && <td style={{ padding: "12px", textAlign: "center", color: "#C0C0C0" }}>{skuVal}</td>}
+                        <td style={{ padding: "12px", textAlign: "center", color: "#C0C0C0" }}>{desc}</td>
+                        {!esProducto && <td style={{ padding: "12px", textAlign: "center", color: "#C0C0C0" }}>{hilosVal}</td>}
+                        <td style={{ padding: "12px", textAlign: "center", color: "#C0C0C0" }}>{cantVal}</td>
+                        <td style={{ padding: "12px", textAlign: "center", color: "#C0C0C0" }}>${unitPrice.toFixed(2)}</td>
+                        <td style={{ padding: "12px", textAlign: "center", fontWeight: "600", color: "#DAA520" }}>${itemTotal.toFixed(2)}</td>
                       </tr>
                     );
                   })}
@@ -317,14 +341,15 @@ export default function Checkout() {
               </table>
             </div>
 
-            <h2 style={{ fontSize: "1.8rem", margin: "20px 0", color: "#DAA520" }}>Total a Pagar: ${granTotal.toFixed(2)}</h2>
-            
-            <div style={{ backgroundColor: "#111", border: "1px dashed #DAA520", padding: "12px 15px", borderRadius: "8px", margin: "15px 0", textAlign: "center", fontSize: "0.95rem" }}>
-              <span style={{ color: "#FFF" }}>Monto mínimo requerido (50%):</span> <strong style={{ color: "#DAA520" }}>${montoMinimo.toFixed(2)} USD</strong> <span style={{ color: "#aaa" }}>(Puede pagar desde el 50% hasta el 100% o más de contado)</span>
+            <div style={{ backgroundColor: "#0a0a0a", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "16px", padding: "20px", marginBottom: "25px" }}>
+              <h2 style={{ fontSize: "1.6rem", margin: "0 0 10px 0", color: "#DAA520", fontWeight: "700" }}>Total a Pagar: ${granTotal.toFixed(2)}</h2>
+              <p style={{ color: "#C0C0C0", fontSize: "0.9rem", margin: 0, lineHeight: "1.5" }}>
+                Monto mínimo requerido (50%): <strong style={{ color: "#DAA520" }}>${montoMinimo.toFixed(2)} USD</strong> (Puede pagar desde el 50% hasta el 100% o más de contado)
+              </p>
             </div>
-
-            <div style={{ margin: "20px 0", textAlign: "left", backgroundColor: "#0a0a0a", padding: "15px", borderRadius: "10px", border: "1px solid #333" }}>
-              <label style={{ display: "block", marginBottom: "8px", color: "#DAA520", fontWeight: "bold", fontSize: "0.9rem" }}>
+            
+            <div style={{ margin: "25px 0", textAlign: "left", backgroundColor: "#0a0a0a", padding: "20px", borderRadius: "16px", border: "1px solid rgba(218, 165, 32, 0.3)" }}>
+              <label style={{ display: "block", marginBottom: "10px", color: "#DAA520", fontWeight: "600", fontSize: "0.95rem" }}>
                 Monto que desea pagar (USD) [Mínimo 50% - Sin límite máximo]:
               </label>
               <input
@@ -332,18 +357,18 @@ export default function Checkout() {
                 step="0.01"
                 value={montoPago}
                 onChange={(e) => setMontoPago(e.target.value)}
-                style={{ width: "100%", padding: "10px", backgroundColor: "#000", border: "1px solid #DAA520", color: "#fff", borderRadius: "8px", fontSize: "1rem" }}
+                style={{ width: "100%", padding: "14px 16px", backgroundColor: "#000000", border: "1px solid rgba(218, 165, 32, 0.4)", color: "#DAA520", borderRadius: "12px", fontSize: "1rem", boxSizing: "border-box" }}
               />
-              {errorMonto && <p style={{ color: "#ff4d4d", fontSize: "0.85rem", marginTop: "8px", marginBottom: 0 }}>{errorMonto}</p>}
+              {errorMonto && <p style={{ color: "#ff4d4d", fontSize: "0.85rem", marginTop: "10px", marginBottom: 0 }}>{errorMonto}</p>}
             </div>
 
             {!showPaymentOptions ? (
-              <div style={{ marginTop: "30px", padding: "20px", backgroundColor: "#111", borderRadius: "15px", border: "1px dashed #DAA520" }}>
-                <p style={{ fontSize: "1.1rem", color: "#FFF", marginBottom: "20px", fontWeight: "bold" }}>
+              <div style={{ marginTop: "30px", padding: "25px", backgroundColor: "#0a0a0a", borderRadius: "16px", border: "1px dashed rgba(218, 165, 32, 0.4)" }}>
+                <p style={{ fontSize: "1.05rem", color: "#FFFFFF", marginBottom: "20px", fontWeight: "600" }}>
                   ¿Quiere continuar con el pago?
                 </p>
                 <div style={{ display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
-                  <button className="btn-gold" style={{ maxWidth: "200px" }} onClick={() => setShowPaymentOptions(true)}>
+                  <button className="btn-gold" style={{ maxWidth: "220px" }} onClick={() => setShowPaymentOptions(true)}>
                     Sí, continuar
                   </button>
                   <button className="btn-outline-gold" onClick={() => router.back()}>
@@ -352,35 +377,36 @@ export default function Checkout() {
                 </div>
               </div>
             ) : selectedMethod === 'transfer' ? (
-              <div style={{ marginTop: "30px", padding: "25px", backgroundColor: "#111", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "left" }}>
-                <h3 style={{ color: "#DAA520", marginBottom: "15px", textAlign: "center" }}>Detalles de Transferencia Bancaria o ACH</h3>
+              <div style={{ marginTop: "30px", padding: "30px", backgroundColor: "#0a0a0a", borderRadius: "16px", border: "1px solid rgba(218, 165, 32, 0.4)", textAlign: "left" }}>
+                <h3 style={{ color: "#DAA520", marginBottom: "20px", textAlign: "center", fontSize: "1.2rem", fontWeight: "600" }}>Detalles de Transferencia Bancaria o ACH</h3>
                 
-                <div style={{ fontSize: "0.9rem", lineHeight: "1.6", color: "#ddd", marginBottom: "20px", background: "#1a1a1a", padding: "15px", borderRadius: "10px", border: "1px solid #333" }}>
-                  <p><strong>Titular de la cuenta:</strong> Trulink Fiber, LLC</p>
-                  <p><strong>Tipo de cuenta:</strong> Checking</p>
-                  <p><strong>Número de ruta (para wire y ACH):</strong> 026073150</p>
-                  <p><strong>Número de cuenta:</strong> 822000835611</p>
-                  <p><strong>SWIFT/BIC (Internacional):</strong> CMFGUS33</p>
-                  <p><strong>Banco:</strong> Community Federal Savings Bank, 89-16 Jamaica Ave, Woodhaven, NY, 11421, United States</p>
+                <div style={{ fontSize: "0.9rem", lineHeight: "1.8", color: "#C0C0C0", marginBottom: "25px", background: "#050505", padding: "20px", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)" }}>
+                  <p style={{ margin: "4px 0" }}><strong style={{ color: "#DAA520" }}>Titular de la cuenta:</strong> Trulink Fiber, LLC</p>
+                  <p style={{ margin: "4px 0" }}><strong style={{ color: "#DAA520" }}>Tipo de cuenta:</strong> Checking</p>
+                  <p style={{ margin: "4px 0" }}><strong style={{ color: "#DAA520" }}>Número de ruta (para wire y ACH):</strong> 026073150</p>
+                  <p style={{ margin: "4px 0" }}><strong style={{ color: "#DAA520" }}>Número de cuenta:</strong> 822000835611</p>
+                  <p style={{ margin: "4px 0" }}><strong style={{ color: "#DAA520" }}>SWIFT/BIC (Internacional):</strong> CMFGUS33</p>
+                  <p style={{ margin: "4px 0" }}><strong style={{ color: "#DAA520" }}>Banco:</strong> Community Federal Savings Bank, 89-16 Jamaica Ave, Woodhaven, NY, 11421, United States</p>
                 </div>
 
-                <div style={{ backgroundColor: "rgba(218, 165, 3, 0.1)", border: "1px solid #DAA520", padding: "15px", borderRadius: "10px", marginBottom: "20px", textAlign: "center" }}>
-                  <p style={{ color: "#DAA520", fontWeight: "bold", margin: "0 0 8px 0" }}>
+                <div style={{ backgroundColor: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "16px", borderRadius: "12px", marginBottom: "25px", textAlign: "center" }}>
+                  <p style={{ color: "#DAA520", fontWeight: "600", margin: "0 0 6px 0", fontSize: "0.95rem" }}>
                     FAVOR SUBIR/ADJUNTAR EL COMPROBANTE DE LA TRANSFERENCIA.
                   </p>
-                  <p style={{ color: "#ccc", fontSize: "0.85rem", margin: 0 }}>
+                  <p style={{ color: "#C0C0C0", fontSize: "0.85rem", margin: 0 }}>
                     Su pedido será procesado a la confirmación del pago recibido.
                   </p>
                 </div>
 
                 {transferStatus === 'success' ? (
-                  <div style={{ textAlign: 'center', padding: '15px', color: '#4bb543' }}>
-                    <h4>¡Comprobante Registrado con Éxito!</h4>
-                    <p style={{ color: '#fff', fontSize: '0.9rem' }}>{uploadMessage}</p>
-                    <p style={{ color: '#aaa', fontSize: '0.8rem', marginTop: '5px' }}>Notificación enviada a fred.jurado@trulinkfiber.com</p>
+                  <div style={{ textAlign: 'center', padding: '20px', color: '#4bb543' }}>
+                    <h4 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>¡Comprobante Registrado con Éxito!</h4>
+                    <p style={{ color: '#FFFFFF', fontSize: '0.95rem', margin: '0 0 8px 0' }}>{uploadMessage}</p>
+                    <p style={{ color: '#C0C0C0', fontSize: '0.85rem', margin: '0 0 20px 0' }}>Notificación enviada a fred.jurado@trulinkfiber.com</p>
                     <button
                       onClick={() => router.push('/')}
-                      style={{ marginTop: '15px', backgroundColor: '#DAA520', color: '#000', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
+                      className="btn-gold"
+                      style={{ width: 'auto', display: 'inline-block', padding: '12px 25px' }}
                     >
                       Volver al Inicio del Portal
                     </button>
@@ -388,27 +414,29 @@ export default function Checkout() {
                 ) : (
                   <form onSubmit={handleTransferSubmit}>
                     <div style={{ marginBottom: '20px' }}>
-                      <label style={{ display: 'block', marginBottom: '8px', color: '#DAA520', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                      <label style={{ display: 'block', marginBottom: '10px', color: '#DAA520', fontWeight: '600', fontSize: '0.9rem' }}>
                         Seleccione archivo de comprobante (PDF o Imagen):
                       </label>
-                      <input
-                        type="file"
-                        accept=".pdf,image/*"
-                        onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)}
-                        style={{ width: '100%', padding: '10px', backgroundColor: '#000', border: '1px solid #DAA520', color: '#fff', borderRadius: '8px' }}
-                        required
-                      />
+                      <div style={{ backgroundColor: '#000000', border: '1px solid rgba(218, 165, 32, 0.4)', borderRadius: '12px', padding: '12px' }}>
+                        <input
+                          type="file"
+                          accept=".pdf,image/*"
+                          onChange={(e) => setFileToUpload(e.target.files ? e.target.files[0] : null)}
+                          style={{ width: '100%', color: '#DAA520', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                          required
+                        />
+                      </div>
                     </div>
 
                     {transferStatus === 'uploading' && (
-                      <p style={{ color: '#DAA520', textAlign: 'center', fontStyle: 'italic', marginBottom: '15px' }}>{uploadMessage}</p>
+                      <p style={{ color: '#DAA520', textAlign: 'center', fontStyle: 'italic', marginBottom: '20px', fontSize: '0.9rem' }}>{uploadMessage}</p>
                     )}
 
-                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: '15px', justifyContent: 'space-between', alignItems: 'center' }}>
                       <button
                         type="button"
                         onClick={() => setSelectedMethod(null)}
-                        style={{ backgroundColor: 'transparent', color: '#aaa', border: '1px solid #555', padding: '12px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                        style={{ backgroundColor: 'transparent', color: '#C0C0C0', border: '1px solid rgba(218, 165, 32, 0.3)', padding: '12px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', transition: 'all 0.3s' }}
                       >
                         ← Volver
                       </button>
@@ -425,22 +453,26 @@ export default function Checkout() {
                 )}
               </div>
             ) : (
-              <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "15px", alignItems: "center" }}>
-                <p style={{ color: "#FFF", fontSize: "1rem", marginBottom: "10px" }}>Seleccione su método de pago:</p>
+              <div style={{ marginTop: "30px", display: "flex", flexDirection: "column", gap: "15px", alignItems: "center", backgroundColor: "#0a0a0a", padding: "30px", borderRadius: "16px", border: "1px solid rgba(218, 165, 32, 0.3)" }}>
+                <p style={{ color: "#FFFFFF", fontSize: "1.05rem", marginBottom: "10px", fontWeight: "600" }}>Seleccione su método de pago:</p>
                 <button className="btn-gold" onClick={handleStripeCheckout}>Pagar con Stripe</button>
                 <button className="btn-gold" onClick={handlePayPalCheckout}>Pagar con PayPal | Pay Later</button>
                 <button className="btn-gold" onClick={() => setSelectedMethod('transfer')}>Transferencias (Locales e Internacionales)</button>
                 
-                <button onClick={() => setShowPaymentOptions(false)} style={{ marginTop: "15px", background: "none", border: "none", color: "#DAA520", textDecoration: "underline", cursor: "pointer" }}>
+                <button onClick={() => setShowPaymentOptions(false)} style={{ marginTop: "15px", background: "none", border: "none", color: "#DAA520", textDecoration: "underline", cursor: "pointer", fontSize: "0.9rem", fontWeight: "500" }}>
                   ⬅ Volver a la pregunta anterior
                 </button>
               </div>
             )}
           </div>
         ) : (
-          <p style={{ color: "#DAA520" }}>Pedido no encontrado.</p>
+          <p style={{ color: "#DAA520", fontSize: "1.1rem", padding: "40px 0" }}>Pedido no encontrado.</p>
         )}
       </div>
+
+      <p style={{ marginTop: "35px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.7)", textAlign: "center", letterSpacing: "0.5px" }}>
+        © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
+      </p>
     </div>
   );
 }

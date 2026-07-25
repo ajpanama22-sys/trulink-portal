@@ -357,107 +357,168 @@ export default function Productos() {
   const totalPaginas = Math.ceil(productos.length / productosPorPagina);
 
   return (
-    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
+    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "50px 30px", fontFamily: "sans-serif" }}>
       <style jsx global>{`
-        .image-zoom { transition: transform 0.3s, box-shadow 0.3s; }
-        .image-zoom:hover { transform: scale(1.08); box-shadow: 0 0 20px 5px #DAA520; cursor: pointer; }
+        html, body {
+          margin: 0;
+          padding: 0;
+          background-color: #000 !important;
+          color: #DAA520;
+        }
+        .image-zoom { transition: transform 0.4s ease, box-shadow 0.4s ease; }
+        .image-zoom:hover { transform: scale(1.06); box-shadow: 0 0 25px rgba(218, 165, 32, 0.4); cursor: pointer; }
+        .card-item {
+          background-color: #080808;
+          border: 1px solid rgba(218, 165, 32, 0.3);
+          border-radius: 12px;
+          transition: all 0.3s ease;
+        }
+        .card-item:hover {
+          border-color: #DAA520;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(218, 165, 32, 0.2);
+          transform: translateY(-4px);
+        }
+        .custom-btn {
+          background-color: transparent;
+          color: #DAA520;
+          border: 1px solid rgba(218, 165, 32, 0.5);
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.85rem;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        .custom-btn:hover {
+          background-color: #DAA520 !important;
+          color: #000 !important;
+          box-shadow: 0 0 15px rgba(218, 165, 32, 0.4);
+        }
+        .gold-btn {
+          background-color: #DAA520;
+          color: #000;
+          border: none;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 0.9rem;
+          letter-spacing: 0.5px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        .gold-btn:hover {
+          background-color: #f1c40f;
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.5);
+        }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #DAA520; padding: 12px; text-align: center; color: #FFF; }
-        th { background-color: #DAA520; color: #000; }
+        th, td { border: 1px solid rgba(218, 165, 32, 0.3); padding: 12px; text-align: center; color: #FFF; font-size: 0.9rem; }
+        th { background-color: #111; color: #DAA520; font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; }
       `}</style>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", maxWidth: "1200px", margin: "0 auto 40px auto" }}>
         <button 
           onClick={() => router.push("/portal-cliente")} 
-          style={{ 
-            backgroundColor: "transparent", 
-            color: "#DAA520", 
-            border: "2px solid #DAA520", 
-            padding: "10px 20px", 
-            borderRadius: "20px", 
-            fontWeight: "bold", 
-            cursor: "pointer" 
-          }}
+          className="custom-btn"
         >
           ← Volver al Portal
         </button>
         <button 
           onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })} 
-          style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "15px", fontWeight: "bold", border: "none", cursor: "pointer" }}
+          className="gold-btn"
+          style={{ padding: "10px 20px", fontSize: "0.85rem" }}
         >
           🛒 Carrito ({totalItems})
         </button>
       </div>
 
-      <div style={{ textAlign: "center", marginBottom: "40px" }}>
-        <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
-        <h1>{categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}</h1>
+      <div style={{ textAlign: "center", marginBottom: "50px" }}>
+        <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "130px", marginBottom: "20px" }} />
+        <h1 style={{ color: "#DAA520", fontSize: "1.6rem", fontWeight: "300", letterSpacing: "2px", textTransform: "uppercase", margin: 0 }}>
+          {categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}
+        </h1>
       </div>
 
       {!categoria ? (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "30px", maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "30px", maxWidth: "1000px", margin: "0 auto" }}>
           {[
             { name: "Accesorios", img: "/images/nap.png", tabla: "accesoriosdb" },
             { name: "Cables", img: "/images/patch.png", tabla: "cablesdb" },
             { name: "Herrajes", img: "/images/dtype.png", tabla: "herrajesdb" }
           ].map((cat, idx) => (
-            <div key={idx} onClick={() => seleccionarCategoria(cat.tabla)} style={{ backgroundColor: "#050505", padding: "20px", borderRadius: "20px", border: "2px solid #DAA520", textAlign: "center", cursor: "pointer" }}>
-              <img src={cat.img} alt={cat.name} style={{ width: "100%", borderRadius: "10px" }} />
-              <h2>{cat.name}</h2>
+            <div 
+              key={idx} 
+              onClick={() => seleccionarCategoria(cat.tabla)} 
+              className="card-item"
+              style={{ padding: "25px", textAlign: "center", cursor: "pointer" }}
+            >
+              <img src={cat.img} alt={cat.name} style={{ width: "100%", height: "180px", objectFit: "cover", borderRadius: "8px", marginBottom: "20px", border: "1px solid rgba(218, 165, 32, 0.2)" }} />
+              <h2 style={{ color: "#DAA520", fontSize: "1.2rem", fontWeight: "500", letterSpacing: "1px", margin: 0 }}>{cat.name}</h2>
             </div>
           ))}
         </div>
       ) : (
-        <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <button 
             onClick={() => setCategoria(null)} 
-            style={{ 
-              backgroundColor: "transparent", 
-              color: "#DAA520", 
-              border: "2px solid #DAA520", 
-              padding: "10px 20px", 
-              borderRadius: "20px", 
-              fontWeight: "bold", 
-              cursor: "pointer", 
-              marginBottom: "20px" 
-            }}
+            className="custom-btn"
+            style={{ marginBottom: "30px" }}
           >
             ← Volver a Categorías
           </button>
           
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "25px" }}>
             {productosActuales.map((prod) => (
-              <div key={prod.SKU} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
-                <img 
-                  src={prod.image_url || "/placeholder.png"} 
-                  alt={prod.Ítem} 
-                  className="image-zoom" 
-                  onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')} 
-                  style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px", backgroundColor: "#111" }} 
-                />
-                <h3 style={{ fontSize: "0.95rem", color: "#DAA520" }}>{prod.SKU}</h3>
-                <p style={{ fontSize: "0.85rem", height: "40px", overflow: "hidden" }}><strong>{prod.Ítem}</strong></p>
-                <p style={{ fontSize: "0.9rem", color: "#DAA520", margin: "5px 0" }}>Precio: ${prod.precio_a?.toFixed(2) || "0.00"}</p>
-                <input type="number" min="1" value={cantidades[prod.SKU] || 1} onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} style={{ width: "50px", marginBottom: "5px", backgroundColor: "#111", color: "#DAA520", textAlign: "center" }} />
-                <button onClick={() => agregarAlCarrito(prod)} style={{ backgroundColor: "#DAA520", border: "none", padding: "8px", borderRadius: "5px", cursor: "pointer", display: "block", margin: "0 auto", fontWeight: "bold" }}>Agregar</button>
+              <div key={prod.SKU} className="card-item" style={{ padding: "20px", textAlign: "center", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                <div>
+                  <img 
+                    src={prod.image_url || "/placeholder.png"} 
+                    alt={prod.Ítem} 
+                    className="image-zoom" 
+                    onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')} 
+                    style={{ width: "100%", height: "160px", objectFit: "contain", borderRadius: "8px", marginBottom: "15px", backgroundColor: "#050505", padding: "10px", boxSizing: "border-box", border: "1px solid rgba(218, 165, 32, 0.15)" }} 
+                  />
+                  <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", letterSpacing: "1px", display: "block", marginBottom: "5px" }}>{prod.SKU}</span>
+                  <h3 style={{ fontSize: "0.95rem", color: "#DAA520", fontWeight: "500", height: "45px", overflow: "hidden", margin: "0 0 10px 0", lineHeight: "1.4" }}>{prod.Ítem}</h3>
+                  <p style={{ fontSize: "1rem", color: "#FFF", fontWeight: "600", margin: "0 0 15px 0" }}>${prod.precio_a?.toFixed(2) || "0.00"}</p>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    value={cantidades[prod.SKU] || 1} 
+                    onChange={(e) => handleCantidadChange(prod.SKU, parseInt(e.target.value) || 1)} 
+                    style={{ width: "55px", padding: "8px", backgroundColor: "#050505", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "6px", textAlign: "center", fontWeight: "bold" }} 
+                  />
+                  <button 
+                    onClick={() => agregarAlCarrito(prod)} 
+                    className="gold-btn"
+                    style={{ padding: "9px 16px", fontSize: "0.85rem", flex: 1 }}
+                  >
+                    Agregar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
 
           {totalPaginas > 1 && (
-            <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "40px", alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginTop: "50px", alignItems: "center" }}>
               <button 
                 disabled={paginaActual === 1}
                 onClick={() => setPaginaActual(p => Math.max(p - 1, 1))}
-                style={{ backgroundColor: paginaActual === 1 ? "#333" : "#DAA520", color: paginaActual === 1 ? "#666" : "#000", padding: "10px 20px", borderRadius: "8px", border: "none", cursor: paginaActual === 1 ? "not-allowed" : "pointer", fontWeight: "bold" }}
+                className="custom-btn"
+                style={{ opacity: paginaActual === 1 ? 0.4 : 1, cursor: paginaActual === 1 ? "not-allowed" : "pointer" }}
               >
                 ⬅ Anterior
               </button>
-              <span style={{ color: "#FFF", fontWeight: "bold" }}>Página {paginaActual} de {totalPaginas}</span>
+              <span style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "0.9rem", letterSpacing: "1px" }}>Página {paginaActual} de {totalPaginas}</span>
               <button 
                 disabled={paginaActual === totalPaginas}
                 onClick={() => setPaginaActual(p => Math.min(p + 1, totalPaginas))}
-                style={{ backgroundColor: paginaActual === totalPaginas ? "#333" : "#DAA520", color: paginaActual === totalPaginas ? "#666" : "#000", padding: "10px 20px", borderRadius: "8px", border: "none", cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer", fontWeight: "bold" }}
+                className="custom-btn"
+                style={{ opacity: paginaActual === totalPaginas ? 0.4 : 1, cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer" }}
               >
                 Siguiente ➡
               </button>
@@ -466,10 +527,12 @@ export default function Productos() {
         </div>
       )}
 
-      <div id="carrito-seccion" style={{ maxWidth: "900px", margin: "60px auto", padding: "30px", borderRadius: "20px", border: "2px solid #DAA520", backgroundColor: "#050505" }}>
-        <h2 style={{ textAlign: "center", color: "#DAA520" }}>Mi Cotización ({referenciaActual})</h2>
+      <div id="carrito-seccion" className="card-item" style={{ maxWidth: "900px", margin: "70px auto 0 auto", padding: "40px 35px", backgroundColor: "#080808" }}>
+        <h2 style={{ textAlign: "center", color: "#DAA520", fontSize: "1.3rem", fontWeight: "500", letterSpacing: "1px", textTransform: "uppercase", marginBottom: "30px" }}>
+          Mi Cotización ({referenciaActual})
+        </h2>
         {carrito.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#FFF" }}>El carrito está vacío.</p>
+          <p style={{ textAlign: "center", color: "rgba(255, 255, 255, 0.5)", fontSize: "0.9rem", fontStyle: "italic" }}>El carrito está vacío.</p>
         ) : (
           <>
             <table>
@@ -486,33 +549,45 @@ export default function Productos() {
               <tbody>
                 {carrito.map((item, index) => (
                   <tr key={index}>
-                    <td>{item.SKU}</td>
-                    <td>{item.nombre}</td>
+                    <td style={{ color: "rgba(255, 255, 255, 0.7)" }}>{item.SKU}</td>
+                    <td style={{ textAlign: "left" }}>{item.nombre}</td>
                     <td>{item.cantidad}</td>
                     <td>${item.precio.toFixed(2)}</td>
-                    <td>${(item.precio * item.cantidad).toFixed(2)}</td>
-                    <td><button onClick={() => eliminarDelCarrito(index)} style={{ backgroundColor: "#b30000", color: "#fff", border: "none", borderRadius: "5px", cursor: "pointer", padding: "5px 10px" }}>Eliminar</button></td>
+                    <td style={{ color: "#DAA520", fontWeight: "600" }}>${(item.precio * item.cantidad).toFixed(2)}</td>
+                    <td>
+                      <button 
+                        onClick={() => eliminarDelCarrito(index)} 
+                        style={{ backgroundColor: "transparent", color: "#e74c3c", border: "1px solid rgba(231, 76, 60, 0.5)", borderRadius: "6px", cursor: "pointer", padding: "6px 12px", fontSize: "0.8rem", transition: "all 0.2s ease" }}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "15px" }}>
-              <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.2rem" }}>TOTAL : ${totalCotizacion.toFixed(2)}</h2>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "25px", paddingRight: "5px" }}>
+              <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.3rem", fontWeight: "600", letterSpacing: "1px" }}>TOTAL : ${totalCotizacion.toFixed(2)}</h2>
             </div>
 
-            <div style={{ marginTop: "15px", color: "#FFF", fontSize: "0.85rem", borderTop: "1px dashed #DAA520", paddingTop: "10px" }}>
+            <div style={{ marginTop: "25px", color: "rgba(255, 255, 255, 0.7)", fontSize: "0.8rem", borderTop: "1px dashed rgba(218, 165, 32, 0.3)", paddingTop: "20px", lineHeight: "1.6" }}>
               <p style={{ margin: "4px 0" }}><strong>Precios:</strong> EXW PANAMÁ</p>
               <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
               <p style={{ margin: "4px 0" }}><strong>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
               <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
             </div>
             
-            <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
-              <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
-              <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
+            <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "35px", flexWrap: "wrap" }}>
+              <button onClick={generarPDF} className="gold-btn">GUARDAR PDF</button>
+              <button onClick={procesarPago} className="gold-btn">Proceder con Pago</button>
             </div>
-            <button onClick={vaciarCarrito} style={{ marginTop: "10px", width: "100%", backgroundColor: "#333", color: "#FFF", border: "none", padding: "8px", cursor: "pointer", borderRadius: "5px" }}>Vaciar carrito</button>
+            <button 
+              onClick={vaciarCarrito} 
+              style={{ marginTop: "15px", width: "100%", backgroundColor: "transparent", color: "rgba(255, 255, 255, 0.5)", border: "1px solid rgba(255, 255, 255, 0.2)", padding: "10px", cursor: "pointer", borderRadius: "8px", fontSize: "0.85rem", transition: "all 0.2s ease" }}
+            >
+              Vaciar carrito
+            </button>
           </>
         )}
       </div>

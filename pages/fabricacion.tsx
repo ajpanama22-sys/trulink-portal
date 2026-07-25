@@ -27,7 +27,6 @@ export default function Fabricacion() {
   const [mailCliente, setMailCliente] = useState("");
 
   useEffect(() => {
-    // Generar la referencia única al cargar la vista de cotización por primera vez
     setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
 
     const fetchClientInfo = async () => {
@@ -50,7 +49,6 @@ export default function Fabricacion() {
     fetchClientInfo();
   }, []);
 
-  // Lógica de inactividad (5 minutos) y cierre de sesión automático
   useEffect(() => {
     let inactivityTimer: NodeJS.Timeout;
 
@@ -59,7 +57,7 @@ export default function Fabricacion() {
       inactivityTimer = setTimeout(async () => {
         await supabase.auth.signOut();
         router.push("/portal-cliente");
-      }, 5 * 60 * 1000); // 5 minutos
+      }, 5 * 60 * 1000);
     };
 
     const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
@@ -293,118 +291,190 @@ export default function Fabricacion() {
   };
 
   const controlStyle: React.CSSProperties = {
-    backgroundColor: "#111",
+    backgroundColor: "#080808",
     color: "#DAA520",
-    border: "2px solid #DAA520",
-    borderRadius: "10px",
-    padding: "6px 10px",
+    border: "1px solid rgba(218, 165, 32, 0.4)",
+    borderRadius: "8px",
+    padding: "8px 12px",
     outline: "none",
-    textAlign: "center"
+    textAlign: "center",
+    fontSize: "0.9rem",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)"
   };
 
   return (
     <div style={{ 
-      backgroundColor: "#000", 
+      backgroundColor: "#000000", 
       color: "#DAA520", 
       minHeight: "100vh", 
-      padding: "20px",
-      fontFamily: "sans-serif",
+      padding: "30px 20px",
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       margin: 0,
       width: "100%",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center"
+      alignItem: "center",
+      boxSizing: "border-box"
     }}>
       
       <style jsx global>{`
         html, body {
           margin: 0;
           padding: 0;
-          background-color: #000 !important;
+          background-color: #000000 !important;
           color: #DAA520;
         }
         @keyframes pulse-border {
-          0% { box-shadow: 0 0 10px #DAA520; }
-          50% { box-shadow: 0 0 30px #DAA520; }
-          100% { box-shadow: 0 0 10px #DAA520; }
+          0% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
+          50% { box-shadow: 0 0 35px rgba(218, 165, 32, 0.35), inset 0 0 25px rgba(218, 165, 32, 0.1); }
+          100% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
         }
         .container-fiber {
-          animation: pulse-border 2s infinite;
+          animation: pulse-border 4s infinite ease-in-out;
+        }
+        .nav-btn {
+          background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%) !important;
+          color: #DAA520 !important;
+          border: 1px solid rgba(218, 165, 32, 0.3) !important;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
         }
         .nav-btn:hover {
-          background-color: #DAA520 !important;
-          color: #000 !important;
+          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
+          color: #000000 !important;
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
+          transform: translateY(-1px);
+        }
+        .card-hover {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+          border-color: #DAA520 !important;
+          box-shadow: 0 8px 30px rgba(218, 165, 32, 0.12);
+          transform: translateY(-2px);
+        }
+        .action-btn {
+          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
+          color: #000000 !important;
+          font-weight: 600;
+          border: none;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .action-btn:hover {
+          filter: brightness(1.15);
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
+          transform: translateY(-1px);
+        }
+        .action-btn-alt {
+          background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%) !important;
+          color: #DAA520 !important;
+          border: 1px solid #DAA520 !important;
+          font-weight: 600;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .action-btn-alt:hover {
+          background: rgba(218, 165, 32, 0.1) !important;
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.2);
+          transform: translateY(-1px);
+        }
+        select:focus, input:focus {
+          border-color: #DAA520 !important;
+          box-shadow: 0 0 10px rgba(218, 165, 32, 0.3) !important;
         }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: "1000px", display: "flex", justifyContent: "space-between", marginBottom: "15px", alignItems: "center" }}>
+      {/* Header Bar */}
+      <div style={{ width: "100%", maxWidth: "1050px", display: "flex", justifyContent: "space-between", marginBottom: "25px", alignItems: "center" }}>
         <div />
-        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-          <span style={{ color: "#FFF", fontSize: "0.9rem" }}>Ref: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong></span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ 
+            backgroundColor: "rgba(15, 15, 15, 0.8)", 
+            padding: "8px 16px", 
+            borderRadius: "10px", 
+            border: "1px solid rgba(218, 165, 32, 0.2)",
+            backdropFilter: "blur(5px)"
+          }}>
+            <span style={{ color: "#E0E0E0", fontSize: "0.85rem", letterSpacing: "0.5px" }}>Ref: <strong style={{ color: "#DAA520", fontWeight: "600" }}>{referenciaActual}</strong></span>
+          </div>
           
-          {/* Botón Volver al Portal */}
           <button 
             onClick={handleVolverPortal}
             className="nav-btn"
-            style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem", transition: "all 0.3s ease" }}
+            style={{ padding: "8px 16px", borderRadius: "10px", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem" }}
           >
             Volver al Portal
           </button>
 
-          {/* Botón Cerrar Sesión */}
           <button 
             onClick={handleLogOut}
             className="nav-btn"
-            style={{ backgroundColor: "#111", color: "#DAA520", border: "1px solid #DAA520", padding: "6px 12px", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", fontSize: "0.85rem", transition: "all 0.3s ease" }}
+            style={{ padding: "8px 16px", borderRadius: "10px", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem" }}
           >
             Cerrar Sesión
           </button>
         </div>
       </div>
 
-      <div style={{ textAlign: "center", marginBottom: "20px", maxWidth: "800px" }}>
-        <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "100px", marginBottom: "10px" }} />
-        <h1 style={{ color: "#DAA520", marginBottom: "5px", fontSize: "1.8rem", fontWeight: "bold" }}>
+      {/* Main Title Section */}
+      <div style={{ textAlign: "center", marginBottom: "35px", maxWidth: "800px", margin: "0 auto 35px auto" }}>
+        <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "120px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
+        <h1 style={{ color: "#DAA520", marginBottom: "8px", fontSize: "2rem", fontWeight: "700", letterSpacing: "1.5px" }}>
           LÍNEA DE PRODUCCIÓN DE CABLES DE FIBRA
         </h1>
-        <p style={{ color: "#FFF", fontSize: "1rem", letterSpacing: "1px" }}>ADSS – ASU – FTTX</p>
+        <div style={{ display: "inline-block", padding: "4px 16px", backgroundColor: "rgba(218,165,32,0.08)", borderRadius: "20px", border: "1px solid rgba(218,165,32,0.2)" }}>
+          <p style={{ color: "#F5F5F5", fontSize: "0.95rem", letterSpacing: "3px", margin: 0, fontWeight: "500" }}>ADSS – ASU – FTTX</p>
+        </div>
       </div>
 
+      {/* Product Selection Container */}
       <div className="container-fiber" style={{
-        backgroundColor: "#050505",
-        border: "2px solid #DAA520",
-        borderRadius: "20px",
-        padding: "20px",
-        maxWidth: "1000px",
+        backgroundColor: "#060606",
+        border: "1px solid rgba(218, 165, 32, 0.3)",
+        borderRadius: "24px",
+        padding: "30px",
+        maxWidth: "1050px",
         width: "100%",
-        margin: "0 auto 20px auto"
+        margin: "0 auto 30px auto",
+        boxSizing: "border-box"
       }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
           
-          <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
-            <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
-            <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>ASU</h3>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Hilos:</label>
-                <select id="asuHilos" style={controlStyle}><option value="6">6</option><option value="12">12</option><option value="24">24</option><option value="48">48</option></select>
+          {/* ASU Card */}
+          <div className="card-hover" style={{ backgroundColor: "#0b0b0b", borderRadius: "18px", padding: "20px", textAlign: "center", border: "1px solid rgba(218, 165, 32, 0.15)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)", marginBottom: "15px", backgroundColor: "#000" }}>
+                <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
+              <h3 style={{ color: "#DAA520", margin: "0 0 15px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>ASU</h3>
               
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Carrete:</label>
-                <select id="asuCarrete" style={controlStyle}><option value="3">3 km</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Cant:</label>
-                <input
-                  id="asuCantidad"
-                  type="number"
-                  min="1"
-                  defaultValue="1"
-                  style={{ ...controlStyle, width: "50px" }}
-                />
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Hilos:</label>
+                  <select id="asuHilos" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="6">6</option>
+                    <option value="12">12</option>
+                    <option value="24">24</option>
+                    <option value="48">48</option>
+                  </select>
+                </div>
+                
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Carrete:</label>
+                  <select id="asuCarrete" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="3">3 km</option>
+                  </select>
+                </div>
+                
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Cantidad:</label>
+                  <input
+                    id="asuCantidad"
+                    type="number"
+                    min="1"
+                    defaultValue="1"
+                    style={{ ...controlStyle, width: "130px" }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -413,35 +483,46 @@ export default function Fabricacion() {
               const carrete = parseInt((document.getElementById("asuCarrete") as HTMLSelectElement).value);
               const cantidad = parseInt((document.getElementById("asuCantidad") as HTMLInputElement).value);
               agregarItem("ASU", hilos, carrete, cantidad);
-            }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
-              Agregar
+            }} className="action-btn" style={{ width: "100%", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "0.9rem", letterSpacing: "0.5px" }}>
+              Agregar a Cotización
             </button>
           </div>
 
-          <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
-            <img src="/images/ADSS.png" alt="Cable ADSS" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
-            <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>ADSS</h3>
-            
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Hilos:</label>
-                <select id="adssHilos" style={controlStyle}><option value="72">72</option><option value="96">96</option><option value="144">144</option></select>
+          {/* ADSS Card */}
+          <div className="card-hover" style={{ backgroundColor: "#0b0b0b", borderRadius: "18px", padding: "20px", textAlign: "center", border: "1px solid rgba(218, 165, 32, 0.15)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)", marginBottom: "15px", backgroundColor: "#000" }}>
+                <img src="/images/ADSS.png" alt="Cable ADSS" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
+              <h3 style={{ color: "#DAA520", margin: "0 0 15px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>ADSS</h3>
               
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Carrete:</label>
-                <select id="adssCarrete" style={controlStyle}><option value="3">3 km</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Cant:</label>
-                <input
-                  id="adssCantidad"
-                  type="number"
-                  min="1"
-                  defaultValue="1"
-                  style={{ ...controlStyle, width: "50px" }}
-                />
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Hilos:</label>
+                  <select id="adssHilos" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="72">72</option>
+                    <option value="96">96</option>
+                    <option value="144">144</option>
+                  </select>
+                </div>
+                
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Carrete:</label>
+                  <select id="adssCarrete" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="3">3 km</option>
+                  </select>
+                </div>
+                
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Cantidad:</label>
+                  <input
+                    id="adssCantidad"
+                    type="number"
+                    min="1"
+                    defaultValue="1"
+                    style={{ ...controlStyle, width: "130px" }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -450,35 +531,46 @@ export default function Fabricacion() {
               const carrete = parseInt((document.getElementById("adssCarrete") as HTMLSelectElement)?.value || "0");
               const cantidad = parseInt((document.getElementById("adssCantidad") as HTMLInputElement)?.value || "0");
               agregarItem("ADSS", hilos, carrete, cantidad);
-            }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
-              Agregar
+            }} className="action-btn" style={{ width: "100%", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "0.9rem", letterSpacing: "0.5px" }}>
+              Agregar a Cotización
             </button>
           </div>
 
-          <div style={{ backgroundColor: "#0c0c0c", borderRadius: "15px", padding: "15px", textAlign: "center", border: "1px solid #DAA520" }}>
-            <img src="/images/FTTX.png" alt="Cable FTTX" style={{ width: "80%", borderRadius: "10px", border: "1px solid #222" }} />
-            <h3 style={{ color: "#DAA520", marginTop: "10px", fontSize: "1.2rem" }}>FTTX</h3>
+          {/* FTTX Card */}
+          <div className="card-hover" style={{ backgroundColor: "#0b0b0b", borderRadius: "18px", padding: "20px", textAlign: "center", border: "1px solid rgba(218, 165, 32, 0.15)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)", marginBottom: "15px", backgroundColor: "#000" }}>
+                <img src="/images/FTTX.png" alt="Cable FTTX" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
+              </div>
+              <h3 style={{ color: "#DAA520", margin: "0 0 15px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>FTTX</h3>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "10px", alignItems: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Hilos:</label>
-                <select id="fttxHilos" style={controlStyle}><option value="1">1</option><option value="2">2</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Carrete:</label>
-                <select id="fttxCarrete" style={controlStyle}><option value="1">1 km</option><option value="2">2 km</option></select>
-              </div>
-              
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <label style={{ color: "#fff", fontSize: "0.9rem" }}>Cant:</label>
-                <input
-                  id="fttxCantidad"
-                  type="number"
-                  min="1"
-                  defaultValue="1"
-                  style={{ ...controlStyle, width: "50px" }}
-                />
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Hilos:</label>
+                  <select id="fttxHilos" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                  </select>
+                </div>
+                
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Carrete:</label>
+                  <select id="fttxCarrete" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="1">1 km</option>
+                    <option value="2">2 km</option>
+                  </select>
+                </div>
+                
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
+                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Cantidad:</label>
+                  <input
+                    id="fttxCantidad"
+                    type="number"
+                    min="1"
+                    defaultValue="1"
+                    style={{ ...controlStyle, width: "130px" }}
+                  />
+                </div>
               </div>
             </div>
 
@@ -487,51 +579,58 @@ export default function Fabricacion() {
               const carrete = parseInt((document.getElementById("fttxCarrete") as HTMLSelectElement)?.value || "0");
               const cantidad = parseInt((document.getElementById("fttxCantidad") as HTMLInputElement)?.value || "0");
               agregarItem("FTTX", hilos, carrete, cantidad);
-            }} style={{ marginTop: "15px", backgroundColor: "#DAA520", color: "#000", padding: "8px 16px", borderRadius: "8px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
-              Agregar
+            }} className="action-btn" style={{ width: "100%", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "0.9rem", letterSpacing: "0.5px" }}>
+              Agregar a Cotización
             </button>
           </div>
+
         </div>
       </div>
 
+      {/* Quote Summary Container */}
       <div className="container-fiber" style={{
-        backgroundColor: "#050505",
-        border: "2px solid #DAA520",
-        borderRadius: "20px",
-        padding: "20px",
-        maxWidth: "1000px",
+        backgroundColor: "#060606",
+        border: "1px solid rgba(218, 165, 32, 0.3)",
+        borderRadius: "24px",
+        padding: "30px",
+        maxWidth: "1050px",
         width: "100%",
-        margin: "0 auto"
+        margin: "0 auto",
+        boxSizing: "border-box"
       }}>
-        <h2 style={{ color: "#DAA520", textAlign: "center", marginBottom: "15px" }}>Mi Cotización ({referenciaActual})</h2>
+        <h2 style={{ color: "#DAA520", textAlign: "center", marginBottom: "25px", fontSize: "1.5rem", fontWeight: "700", letterSpacing: "0.5px" }}>
+          Mi Cotización <span style={{ color: "#FFFFFF", fontWeight: "400" }}>({referenciaActual})</span>
+        </h2>
         
         {cotizacion.length === 0 ? (
-          <p style={{ textAlign: "center", color: "#FFF", fontSize: "0.9rem" }}>No has agregado artículos aún.</p>
+          <div style={{ textAlign: "center", padding: "30px 0", backgroundColor: "rgba(15,15,15,0.5)", borderRadius: "12px", border: "1px dashed rgba(218,165,32,0.2)" }}>
+            <p style={{ color: "#A0A0A0", fontSize: "0.95rem", margin: 0 }}>No has agregado artículos aún.</p>
+          </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ margin: "0 auto", borderCollapse: "collapse", color: "#DAA520", width: "100%", fontSize: "0.9rem" }}>
+          <div style={{ overflowX: "auto", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)" }}>
+            <table style={{ margin: "0 auto", borderCollapse: "collapse", color: "#DAA520", width: "100%", fontSize: "0.9rem", textAlign: "center" }}>
               <thead>
-                <tr style={{ backgroundColor: "#111" }}>
-                  <th style={{ border: "1px solid #DAA520", padding: "8px" }}>Desc</th>
-                  <th style={{ border: "1px solid #DAA520", padding: "8px" }}>Hilos</th>
-                  <th style={{ border: "1px solid #DAA520", padding: "8px" }}>Cant</th>
-                  <th style={{ border: "1px solid #DAA520", padding: "8px" }}>P. Unit</th>
-                  <th style={{ border: "1px solid #DAA520", padding: "8px" }}>P. Carr</th>
-                  <th style={{ border: "1px solid #DAA520", padding: "8px" }}>Total</th>
-                  <th style={{ border: "1px solid #DAA520", padding: "8px" }}>Acción</th>
+                <tr style={{ backgroundColor: "#111111", borderBottom: "1px solid rgba(218, 165, 32, 0.3)" }}>
+                  <th style={{ padding: "12px 15px", fontWeight: "600", color: "#DAA520" }}>Desc</th>
+                  <th style={{ padding: "12px 15px", fontWeight: "600", color: "#DAA520" }}>Hilos</th>
+                  <th style={{ padding: "12px 15px", fontWeight: "600", color: "#DAA520" }}>Cant</th>
+                  <th style={{ padding: "12px 15px", fontWeight: "600", color: "#DAA520" }}>P. Unit</th>
+                  <th style={{ padding: "12px 15px", fontWeight: "600", color: "#DAA520" }}>P. Carr</th>
+                  <th style={{ padding: "12px 15px", fontWeight: "600", color: "#DAA520" }}>Total</th>
+                  <th style={{ padding: "12px 15px", fontWeight: "600", color: "#DAA520" }}>Acción</th>
                 </tr>
               </thead>
               <tbody>
                 {cotizacion.map((item, index) => (
-                  <tr key={index} style={{ backgroundColor: "#0c0c0c" }}>
-                    <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{item.tipo}</td>
-                    <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{item.hilos}</td>
-                    <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>{item.cantidad}</td>
-                    <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${item.precioMetro.toFixed(2)}</td>
-                    <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${item.precioCarrete.toFixed(2)}</td>
-                    <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>${(item.precioCarrete * item.cantidad).toFixed(2)}</td>
-                    <td style={{ border: "1px solid #333", padding: "8px", textAlign: "center" }}>
-                      <button onClick={() => eliminarItem(index)} style={{ backgroundColor: "#660000", color: "#fff", border: "none", borderRadius: "5px", padding: "4px 8px", cursor: "pointer" }}>
+                  <tr key={index} style={{ backgroundColor: index % 2 === 0 ? "#080808" : "#0d0d0d", borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                    <td style={{ padding: "12px 15px", color: "#FFFFFF", fontWeight: "500" }}>{item.tipo}</td>
+                    <td style={{ padding: "12px 15px", color: "#CCCCCC" }}>{item.hilos}</td>
+                    <td style={{ padding: "12px 15px", color: "#CCCCCC" }}>{item.cantidad}</td>
+                    <td style={{ padding: "12px 15px", color: "#CCCCCC" }}>${item.precioMetro.toFixed(2)}</td>
+                    <td style={{ padding: "12px 15px", color: "#CCCCCC" }}>${item.precioCarrete.toFixed(2)}</td>
+                    <td style={{ padding: "12px 15px", color: "#DAA520", fontWeight: "600" }}>${(item.precioCarrete * item.cantidad).toFixed(2)}</td>
+                    <td style={{ padding: "12px 15px" }}>
+                      <button onClick={() => eliminarItem(index)} style={{ backgroundColor: "rgba(139, 0, 0, 0.2)", color: "#FF5252", border: "1px solid rgba(255, 82, 82, 0.3)", borderRadius: "6px", padding: "6px 12px", cursor: "pointer", fontSize: "0.8rem", fontWeight: "600", transition: "all 0.2s" }} className="hover:bg-red-900/40">
                         Eliminar
                       </button>
                     </td>
@@ -542,28 +641,34 @@ export default function Fabricacion() {
           </div>
         )}
 
-        <div style={{ marginTop: "15px", color: "#FFF", fontSize: "0.85rem", borderTop: "1px dashed #DAA520", paddingTop: "10px" }}>
-          <p style={{ margin: "4px 0" }}><strong>Precios:</strong> EXW PANAMÁ</p>
-          <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
-          <p style={{ margin: "4px 0" }}><strong>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
-          <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
+        {/* Terms and Conditions Block */}
+        <div style={{ marginTop: "25px", color: "#B0B0B0", fontSize: "0.85rem", borderTop: "1px dashed rgba(218, 165, 32, 0.3)", paddingTop: "15px", lineHeight: "1.6" }}>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>Precios:</strong> EXW PANAMÁ</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
         </div>
 
-        <h2 style={{ marginTop: "15px", color: "#DAA520", textAlign: "center", fontSize: "1.2rem" }}>
-          TOTAL GENERAL: ${granTotal.toFixed(2)}
-        </h2>
+        {/* Total Summary */}
+        <div style={{ marginTop: "25px", padding: "15px", backgroundColor: "rgba(218, 165, 32, 0.05)", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)", textAlign: "center" }}>
+          <h2 style={{ margin: 0, color: "#DAA520", fontSize: "1.5rem", fontWeight: "700", letterSpacing: "1px" }}>
+            TOTAL GENERAL: ${granTotal.toFixed(2)}
+          </h2>
+        </div>
 
-        <div style={{ textAlign: "center", marginTop: "15px", display: "flex", justifyContent: "center", gap: "15px" }}>
-          <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", border: "none", cursor: "pointer" }}>
+        {/* Action Buttons */}
+        <div style={{ textAlign: "center", marginTop: "30px", display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
+          <button onClick={generarPDF} className="action-btn" style={{ padding: "12px 28px", borderRadius: "12px", cursor: "pointer", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
             Guardar PDF
           </button>
-          <button onClick={procesarPago} style={{ backgroundColor: "#222", color: "#DAA520", border: "2px solid #DAA520", padding: "10px 20px", borderRadius: "10px", fontWeight: "bold", cursor: "pointer" }}>
+          <button onClick={procesarPago} className="action-btn-alt" style={{ padding: "12px 28px", borderRadius: "12px", cursor: "pointer", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
             Proceder con Pago
           </button>
         </div>
       </div>
 
-      <p style={{ marginTop: "20px", fontSize: "10px", color: "#DAA520", textAlign: "center" }}>
+      {/* Footer */}
+      <p style={{ marginTop: "35px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.7)", textAlign: "center", letterSpacing: "0.5px" }}>
         © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
       </p>
     </div>

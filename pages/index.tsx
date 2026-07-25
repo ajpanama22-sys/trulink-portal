@@ -20,39 +20,37 @@ export default function Home() {
       
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Ajuste: Calculamos la posición Y para que quede arriba del copyright
-      // Si el copyright está abajo, ponemos el hilo a un 85% de la altura total
       const yPosition = canvas.height * 0.85;
 
-      // 1. Línea central dorada
+      // 1. Línea central dorada refinada con menor grosor y resplandor elegante
       ctx.beginPath();
       ctx.moveTo(0, yPosition);
       ctx.lineTo(canvas.width, yPosition);
-      ctx.strokeStyle = "#DAA520";
-      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(218, 165, 32, 0.6)";
+      ctx.lineWidth = 0.75;
       ctx.shadowColor = "#FFD700";
-      ctx.shadowBlur = 4;
+      ctx.shadowBlur = 6;
       ctx.stroke();
 
-      // 2. Punto de luz
+      // 2. Punto de luz / pulso de fibra óptica optimizado
       ctx.beginPath();
-      ctx.arc(pulseX, yPosition, 4, 0, Math.PI * 2, false);
+      ctx.arc(pulseX, yPosition, 3, 0, Math.PI * 2, false);
       ctx.fillStyle = `rgba(255, 215, 0, ${opacity})`;
       ctx.shadowColor = "#FFD700";
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 12;
       ctx.fill();
 
-      pulseX += 2;
+      pulseX += 1.5;
       if (pulseX > canvas.width) {
         pulseX = 0;
       }
 
       if (fading) {
-        opacity -= 0.02;
-        if (opacity <= 0.3) fading = false;
+        opacity -= 0.015;
+        if (opacity <= 0.2) fading = false;
       } else {
-        opacity += 0.02;
-        if (opacity >= 1) fading = true;
+        opacity += 0.015;
+        if (opacity >= 0.9) fading = true;
       }
 
       requestAnimationFrame(draw);
@@ -98,14 +96,21 @@ export default function Home() {
         }}
       ></canvas>
 
-      <div style={{ position: "relative", zIndex: 1, padding: "40px" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "40px", maxWidth: "900px" }}>
         <img
           src="/images/logo.png"
           alt="Trulink Fiber Logo"
-          style={{ width: "150px", marginBottom: "20px" }}
+          style={{ width: "140px", marginBottom: "25px", filter: "drop-shadow(0 0 12px rgba(218, 165, 32, 0.25))" }}
         />
 
-        <h1 style={{ color: "#DAA520", marginBottom: "40px" }}>
+        <h1 style={{ 
+          color: "#DAA520", 
+          marginBottom: "45px", 
+          fontSize: "1.8rem", 
+          fontWeight: "300", 
+          letterSpacing: "3px", 
+          textTransform: "uppercase" 
+        }}>
           Trulink Fiber LLC
         </h1>
 
@@ -113,23 +118,27 @@ export default function Home() {
           style={{
             display: "flex",
             justifyContent: "center",
-            gap: "30px",
+            gap: "25px",
             flexWrap: "wrap"
           }}
         >
-          <a href="/clientes">
+          <a href="/clientes" style={{ textDecoration: "none" }}>
             <button className="trulink-btn">Registro Cliente B2B</button>
           </a>
-          <a href="/inversores">
+          <a href="/inversores" style={{ textDecoration: "none" }}>
             <button className="trulink-btn">Registro Inversor Estratégico</button>
           </a>
-          <a href="/login">
+          <a href="/login" style={{ textDecoration: "none" }}>
             <button className="trulink-btn">Acceso con User + Pass</button>
           </a>
         </div>
 
-        {/* El hilo dorado aparecerá por encima de este párrafo */}
-        <p style={{ marginTop: "60px", fontSize: "12px", color: "#DAA520" }}>
+        <p style={{ 
+          marginTop: "65px", 
+          fontSize: "11px", 
+          color: "rgba(218, 165, 32, 0.7)", 
+          letterSpacing: "1px" 
+        }}>
           © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
         </p>
       </div>
@@ -144,24 +153,27 @@ export default function Home() {
           overflow: hidden;
         }
         .trulink-btn {
-          background-color: #DAA520;
-          color: #000;
-          padding: 15px 30px;
-          border: 2px solid transparent;
-          font-weight: bold;
-          border-radius: 12px;
+          background-color: transparent;
+          color: #DAA520;
+          padding: 14px 28px;
+          border: 1px solid rgba(218, 165, 32, 0.4);
+          font-weight: 500;
+          font-size: 0.85rem;
+          letter-spacing: 0.5px;
+          border-radius: 8px;
           cursor: pointer;
-          transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+          transition: all 0.3s ease;
         }
         .trulink-btn:hover {
-          transform: scale(1.05);
-          border-color: #FFD700;
-          box-shadow: 0 0 15px #FFD700;
+          background-color: #DAA520;
+          color: #000;
+          border-color: #DAA520;
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
+          transform: translateY(-2px);
         }
         .trulink-btn:active {
-          transform: scale(0.95);
-          border-color: #FFD700;
-          box-shadow: 0 0 25px #FFD700;
+          transform: translateY(0);
+          box-shadow: 0 0 10px rgba(218, 165, 32, 0.4);
         }
       `}</style>
     </div>

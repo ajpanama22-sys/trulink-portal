@@ -89,7 +89,6 @@ export default function Clientes() {
     setCargando(true);
 
     try {
-      // Combinamos el código de país con el número telefónico para un almacenamiento limpio
       const telefonoOficinaCompleto = `${formData.codigo_pais_oficina} ${formData.telefono_oficina}`.trim();
       const telefonoCelularCompleto = `${formData.codigo_pais_celular} ${formData.telefono_celular}`.trim();
 
@@ -99,7 +98,6 @@ export default function Clientes() {
         telefono_celular: telefonoCelularCompleto
       };
 
-      // 1. Insertar primero en la base de datos para obtener un ID
       const { data: insertData, error: dbError } = await supabase
         .from("solicitudes_acceso")
         .insert([{
@@ -116,7 +114,6 @@ export default function Clientes() {
 
       if (dbError) throw dbError;
 
-      // 2. Subir archivo y amarrarlo usando el servicio y el ID recién creado
       const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
       await uploadAndLinkDocument(selectedFile, categoria, insertData.id, "solicitudes_acceso");
 
@@ -130,14 +127,17 @@ export default function Clientes() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    marginBottom: "15px",
-    padding: "12px",
-    backgroundColor: "#111",
+    marginBottom: "18px",
+    padding: "14px 16px",
+    backgroundColor: "#0a0a0a",
     color: "#DAA520",
-    border: "2px solid #DAA520",
-    borderRadius: "15px",
+    border: "1px solid rgba(218, 165, 32, 0.4)",
+    borderRadius: "14px",
     outline: "none",
-    transition: "all 0.3s ease",
+    boxSizing: "border-box",
+    fontSize: "0.95rem",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)"
   };
 
   const selectStyle: React.CSSProperties = {
@@ -145,116 +145,171 @@ export default function Clientes() {
     cursor: "pointer",
   };
 
-  const focusEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.target.style.boxShadow = "0 0 15px #DAA520";
-    e.target.style.borderColor = "#FFF";
-  };
-
-  const blurEffect = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    e.target.style.boxShadow = "none";
-    e.target.style.borderColor = "#DAA520";
+  const sectionHeaderStyle: React.CSSProperties = {
+    color: "#DAA520",
+    fontSize: "1.1rem",
+    fontWeight: "600",
+    margin: "30px 0 15px 0",
+    borderBottom: "1px solid rgba(218, 165, 32, 0.2)",
+    paddingBottom: "8px",
+    letterSpacing: "0.5px"
   };
 
   return (
     <div style={{ 
-      backgroundColor: "#000", 
+      backgroundColor: "#000000", 
       color: "#DAA520", 
       minHeight: "100vh", 
-      padding: "40px", 
-      fontFamily: "sans-serif",
-      margin: 0,
+      padding: "40px 20px", 
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+      boxSizing: "border-box",
       width: "100%" 
     }}>
       <style jsx global>{`
         html, body {
           margin: 0;
           padding: 0;
-          background-color: #000 !important;
+          background-color: #000000 !important;
           color: #DAA520;
         }
         @keyframes pulse-border {
-          0% { box-shadow: 0 0 10px #DAA520; }
-          50% { box-shadow: 0 0 30px #DAA520; }
-          100% { box-shadow: 0 0 10px #DAA520; }
+          0% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
+          50% { box-shadow: 0 0 35px rgba(218, 165, 32, 0.35), inset 0 0 25px rgba(218, 165, 32, 0.1); }
+          100% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
         }
         .container-fiber {
-          animation: pulse-border 2s infinite;
+          animation: pulse-border 4s infinite ease-in-out;
+        }
+        .action-btn {
+          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
+          color: #000000 !important;
+          font-weight: 600;
+          border: none;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .action-btn:hover {
+          filter: brightness(1.15);
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
+          transform: translateY(-1px);
+        }
+        input:focus, select:focus, textarea:focus {
+          border-color: #DAA520 !important;
+          box-shadow: 0 0 12px rgba(218, 165, 32, 0.3), inset 0 1px 3px rgba(0,0,0,0.8) !important;
+        }
+        input[type="radio"] {
+          accent-color: #DAA520;
+          cursor: pointer;
+          transform: scale(1.1);
+        }
+        input[type="checkbox"] {
+          accent-color: #DAA520;
+          cursor: pointer;
+          transform: scale(1.1);
         }
       `}</style>
 
       <div className="container-fiber" style={{ 
         display: "flex", 
-        gap: "40px", 
-        padding: "40px", 
-        border: "2px solid #DAA520", 
-        borderRadius: "30px",
-        backgroundColor: "#050505",
-        maxWidth: "1000px",
-        margin: "0 auto"
+        flexDirection: "column",
+        gap: "30px", 
+        padding: "45px", 
+        border: "1px solid rgba(218, 165, 32, 0.3)", 
+        borderRadius: "24px",
+        backgroundColor: "#060606",
+        maxWidth: "900px",
+        margin: "0 auto",
+        boxSizing: "border-box"
       }}>
-        <div style={{ flex: 1, textAlign: "center" }}>
-          <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "180px", marginBottom: "20px" }} />
-          <h2 style={{ color: "#DAA520" }}>Trulink Fiber LLC</h2>
+        {/* Header / Brand Logo */}
+        <div style={{ textAlign: "center", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "25px" }}>
+          <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "130px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
+          <h1 style={{ color: "#DAA520", fontSize: "1.8rem", fontWeight: "700", letterSpacing: "1.5px", margin: "0 0 5px 0" }}>
+            REGISTRO CORPORATIVO
+          </h1>
+          <p style={{ color: "#C0C0C0", fontSize: "0.95rem", margin: 0, letterSpacing: "0.5px" }}>
+            Trulink Fiber LLC — Portal de Acceso y Verificación
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ flex: 2 }}>
-          <h2 style={{ color: "#DAA520", marginBottom: "20px" }}>REGISTRO CORPORATIVO</h2>
-
-          <div style={{ marginBottom: "20px" }}>
-            <label style={{ display: "block", marginBottom: "5px" }}>
+        <form onSubmit={handleSubmit} style={{ width: "100%" }}>
+          {/* Tipo de Solicitud */}
+          <div style={{ 
+            display: "flex", 
+            justifyContent: "center", 
+            gap: "40px", 
+            marginBottom: "10px", 
+            padding: "16px", 
+            backgroundColor: "#0a0a0a", 
+            borderRadius: "14px",
+            border: "1px solid rgba(218, 165, 32, 0.2)"
+          }}>
+            <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: "500", color: "#DAA520" }}>
               <input type="radio" name="tipo_solicitud" value="Cliente B2B" onChange={handleInputChange} defaultChecked style={{ marginRight: "10px" }} /> Cliente B2B
             </label>
-            <label style={{ display: "block" }}>
+            <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: "500", color: "#DAA520" }}>
               <input type="radio" name="tipo_solicitud" value="Inversor Estratégico" onChange={handleInputChange} style={{ marginRight: "10px" }} /> Inversor Estratégico
             </label>
           </div>
 
-          <h3 style={{ color: "#DAA520" }}>Perfil del Cliente</h3>
-          <select name="perfil_cliente" style={selectStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} defaultValue="ISP">
+          <h3 style={sectionHeaderStyle}>Perfil del Cliente</h3>
+          <select name="perfil_cliente" style={selectStyle} onChange={handleInputChange} defaultValue="ISP">
             <option value="ISP">ISP</option>
             <option value="MAYORISTA">MAYORISTA</option>
             <option value="INTEGRADOR">INTEGRADOR</option>
             <option value="CLIENTE FINAL">CLIENTE FINAL</option>
           </select>
 
-          <h3 style={{ color: "#DAA520" }}>Información de la Empresa</h3>
-          <input name="razon_social" type="text" placeholder="Nombre o Razón Social" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} required />
-          <input name="identificacion_fiscal" type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} required />
-          <input name="sitio_web" type="url" placeholder="Sitio Web Corporativo" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
-          <input name="industria" type="text" placeholder="Industria / Sector" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
-          <input name="pais" type="text" placeholder="País" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} required />
-          <input name="direccion" type="text" placeholder="Dirección de Facturación" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} required />
+          <h3 style={sectionHeaderStyle}>Información de la Empresa</h3>
+          <input name="razon_social" type="text" placeholder="Nombre o Razón Social" style={inputStyle} onChange={handleInputChange} required />
+          <input name="identificacion_fiscal" type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={inputStyle} onChange={handleInputChange} required />
+          <input name="sitio_web" type="url" placeholder="Sitio Web Corporativo" style={inputStyle} onChange={handleInputChange} />
+          <input name="industria" type="text" placeholder="Industria / Sector" style={inputStyle} onChange={handleInputChange} />
+          <input name="pais" type="text" placeholder="País" style={inputStyle} onChange={handleInputChange} required />
+          <input name="direccion" type="text" placeholder="Dirección de Facturación" style={inputStyle} onChange={handleInputChange} required />
 
-          <h3 style={{ color: "#DAA520" }}>Información del Contacto</h3>
-          <input name="nombre_representante" type="text" placeholder="Nombre Completo del Representante" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} required />
-          <input name="cargo" type="text" placeholder="Cargo en la Empresa" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} />
-          <input name="email" type="email" placeholder="Correo Electrónico Corporativo" style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} onChange={handleInputChange} required />
+          <h3 style={sectionHeaderStyle}>Información del Contacto</h3>
+          <input name="nombre_representante" type="text" placeholder="Nombre Completo del Representante" style={inputStyle} onChange={handleInputChange} required />
+          <input name="cargo" type="text" placeholder="Cargo en la Empresa" style={inputStyle} onChange={handleInputChange} />
+          <input name="email" type="email" placeholder="Correo Electrónico Corporativo" style={inputStyle} onChange={handleInputChange} required />
 
-          {/* Teléfono de Oficina con Código de País */}
-          <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#DAA520" }}>Teléfono de Oficina</label>
-          <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-            <select name="codigo_pais_oficina" value={formData.codigo_pais_oficina} onChange={handleInputChange} style={{ ...selectStyle, width: "140px", marginBottom: 0 }} onFocus={focusEffect} onBlur={blurEffect}>
+          {/* Teléfono de Oficina */}
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: "600", color: "#DAA520" }}>Teléfono de Oficina</label>
+          <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
+            <select name="codigo_pais_oficina" value={formData.codigo_pais_oficina} onChange={handleInputChange} style={{ ...selectStyle, width: "150px", marginBottom: 0 }}>
               {codigosPaises.map((item) => (
                 <option key={item.codigo} value={item.codigo}>{item.pais}</option>
               ))}
             </select>
-            <input name="telefono_oficina" type="tel" placeholder="Número de Oficina" value={formData.telefono_oficina} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} onFocus={focusEffect} onBlur={blurEffect} />
+            <input name="telefono_oficina" type="tel" placeholder="Número de Oficina" value={formData.telefono_oficina} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
           </div>
 
-          {/* Teléfono Celular con Código de País */}
-          <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#DAA520" }}>Teléfono Celular / Móvil</label>
-          <div style={{ display: "flex", gap: "10px", marginBottom: "15px" }}>
-            <select name="codigo_pais_celular" value={formData.codigo_pais_celular} onChange={handleInputChange} style={{ ...selectStyle, width: "140px", marginBottom: 0 }} onFocus={focusEffect} onBlur={blurEffect}>
+          {/* Teléfono Celular */}
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: "600", color: "#DAA520" }}>Teléfono Celular / Móvil</label>
+          <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
+            <select name="codigo_pais_celular" value={formData.codigo_pais_celular} onChange={handleInputChange} style={{ ...selectStyle, width: "150px", marginBottom: 0 }}>
               {codigosPaises.map((item) => (
                 <option key={item.codigo} value={item.codigo}>{item.pais}</option>
               ))}
             </select>
-            <input name="telefono_celular" type="tel" placeholder="Número Celular" value={formData.telefono_celular} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} onFocus={focusEffect} onBlur={blurEffect} required />
+            <input name="telefono_celular" type="tel" placeholder="Número Celular" value={formData.telefono_celular} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} required />
           </div>
 
-          <h3 style={{ color: "#DAA520" }}>Documentación de Soporte</h3>
-          <input type="file" onChange={handleFileChange} style={{ ...inputStyle, padding: "10px" }} />
-          <ul style={{ fontSize: "12px", color: "#DAA520", marginBottom: "20px" }}>
+          <h3 style={sectionHeaderStyle}>Documentación de Soporte</h3>
+          <div style={{ ...inputStyle, padding: "12px", display: "flex", alignItems: "center", backgroundColor: "#0a0a0a" }}>
+            <input 
+              type="file" 
+              onChange={handleFileChange} 
+              style={{ 
+                color: "#DAA520", 
+                width: "100%", 
+                background: "transparent", 
+                border: "none", 
+                outline: "none",
+                cursor: "pointer"
+              }} 
+            />
+          </div>
+          <ul style={{ fontSize: "0.85rem", color: "#C0C0C0", marginBottom: "25px", paddingLeft: "20px", lineHeight: "1.6" }}>
             <li>Registro Fiscal vigente</li>
             <li>Certificación Legal (últimos 90 días)</li>
             <li>Identificación Oficial o Pasaporte</li>
@@ -262,8 +317,8 @@ export default function Clientes() {
             <li>Acuerdo de Confidencialidad NDA firmado</li>
           </ul>
 
-          <h3 style={{ color: "#DAA520" }}>Términos y Condiciones</h3>
-          <textarea rows={6} style={inputStyle} onFocus={focusEffect} onBlur={blurEffect} readOnly>
+          <h3 style={sectionHeaderStyle}>Términos y Condiciones</h3>
+          <textarea rows={6} style={{ ...inputStyle, resize: "vertical", color: "#C0C0C0", fontSize: "0.9rem", lineHeight: "1.5" }} readOnly>
             El acceso al Portal B2B de Trulink Fiber LLC está sujeto a estricta verificación corporativa. 
             El solicitante se compromete a entregar documentación válida y vigente. 
             El incumplimiento de requisitos legales, fiscales o de confidencialidad será motivo de rechazo inmediato. 
@@ -271,37 +326,37 @@ export default function Clientes() {
             El acceso aprobado implica aceptación plena de estas condiciones.
           </textarea>
           
-          <div style={{ marginBottom: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", marginBottom: "25px", cursor: "pointer" }}>
             <input 
               type="checkbox" 
               checked={terminosAceptados} 
               onChange={(e) => setTerminosAceptados(e.target.checked)} 
-              style={{ marginRight: "10px" }} 
+              style={{ marginRight: "12px" }} 
             /> 
-            He leído y acepto los Términos y Condiciones
+            <span style={{ fontSize: "0.95rem", fontWeight: "500", color: "#DAA520" }}>He leído y acepto los Términos y Condiciones</span>
           </div>
 
-          <button type="submit" disabled={cargando} style={{ 
-            backgroundColor: "#DAA520", 
-            color: "#000", 
-            padding: "15px 30px", 
-            border: "none", 
-            fontWeight: "bold", 
-            borderRadius: "15px", 
-            cursor: "pointer",
-            width: "100%",
-            fontSize: "16px",
-            transition: "transform 0.2s"
-          }}
-          onMouseOver={(e) => e.currentTarget.style.transform = "scale(1.02)"}
-          onMouseOut={(e) => e.currentTarget.style.transform = "scale(1)"}
+          <button 
+            type="submit" 
+            disabled={cargando} 
+            className="action-btn"
+            style={{ 
+              padding: "16px 30px", 
+              fontWeight: "600", 
+              borderRadius: "14px", 
+              cursor: cargando ? "not-allowed" : "pointer",
+              opacity: cargando ? 0.7 : 1,
+              width: "100%",
+              fontSize: "1rem",
+              letterSpacing: "0.5px"
+            }}
           >
-            {cargando ? "Enviando..." : "Enviar Solicitud"}
+            {cargando ? "Procesando solicitud..." : "Enviar Solicitud"}
           </button>
         </form>
       </div>
 
-      <p style={{ marginTop: "40px", fontSize: "12px", color: "#DAA520", textAlign: "center" }}>
+      <p style={{ marginTop: "35px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.7)", textAlign: "center", letterSpacing: "0.5px" }}>
         © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
       </p>
     </div>
