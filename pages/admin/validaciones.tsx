@@ -4,11 +4,25 @@ import Sidebar from "./Sidebar";
 
 export default function AdminValidaciones() {
   const [dataList, setDataList] = useState<any[]>([]);
+  const [filteredList, setFilteredList] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+
+  // Estados para filtros y ordenamiento
+  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [filterType, setFilterType] = useState<"todos" | "anio" | "mes" | "dia" | "rango">("todos");
+  const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState<string>(`${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`);
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
 
   useEffect(() => {
     cargarSolicitudes();
   }, []);
+
+  useEffect(() => {
+    aplicarFiltrosYOrden();
+  }, [dataList, sortOrder, filterType, selectedYear, selectedMonth, selectedDate, dateFrom, dateTo]);
 
   const cargarSolicitudes = async () => {
     if (!supabase) return;
@@ -20,6 +34,57 @@ export default function AdminValidaciones() {
       setDataList(data || []);
     }
     setLoading(false);
+  };
+
+  const aplicarFiltrosYOrden = () => {
+    let resultado = [...dataList];
+
+    // 1. Filtrado
+    if (filterType === "anio" && selectedYear) {
+      resultado = resultado.filter(item => {
+        if (!item.created_at) return false;
+        const itemYear = new Date(item.created_at).getFullYear().toString();
+        return itemYear === selectedYear;
+      });
+    } else if (filterType === "mes" && selectedMonth) {
+      // selectedMonth viene en formato "YYYY-MM"
+      resultado = resultado.filter(item => {
+        if (!item.created_at) return false;
+        const dateObj = new Date(item.created_at);
+        const itemMonth = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+        return itemMonth === selectedMonth;
+      });
+    } else if (filterType === "dia" && selectedDate) {
+      // selectedDate viene en formato "YYYY-MM-DD"
+      resultado = resultado.filter(item => {
+        if (!item.created_at) return false;
+        const dateObj = new Date(item.created_at);
+        const itemDate = dateObj.toISOString().split('T')[0];
+        return itemDate === selectedDate;
+      });
+    } else if (filterType === "rango") {
+      resultado = resultado.filter(item => {
+        if (!item.created_at) return false;
+        const itemDate = item.created_at.split('T')[0];
+        if (dateFrom && itemDate < dateFrom) return false;
+        if (dateTo && itemDate > dateTo) return false;
+        return true;
+      });
+    }
+
+    // 2. Ordenamiento por fecha (created_at)
+    resultado.sort((a, b) => {
+      const fechaA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const fechaB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      
+      if (sortOrder === "desc") {
+        return fechaB - fechaA; // Más recientes primero
+      } else {
+        return fechaA - fechaB; // Más antiguos primero
+      }
+    });
+
+    setFilteredList(resultado);
   };
 
   const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
@@ -112,7 +177,7 @@ export default function AdminValidaciones() {
       <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
         
         {/* Header Superior con Estilo Premium Black & Gold */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
           <div>
             <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
               VALIDACIÓN DE INSCRIPCIONES
@@ -122,8 +187,104 @@ export default function AdminValidaciones() {
             </p>
           </div>
           <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
-            PENDIENTES: {dataList.length}
+            PENDIENTES: {filteredList.length} {filteredList.length !== dataList.length && `(de ${dataList.length})`}
           </div>
+        </div>
+
+        {/* Barra de Filtros y Ordenamiento (Black & Gold Theme) */}
+        <div style={{ background: "#111111", border: "1px solid #222", borderRadius: "10px", padding: "20px", marginBottom: "30px", display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center", justifyContent: "space-between" }}>
+          
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+              <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>FILTRAR POR:</label>
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value as any)}
+                style={selectStyle}
+              >
+                <option value="todos" style={{ background: "#111" }}>Todos los registros</option>
+                <option value="dia" style={{ background: "#111" }}>Por Día</option>
+                <option value="mes" style={{ background: "#111" }}>Por Mes</option>
+                <option value="anio" style={{ background: "#111" }}>Por Año</option>
+                <option value="rango" style={{ background: "#111" }}>Por Rango de Fechas</option>
+              </select>
+            </div>
+
+            {/* Opciones dinámicas según el filtro seleccionado */}
+            {filterType === "dia" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>SELECCIONAR DÍA:</label>
+                <input 
+                  type="date" 
+                  value={selectedDate} 
+                  onChange={(e) => setSelectedDate(e.target.value)} 
+                  style={inputStyle}
+                />
+              </div>
+            )}
+
+            {filterType === "mes" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>SELECCIONAR MES:</label>
+                <input 
+                  type="month" 
+                  value={selectedMonth} 
+                  onChange={(e) => setSelectedMonth(e.target.value)} 
+                  style={inputStyle}
+                />
+              </div>
+            )}
+
+            {filterType === "anio" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>AÑO:</label>
+                <input 
+                  type="number" 
+                  value={selectedYear} 
+                  onChange={(e) => setSelectedYear(e.target.value)} 
+                  style={{ ...inputStyle, width: "100px" }}
+                  placeholder="Ej. 2026"
+                />
+              </div>
+            )}
+
+            {filterType === "rango" && (
+              <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>DESDE:</label>
+                  <input 
+                    type="date" 
+                    value={dateFrom} 
+                    onChange={(e) => setDateFrom(e.target.value)} 
+                    style={inputStyle}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>HASTA:</label>
+                  <input 
+                    type="date" 
+                    value={dateTo} 
+                    onChange={(e) => setDateTo(e.target.value)} 
+                    style={inputStyle}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Control de Ordenamiento */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>ORDENAR POR FECHA:</label>
+            <select 
+              value={sortOrder} 
+              onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
+              style={selectStyle}
+            >
+              <option value="desc" style={{ background: "#111" }}>Más recientes primero (Default)</option>
+              <option value="asc" style={{ background: "#111" }}>Más antiguos primero</option>
+            </select>
+          </div>
+
         </div>
 
         {/* Contenido Principal */}
@@ -131,22 +292,22 @@ export default function AdminValidaciones() {
           <div style={{ textAlign: "center", padding: "60px", color: "#666", fontSize: "1rem", letterSpacing: "1px" }}>
             Cargando solicitudes de acceso...
           </div>
-        ) : dataList.length === 0 ? (
+        ) : filteredList.length === 0 ? (
           <div style={{ background: "#111", border: "1px solid #222", borderRadius: "12px", padding: "60px", textAlign: "center" }}>
             <p style={{ color: "#777", fontStyle: "italic", fontSize: "1rem", margin: 0, letterSpacing: "0.5px" }}>
-              No hay solicitudes pendientes por validar en este momento.
+              No se encontraron solicitudes con los criterios de filtrado seleccionados.
             </p>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
-            {dataList.map((item: any) => {
+            {filteredList.map((item: any) => {
               let docUrl = item.documentos_url || item.url || "";
               if (!docUrl && supabase) {
                 const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
                 docUrl = publicData?.publicUrl || "#";
               }
 
-              const fechaCreacion = item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Reciente';
+              const fechaCreacion = item.created_at ? new Date(item.created_at).toLocaleString() : 'Reciente';
 
               return (
                 <div 
@@ -168,7 +329,7 @@ export default function AdminValidaciones() {
                       <span style={{ fontSize: "0.75rem", background: "rgba(218, 165, 32, 0.15)", color: "#DAA520", padding: "3px 8px", borderRadius: "4px", fontWeight: "600", letterSpacing: "0.5px" }}>
                         ID: {item.id ? item.id.substring(0, 8) : 'N/A'}
                       </span>
-                      <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                      <span style={{ fontSize: "0.75rem", color: "#888" }}>
                         Fecha: {fechaCreacion}
                       </span>
                     </div>
@@ -215,6 +376,27 @@ export default function AdminValidaciones() {
     </div>
   );
 }
+
+const selectStyle = {
+  background: "#1a1a1a",
+  color: "#E0E0E0",
+  border: "1px solid rgba(218, 165, 32, 0.3)",
+  borderRadius: "6px",
+  padding: "8px 12px",
+  fontSize: "0.85rem",
+  outline: "none",
+  cursor: "pointer"
+};
+
+const inputStyle = {
+  background: "#1a1a1a",
+  color: "#E0E0E0",
+  border: "1px solid rgba(218, 165, 32, 0.3)",
+  borderRadius: "6px",
+  padding: "7px 10px",
+  fontSize: "0.85rem",
+  outline: "none"
+};
 
 const baseBtn = {
   padding: "11px 22px",
