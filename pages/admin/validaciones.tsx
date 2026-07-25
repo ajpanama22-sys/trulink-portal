@@ -133,7 +133,7 @@ export default function AdminValidaciones() {
     } else if (pagoInfo.tipo === "100%") {
       porcentajeInicialReal = 100;
       porcentajeSaldoReal = 0;
-      descripcionFormaPago = "100% de pago anticipado a la aceptación de la cotización o emisión de orden de compra.";
+      descripcionFormaPago = "100% de pago anticipado a la aceptación de la cotización o emisión de orden de compra (Sin saldo pendiente).";
     } else {
       porcentajeInicialReal = pagoInfo.porcentaje;
       porcentajeSaldoReal = 100 - porcentajeInicialReal;
@@ -147,7 +147,7 @@ export default function AdminValidaciones() {
       const tipoClienteVal = datosCompletos.tipo_cliente || itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = datosCompletos.price_list || 'C';
 
-      // 1. Guardar/Actualizar primero en la tabla clientes usando upsert con el email como conflicto (solo columnas existentes)
+      // 1. Guardar/Actualizar en la tabla clientes (únicamente columnas reales: forma_pago y porcentaje_pago)
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -166,7 +166,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Actualizar el estado en solicitudes_acceso a 'active' o 'aprobado' para que salga de pendientes
+      // 2. Actualizar el estado en solicitudes_acceso
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -180,7 +180,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 3. Enviar el correo de activación
+      // 3. Enviar correo de activación con los porcentajes correctos
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
@@ -338,7 +338,7 @@ export default function AdminValidaciones() {
                       Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
                     </div>
 
-                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS CON PARSER LIMPIO MULTI-RUTA */}
+                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS */}
                     <div>
                       {(() => {
                         const rawVal = item.documento_url || item.documentos_url || item.url || item.documento;
