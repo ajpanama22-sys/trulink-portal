@@ -9,7 +9,6 @@ export default function Reportes() {
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
 
-  // Métricas y datos consolidados para reportes
   const [datosReporte, setDatosReporte] = useState<any[]>([]);
   const [resumenEjecutivo, setResumenEjecutivo] = useState({
     totalRegistros: 0,
@@ -19,18 +18,15 @@ export default function Reportes() {
   });
 
   useEffect(() => {
-    inicializarFechasYCargar();
-  }, [tipoReporte]);
-
-  const inicializarFechasYCargar = () => {
     const hoy = new Date();
-    let desde = new Date(hoy.getFullYear(), 0, 1).toISOString().split("T")[0];
-    let hasta = hoy.toISOString().split("T")[0];
+    const anioActual = hoy.getFullYear();
+    const desdeInit = `${anioActual}-01-01`;
+    const hastaInit = hoy.toISOString().split("T")[0];
 
-    setFechaDesde(desde);
-    setFechaHasta(hasta);
-    cargarDatosReporte(tipoReporte, desde, hasta);
-  };
+    setFechaDesde(desdeInit);
+    setFechaHasta(hastaInit);
+    cargarDatosReporte(tipoReporte, desdeInit, hastaInit);
+  }, [tipoReporte]);
 
   const cargarDatosReporte = async (tipo: string, desde: string, hasta: string) => {
     if (!supabase) return;
@@ -39,7 +35,7 @@ export default function Reportes() {
     try {
       let tablaConsulta = "quotes";
       if (tipo === "inventario") {
-        tablaConsulta = "cablesdb"; // Puede alternar o consolidar con herrajesdb / accesoriosdb
+        tablaConsulta = "cablesdb";
       } else if (tipo === "clientes") {
         tablaConsulta = "users";
       } else if (tipo === "financiero") {
@@ -48,14 +44,10 @@ export default function Reportes() {
 
       const { data, error } = await supabase
         .from(tablaConsulta)
-        .select("*")
-        .gte(tipo === "inventario" ? "created_at" : "created_at", `${desde}T00:00:00`)
-        .lte(tipo === "inventario" ? "created_at" : "created_at", `${hasta}T23:59:59`);
+        .select("*");
 
       if (error) {
-        // Fallback si la tabla no tiene filtro de fecha estricto o requiere consulta abierta
-        const { data: fallbackData } = await supabase.from(tablaConsulta).select("*");
-        procesarResultados(tipo, fallbackData || []);
+        procesarResultados(tipo, []);
       } else {
         procesarResultados(tipo, data || []);
       }
@@ -104,7 +96,6 @@ export default function Reportes() {
       <Sidebar currentActive="reportes" />
 
       <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        {/* ENCABEZADO CON GRADIENTES CORPORATIVOS */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid rgba(218, 165, 32, 0.4)", paddingBottom: "15px" }}>
           <h1 style={{ fontSize: "1.8rem", background: "linear-gradient(135deg, #FFD700 0%, #DAA520 50%, #B8860B 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "1.5px", fontWeight: "800", textTransform: "uppercase", margin: 0 }}>
             REPORTES EJECUTIVOS
@@ -116,7 +107,6 @@ export default function Reportes() {
           </div>
         </div>
 
-        {/* PANEL DE CONFIGURACIÓN DE REPORTES */}
         <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #141414 100%)", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "12px", padding: "24px", marginBottom: "35px", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
           <h3 style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "16px", color: "#FFD700", letterSpacing: "0.8px", display: "flex", alignItems: "center", gap: "8px" }}>
             <span>⚙️</span> Parámetros de Generación y Exportación
@@ -127,7 +117,7 @@ export default function Reportes() {
               <label style={labelStyle}>Tipo de Reporte</label>
               <select value={tipoReporte} onChange={(e) => setTipoReporte(e.target.value)} style={inputStyle}>
                 <option value="financiero" style={{ background: "#111", color: "#DAA520" }}>Financiero / Cotizaciones (quotes)</option>
-                <option value="inventario" style={{ background: "#111", color: "#DAA520" }}>Inventario SKUs (cablesdb / herrajesdb)</option>
+                <option value="inventario" style={{ background: "#111", color: "#DAA520" }}>Inventario SKUs (cablesdb)</option>
                 <option value="clientes" style={{ background: "#111", color: "#DAA520" }}>Directorio de Clientes (users)</option>
               </select>
             </div>
@@ -162,7 +152,6 @@ export default function Reportes() {
           </div>
         </div>
 
-        {/* TARJETAS DE RESUMEN EJECUTIVO */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "35px" }}>
           <CardMetric title="Total Registros" value={resumenEjecutivo.totalRegistros} sub="Elementos en el reporte actual" glowColor="rgba(218,165,32,0.3)" />
           <CardMetric title="Monto Consolidado" value={`$${resumenEjecutivo.montoTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Valor financiero total acumulado" highlight={true} glowColor="rgba(255,215,0,0.5)" />
@@ -170,7 +159,6 @@ export default function Reportes() {
           <CardMetric title="Estado del Módulo" value={resumenEjecutivo.estadoFiltro} sub="Conexión Supabase activa" highlight={true} glowColor="rgba(255,215,0,0.5)" />
         </div>
 
-        {/* TABLA DE VISTA PREVIA DE DATOS */}
         <div style={cardBoxStyle}>
           <h3 style={{ color: "#FFD700", marginBottom: "18px", fontSize: "1.1rem", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.8px" }}>
             Vista Previa de Datos ({datosReporte.length} registros encontrados)
@@ -182,7 +170,7 @@ export default function Reportes() {
             </div>
           ) : datosReporte.length === 0 ? (
             <div style={{ padding: "40px", textAlign: "center" }}>
-              <p style={{ color: "#888" }}>No se encontraron registros para el rango y parámetros seleccionados.</p>
+              <p style={{ color: "#888" }}>No se encontraron registros en la tabla consultada.</p>
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -216,11 +204,6 @@ export default function Reportes() {
                   ))}
                 </tbody>
               </table>
-              {datosReporte.length > 10 && (
-                <p style={{ textAlign: "center", color: "#888", fontSize: "0.8rem", marginTop: "15px", fontStyle: "italic" }}>
-                  Mostrando los primeros 10 registros de {datosReporte.length} totales. El reporte completo se incluirá en la exportación oficial.
-                </p>
-              )}
             </div>
           )}
         </div>
