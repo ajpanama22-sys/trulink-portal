@@ -64,6 +64,7 @@ export default function Reportes() {
     if (tipo === "quotes" || tipo === "facturas" || tipo === "recibos" || tipo === "pagos_proveedores") {
       const suma = registros.reduce((acc, item) => acc + Number(item.total || item.monto || 0), 0);
       let etiqueta = "Cotizaciones y Finanzas";
+      if (tipo === "quotes") etiqueta = "Cotizaciones Oficiales (quotes)";
       if (tipo === "facturas") etiqueta = "Pagos Recibidos - Facturas (100%)";
       if (tipo === "recibos") etiqueta = "Pagos Recibidos - Recibos (50%)";
       if (tipo === "pagos_proveedores") etiqueta = "Pagos Realizados a Proveedores/Fábricas";
@@ -141,6 +142,7 @@ export default function Reportes() {
     const esInventario = tipoReporte === "cablesdb" || tipoReporte === "herrajesdb" || tipoReporte === "accesoriosdb";
     const esProduccion = tipoReporte === "produccion";
     const esDespachos = tipoReporte === "despachos";
+    const esQuotes = tipoReporte === "quotes";
 
     if (formatoExportacion === "pdf") {
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -219,6 +221,8 @@ export default function Reportes() {
         const valRandom = Number(
           esInventario 
             ? (Number((item.precio_a ?? item.Precio_A) || 0) * Number(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? 0))
+            : esQuotes
+            ? (item.total || 0)
             : (item.total || item.monto || item.precio || (i + 1) * 10)
         );
         const barHeight = Math.min(Math.max((valRandom / (resumenEjecutivo.montoTotal || 100)) * 18, 5), 20);
@@ -239,7 +243,16 @@ export default function Reportes() {
         row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"
       ]);
 
-      if (esInventario) {
+      if (esQuotes) {
+        tableColumns = ["Referencia / Fecha", "Cliente / Razón Social", "Contacto (Email / Tel)", "Tipo", "Total"];
+        tableRows = datosReporte.map((row) => [
+          `${row.quote_number || row.reference || (row.id ? String(row.id).substring(0, 8) : "N/A")}\n${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}`,
+          row.client_name || row.cliente || row.empresa || "Sin especificar",
+          `${row.client_email || row.email || "N/D"}\n${row.client_phone || row.telefono || row.phone || "N/D"}`,
+          row.quote_type || row.tipo || "fiber_quote",
+          `$${Number(row.total || 0).toFixed(2)}`
+        ]);
+      } else if (esInventario) {
         tableColumns = ["SKU", "Descripción", "Stock", "Precio A (ISP)", "Estado"];
         tableRows = datosReporte.map((row) => [
           row.SKU || row.sku || "N/A",
@@ -312,7 +325,9 @@ export default function Reportes() {
       doc.save(`Reporte_Oficial_${tipoReporte}_${new Date().toISOString().slice(0, 10)}.pdf`);
 
     } else {
-      let csvHeader = esDirectorio 
+      let csvHeader = esQuotes
+        ? "data:text/csv;charset=utf-8,Referencia,Cliente,Email,Telefono,Tipo,Total,Fecha\n"
+        : esDirectorio 
         ? "data:text/csv;charset=utf-8,ID_SKU,Nombre,Email,Telefono,Fecha\n" 
         : esInventario
         ? "data:text/csv;charset=utf-8,SKU,Descripcion,Stock,Precio_A,Estado\n"
@@ -324,7 +339,16 @@ export default function Reportes() {
       
       let csvContent = csvHeader;
       datosReporte.forEach((row) => {
-        if (esDirectorio) {
+        if (esQuotes) {
+          const refSegura = `"${row.quote_number || row.reference || row.id || "N/A"}"`;
+          const clienteSeguro = `"${(row.client_name || row.cliente || row.empresa || "Sin especificar").replace(/"/g, '""')}"`;
+          const emailSeguro = `"${(row.client_email || row.email || "N/D").replace(/"/g, '""')}"`;
+          const telSeguro = `"${(row.client_phone || row.telefono || row.phone || "N/D").replace(/"/g, '""')}"`;
+          const tipoSeguro = `"${row.quote_type || row.tipo || "fiber_quote"}"`;
+          const totalSeguro = `"${row.total || 0}"`;
+          const fechaSegura = `"${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}"`;
+          csvContent += [refSegura, clienteSeguro, emailSeguro, telSeguro, tipoSeguro, totalSeguro, fechaSegura].join(",") + "\n";
+        } else if (esDirectorio) {
           const idSeguro = `"${row.id || "N/A"}"`;
           const nombreSeguro = `"${(row.nombre || row.client_name || row.empresa || row.proveedor || "---").replace(/"/g, '""')}"`;
           const emailSeguro = `"${(row.email || row.correo || "---").replace(/"/g, '""')}"`;
@@ -376,6 +400,7 @@ export default function Reportes() {
   const esInventario = tipoReporte === "cablesdb" || tipoReporte === "herrajesdb" || tipoReporte === "accesoriosdb";
   const esProduccion = tipoReporte === "produccion";
   const esDespachos = tipoReporte === "despachos";
+  const esQuotes = tipoReporte === "quotes";
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
@@ -403,7 +428,7 @@ export default function Reportes() {
               <label style={labelStyle}>Tipo de Reporte</label>
               <select value={tipoReporte} onChange={(e) => setTipoReporte(e.target.value)} style={inputStyle}>
                 <optgroup label="Finanzas y Pagos">
-                  <option value="quotes" style={{ background: "#111", color: "#DAA520" }}>Cotizaciones y Finanzas</option>
+                  <option value="quotes" style={{ background: "#111", color: "#DAA520" }}>Cotizaciones Oficiales (quotes)</option>
                   <option value="facturas" style={{ background: "#111", color: "#DAA520" }}>Pagos Recibidos: Facturas (100%)</option>
                   <option value="recibos" style={{ background: "#111", color: "#DAA520" }}>Pagos Recibidos: Recibos (50%)</option>
                   <option value="pagos_proveedores" style={{ background: "#111", color: "#DAA520" }}>Pagos Realizados (Proveedores/Fábricas)</option>
@@ -478,28 +503,37 @@ export default function Reportes() {
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.88rem" }}>
                 <thead>
                   <tr style={{ borderBottom: "2px solid rgba(218, 165, 32, 0.4)", color: "#FFD700" }}>
-                    <th style={{ padding: "12px" }}>{esInventario ? "SKU" : esProduccion ? "ID Lote" : esDespachos ? "ID Despacho" : "ID / SKU"}</th>
-                    <th style={{ padding: "12px" }}>{esDirectorio ? "Nombre / Entidad" : esInventario ? "Descripción" : esProduccion ? "Línea / Fábrica" : esDespachos ? "Destino / Cliente" : "Concepto / Detalle"}</th>
-                    <th style={{ padding: "12px" }}>{esDirectorio ? "Correo Electrónico" : esInventario ? "Stock" : esProduccion ? "Producto" : esDespachos ? "Guía / Transporte" : "Monto / Valor"}</th>
-                    <th style={{ padding: "12px" }}>{esDirectorio ? "Teléfono Móvil" : esInventario ? "Precio A (ISP)" : esProduccion ? "Cantidad" : esDespachos ? "Items" : "Tipo / Estado Pago"}</th>
-                    <th style={{ padding: "12px" }}>{esInventario ? "Estado" : esProduccion || esDespachos ? "Status" : "Fecha Creación"}</th>
+                    <th style={{ padding: "12px" }}>{esQuotes ? "REFERENCIA / FECHA" : esInventario ? "SKU" : esProduccion ? "ID Lote" : esDespachos ? "ID Despacho" : "ID / SKU"}</th>
+                    <th style={{ padding: "12px" }}>{esQuotes ? "CLIENTE / RAZÓN SOCIAL" : esDirectorio ? "Nombre / Entidad" : esInventario ? "Descripción" : esProduccion ? "Línea / Fábrica" : esDespachos ? "Destino / Cliente" : "Concepto / Detalle"}</th>
+                    <th style={{ padding: "12px" }}>{esQuotes ? "CONTACTO (EMAIL / TEL)" : esDirectorio ? "Correo Electrónico" : esInventario ? "Stock" : esProduccion ? "Producto" : esDespachos ? "Guía / Transporte" : "Monto / Valor"}</th>
+                    <th style={{ padding: "12px" }}>{esQuotes ? "TIPO" : esDirectorio ? "Teléfono Móvil" : esInventario ? "Precio A (ISP)" : esProduccion ? "Cantidad" : esDespachos ? "Items" : "Tipo / Estado Pago"}</th>
+                    <th style={{ padding: "12px" }}>{esQuotes ? "TOTAL" : esInventario ? "Estado" : esProduccion || esDespachos ? "Status" : "Fecha Creación"}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {datosReporte.slice(0, 10).map((row, idx) => {
-                    const col1 = esInventario ? (row.SKU || row.sku || "N/A") : (row.id ? String(row.id).substring(0, 8) : "N/A");
-                    const col2 = esDirectorio ? (row.nombre || row.client_name || row.empresa || row.proveedor || "---") : esInventario ? (row.Descripción || row.descripcion || "---") : esProduccion ? (row.fabrica || row.linea || "---") : esDespachos ? (row.destino || row.cliente || "---") : (row.descripcion || row.concepto || row.nombre || "Transacción");
-                    const col3 = esDirectorio ? (row.email || row.correo || "---") : esInventario ? (row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0) : esProduccion ? (row.producto || row.descripcion || "---") : esDespachos ? (row.guia || row.transportista || "---") : `$${Number(row.total || row.monto || 0).toFixed(2)}`;
-                    const col4 = esDirectorio ? (row.telefono || row.phone || row.movil || "---") : esInventario ? `$${Number((row.precio_a ?? row.Precio_A) || 0).toFixed(2)}` : esProduccion ? (row.cantidad || 0) : esDespachos ? (row.items_count || row.cantidad || 1) : (row.tipo || row.estado_pago || "Completado");
-                    const col5 = esInventario ? "Activo" : esProduccion || esDespachos ? (row.status || row.estado || "En Proceso") : (row.created_at ? new Date(row.created_at).toLocaleDateString() : "---");
+                    const col1 = esQuotes ? (row.quote_number || row.reference || (row.id ? String(row.id).substring(0, 8) : "N/A")) : esInventario ? (row.SKU || row.sku || "N/A") : (row.id ? String(row.id).substring(0, 8) : "N/A");
+                    const col2 = esQuotes ? (row.client_name || row.cliente || row.empresa || "Sin especificar") : esDirectorio ? (row.nombre || row.client_name || row.empresa || row.proveedor || "---") : esInventario ? (row.Descripción || row.descripcion || "---") : esProduccion ? (row.fabrica || row.linea || "---") : esDespachos ? (row.destino || row.cliente || "---") : (row.descripcion || row.concepto || row.nombre || "Transacción");
+                    const col3 = esQuotes ? `${row.client_email || row.email || "N/D"} / ${row.client_phone || row.telefono || row.phone || "N/D"}` : esDirectorio ? (row.email || row.correo || "---") : esInventario ? (row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0) : esProduccion ? (row.producto || row.descripcion || "---") : esDespachos ? (row.guia || row.transportista || "---") : `$${Number(row.total || row.monto || 0).toFixed(2)}`;
+                    const col4 = esQuotes ? (row.quote_type || row.tipo || "fiber_quote") : esDirectorio ? (row.telefono || row.phone || row.movil || "---") : esInventario ? `$${Number((row.precio_a ?? row.Precio_A) || 0).toFixed(2)}` : esProduccion ? (row.cantidad || 0) : esDespachos ? (row.items_count || row.cantidad || 1) : (row.tipo || row.estado_pago || "Completado");
+                    const col5 = esQuotes ? `$${Number(row.total || 0).toFixed(2)}` : esInventario ? "Activo" : esProduccion || esDespachos ? (row.status || row.estado || "En Proceso") : (row.created_at ? new Date(row.created_at).toLocaleDateString() : "---");
 
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid #1c1c1c", color: "#ccc" }}>
-                        <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>{col1}</td>
+                        <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>
+                          {col1}
+                          {esQuotes && row.created_at && (
+                            <div style={{ fontSize: "0.75rem", color: "#888", fontWeight: "normal" }}>{new Date(row.created_at).toLocaleDateString()}</div>
+                          )}
+                        </td>
                         <td style={{ padding: "12px" }}>{col2}</td>
                         <td style={{ padding: "12px", fontWeight: "bold", color: "#fff" }}>{col3}</td>
                         <td style={{ padding: "12px" }}>
-                          {esDirectorio ? (
+                          {esQuotes ? (
+                            <span style={{ backgroundColor: "rgba(218,165,32,0.1)", color: "#FFD700", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid rgba(218,165,32,0.3)" }}>
+                              {col4}
+                            </span>
+                          ) : esDirectorio ? (
                             <span style={{ color: "#DAA520", fontWeight: "600" }}>{col4}</span>
                           ) : (
                             <span style={{ backgroundColor: "rgba(218,165,32,0.1)", color: "#FFD700", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid rgba(218,165,32,0.3)" }}>
@@ -507,7 +541,7 @@ export default function Reportes() {
                             </span>
                           )}
                         </td>
-                        <td style={{ padding: "12px", color: esProduccion || esDespachos ? "#FFD700" : "#888", fontSize: "0.8rem", fontWeight: esProduccion || esDespachos ? "bold" : "normal" }}>{col5}</td>
+                        <td style={{ padding: "12px", color: esQuotes ? "#FFD700" : (esProduccion || esDespachos ? "#FFD700" : "#888"), fontSize: esQuotes ? "0.95rem" : "0.8rem", fontWeight: esQuotes || esProduccion || esDespachos ? "bold" : "normal" }}>{col5}</td>
                       </tr>
                     );
                   })}
