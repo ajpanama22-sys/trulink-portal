@@ -12,6 +12,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
   const menuItems = [
     { key: 'validaciones', label: 'Validaciones', path: '/admin/validaciones' },
     { key: 'cotizaciones', label: 'Cotizaciones', path: '/admin/cotizaciones' },
+    { key: 'proveedores', label: 'Proveedores y Fábricas', path: '/admin/proveedores' },
     { key: 'manufactura', label: 'Manufactura', path: '/admin/manufactura' },
     { key: 'inventario', label: 'Inventario', path: '/admin/inventario' },
     { key: 'usuarios', label: 'Usuarios', path: '/admin/usuarios' },
