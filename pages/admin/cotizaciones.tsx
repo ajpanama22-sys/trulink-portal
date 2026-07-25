@@ -62,6 +62,7 @@ export default function Cotizaciones() {
       item.telefono_oficina || 
       item.telefono || 
       clienteInfo.telefono_celular || 
+      clienteInfo.telefono_oficina || 
       clienteInfo.telefono || 
       primerItem.telefono || 
       "N/D";
