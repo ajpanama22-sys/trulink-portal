@@ -25,13 +25,12 @@ export default function Cotizaciones() {
     if (error) {
       console.error("Error al cargar cotizaciones:", error);
     } else {
-      // Revisa tu consola (F12) para ver la estructura exacta de tu tabla "quotes"
-      console.log("Datos crudos de Supabase:", data);
+      console.log("Datos de Supabase (Normalizados):", data);
       setCotizaciones(data || []);
     }
   };
 
-  // Función de seguridad para evitar errores con JSON en formato de texto
+  // Función de seguridad para evitar errores con JSON (usado principalmente para ítems o arrays de productos)
   const parseJSON = (value: any) => {
     if (!value) return {};
     if (typeof value === 'object') return value;
@@ -43,61 +42,10 @@ export default function Cotizaciones() {
   };
 
   const resolverDatosCliente = (item: any) => {
-    // Parseamos todas las posibles columnas donde puede estar guardado el cliente
-    const datosCliente = parseJSON(item.datos_cliente);
-    const datosClient = parseJSON(item.datos_client);
-    const cliente = parseJSON(item.cliente);
-    const metadata = parseJSON(item.metadata);
-    const payload = parseJSON(item.payload);
-    
-    // Parseamos los items/productos por si el cliente se guardó adentro
-    const itemsParsed = parseJSON(item.items);
-    let primerItem: any = {};
-    if (Array.isArray(itemsParsed) && itemsParsed.length > 0) {
-      primerItem = itemsParsed[0];
-    } else if (typeof itemsParsed === 'object' && itemsParsed !== null) {
-      primerItem = itemsParsed;
-    }
-
-    const empresa = 
-      item.razon_social || item.empresa || item.nombre_empresa || item.company ||
-      datosCliente.razon_social || datosCliente.empresa || datosCliente.nombre ||
-      datosClient.razon_social || datosClient.empresa || datosClient.nombre ||
-      cliente.razon_social || cliente.empresa || cliente.nombre ||
-      metadata.razon_social || metadata.empresa ||
-      payload.razon_social || payload.empresa ||
-      primerItem.razon_social || primerItem.empresa || 
-      "Sin especificar";
-
-    const representante = 
-      item.representante || item.contacto || item.nombre_contacto ||
-      datosCliente.representante || datosCliente.contacto || datosCliente.nombre ||
-      datosClient.representante || datosClient.contacto ||
-      cliente.representante || cliente.contacto ||
-      metadata.representante || metadata.contacto ||
-      payload.representante || payload.contacto ||
-      primerItem.representante || primerItem.contacto || 
-      "N/D";
-
-    const email = 
-      item.email || item.correo ||
-      datosCliente.email || datosCliente.correo ||
-      datosClient.email || datosClient.correo ||
-      cliente.email || cliente.correo ||
-      metadata.email || metadata.correo ||
-      payload.email || payload.correo ||
-      primerItem.email || primerItem.correo || 
-      "N/D";
-
-    const telefono = 
-      item.telefono || item.telefono_celular || item.celular || item.telefono_oficina ||
-      datosCliente.telefono || datosCliente.celular ||
-      datosClient.telefono || datosClient.celular ||
-      cliente.telefono || cliente.celular ||
-      metadata.telefono || metadata.celular ||
-      payload.telefono || payload.celular ||
-      primerItem.telefono || primerItem.celular || 
-      "N/D";
+    const empresa = item.razon_social || item.empresa || item.nombre_empresa || item.company || "Sin especificar";
+    const representante = item.nombre_representante || item.representante || item.contacto || item.nombre_contacto || "N/D";
+    const email = item.email || item.correo || "N/D";
+    const telefono = item.telefono_celular || item.telefono_oficina || item.telefono || item.celular || "N/D";
 
     return { empresa, representante, email, telefono };
   };
@@ -176,7 +124,7 @@ export default function Cotizaciones() {
   const cotizacionesFiltradas = cotizaciones.filter((item) => {
     const { empresa, representante, email, telefono } = resolverDatosCliente(item);
     const referencia = item.referencia || `QT-${item.id}`;
-    const tipo = item.type || item.tipo || "";
+    const tipo = item.type || item.tipo || item.tipo_solicitud || "";
 
     const termino = busqueda.toLowerCase();
     return (
@@ -213,7 +161,7 @@ export default function Cotizaciones() {
         <div style={{ marginBottom: "25px" }}>
           <input
             type="text"
-            placeholder="Filtrar por referencia (QT-XXXX), tipo (producto/fiber_quote), empresa, representante, email o teléfono..."
+            placeholder="Filtrar por referencia (QT-XXXX), tipo, razón social, representante, email o teléfono..."
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             style={{
@@ -256,7 +204,7 @@ export default function Cotizaciones() {
                   const fechaFormateada = item.created_at ? new Date(item.created_at).toLocaleDateString() : "N/D";
                   const totalVal = Number(item.total || 0).toFixed(2);
                   const referenciaStr = item.referencia || `QT-${item.id}`;
-                  const tipoStr = item.type || item.tipo || "N/D";
+                  const tipoStr = item.tipo_solicitud || item.type || item.tipo || "N/D";
                   
                   const { empresa, representante, email, telefono } = resolverDatosCliente(item);
 
@@ -333,7 +281,15 @@ export default function Cotizaciones() {
                 </div>
                 <div>
                   <p style={labelStyle}>Representante / Atención:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.representanteResuelto}</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.representanteResuelto} {cotizacionSeleccionada.cargo ? `(${cotizacionSeleccionada.cargo})` : ""}</p>
+                </div>
+                <div>
+                  <p style={labelStyle}>Identificación Fiscal:</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.identificacion_fiscal || "N/D"}</p>
+                </div>
+                <div>
+                  <p style={labelStyle}>Sitio Web / Industria:</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.sitio_web || "N/D"} {cotizacionSeleccionada.industria ? `/ ${cotizacionSeleccionada.industria}` : ""}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Correo Electrónico:</p>
@@ -344,8 +300,12 @@ export default function Cotizaciones() {
                   <p style={valueStyle}>{cotizacionSeleccionada.telefonoResuelto}</p>
                 </div>
                 <div>
-                  <p style={labelStyle}>Tipo de Cotización:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.type || cotizacionSeleccionada.tipo || "N/D"}</p>
+                  <p style={labelStyle}>País / Dirección:</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.pais || "N/D"} - {cotizacionSeleccionada.direccion || "N/D"}</p>
+                </div>
+                <div>
+                  <p style={labelStyle}>Tipo de Solicitud:</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.tipo_solicitud || cotizacionSeleccionada.type || cotizacionSeleccionada.tipo || "N/D"}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Fecha de Emisión:</p>
@@ -353,17 +313,9 @@ export default function Cotizaciones() {
                     {cotizacionSeleccionada.created_at ? new Date(cotizacionSeleccionada.created_at).toLocaleString() : "N/D"}
                   </p>
                 </div>
-                {(cotizacionSeleccionada.tipo_carrete || cotizacionSeleccionada.hilos) && (
-                  <div>
-                    <p style={labelStyle}>Especificaciones Técnicas:</p>
-                    <p style={valueStyle}>
-                      Carrete: {cotizacionSeleccionada.tipo_carrete || "N/D"} | Hilos: {cotizacionSeleccionada.hilos || "N/D"}
-                    </p>
-                  </div>
-                )}
                 <div>
-                  <p style={labelStyle}>Estado de Pago:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.estado_pago || cotizacionSeleccionada.status || "pendiente"} (${cotizacionSeleccionada.monto_abonado || 0} abonado)</p>
+                  <p style={labelStyle}>Estado:</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.status || "pendiente"}</p>
                 </div>
               </div>
 
@@ -391,7 +343,6 @@ export default function Cotizaciones() {
                                   {prod.SKU || prod.sku || prod.codigo || "N/D"}
                                 </td>
                                 <td style={{ padding: "10px 14px", color: "#fff" }}>
-                                  {/* Tu campo 'Descripción' siempre tiene contenido según tus correcciones */}
                                   {prod.Descripción || prod.descripcion || prod.description || prod.nombre || "Sin descripción"}
                                 </td>
                                 <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>
