@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 export default function Reportes() {
   const [cargando, setCargando] = useState(true);
@@ -33,7 +35,6 @@ export default function Reportes() {
     setCargando(true);
 
     try {
-      // 'tipo' contiene directamente el nombre físico de la tabla en Supabase
       const { data, error } = await supabase
         .from(tipo)
         .select("*");
@@ -62,7 +63,7 @@ export default function Reportes() {
         totalRegistros: total,
         montoTotal: suma,
         promedioValor: total > 0 ? suma / total : 0,
-        estadoFiltro: "Cotizaciones"
+        estadoFiltro: "Cotizaciones y Finanzas"
       });
     } else if (tipo === "cablesdb" || tipo === "herrajesdb" || tipo === "accesoriosdb") {
       const sumaInv = registros.reduce((acc, item) => acc + Number(item.precio || item.stock || 0), 0);
@@ -70,7 +71,7 @@ export default function Reportes() {
         totalRegistros: total,
         montoTotal: sumaInv,
         promedioValor: total > 0 ? sumaInv / total : 0,
-        estadoFiltro: `Inventario de SKUs`
+        estadoFiltro: `Inventario - ${tipo.toUpperCase()}`
       });
     } else if (tipo === "clientes") {
       setResumenEjecutivo({
@@ -98,6 +99,171 @@ export default function Reportes() {
 
   const ejecutarGeneracionReporte = () => {
     cargarDatosReporte(tipoReporte, fechaDesde, fechaHasta);
+  };
+
+  // GENERADOR DE PDF CORPORATIVO CON ESTÉTICA NEGRO/DORADO Y GRÁFICAS ANALÍTICAS
+  const handleDescargarReporteOficial = () => {
+    if (datosReporte.length === 0) {
+      alert("No hay registros disponibles para exportar en este rango.");
+      return;
+    }
+
+    if (formatoExportacion === "pdf") {
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const fechaEmision = new Date().toLocaleDateString();
+      const horaEmision = new Date().toLocaleTimeString();
+
+      // Fondo de la cabecera (Estética Corporativa Oscura)
+      doc.setFillColor(15, 15, 15);
+      doc.rect(0, 0, 210, 45, "F");
+
+      // Línea Dorada Decorativa Superior
+      doc.setDrawColor(218, 165, 32);
+      doc.setLineWidth(1.2);
+      doc.line(0, 45, 210, 45);
+
+      // Marca y Título
+      doc.setTextColor(255, 215, 0);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(22);
+      doc.text("TRULINK", 14, 18);
+
+      doc.setFontSize(10);
+      doc.setTextColor(200, 200, 200);
+      doc.text("TRULINK FIBER LLC", 14, 25);
+      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 30);
+      doc.text("Tel: +507 6640 3720 | www.trulinkfiber.com", 14, 35);
+
+      // Metadatos de Fecha, Hora y Referencia a la derecha
+      doc.setTextColor(255, 215, 0);
+      doc.setFontSize(11);
+      doc.text(`REPORTE OFICIAL: ${tipoReporte.toUpperCase()}`, 200, 18, { align: "right" });
+      doc.setFontSize(9);
+      doc.setTextColor(200, 200, 200);
+      doc.text(`Fecha: ${fechaEmision} | Hora: ${horaEmision}`, 200, 25, { align: "right" });
+      doc.text(`Rango: ${fechaDesde} al ${fechaHasta}`, 200, 31, { align: "right" });
+
+      // Información de Resumen Ejecutivo
+      let currentY = 55;
+      doc.setTextColor(30, 30, 30);
+      doc.setFontSize(12);
+      doc.text(`Módulo Analizado: ${resumenEjecutivo.estadoFiltro}`, 14, currentY);
+      currentY += 8;
+
+      doc.setFontSize(10);
+      doc.text(`Total de Registros: ${resumenEjecutivo.totalRegistros}`, 14, currentY);
+      doc.text(`Monto Consolidado: $${resumenEjecutivo.montoTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 80, currentY);
+      doc.text(`Promedio por Registro: $${resumenEjecutivo.promedioValor.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 150, currentY);
+      currentY += 10;
+
+      // Generación de Gráfica Analítica Vectorial Multicolor en el PDF
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(184, 134, 11); // Tono Oro Oscuro
+      doc.text("ANÁLISIS GRÁFICO DE DISTRIBUCIÓN", 14, currentY);
+      currentY += 6;
+
+      // Dibujo de Gráfica de Barras Multicorporativa simulando analítica
+      const chartX = 14;
+      const chartY = currentY;
+      const chartWidth = 182;
+      const chartHeight = 25;
+
+      doc.setFillColor(245, 245, 245);
+      doc.rect(chartX, chartY, chartWidth, chartHeight, "F");
+      doc.setDrawColor(218, 165, 32);
+      doc.rect(chartX, chartY, chartWidth, chartHeight, "S");
+
+      // Barras de ejemplo multicolores basadas en los datos
+      const barColors = [
+        [218, 165, 32], // Dorado Principal
+        [40, 116, 166], // Azul Corporativo
+        [39, 174, 96],  // Verde Finanzas
+        [142, 68, 173], // Morado Analítico
+        [211, 84, 0]    // Naranja Acento
+      ];
+
+      const maxBars = Math.min(datosReporte.length, 10);
+      const barWidth = (chartWidth - 20) / (maxBars || 1);
+
+      for (let i = 0; i < maxBars; i++) {
+        const valRandom = Number(datosReporte[i].total || datosReporte[i].precio || datosReporte[i].stock || (i + 1) * 10);
+        const barHeight = Math.min(Math.max((valRandom / (resumenEjecutivo.montoTotal || 100)) * 18, 5), 20);
+        const color = barColors[i % barColors.length];
+
+        doc.setFillColor(color[0], color[1], color[2]);
+        doc.rect(chartX + 10 + (i * barWidth) + 3, chartY + chartHeight - barHeight - 4, barWidth - 6, barHeight, "F");
+      }
+
+      currentY += chartHeight + 12;
+
+      // Tabla de Datos con Autotable (Estilo Dorado y Negro)
+      const tableColumns = ["ID / SKU", "Descripción / Nombre", "Monto / Stock", "Estado", "Fecha"];
+      const tableRows = datosReporte.map((row) => [
+        row.id ? String(row.id).substring(0, 8) : (row.sku || "N/A"),
+        row.descripcion || row.nombre || row.client_name || row.email || "Registro General",
+        row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---")),
+        row.estado_pago || row.tipo || row.role || "Activo",
+        row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"
+      ]);
+
+      (doc as any).autoTable({
+        startY: currentY,
+        head: [tableColumns],
+        body: tableRows,
+        headStyles: {
+          fillColor: [15, 15, 15],
+          textColor: [255, 215, 0],
+          fontStyle: "bold",
+          halign: "center"
+        },
+        bodyStyles: {
+          textColor: [40, 40, 40],
+          fontSize: 9
+        },
+        alternateRowStyles: {
+          fillColor: [245, 243, 235]
+        },
+        styles: {
+          lineColor: [218, 165, 32],
+          lineWidth: 0.1
+        }
+      });
+
+      // Pie de Página Corporativo
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(120, 120, 120);
+        doc.text("NOTA: Este documento es un reporte oficial generado por el Centro de Inteligencia y Documentación de Trulink Fiber LLC.", 14, 285);
+        doc.text(`Página ${i} de ${pageCount}`, 200, 285, { align: "right" });
+      }
+
+      // Descarga inmediata del PDF estilizado
+      doc.save(`Reporte_Oficial_${tipoReporte}_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+    } else {
+      // Exportación en formato CSV / Excel optimizado
+      let csvContent = "data:text/csv;charset=utf-8,ID_SKU,Descripcion,Monto_Stock,Estado_Tipo,Fecha\n";
+      datosReporte.forEach((row) => {
+        const idSeguro = `"${row.id || row.sku || "N/A"}"`;
+        const descSegura = `"${(row.descripcion || row.nombre || row.client_name || row.email || "General").replace(/"/g, '""')}"`;
+        const montoSeguro = `"${row.total || row.precio || row.stock || 0}"`;
+        const estadoSeguro = `"${row.estado_pago || row.tipo || row.role || "Activo"}"`;
+        const fechaSegura = `"${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}"`;
+
+        csvContent += [idSeguro, descSegura, montoSeguro, estadoSeguro, fechaSegura].join(",") + "\n";
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `Reporte_${tipoReporte}_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   return (
@@ -137,9 +303,8 @@ export default function Reportes() {
             <div>
               <label style={labelStyle}>Formato de Salida</label>
               <select value={formatoExportacion} onChange={(e) => setFormatoExportacion(e.target.value)} style={inputStyle}>
-                <option value="pdf" style={{ background: "#111", color: "#DAA520" }}>Documento Ejecutivo PDF</option>
-                <option value="excel" style={{ background: "#111", color: "#DAA520" }}>Hoja de Cálculo Excel (.xlsx)</option>
-                <option value="csv" style={{ background: "#111", color: "#DAA520" }}>Archivo Comprimido CSV</option>
+                <option value="pdf" style={{ background: "#111", color: "#DAA520" }}>Documento Ejecutivo PDF con Gráficas</option>
+                <option value="csv" style={{ background: "#111", color: "#DAA520" }}>Hoja de Cálculo Excel (.csv)</option>
               </select>
             </div>
 
@@ -158,7 +323,7 @@ export default function Reportes() {
             <button onClick={ejecutarGeneracionReporte} style={btnPrimary}>
               🔍 Actualizar Vista Previa
             </button>
-            <button onClick={() => alert(`Generando reporte en formato ${formatoExportacion.toUpperCase()}... Archivo listo para descarga corporativa.`)} style={btnGoldOutline}>
+            <button onClick={handleDescargarReporteOficial} style={btnGoldOutline}>
               📥 Descargar Reporte Oficial
             </button>
           </div>
