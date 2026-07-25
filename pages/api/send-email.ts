@@ -33,12 +33,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   else if (tipo === 'ACTIVACION') {
     destinatario = email;
     asunto = '¡Tu cuenta ha sido activada - Trulink Fiber!';
+    
+    // Respaldo usando tu dominio real del portal si el link viene vacío
+    const enlaceFinal = link || `https://portal.trulinkfiber.org/auth/crear-password`;
+
     contenidoHtml = `
       <div style="font-family: sans-serif; background-color: #000; color: #fff; padding: 20px; border-radius: 10px;">
         <h2 style="color: #DAA520;">Hola, ${razon_social}</h2>
         <p>Tu solicitud de acceso ha sido aprobada con éxito.</p>
         <p>Para configurar tu contraseña y acceder al portal, haz clic en el siguiente enlace:</p>
-        <a href="${link}" style="background-color: #DAA520; color: #000; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin-top: 15px;">Crear Contraseña</a>
+        <a href="${enlaceFinal}" style="background-color: #DAA520; color: #000; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin-top: 15px;">Crear Contraseña</a>
         <p style="margin-top: 30px; color: #888; font-size: 0.9rem;">Trulink Fiber LLC</p>
       </div>
     `;
