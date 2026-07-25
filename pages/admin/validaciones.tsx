@@ -7,6 +7,9 @@ export default function AdminValidaciones() {
   const [filteredList, setFilteredList] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
+  // Estados para formas de pago por cada solicitud (key: id, value: { tipo: '50%'|'100%'|'ESPECIAL', porcentaje: number })
+  const [formasPago, setFormasPago] = useState<{ [key: string]: { tipo: string; porcentaje: number } }>({});
+
   // Estados para filtros y ordenamiento
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [filterType, setFilterType] = useState<"todos" | "anio" | "mes" | "dia" | "rango">("todos");
@@ -32,8 +35,34 @@ export default function AdminValidaciones() {
       console.error("Error al cargar solicitudes:", error);
     } else {
       setDataList(data || []);
+      // Inicializar el estado local de formas de pago por defecto en '50%' para cada registro
+      const initialPagos: { [key: string]: { tipo: string; porcentaje: number } } = {};
+      (data || []).forEach((item: any) => {
+        initialPagos[item.id] = { tipo: "50%", porcentaje: 50 };
+      });
+      setFormasPago(initialPagos);
     }
     setLoading(false);
+  };
+
+  const handleTipoPagoChange = (id: string, tipo: string) => {
+    let porcentajeDef = 50;
+    if (tipo === "100%") porcentajeDef = 100;
+    if (tipo === "50%") porcentajeDef = 50;
+    if (tipo === "ESPECIAL") porcentajeDef = formasPago[id]?.porcentaje || 30; // valor inicial para especial si cambia
+
+    setFormasPago(prev => ({
+      ...prev,
+      [id]: { tipo, porcentaje: porcentajeDef }
+    }));
+  };
+
+  const handlePorcentajeEspecialChange = (id: string, val: number) => {
+    const num = Math.max(0, Math.min(100, val)); // limitar entre 0 y 100
+    setFormasPago(prev => ({
+      ...prev,
+      [id]: { ...prev[id], porcentaje: num }
+    }));
   };
 
   const aplicarFiltrosYOrden = () => {
@@ -47,7 +76,6 @@ export default function AdminValidaciones() {
         return itemYear === selectedYear;
       });
     } else if (filterType === "mes" && selectedMonth) {
-      // selectedMonth viene en formato "YYYY-MM"
       resultado = resultado.filter(item => {
         if (!item.created_at) return false;
         const dateObj = new Date(item.created_at);
@@ -55,7 +83,6 @@ export default function AdminValidaciones() {
         return itemMonth === selectedMonth;
       });
     } else if (filterType === "dia" && selectedDate) {
-      // selectedDate viene en formato "YYYY-MM-DD"
       resultado = resultado.filter(item => {
         if (!item.created_at) return false;
         const dateObj = new Date(item.created_at);
@@ -72,30 +99,43 @@ export default function AdminValidaciones() {
       });
     }
 
-    // 2. Ordenamiento por fecha (created_at)
+    // 2. Ordenamiento por fecha
     resultado.sort((a, b) => {
       const fechaA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const fechaB = b.created_at ? new Date(b.created_at).getTime() : 0;
-      
-      if (sortOrder === "desc") {
-        return fechaB - fechaA; // Más recientes primero
-      } else {
-        return fechaA - fechaB; // Más antiguos primero
-      }
+      return sortOrder === "desc" ? fechaB - fechaA : fechaA - fechaB;
     });
 
     setFilteredList(resultado);
   };
 
-  const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
+  const procesarSolicitud = async (id: string, tipoAccion: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
     if (!supabase) return;
 
-    if (tipo === 'ACTIVAR') {
+    const pagoInfo = formasPago[id] || { tipo: "50%", porcentaje: 50 };
+    // Determinar texto descriptivo de la forma de pago para el correo y BD
+    let descripcionFormaPago = "";
+    if (pagoInfo.tipo === "50%") {
+      descripcionFormaPago = "50% a la orden de compra / aceptación de cotización y 50% restante 3 días antes del despacho.";
+    } else if (pagoInfo.tipo === "100%") {
+      descripcionFormaPago = "100% de pago a la aceptación de la cotización o emisión de orden de compra.";
+    } else {
+      const pAnticipo = pagoInfo.porcentaje;
+      const pDiferencial = 100 - pAnticipo;
+      descripcionFormaPago = `Especial: ${pAnticipo}% a la aceptación de cotización / orden de compra y el diferencial de ${pDiferencial}% sujeto a acuerdo interno.`;
+    }
+
+    if (tipoAccion === 'ACTIVAR') {
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
-        .update({ status: 'active', password_token: passwordToken })
+        .update({ 
+          status: 'active', 
+          password_token: passwordToken,
+          forma_pago: pagoInfo.tipo,
+          porcentaje_pago: pagoInfo.porcentaje 
+        })
         .eq('id', id);
 
       if (updateError) {
@@ -115,7 +155,9 @@ export default function AdminValidaciones() {
           tipo_cliente: tipoClienteVal,
           price_list: priceListVal,
           status: 'pendiente_password',
-          password_token: passwordToken
+          password_token: passwordToken,
+          forma_pago: pagoInfo.tipo,
+          porcentaje_pago: pagoInfo.porcentaje
         }, { onConflict: 'email' });
 
       if (clienteError) {
@@ -130,18 +172,19 @@ export default function AdminValidaciones() {
             tipo: "ACTIVACION",
             email: emailCliente,
             razon_social: razonSocialParam,
-            link: `${window.location.origin}/auth/crear-password?token=${passwordToken}`
+            link: `${window.location.origin}/auth/crear-password?token=${passwordToken}`,
+            forma_pago_texto: descripcionFormaPago
           })
         });
         if (!response.ok) throw new Error("Fallo al enviar correo de activación");
-        alert(`Solicitud activada con éxito. Cliente replicado y correo enviado a ${emailCliente}`);
+        alert(`Solicitud activada con éxito. Términos asignados y correo enviado a ${emailCliente}`);
       } catch (err: any) {
-        alert("Solicitud activada en BD y replicada, pero hubo un error enviando el correo: " + err.message);
+        alert("Solicitud activada en BD, pero hubo un error enviando el correo: " + err.message);
       }
 
     } else {
       try {
-        const response = await fetch("/api/send-email", {
+        await fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -150,8 +193,7 @@ export default function AdminValidaciones() {
             razon_social: razonSocialParam
           })
         });
-        if (!response.ok) throw new Error("Fallo al enviar correo de rechazo");
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error enviando correo de rechazo:", err);
       }
 
@@ -164,7 +206,7 @@ export default function AdminValidaciones() {
         await supabase.from("solicitudes_acceso").delete().eq('id', id);
       }
 
-      alert(`La solicitud de ${razonSocialParam} ha sido rechazada y se ha notificado al solicitante.`);
+      alert(`La solicitud de ${razonSocialParam} ha sido rechazada.`);
     }
 
     cargarSolicitudes();
@@ -176,127 +218,82 @@ export default function AdminValidaciones() {
 
       <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
         
-        {/* Header Superior con Estilo Premium Black & Gold */}
+        {/* Header Superior */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
           <div>
             <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
               VALIDACIÓN DE INSCRIPCIONES
             </h1>
             <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
-              Gestión y aprobación de solicitudes de acceso para nuevos integradores y socios comerciales.
+              Gestión, asignación de condiciones comerciales y aprobación de solicitudes de acceso.
             </p>
           </div>
           <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
-            PENDIENTES: {filteredList.length} {filteredList.length !== dataList.length && `(de ${dataList.length})`}
+            PENDIENTES: {filteredList.length}
           </div>
         </div>
 
-        {/* Barra de Filtros y Ordenamiento (Black & Gold Theme) */}
+        {/* Barra de Filtros */}
         <div style={{ background: "#111111", border: "1px solid #222", borderRadius: "10px", padding: "20px", marginBottom: "30px", display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center", justifyContent: "space-between" }}>
-          
           <div style={{ display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-              <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>FILTRAR POR:</label>
-              <select 
-                value={filterType} 
-                onChange={(e) => setFilterType(e.target.value as any)}
-                style={selectStyle}
-              >
-                <option value="todos" style={{ background: "#111" }}>Todos los registros</option>
-                <option value="dia" style={{ background: "#111" }}>Por Día</option>
-                <option value="mes" style={{ background: "#111" }}>Por Mes</option>
-                <option value="anio" style={{ background: "#111" }}>Por Año</option>
-                <option value="rango" style={{ background: "#111" }}>Por Rango de Fechas</option>
+              <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>FILTRAR POR:</label>
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} style={selectStyle}>
+                <option value="todos">Todos los registros</option>
+                <option value="dia">Por Día</option>
+                <option value="mes">Por Mes</option>
+                <option value="anio">Por Año</option>
+                <option value="rango">Por Rango de Fechas</option>
               </select>
             </div>
 
-            {/* Opciones dinámicas según el filtro seleccionado */}
             {filterType === "dia" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>SELECCIONAR DÍA:</label>
-                <input 
-                  type="date" 
-                  value={selectedDate} 
-                  onChange={(e) => setSelectedDate(e.target.value)} 
-                  style={inputStyle}
-                />
+                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>DÍA:</label>
+                <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={inputStyle} />
               </div>
             )}
-
             {filterType === "mes" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>SELECCIONAR MES:</label>
-                <input 
-                  type="month" 
-                  value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(e.target.value)} 
-                  style={inputStyle}
-                />
+                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>MES:</label>
+                <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} style={inputStyle} />
               </div>
             )}
-
             {filterType === "anio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>AÑO:</label>
-                <input 
-                  type="number" 
-                  value={selectedYear} 
-                  onChange={(e) => setSelectedYear(e.target.value)} 
-                  style={{ ...inputStyle, width: "100px" }}
-                  placeholder="Ej. 2026"
-                />
+                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>AÑO:</label>
+                <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} style={{ ...inputStyle, width: "100px" }} />
               </div>
             )}
-
             {filterType === "rango" && (
-              <div style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>DESDE:</label>
-                  <input 
-                    type="date" 
-                    value={dateFrom} 
-                    onChange={(e) => setDateFrom(e.target.value)} 
-                    style={inputStyle}
-                  />
+                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>DESDE:</label>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>HASTA:</label>
-                  <input 
-                    type="date" 
-                    value={dateTo} 
-                    onChange={(e) => setDateTo(e.target.value)} 
-                    style={inputStyle}
-                  />
+                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>HASTA:</label>
+                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} />
                 </div>
               </div>
             )}
           </div>
 
-          {/* Control de Ordenamiento */}
           <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-            <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600", letterSpacing: "0.5px" }}>ORDENAR POR FECHA:</label>
-            <select 
-              value={sortOrder} 
-              onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
-              style={selectStyle}
-            >
-              <option value="desc" style={{ background: "#111" }}>Más recientes primero (Default)</option>
-              <option value="asc" style={{ background: "#111" }}>Más antiguos primero</option>
+            <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>ORDENAR:</label>
+            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")} style={selectStyle}>
+              <option value="desc">Más recientes primero</option>
+              <option value="asc">Más antiguos primero</option>
             </select>
           </div>
-
         </div>
 
-        {/* Contenido Principal */}
+        {/* Listado de Solicitudes */}
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px", color: "#666", fontSize: "1rem", letterSpacing: "1px" }}>
-            Cargando solicitudes de acceso...
-          </div>
+          <div style={{ textAlign: "center", padding: "60px", color: "#666" }}>Cargando solicitudes...</div>
         ) : filteredList.length === 0 ? (
           <div style={{ background: "#111", border: "1px solid #222", borderRadius: "12px", padding: "60px", textAlign: "center" }}>
-            <p style={{ color: "#777", fontStyle: "italic", fontSize: "1rem", margin: 0, letterSpacing: "0.5px" }}>
-              No se encontraron solicitudes con los criterios de filtrado seleccionados.
-            </p>
+            <p style={{ color: "#777", fontStyle: "italic", margin: 0 }}>No se encontraron solicitudes pendientes.</p>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
@@ -308,38 +305,25 @@ export default function AdminValidaciones() {
               }
 
               const fechaCreacion = item.created_at ? new Date(item.created_at).toLocaleString() : 'Reciente';
+              const currentPago = formasPago[item.id] || { tipo: "50%", porcentaje: 50 };
 
               return (
-                <div 
-                  key={item.id} 
-                  style={{ 
-                    background: "#111111", 
-                    border: "1px solid #222", 
-                    borderRadius: "12px", 
-                    padding: "25px 30px", 
-                    display: "flex", 
-                    alignItems: "center", 
-                    justifyContent: "space-between",
-                    boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
-                    transition: "all 0.3s ease"
-                  }}
-                >
+                <div key={item.id} style={{ background: "#111111", border: "1px solid #222", borderRadius: "12px", padding: "25px 30px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
+                  
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, marginRight: "30px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                      <span style={{ fontSize: "0.75rem", background: "rgba(218, 165, 32, 0.15)", color: "#DAA520", padding: "3px 8px", borderRadius: "4px", fontWeight: "600", letterSpacing: "0.5px" }}>
+                      <span style={{ fontSize: "0.75rem", background: "rgba(218, 165, 32, 0.15)", color: "#DAA520", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
                         ID: {item.id ? item.id.substring(0, 8) : 'N/A'}
                       </span>
-                      <span style={{ fontSize: "0.75rem", color: "#888" }}>
-                        Fecha: {fechaCreacion}
-                      </span>
+                      <span style={{ fontSize: "0.75rem", color: "#888" }}>Fecha: {fechaCreacion}</span>
                     </div>
 
-                    <div style={{ fontWeight: "600", fontSize: "1.05rem", letterSpacing: "0.5px", color: "#FFF" }}>
+                    <div style={{ fontWeight: "600", fontSize: "1.05rem", color: "#FFF" }}>
                       {item.razon_social || 'Sin Razón Social'}
                     </div>
 
-                    <div style={{ fontSize: "0.88rem", color: "#AAA", letterSpacing: "0.3px" }}>
-                      Correo Electrónico: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
+                    <div style={{ fontSize: "0.88rem", color: "#AAA" }}>
+                      Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
                     </div>
 
                     <div>
@@ -347,26 +331,53 @@ export default function AdminValidaciones() {
                         VER DOCUMENTOS ADJUNTOS
                       </a>
                     </div>
+
+                    {/* CONFIGURACIÓN DE FORMA DE PAGO */}
+                    <div style={{ marginTop: "10px", background: "rgba(20,20,20,0.8)", border: "1px solid rgba(218, 165, 32, 0.2)", padding: "12px 15px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <label style={{ fontSize: "0.7rem", color: "#DAA520", fontWeight: "700", letterSpacing: "0.5px" }}>FORMA DE PAGO:</label>
+                        <select 
+                          value={currentPago.tipo} 
+                          onChange={(e) => handleTipoPagoChange(item.id, e.target.value)}
+                          style={selectStyle}
+                        >
+                          <option value="50%">50% Anticipo / 50% antes despacho</option>
+                          <option value="100%">100% a la Orden de Compra</option>
+                          <option value="ESPECIAL">ESPECIAL (Negociación Interna)</option>
+                        </select>
+                      </div>
+
+                      {currentPago.tipo === "ESPECIAL" && (
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(218, 165, 32, 0.05)", padding: "6px 10px", borderRadius: "6px", border: "1px dashed rgba(218, 165, 32, 0.4)" }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                            <label style={{ fontSize: "0.65rem", color: "#DAA520", fontWeight: "600" }}>% A LA ORDEN:</label>
+                            <input 
+                              type="number" 
+                              min="0" 
+                              max="100" 
+                              value={currentPago.porcentaje}
+                              onChange={(e) => handlePorcentajeEspecialChange(item.id, parseInt(e.target.value) || 0)}
+                              style={{ background: "#000", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "4px", padding: "4px 8px", width: "65px", textAlign: "center", fontWeight: "700" }}
+                            />
+                          </div>
+                          <div style={{ fontSize: "0.75rem", color: "#AAA", alignSelf: "flex-end", paddingBottom: "4px" }}>
+                            Diferencial Saldo: <strong style={{ color: "#2ecc71" }}>{100 - currentPago.porcentaje}%</strong>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                   </div>
 
                   <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <button 
-                      onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} 
-                      style={btnActivar}
-                      onMouseOver={(e) => { e.currentTarget.style.background = "rgba(46, 204, 113, 0.15)"; }}
-                      onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
-                    >
+                    <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={btnActivar}>
                       ACTIVAR
                     </button>
-                    <button 
-                      onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} 
-                      style={btnRechazar}
-                      onMouseOver={(e) => { e.currentTarget.style.background = "rgba(231, 76, 60, 0.15)"; }}
-                      onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
-                    >
+                    <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={btnRechazar}>
                       RECHAZAR
                     </button>
                   </div>
+
                 </div>
               );
             })}
