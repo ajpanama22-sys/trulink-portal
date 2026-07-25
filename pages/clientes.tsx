@@ -116,32 +116,39 @@ export default function Clientes() {
       if (dbError) throw dbError;
 
       const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
-      let primerUrlSubida = "";
+      let rutasArchivos: string[] = [];
 
-      // 2. Iteramos los archivos seleccionados y los subimos usando el ID real de la tabla
+      // 2. Iteramos TODOS los archivos seleccionados y los subimos al bucket "registros" usando el servicio
       for (const file of selectedFiles) {
-        const resultadoDoc: any = await uploadAndLinkDocument(file, categoria, insertData.id, "solicitudes_acceso");
+        // Pasamos "registros" como 5to parámetro para asegurar que NUNCA toque el bucket "documentos" de cotizaciones
+        const resultadoDoc: any = await uploadAndLinkDocument(
+          file, 
+          categoria, 
+          insertData.id, 
+          "solicitudes_acceso", 
+          "registros"
+        );
+        
         if (resultadoDoc) {
-          // Extraemos la ruta asegurando compatibilidad con diferentes estructuras de respuesta
           const urlString = typeof resultadoDoc === 'string' 
             ? resultadoDoc 
             : (resultadoDoc.fullPath || resultadoDoc.path || resultadoDoc.url || resultadoDoc.data?.path || "");
           
-          if (urlString && !primerUrlSubida) {
-            primerUrlSubida = urlString;
+          if (urlString) {
+            rutasArchivos.push(urlString);
           }
         }
       }
 
-      // 3. Actualizamos inmediatamente el registro con la ruta del documento obtenido
-      if (primerUrlSubida) {
+      // 3. Actualizamos el registro guardando TODAS las rutas de los archivos subidos juntas
+      if (rutasArchivos.length > 0) {
         const { error: updateError } = await supabase
           .from("solicitudes_acceso")
-          .update({ documento_url: primerUrlSubida })
+          .update({ documento_url: rutasArchivos.join(", ") }) // Guarda todas las rutas separadas por coma en la base de datos
           .eq("id", insertData.id);
 
         if (updateError) {
-          console.error("Error al asociar el documento_url en la base de datos:", updateError);
+          console.error("Error al asociar los documentos en la base de datos:", updateError);
         }
       }
 
@@ -333,7 +340,7 @@ export default function Clientes() {
           </div>
           {selectedFiles.length > 0 && (
             <div style={{ fontSize: "0.85rem", color: "#DAA520", marginBottom: "15px" }}>
-              Archivos seleccionados: {selectedFiles.map(f => f.name).join(", ")}
+              Archivos seleccionados ({selectedFiles.length}): {selectedFiles.map(f => f.name).join(", ")}
             </div>
           )}
           <ul style={{ fontSize: "0.85rem", color: "#C0C0C0", marginBottom: "25px", paddingLeft: "20px", lineHeight: "1.6" }}>
