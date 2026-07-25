@@ -70,7 +70,7 @@ export default function Reportes() {
         estadoFiltro: "Cotizaciones y Finanzas"
       });
     } else if (tipo === "cablesdb" || tipo === "herrajesdb" || tipo === "accesoriosdb") {
-      const sumaInv = registros.reduce((acc, item) => acc + (Number(item.precio_a ?? item.Precio_A || 0) * Number(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? 0)), 0);
+      const sumaInv = registros.reduce((acc, item) => acc + (Number((item.precio_a ?? item.Precio_A) || 0) * Number(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? 0)), 0);
       setResumenEjecutivo({
         totalRegistros: total,
         montoTotal: sumaInv,
@@ -190,7 +190,7 @@ export default function Reportes() {
         const item = datosReporte[i];
         const valRandom = Number(
           esInventario 
-            ? (Number(item.precio_a ?? item.Precio_A || 0) * Number(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? 0))
+            ? (Number((item.precio_a ?? item.Precio_A) || 0) * Number(item.cantidad ?? item.Cantidad ?? item.Stock ?? item.stock ?? 0))
             : (item.total || item.precio || (i + 1) * 10)
         );
         const barHeight = Math.min(Math.max((valRandom / (resumenEjecutivo.montoTotal || 100)) * 18, 5), 20);
@@ -217,7 +217,7 @@ export default function Reportes() {
           row.SKU || row.sku || "N/A",
           row.Descripción || row.descripcion || "N/A",
           row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0,
-          `$${Number(row.precio_a ?? row.Precio_A || 0).toFixed(2)}`,
+          `$${Number((row.precio_a ?? row.Precio_A) || 0).toFixed(2)}`,
           "Activo"
         ]);
       } else if (!esDirectorio) {
@@ -285,7 +285,7 @@ export default function Reportes() {
           const skuSeguro = `"${row.SKU || row.sku || "N/A"}"`;
           const descSegura = `"${(row.Descripción || row.descripcion || "N/A").replace(/"/g, '""')}"`;
           const stockSeguro = `"${row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0}"`;
-          const precioASeguro = `"${Number(row.precio_a ?? row.Precio_A || 0).toFixed(2)}"`;
+          const precioASeguro = `"${Number((row.precio_a ?? row.Precio_A) || 0).toFixed(2)}"`;
           const estadoSeguro = `"Activo"`;
           csvContent += [skuSeguro, descSegura, stockSeguro, precioASeguro, estadoSeguro].join(",") + "\n";
         } else {
@@ -412,7 +412,7 @@ export default function Reportes() {
                     const col1 = esInventario ? (row.SKU || row.sku || "N/A") : (row.id ? String(row.id).substring(0, 8) : (row.sku ? String(row.sku) : "N/A"));
                     const col2 = esDirectorio ? (row.nombre || row.client_name || row.empresa || "---") : esInventario ? (row.Descripción || row.descripcion || "---") : (row.descripcion || row.nombre || row.client_name || row.email || "Registro General");
                     const col3 = esDirectorio ? (row.email || row.correo || "---") : esInventario ? (row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0) : (row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---")));
-                    const col4 = esDirectorio ? (row.telefono || row.phone || row.movil || "---") : esInventario ? `$${Number(row.precio_a ?? row.Precio_A || 0).toFixed(2)}` : (row.estado_pago || row.tipo || row.role || "Activo");
+                    const col4 = esDirectorio ? (row.telefono || row.phone || row.movil || "---") : esInventario ? `$${Number((row.precio_a ?? row.Precio_A) || 0).toFixed(2)}` : (row.estado_pago || row.tipo || row.role || "Activo");
                     const col5 = esInventario ? "Activo" : (row.created_at ? new Date(row.created_at).toLocaleDateString() : "---");
 
                     return (
