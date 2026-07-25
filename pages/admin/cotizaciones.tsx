@@ -30,14 +30,38 @@ export default function Cotizaciones() {
   };
 
   const resolverDatosCliente = (item: any) => {
-    // Extraer datos dependiendo de si están en columnas planas, o anidados en objetos de cliente/items
+    // Barrido exhaustivo en columnas planas, objetos anidados o metadatos de ítems
     const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
-    const primerItem = Array.isArray(item.items) ? item.items[0] : (item.items || {});
+    const primerItem = Array.isArray(item.items) ? (item.items[0] || {}) : (item.items || {});
 
-    const empresa = item.empresa || clienteInfo.razon_social || clienteInfo.empresa || clienteInfo.nombre || primerItem.empresa || "Sin especificar";
-    const representante = item.representante || clienteInfo.representante || clienteInfo.atn || primerItem.representante || "N/D";
-    const email = item.email || clienteInfo.email || primerItem.email || "N/D";
-    const telefono = item.telefono || clienteInfo.telefono || primerItem.telefono || "N/D";
+    const empresa = 
+      item.empresa || 
+      clienteInfo.razon_social || 
+      clienteInfo.empresa || 
+      clienteInfo.nombre || 
+      primerItem.empresa || 
+      primerItem.razon_social || 
+      "Sin especificar";
+
+    const representante = 
+      item.representante || 
+      clienteInfo.representante || 
+      clienteInfo.atn || 
+      clienteInfo.contacto ||
+      primerItem.representante || 
+      "N/D";
+
+    const email = 
+      item.email || 
+      clienteInfo.email || 
+      primerItem.email || 
+      "N/D";
+
+    const telefono = 
+      item.telefono || 
+      clienteInfo.telefono || 
+      primerItem.telefono || 
+      "N/D";
 
     return { empresa, representante, email, telefono };
   };
