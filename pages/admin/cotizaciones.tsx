@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
+// Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
+export const dynamic = 'force-dynamic';
+
 export default function Cotizaciones() {
   const [cotizaciones, setCotizaciones] = useState<any[]>([]);
   const [busqueda, setBusqueda] = useState("");
@@ -29,7 +32,18 @@ export default function Cotizaciones() {
 
   const abrirDetalle = async (item: any) => {
     if (!supabase) return;
-    setCotizacionSeleccionada(item);
+    
+    // Extraer datos de cliente si vienen anidados o planos
+    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
+    const itemEnriquecido = {
+      ...item,
+      empresaResuelto: item.empresa || clienteInfo.razon_social || clienteInfo.empresa || "Sin especificar",
+      representanteResuelto: item.representante || clienteInfo.representante || clienteInfo.atn || "N/D",
+      emailResuelto: item.email || clienteInfo.email || "N/D",
+      telefonoResuelto: item.telefono || clienteInfo.telefono || "N/D"
+    };
+
+    setCotizacionSeleccionada(itemEnriquecido);
     setModalAbierto(true);
     setCargandoPdf(false);
 
@@ -87,14 +101,24 @@ export default function Cotizaciones() {
     setCargandoPdf(false);
   };
 
-  const cotizacionesFiltradas = cotizaciones.filter((item) =>
-    item.referencia?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    item.empresa?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    item.representante?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    item.email?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    item.telefono?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    item.id?.toString().includes(busqueda)
-  );
+  const cotizacionesFiltradas = cotizaciones.filter((item) => {
+    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
+    const empresa = item.empresa || clienteInfo.razon_social || clienteInfo.empresa || "";
+    const representante = item.representante || clienteInfo.representante || "";
+    const email = item.email || clienteInfo.email || "";
+    const telefono = item.telefono || clienteInfo.telefono || "";
+    const referencia = item.referencia || `QT-${item.id}`;
+
+    const termino = busqueda.toLowerCase();
+    return (
+      referencia.toLowerCase().includes(termino) ||
+      empresa.toLowerCase().includes(termino) ||
+      representante.toLowerCase().includes(termino) ||
+      email.toLowerCase().includes(termino) ||
+      telefono.toLowerCase().includes(termino) ||
+      item.id?.toString().includes(termino)
+    );
+  });
 
   return (
     <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
@@ -163,10 +187,13 @@ export default function Cotizaciones() {
                   const fechaFormateada = item.created_at ? new Date(item.created_at).toLocaleDateString() : "N/D";
                   const totalVal = Number(item.total || 0).toFixed(2);
                   const referenciaStr = item.referencia || `QT-${item.id}`;
-                  const empresaStr = item.empresa || item.representante || "Sin especificar";
-                  const emailStr = item.email || "N/D";
-                  const telefonoStr = item.telefono || "N/D";
-                  const tipoStr = item.type || "N/D";
+                  
+                  const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
+                  const empresaStr = item.empresa || clienteInfo.razon_social || clienteInfo.empresa || clienteInfo.nombre || "Sin especificar";
+                  const representanteStr = item.representante || clienteInfo.representante || clienteInfo.atn || "";
+                  const emailStr = item.email || clienteInfo.email || "N/D";
+                  const telefonoStr = item.telefono || clienteInfo.telefono || "N/D";
+                  const tipoStr = item.type || item.tipo || "N/D";
 
                   return (
                     <tr 
@@ -181,8 +208,8 @@ export default function Cotizaciones() {
                       </td>
                       <td style={{ ...tdStyle, color: "#fff", fontWeight: "500" }}>
                         {empresaStr}
-                        {item.representante && item.empresa && (
-                          <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>Atn: {item.representante}</div>
+                        {representanteStr && (
+                          <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>Atn: {representanteStr}</div>
                         )}
                       </td>
                       <td style={{ ...tdStyle, fontSize: "0.85rem" }}>
@@ -237,23 +264,23 @@ export default function Cotizaciones() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px", fontSize: "0.9rem" }}>
                 <div>
                   <p style={labelStyle}>Empresa / Razón Social:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.empresa || "N/D"}</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.empresaResuelto}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Representante / Atención:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.representante || "N/D"}</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.representanteResuelto}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Correo Electrónico:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.email || "N/D"}</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.emailResuelto}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Teléfono:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.telefono || "N/D"}</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.telefonoResuelto}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Tipo de Cotización:</p>
-                  <p style={valueStyle}>{cotizacionSeleccionada.type || "N/D"}</p>
+                  <p style={valueStyle}>{cotizacionSeleccionada.type || cotizacionSeleccionada.tipo || "N/D"}</p>
                 </div>
                 <div>
                   <p style={labelStyle}>Fecha de Emisión:</p>
@@ -277,36 +304,43 @@ export default function Cotizaciones() {
               <div style={{ marginBottom: "20px" }}>
                 <p style={{ ...labelStyle, marginBottom: "8px" }}>Ítems Solicitados:</p>
                 <div style={{ backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px", maxHeight: "180px", overflowY: "auto" }}>
-                  {Array.isArray(cotizacionSeleccionada.items) && cotizacionSeleccionada.items.length > 0 ? (
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
-                      <thead>
-                        <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#141414" }}>
-                          <th style={{ padding: "10px 14px" }}>SKU</th>
-                          <th style={{ padding: "10px 14px" }}>Descripción</th>
-                          <th style={{ padding: "10px 14px", textAlign: "center" }}>Cant.</th>
-                          <th style={{ padding: "10px 14px", textAlign: "right" }}>Total</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cotizacionSeleccionada.items.map((prod: any, idx: number) => (
-                          <tr key={idx} style={{ borderBottom: "1px solid #161616" }}>
-                            <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || "N/D"}</td>
-                            <td style={{ padding: "10px 14px", color: "#fff" }}>{prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
-                            <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || 0).toFixed(2)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : typeof cotizacionSeleccionada.items === 'object' && cotizacionSeleccionada.items !== null ? (
-                    <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
-                      <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU:</strong> {cotizacionSeleccionada.items.sku || cotizacionSeleccionada.items.SKU || "N/D"}</p>
-                      <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {cotizacionSeleccionada.items.descripcion || cotizacionSeleccionada.items.description || "N/D"}</p>
-                      <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(cotizacionSeleccionada.items.total || 0).toFixed(2)}</p>
-                    </div>
-                  ) : (
-                    <p style={{ color: "#666", fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados.</p>
-                  )}
+                  {(() => {
+                    const itemsList = cotizacionSeleccionada.items || cotizacionSeleccionada.productos || cotizacionSeleccionada.details;
+                    if (Array.isArray(itemsList) && itemsList.length > 0) {
+                      return (
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
+                          <thead>
+                            <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#141414" }}>
+                              <th style={{ padding: "10px 14px" }}>SKU</th>
+                              <th style={{ padding: "10px 14px" }}>Descripción</th>
+                              <th style={{ padding: "10px 14px", textAlign: "center" }}>Cant.</th>
+                              <th style={{ padding: "10px 14px", textAlign: "right" }}>Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {itemsList.map((prod: any, idx: number) => (
+                              <tr key={idx} style={{ borderBottom: "1px solid #161616" }}>
+                                <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || "N/D"}</td>
+                                <td style={{ padding: "10px 14px", color: "#fff" }}>{prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
+                                <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
+                                <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || prod.precio || 0).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      );
+                    } else if (typeof itemsList === 'object' && itemsList !== null) {
+                      return (
+                        <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
+                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU:</strong> {itemsList.sku || itemsList.SKU || "N/D"}</p>
+                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.descripcion || itemsList.description || "N/D"}</p>
+                          <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || 0).toFixed(2)}</p>
+                        </div>
+                      );
+                    } else {
+                      return <p style={{ color: "#666", fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados.</p>;
+                    }
+                  })()}
                 </div>
               </div>
 
