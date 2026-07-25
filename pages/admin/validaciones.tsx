@@ -10,7 +10,7 @@ export default function AdminValidaciones() {
   const [filteredList, setFilteredList] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Estados para formas de pago por cada solicitud (key: id, value: { tipo: '50%'|'100%'|'ESPECIAL', porcentaje: number })
+  // Estados para formas de pago por cada solicitud
   const [formasPago, setFormasPago] = useState<{ [key: string]: { tipo: string; porcentaje: number } }>({});
 
   // Estados para filtros y ordenamiento
@@ -37,7 +37,6 @@ export default function AdminValidaciones() {
       return;
     }
     setLoading(true);
-    // Filtrar solicitudes con status 'pendiente' o nulo (excluyendo 'active' y 'rejected')
     const { data, error } = await supabase
       .from("solicitudes_acceso")
       .select("*")
@@ -47,7 +46,6 @@ export default function AdminValidaciones() {
       console.error("Error al cargar solicitudes:", error);
     } else {
       setDataList(data || []);
-      // Inicializar el estado local de formas de pago por defecto en '50%' para cada registro
       const initialPagos: { [key: string]: { tipo: string; porcentaje: number } } = {};
       (data || []).forEach((item: any) => {
         initialPagos[item.id] = { tipo: "50%", porcentaje: 50 };
@@ -61,7 +59,7 @@ export default function AdminValidaciones() {
     let porcentajeDef = 50;
     if (tipo === "100%") porcentajeDef = 100;
     if (tipo === "50%") porcentajeDef = 50;
-    if (tipo === "ESPECIAL") porcentajeDef = formasPago[id]?.porcentaje || 30; // valor inicial para especial si cambia
+    if (tipo === "ESPECIAL") porcentajeDef = formasPago[id]?.porcentaje || 30;
 
     setFormasPago(prev => ({
       ...prev,
@@ -70,7 +68,7 @@ export default function AdminValidaciones() {
   };
 
   const handlePorcentajeEspecialChange = (id: string, val: number) => {
-    const num = Math.max(0, Math.min(100, val)); // limitar entre 0 y 100
+    const num = Math.max(0, Math.min(100, val));
     setFormasPago(prev => ({
       ...prev,
       [id]: { ...prev[id], porcentaje: num }
@@ -80,7 +78,6 @@ export default function AdminValidaciones() {
   const aplicarFiltrosYOrden = () => {
     let resultado = [...dataList];
 
-    // 1. Filtrado
     if (filterType === "anio" && selectedYear) {
       resultado = resultado.filter(item => {
         if (!item.created_at) return false;
@@ -111,7 +108,6 @@ export default function AdminValidaciones() {
       });
     }
 
-    // 2. Ordenamiento por fecha
     resultado.sort((a, b) => {
       const fechaA = a.created_at ? new Date(a.created_at).getTime() : 0;
       const fechaB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -126,7 +122,6 @@ export default function AdminValidaciones() {
     if (!supabase) return;
 
     const pagoInfo = formasPago[id] || { tipo: "50%", porcentaje: 50 };
-    // Determinar texto descriptivo de la forma de pago para el correo y BD
     let descripcionFormaPago = "";
     if (pagoInfo.tipo === "50%") {
       descripcionFormaPago = "50% a la orden de compra / aceptación de cotización y 50% restante 3 días antes del despacho.";
@@ -160,7 +155,7 @@ export default function AdminValidaciones() {
       const tipoClienteVal = datosCompletos.tipo_cliente || itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = datosCompletos.price_list || 'C';
 
-      const { error: clienteError } = await supabase
+      await supabase
         .from("clientes")
         .upsert({
           razon_social: razonSocialParam,
@@ -172,10 +167,6 @@ export default function AdminValidaciones() {
           forma_pago: pagoInfo.tipo,
           porcentaje_pago: pagoInfo.porcentaje
         }, { onConflict: 'email' });
-
-      if (clienteError) {
-        console.error("Error replicando en tabla clientes:", clienteError);
-      }
 
       try {
         const response = await fetch("/api/send-email", {
@@ -190,7 +181,7 @@ export default function AdminValidaciones() {
           })
         });
         if (!response.ok) throw new Error("Fallo al enviar correo de activación");
-        alert(`Solicitud activada con éxito. Términos asignados y correo enviado a ${emailCliente}`);
+        alert(`Solicitud activada con éxito. Correo enviado a ${emailCliente}`);
       } catch (err: any) {
         alert("Solicitud activada en BD, pero hubo un error enviando el correo: " + err.message);
       }
@@ -231,7 +222,6 @@ export default function AdminValidaciones() {
 
       <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
         
-        {/* Header Superior */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
           <div>
             <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
@@ -333,56 +323,61 @@ export default function AdminValidaciones() {
                       Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
                     </div>
 
-                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS ROBUSTA */}
+                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS CON PARSER LIMPIO MULTI-RUTA */}
                     <div>
                       {(() => {
                         const rawVal = item.documento_url || item.documentos_url || item.url || item.documento;
                         const supabaseClient = getSupabase();
 
                         if (rawVal) {
-                          try {
-                            const parsed = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal;
-                            const filesArray = Array.isArray(parsed) ? parsed : [parsed];
-                            
-                            if (filesArray.length > 0) {
-                              return filesArray.map((fileItem: any, idx: number) => {
-                                let fileUrl = typeof fileItem === "string" ? fileItem : (fileItem.url || fileItem.path || fileItem.name || '');
-                                
-                                let finalLink = "#";
-                                if (fileUrl) {
-                                  if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
-                                    finalLink = fileUrl;
-                                  } else if (supabaseClient) {
-                                    const cleanPath = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
-                                    const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(cleanPath);
-                                    finalLink = publicData?.publicUrl || "#";
-                                  }
-                                }
+                          let filePaths: string[] = [];
 
-                                return (
-                                  <a key={idx} href={finalLink} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
-                                    📄 VER ARCHIVO PDF {idx + 1}
-                                  </a>
-                                );
-                              });
-                            }
-                          } catch (e) {
-                            let finalLink = "#";
-                            if (rawVal) {
-                              if (rawVal.startsWith("http://") || rawVal.startsWith("https://")) {
-                                finalLink = rawVal;
-                              } else if (supabaseClient) {
-                                const cleanPath = rawVal.startsWith('/') ? rawVal.substring(1) : rawVal;
-                                const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(cleanPath);
-                                finalLink = publicData?.publicUrl || "#";
+                          if (typeof rawVal === 'string') {
+                            // Intentar parsear si es JSON string, si falla limpiar por comas, espacios o saltos de línea
+                            try {
+                              const parsed = JSON.parse(rawVal);
+                              if (Array.isArray(parsed)) {
+                                filePaths = parsed.map(p => typeof p === 'string' ? p : (p.url || p.path || ''));
+                              } else if (typeof parsed === 'object' && parsed !== null) {
+                                filePaths = [parsed.url || parsed.path || ''];
+                              } else {
+                                filePaths = [rawVal];
                               }
+                            } catch (e) {
+                              // Separar por coma, punto y coma o espacios múltiples donde vengan las URLs
+                              filePaths = rawVal.split(/[,;\s]+/).filter(Boolean);
                             }
+                          } else if (Array.isArray(rawVal)) {
+                            filePaths = rawVal.map(p => typeof p === 'string' ? p : (p.url || p.path || ''));
+                          }
 
-                            return (
-                              <a href={finalLink} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                                📄 VER ARCHIVO PDF ADJUNTO
+                          // Filtrar rutas válidas y armar botones con plural "VER ARCHIVOS PDF"
+                          const validLinks = filePaths.map(pathItem => {
+                            let cleanPath = pathItem.trim();
+                            if (!cleanPath) return null;
+
+                            if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://")) {
+                              return cleanPath;
+                            } else if (supabaseClient) {
+                              // Limpiar prefijos de URL pública si ya vinieran incrustados parcialmente
+                              if (cleanPath.includes('/storage/v1/object/public/')) {
+                                const parts = cleanPath.split('/storage/v1/object/public/');
+                                cleanPath = parts[parts.length - 1];
+                              }
+                              if (cleanPath.startsWith('/')) cleanPath = cleanPath.substring(1);
+                              
+                              const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(cleanPath);
+                              return publicData?.publicUrl || null;
+                            }
+                            return null;
+                          }).filter(Boolean) as string[];
+
+                          if (validLinks.length > 0) {
+                            return validLinks.map((link, idx) => (
+                              <a key={idx} href={link} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
+                                📄 VER ARCHIVOS PDF {validLinks.length > 1 ? idx + 1 : ''}
                               </a>
-                            );
+                            ));
                           }
                         }
 
@@ -391,7 +386,7 @@ export default function AdminValidaciones() {
                           const fallbackUrl = publicData?.publicUrl || "#";
                           return (
                             <a href={fallbackUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                              📄 VER ARCHIVO PDF ADJUNTO (ID)
+                              📄 VER ARCHIVOS PDF
                             </a>
                           );
                         }
