@@ -4,6 +4,7 @@ import Sidebar from "./Sidebar";
 
 export default function AdminValidaciones() {
   const [dataList, setDataList] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
     cargarSolicitudes();
@@ -11,13 +12,14 @@ export default function AdminValidaciones() {
 
   const cargarSolicitudes = async () => {
     if (!supabase) return;
-    setDataList([]);
+    setLoading(true);
     const { data, error } = await supabase.from("solicitudes_acceso").select("*");
     if (error) {
       console.error("Error al cargar solicitudes:", error);
     } else {
       setDataList(data || []);
     }
+    setLoading(false);
   };
 
   const procesarSolicitud = async (id: string, tipo: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
@@ -104,38 +106,110 @@ export default function AdminValidaciones() {
   };
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
+    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
       <Sidebar currentActive="validaciones" />
 
-      <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        <h1 style={{ fontSize: "1.5rem", marginBottom: "25px", borderBottom: "1px solid #222", paddingBottom: "10px", letterSpacing: "1px" }}>VALIDACIÓN DE INSCRIPCIONES</h1>
+      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
         
-        {dataList.length === 0 ? (
-          <p style={{ color: "#666", fontStyle: "italic" }}>No hay solicitudes pendientes por validar.</p>
-        ) : (
-          dataList.map((item: any) => {
-            let docUrl = item.documentos_url || item.url || "";
-            if (!docUrl && supabase) {
-              // CORRECCIÓN: Apuntando al bucket 'registros'
-              const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
-              docUrl = publicData?.publicUrl || "#";
-            }
+        {/* Header Superior con Estilo Premium Black & Gold */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
+          <div>
+            <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
+              VALIDACIÓN DE INSCRIPCIONES
+            </h1>
+            <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
+              Gestión y aprobación de solicitudes de acceso para nuevos integradores y socios comerciales.
+            </p>
+          </div>
+          <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
+            PENDIENTES: {dataList.length}
+          </div>
+        </div>
 
-            return (
-              <div key={item.id} style={{ borderBottom: "1px solid #1a1a1a", padding: "20px 0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <div style={{ fontWeight: "500", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
-                    RAZON SOCIAL: <span style={{ color: "#DAA520" }}>{item.razon_social}</span> | EMAIL: <span style={{ color: "#DAA520" }}>{item.email}</span>
+        {/* Contenido Principal */}
+        {loading ? (
+          <div style={{ textAlign: "center", padding: "60px", color: "#666", fontSize: "1rem", letterSpacing: "1px" }}>
+            Cargando solicitudes de acceso...
+          </div>
+        ) : dataList.length === 0 ? (
+          <div style={{ background: "#111", border: "1px solid #222", borderRadius: "12px", padding: "60px", textAlign: "center" }}>
+            <p style={{ color: "#777", fontStyle: "italic", fontSize: "1rem", margin: 0, letterSpacing: "0.5px" }}>
+              No hay solicitudes pendientes por validar en este momento.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
+            {dataList.map((item: any) => {
+              let docUrl = item.documentos_url || item.url || "";
+              if (!docUrl && supabase) {
+                const { data: publicData } = supabase.storage.from("registros").getPublicUrl(`${item.id}_documento`);
+                docUrl = publicData?.publicUrl || "#";
+              }
+
+              const fechaCreacion = item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Reciente';
+
+              return (
+                <div 
+                  key={item.id} 
+                  style={{ 
+                    background: "#111111", 
+                    border: "1px solid #222", 
+                    borderRadius: "12px", 
+                    padding: "25px 30px", 
+                    display: "flex", 
+                    alignItems: "center", 
+                    justifyContent: "space-between",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.5)",
+                    transition: "all 0.3s ease"
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, marginRight: "30px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+                      <span style={{ fontSize: "0.75rem", background: "rgba(218, 165, 32, 0.15)", color: "#DAA520", padding: "3px 8px", borderRadius: "4px", fontWeight: "600", letterSpacing: "0.5px" }}>
+                        ID: {item.id ? item.id.substring(0, 8) : 'N/A'}
+                      </span>
+                      <span style={{ fontSize: "0.75rem", color: "#666" }}>
+                        Fecha: {fechaCreacion}
+                      </span>
+                    </div>
+
+                    <div style={{ fontWeight: "600", fontSize: "1.05rem", letterSpacing: "0.5px", color: "#FFF" }}>
+                      {item.razon_social || 'Sin Razón Social'}
+                    </div>
+
+                    <div style={{ fontSize: "0.88rem", color: "#AAA", letterSpacing: "0.3px" }}>
+                      Correo Electrónico: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
+                    </div>
+
+                    <div>
+                      <a href={docUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
+                        VER DOCUMENTOS ADJUNTOS
+                      </a>
+                    </div>
                   </div>
-                  <a href={docUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>VER DOCUMENTOS</a>
+
+                  <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                    <button 
+                      onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} 
+                      style={btnActivar}
+                      onMouseOver={(e) => { e.currentTarget.style.background = "rgba(46, 204, 113, 0.15)"; }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    >
+                      ACTIVAR
+                    </button>
+                    <button 
+                      onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} 
+                      style={btnRechazar}
+                      onMouseOver={(e) => { e.currentTarget.style.background = "rgba(231, 76, 60, 0.15)"; }}
+                      onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
+                    >
+                      RECHAZAR
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={btnActivar}>ACTIVAR</button>
-                  <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={btnRechazar}>RECHAZAR</button>
-                </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
@@ -143,9 +217,9 @@ export default function AdminValidaciones() {
 }
 
 const baseBtn = {
-  padding: "9px 18px",
+  padding: "11px 22px",
   cursor: "pointer",
-  borderRadius: "4px",
+  borderRadius: "6px",
   fontWeight: "600",
   fontSize: "0.8rem",
   letterSpacing: "0.8px",
@@ -157,23 +231,26 @@ const baseBtn = {
 
 const btnDocumentos = {
   ...baseBtn,
-  background: "transparent",
+  background: "rgba(218, 165, 32, 0.05)",
   color: "#DAA520",
   border: "1px solid rgba(218, 165, 32, 0.4)",
-  width: "220px",       // CORRECCIÓN: Tamaño estandarizado para todos los botones de documentos
-  boxSizing: "border-box" as const
+  width: "220px",
+  boxSizing: "border-box" as const,
+  marginTop: "5px"
 };
 
 const btnActivar = {
   ...baseBtn,
   background: "transparent",
   color: "#2ecc71",
-  border: "1px solid rgba(46, 204, 113, 0.4)"
+  border: "1px solid rgba(46, 204, 113, 0.5)",
+  minWidth: "110px"
 };
 
 const btnRechazar = {
   ...baseBtn,
   background: "transparent",
   color: "#e74c3c",
-  border: "1px solid rgba(231, 76, 60, 0.4)"
+  border: "1px solid rgba(231, 76, 60, 0.5)",
+  minWidth: "110px"
 };
