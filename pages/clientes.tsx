@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
-import { uploadAndLinkDocument } from "../services/documentService";
 
 // Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
 export const dynamic = 'force-dynamic';
@@ -98,8 +97,39 @@ export default function Clientes() {
         telefono_celular: telefonoCelularCompleto
       };
 
-      // 1. Primero insertamos la solicitud en la base de datos para obtener el ID asignado
-      const { data: insertData, error: dbError } = await supabase
+      // Generamos un ID único temporal en el cliente para estructurar la ruta de almacenamiento
+      const tempId = crypto.randomUUID();
+      let rutasArchivos: string[] = [];
+      const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
+
+      // 1. Subimos los archivos al bucket "registros"
+      for (const file of selectedFiles) {
+        const timestamp = Date.now();
+        const limpiarNombre = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
+        const filePath = `${categoria}/${tempId}_${timestamp}_${limpiarNombre}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("registros")
+          .upload(filePath, file, { upsert: true });
+
+        if (uploadError) {
+          console.error("Error al subir archivo:", uploadError);
+          continue;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from("registros")
+          .getPublicUrl(filePath);
+
+        if (publicUrlData?.publicUrl) {
+          rutasArchivos.push(publicUrlData.publicUrl);
+        }
+      }
+
+      const documentosConcatenados = rutasArchivos.join(", ");
+
+      // 2. Insertamos el registro completo con las URLs de los documentos ya listas en una sola operación
+      const { error: dbError } = await supabase
         .from("solicitudes_acceso")
         .insert([{
           tipo_solicitud: formData.tipo_solicitud,
@@ -109,48 +139,10 @@ export default function Clientes() {
           telefono_celular: telefonoCelularCompleto,
           status: "pendiente",
           datos_completos: datosCompletosConTelefonos,
-        }])
-        .select()
-        .single();
+          documento_url: documentosConcatenados,
+        }]);
 
       if (dbError) throw dbError;
-
-      const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
-      let rutasArchivos: string[] = [];
-
-      // 2. Iteramos TODOS los archivos seleccionados y los subimos al bucket "registros" usando el servicio
-      for (const file of selectedFiles) {
-        // Pasamos "registros" como 5to parámetro para asegurar que NUNCA toque el bucket "documentos" de cotizaciones
-        const resultadoDoc: any = await uploadAndLinkDocument(
-          file, 
-          categoria, 
-          insertData.id, 
-          "solicitudes_acceso", 
-          "registros"
-        );
-        
-        if (resultadoDoc) {
-          const urlString = typeof resultadoDoc === 'string' 
-            ? resultadoDoc 
-            : (resultadoDoc.fullPath || resultadoDoc.path || resultadoDoc.url || resultadoDoc.data?.path || "");
-          
-          if (urlString) {
-            rutasArchivos.push(urlString);
-          }
-        }
-      }
-
-      // 3. Actualizamos el registro guardando TODAS las rutas de los archivos subidos juntas
-      if (rutasArchivos.length > 0) {
-        const { error: updateError } = await supabase
-          .from("solicitudes_acceso")
-          .update({ documento_url: rutasArchivos.join(", ") }) // Guarda todas las rutas separadas por coma en la base de datos
-          .eq("id", insertData.id);
-
-        if (updateError) {
-          console.error("Error al asociar los documentos en la base de datos:", updateError);
-        }
-      }
 
       alert("¡Solicitud y documentos enviados con éxito de forma automática!");
       window.location.reload();
