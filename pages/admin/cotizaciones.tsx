@@ -30,23 +30,23 @@ export default function Cotizaciones() {
   };
 
   const resolverDatosCliente = (item: any) => {
-    // Barrido exhaustivo en columnas planas, objetos anidados o metadatos de ítems
     const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
     const primerItem = Array.isArray(item.items) ? (item.items[0] || {}) : (item.items || {});
 
     const empresa = 
+      item.razon_social || 
       item.empresa || 
       clienteInfo.razon_social || 
       clienteInfo.empresa || 
       clienteInfo.nombre || 
+      primerItem.razon_social ||
       primerItem.empresa || 
-      primerItem.razon_social || 
       "Sin especificar";
 
     const representante = 
       item.representante || 
+      item.contacto || 
       clienteInfo.representante || 
-      clienteInfo.atn || 
       clienteInfo.contacto ||
       primerItem.representante || 
       "N/D";
@@ -58,7 +58,10 @@ export default function Cotizaciones() {
       "N/D";
 
     const telefono = 
+      item.telefono_celular || 
+      item.telefono_oficina || 
       item.telefono || 
+      clienteInfo.telefono_celular || 
       clienteInfo.telefono || 
       primerItem.telefono || 
       "N/D";
