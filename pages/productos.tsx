@@ -27,7 +27,6 @@ type ItemCarrito = {
   nombre: string;
   cantidad: number;
   precio: number;
-  descripcion?: string;
 };
 
 export default function Productos() {
@@ -43,7 +42,7 @@ export default function Productos() {
   const [paginaActual, setPaginaActual] = useState(1);
   const productosPorPagina = 12;
 
-  // Estado para la referencia única con prefijo QT- y fecha/hora precisa para evitar duplicados en Supabase
+  // Estado para la referencia única con prefijo QT- y fecha/hora precisa
   const [referenciaActual, setReferenciaActual] = useState<string>("");
 
   // Estados para los datos del cliente automatizados
@@ -52,7 +51,7 @@ export default function Productos() {
   const [mailCliente, setMailCliente] = useState("");
 
   useEffect(() => {
-    // Generación de referencia única QT sólida basada en marca temporal y aleatoriedad controlada
+    // Generación de referencia única QT sólida basada en marca temporal y aleatoriedad
     const generarReferenciaUnica = () => {
       const timestamp = Date.now().toString().slice(-6);
       const randomNum = Math.floor(100 + Math.random() * 900);
@@ -89,7 +88,6 @@ export default function Productos() {
       const filtrados = productos.filter((prod) => 
         (prod.SKU && prod.SKU.toLowerCase().includes(termino)) ||
         (prod.Descripción && prod.Descripción.toLowerCase().includes(termino)) ||
-        (prod.Ítem && prod.Ítem.toLowerCase().includes(termino)) ||
         (prod.Familia && prod.Familia.toLowerCase().includes(termino))
       );
       setProductosFiltrados(filtrados);
@@ -107,7 +105,7 @@ export default function Productos() {
   const agregarAlCarrito = (prod: Producto) => {
     const qty = cantidades[prod.SKU] || 1;
     const precioSeleccionado = prod.precio_a || 0;
-    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción || prod.Ítem, cantidad: qty, precio: precioSeleccionado, descripcion: prod.Descripción }]);
+    setCarrito([...carrito, { SKU: prod.SKU, nombre: prod.Descripción, cantidad: qty, precio: precioSeleccionado }]);
     setCantidades({ ...cantidades, [prod.SKU]: 1 });
   };
 
@@ -128,13 +126,12 @@ export default function Productos() {
   const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
     const itemsFormateados = carrito.map(item => ({
       SKU: item.SKU,
-      descripcion: item.nombre || item.descripcion,
+      descripcion: item.nombre,
       cantidad: item.cantidad,
       precioUnitario: item.precio,
       total: item.precio * item.cantidad
     }));
 
-    // Verificamos si ya existe la cotización con esta referencia usando la tabla 'quotes'
     const { data: existente } = await supabase
       .from('quotes')
       .select('id')
@@ -192,65 +189,8 @@ export default function Productos() {
     }
 
     try {
-      const fechaActual = new Date().toLocaleDateString();
-      const horaActual = new Date().toLocaleTimeString();
-
-      const doc = new jsPDF();
-      doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+      const doc = await crearInstanciaPDF();
       
-      doc.setFontSize(10);
-      doc.text(`Referencia: ${referenciaActual}`, 150, 20);
-      doc.text(`Fecha: ${fechaActual}`, 150, 26);
-      doc.text(`Hora: ${horaActual}`, 150, 32);
-
-      doc.setFontSize(9);
-      doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
-      doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
-      doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-
-      doc.setFontSize(16);
-      doc.text("TRULINK FIBER LLC", 14, 66);
-      doc.setFontSize(10);
-      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
-      doc.text("Tel: +507 6640 3720", 14, 78);
-      doc.text("www.trulinkfiber.com", 14, 84);
-      
-      const rows = carrito.map(item => [
-        item.SKU,
-        item.nombre,
-        item.cantidad.toString(),
-        `$${item.precio.toFixed(2)}`,
-        `$${(item.precio * item.cantidad).toFixed(2)}`
-      ]);
-      
-      (doc as any).autoTable({
-        head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
-        body: rows,
-        startY: 92,
-        styles: { fontSize: 10, halign: "center" },
-        headStyles: { fillColor: [218, 165, 32] }
-      });
-
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(12);
-      doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
-
-      doc.setFontSize(10);
-      doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
-      doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-      doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
-      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
-
-      try {
-        const firma = "/images/firmaco.png";
-        const props = doc.getImageProperties(firma);
-        const firmaWidth = 40;
-        const firmaHeight = (props.height * firmaWidth) / props.width;
-        doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
-      } catch (e) {
-        console.error("No se pudo cargar la firma:", e);
-      }
-
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaActual}.pdf`;
 
@@ -280,6 +220,32 @@ export default function Productos() {
       return;
     }
 
+    const doc = await crearInstanciaPDF();
+
+    try {
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaActual}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
+
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
+
+      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl);
+      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
+    } catch (err) {
+      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
+    }
+  };
+
+  // Extraído para no duplicar código entre guardar e imprimir PDF
+  const crearInstanciaPDF = async () => {
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
 
@@ -339,26 +305,7 @@ export default function Productos() {
       console.error("No se pudo cargar la firma:", e);
     }
 
-    try {
-      const pdfBlob = doc.output("blob");
-      const fileName = `${referenciaActual}.pdf`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(fileName, pdfBlob, { contentType: 'application/pdf', upsert: true });
-
-      if (uploadError) {
-        console.error("Error al subir PDF al bucket:", uploadError.message);
-      }
-
-      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
-      const pdfPublicUrl = publicUrlData?.publicUrl || "";
-
-      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl);
-      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
-    } catch (err) {
-      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
-    }
+    return doc;
   };
 
   const seleccionarCategoria = async (tabla: string) => {
@@ -511,13 +458,13 @@ export default function Productos() {
                   <div>
                     <img 
                       src={prod.image_url || "/placeholder.png"} 
-                      alt={prod.Ítem} 
+                      alt={prod.Descripción} 
                       className="image-zoom" 
                       onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')} 
                       style={{ width: "100%", height: "160px", objectFit: "contain", borderRadius: "8px", marginBottom: "15px", backgroundColor: "#050505", padding: "10px", boxSizing: "border-box", border: "1px solid rgba(218, 165, 32, 0.15)" }} 
                     />
                     <span style={{ fontSize: "0.75rem", color: "rgba(255, 255, 255, 0.5)", letterSpacing: "1px", display: "block", marginBottom: "5px" }}>{prod.SKU}</span>
-                    <h3 style={{ fontSize: "0.95rem", color: "#DAA520", fontWeight: "500", height: "45px", overflow: "hidden", margin: "0 0 10px 0", lineHeight: "1.4" }}>{prod.Descripción || prod.Ítem}</h3>
+                    <h3 style={{ fontSize: "0.95rem", color: "#DAA520", fontWeight: "500", height: "45px", overflow: "hidden", margin: "0 0 10px 0", lineHeight: "1.4" }}>{prod.Descripción}</h3>
                     <p style={{ fontSize: "1rem", color: "#FFF", fontWeight: "600", margin: "0 0 15px 0" }}>${prod.precio_a?.toFixed(2) || "0.00"}</p>
                   </div>
 

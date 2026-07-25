@@ -107,6 +107,9 @@ export default function Fabricacion() {
   };
 
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
+    // 1. OBTENER EL USUARIO AUTENTICADO PARA VINCULAR LA COTIZACIÓN
+    const { data: { user } } = await supabase.auth.getUser();
+
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
       descripcion: `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
@@ -126,10 +129,11 @@ export default function Fabricacion() {
       resultado = await supabase
         .from('quotes')
         .update({
+          user_id: user?.id, // <-- INYECCIÓN DE USER_ID
           total: granTotal,
           items: itemsFormateados,
           status: 'pending',
-          type: 'fiber_quote',
+          type: 'fabricacion', // <-- ACTUALIZADO EL TIPO DE COTIZACIÓN
           pdf_url: pdfPublicUrl,
           empresa: nombreEmpresa,
           representante: representante,
@@ -143,11 +147,12 @@ export default function Fabricacion() {
       resultado = await supabase
         .from('quotes')
         .insert([{
+          user_id: user?.id, // <-- INYECCIÓN DE USER_ID
           referencia: referenciaActual,
           total: granTotal,
           items: itemsFormateados,
           status: 'pending',
-          type: 'fiber_quote',
+          type: 'fabricacion', // <-- ACTUALIZADO EL TIPO DE COTIZACIÓN
           pdf_url: pdfPublicUrl,
           empresa: nombreEmpresa,
           representante: representante,
@@ -314,7 +319,7 @@ export default function Fabricacion() {
       width: "100%",
       display: "flex",
       flexDirection: "column",
-      alignItems: "center", // ✅ Propiedad corregida
+      alignItems: "center",
       boxSizing: "border-box"
     }}>
       

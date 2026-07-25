@@ -48,10 +48,23 @@ export default function PedidosEspeciales() {
     }
 
     try {
+      // 1. Verificar la sesión del usuario
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) throw new Error("No se pudo verificar la sesión del usuario.");
 
       const clienteEmail = user.email || "";
+
+      // 2. Extraer datos completos del cliente desde la base de datos
+      const { data: clientProfile } = await supabase
+        .from('clients')
+        .select('empresa, representante')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const nombreEmpresa = clientProfile?.empresa || "Empresa no especificada";
+      const nombreRepresentante = clientProfile?.representante || "Representante no especificado";
+
+      // 3. Subir el archivo al bucket "especiales"
       const fileExt = archivo.name.split('.').pop();
       const fileName = `${clienteEmail}_${Date.now()}.${fileExt}`;
 
@@ -65,6 +78,7 @@ export default function PedidosEspeciales() {
         .from("especiales")
         .getPublicUrl(fileName);
 
+      // 4. Guardar el registro en la tabla pedidos_especiales
       const { error: dbError } = await supabase
         .from("pedidos_especiales")
         .insert([
@@ -77,13 +91,20 @@ export default function PedidosEspeciales() {
 
       if (dbError) throw new Error("Error al guardar en la base de datos: " + dbError.message);
 
+      // 5. Enviar el correo automatizado con toda la información enriquecida
       await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: "fred.jurado@trulinkfiber.com",
-          subject: `Nuevo Pedido Especial de ${clienteEmail}`,
-          text: `El cliente ${clienteEmail} ha enviado un nuevo pedido especial.\n\nNota:\n${nota}\n\nArchivo adjunto:\n${publicUrl}`
+          subject: `Nuevo Pedido Especial de ${nombreEmpresa}`,
+          text: `Has recibido una nueva solicitud de pedido especial.\n\n` +
+                `DATOS DEL CLIENTE:\n` +
+                `- Empresa: ${nombreEmpresa}\n` +
+                `- Representante: ${nombreRepresentante}\n` +
+                `- Correo: ${clienteEmail}\n\n` +
+                `NOTA DESCRIPTIVA:\n${nota}\n\n` +
+                `ARCHIVO DE ESPECIFICACIONES:\n${publicUrl}`
         })
       });
 
