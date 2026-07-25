@@ -16,6 +16,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     { key: 'inventario', label: 'Inventario', path: '/admin/inventario' },
     { key: 'usuarios', label: 'Usuarios', path: '/admin/usuarios' },
     { key: 'analitica', label: 'Analítica', path: '/admin/analitica' },
+    { key: 'reportes', label: 'Reportes', path: '/admin/reportes' },
     { key: 'notificaciones', label: 'Notificaciones', path: '/admin/notificaciones' },
     { key: 'marketing', label: 'Marketing', path: '/admin/marketing' },
   ];
