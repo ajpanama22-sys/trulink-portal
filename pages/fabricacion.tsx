@@ -107,7 +107,6 @@ export default function Fabricacion() {
   };
 
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
-    // 1. OBTENER EL USUARIO AUTENTICADO PARA VINCULAR LA COTIZACIÓN
     const { data: { user } } = await supabase.auth.getUser();
 
     const itemsFormateados = cotizacion.map(item => ({
@@ -122,18 +121,18 @@ export default function Fabricacion() {
       .from('quotes')
       .select('id')
       .eq('referencia', referenciaActual)
-      .single();
+      .maybeSingle();
 
     let resultado;
     if (existente) {
       resultado = await supabase
         .from('quotes')
         .update({
-          user_id: user?.id, // <-- INYECCIÓN DE USER_ID
+          user_id: user?.id,
           total: granTotal,
           items: itemsFormateados,
           status: 'pending',
-          type: 'fabricacion', // <-- ACTUALIZADO EL TIPO DE COTIZACIÓN
+          type: 'fabricacion',
           pdf_url: pdfPublicUrl,
           empresa: nombreEmpresa,
           representante: representante,
@@ -147,12 +146,12 @@ export default function Fabricacion() {
       resultado = await supabase
         .from('quotes')
         .insert([{
-          user_id: user?.id, // <-- INYECCIÓN DE USER_ID
+          user_id: user?.id,
           referencia: referenciaActual,
           total: granTotal,
           items: itemsFormateados,
           status: 'pending',
-          type: 'fabricacion', // <-- ACTUALIZADO EL TIPO DE COTIZACIÓN
+          type: 'fabricacion',
           pdf_url: pdfPublicUrl,
           empresa: nombreEmpresa,
           representante: representante,
