@@ -30,17 +30,18 @@ export default function Cotizaciones() {
   };
 
   const resolverDatosCliente = (item: any) => {
-    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || item.client || {};
+    const rawClient = item.datos_client || item.datos_cliente || item.cliente || item.client || {};
     const metadata = item.metadata || item.raw_data || item.payload || {};
     const primerItem = Array.isArray(item.items) ? (item.items[0] || {}) : (item.items || {});
 
+    // Extracción directa de campos en formato plano o anidado
     const empresa = 
       item.razon_social || 
       item.empresa || 
       item.nombre_empresa ||
-      clienteInfo.razon_social || 
-      clienteInfo.empresa || 
-      clienteInfo.nombre || 
+      rawClient.razon_social || 
+      rawClient.empresa || 
+      rawClient.nombre || 
       metadata.razon_social ||
       metadata.empresa ||
       primerItem.razon_social ||
@@ -51,8 +52,8 @@ export default function Cotizaciones() {
       item.representante || 
       item.contacto || 
       item.nombre_contacto ||
-      clienteInfo.representante || 
-      clienteInfo.contacto ||
+      rawClient.representante || 
+      rawClient.contacto ||
       metadata.representante ||
       primerItem.representante || 
       "N/D";
@@ -60,8 +61,8 @@ export default function Cotizaciones() {
     const email = 
       item.email || 
       item.correo ||
-      clienteInfo.email || 
-      clienteInfo.correo ||
+      rawClient.email || 
+      rawClient.correo ||
       metadata.email ||
       primerItem.email || 
       "N/D";
@@ -71,9 +72,9 @@ export default function Cotizaciones() {
       item.telefono_oficina || 
       item.telefono || 
       item.celular ||
-      clienteInfo.telefono_celular || 
-      clienteInfo.telefono_oficina || 
-      clienteInfo.telefono || 
+      rawClient.telefono_celular || 
+      rawClient.telefono_oficina || 
+      rawClient.telefono || 
       metadata.telefono ||
       primerItem.telefono || 
       "N/D";
@@ -476,7 +477,7 @@ const modalOverlayStyle = {
   height: "100vh",
   backgroundColor: "rgba(0, 0, 0, 0.8)",
   display: "flex",
-  justifyModel: "center",
+  justifyContent: "center",
   alignItems: "center",
   zIndex: 1000
 };
