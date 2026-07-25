@@ -333,34 +333,35 @@ export default function AdminValidaciones() {
                       Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
                     </div>
 
-                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS (Restringido exclusivamente a PDF y URLs absolutas/relativas del bucket) */}
+                    {/* SECCIÓN DE DOCUMENTOS ADJUNTOS ROBUSTA */}
                     <div>
                       {(() => {
-                        const rawVal = item.documento_url || item.documentos_url || item.url;
+                        const rawVal = item.documento_url || item.documentos_url || item.url || item.documento;
+                        const supabaseClient = getSupabase();
 
                         if (rawVal) {
                           try {
-                            const parsed = JSON.parse(rawVal);
-                            if (Array.isArray(parsed) && parsed.length > 0) {
-                              return parsed.map((fileItem, idx) => {
-                                const fileUrl = typeof fileItem === "string" ? fileItem : (fileItem.url || fileItem.path || fileItem.name);
+                            const parsed = typeof rawVal === 'string' ? JSON.parse(rawVal) : rawVal;
+                            const filesArray = Array.isArray(parsed) ? parsed : [parsed];
+                            
+                            if (filesArray.length > 0) {
+                              return filesArray.map((fileItem: any, idx: number) => {
+                                let fileUrl = typeof fileItem === "string" ? fileItem : (fileItem.url || fileItem.path || fileItem.name || '');
                                 
                                 let finalLink = "#";
                                 if (fileUrl) {
                                   if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
                                     finalLink = fileUrl;
-                                  } else {
-                                    const supabaseClient = getSupabase();
-                                    if (supabaseClient) {
-                                      const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(fileUrl);
-                                      finalLink = publicData?.publicUrl || "#";
-                                    }
+                                  } else if (supabaseClient) {
+                                    const cleanPath = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
+                                    const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(cleanPath);
+                                    finalLink = publicData?.publicUrl || "#";
                                   }
                                 }
 
                                 return (
                                   <a key={idx} href={finalLink} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
-                                    📄 VER ARCHIVOS PDF {idx + 1}
+                                    📄 VER ARCHIVO PDF {idx + 1}
                                   </a>
                                 );
                               });
@@ -370,30 +371,27 @@ export default function AdminValidaciones() {
                             if (rawVal) {
                               if (rawVal.startsWith("http://") || rawVal.startsWith("https://")) {
                                 finalLink = rawVal;
-                              } else {
-                                const supabaseClient = getSupabase();
-                                if (supabaseClient) {
-                                  const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(rawVal);
-                                  finalLink = publicData?.publicUrl || "#";
-                                }
+                              } else if (supabaseClient) {
+                                const cleanPath = rawVal.startsWith('/') ? rawVal.substring(1) : rawVal;
+                                const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(cleanPath);
+                                finalLink = publicData?.publicUrl || "#";
                               }
                             }
 
                             return (
                               <a href={finalLink} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                                📄 VER ARCHIVOS PDF ADJUNTOS
+                                📄 VER ARCHIVO PDF ADJUNTO
                               </a>
                             );
                           }
                         }
 
-                        const supabaseClient = getSupabase();
                         if (supabaseClient) {
                           const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(`${item.id}_documento`);
                           const fallbackUrl = publicData?.publicUrl || "#";
                           return (
                             <a href={fallbackUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
-                              📄 VER ARCHIVOS PDF ADJUNTOS
+                              📄 VER ARCHIVO PDF ADJUNTO (ID)
                             </a>
                           );
                         }
