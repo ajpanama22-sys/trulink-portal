@@ -106,7 +106,7 @@ export default function Clientes() {
           email: formData.email,
           telefono_oficina: telefonoOficinaCompleto,
           telefono_celular: telefonoCelularCompleto,
-          estado: "pendiente",
+          status: "pendiente",
           datos_completos: datosCompletosConTelefonos,
         }])
         .select()
