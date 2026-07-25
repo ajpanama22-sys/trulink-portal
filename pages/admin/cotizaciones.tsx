@@ -25,58 +25,78 @@ export default function Cotizaciones() {
     if (error) {
       console.error("Error al cargar cotizaciones:", error);
     } else {
+      // Revisa tu consola (F12) para ver la estructura exacta de tu tabla "quotes"
+      console.log("Datos crudos de Supabase:", data);
       setCotizaciones(data || []);
     }
   };
 
-  const resolverDatosCliente = (item: any) => {
-    const rawClient = item.datos_client || item.datos_cliente || item.cliente || item.client || {};
-    const metadata = item.metadata || item.raw_data || item.payload || {};
-    const primerItem = Array.isArray(item.items) ? (item.items[0] || {}) : (item.items || {});
+  // Función de seguridad para evitar errores con JSON en formato de texto
+  const parseJSON = (value: any) => {
+    if (!value) return {};
+    if (typeof value === 'object') return value;
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return {};
+    }
+  };
 
-    // Extracción directa de campos en formato plano o anidado
+  const resolverDatosCliente = (item: any) => {
+    // Parseamos todas las posibles columnas donde puede estar guardado el cliente
+    const datosCliente = parseJSON(item.datos_cliente);
+    const datosClient = parseJSON(item.datos_client);
+    const cliente = parseJSON(item.cliente);
+    const metadata = parseJSON(item.metadata);
+    const payload = parseJSON(item.payload);
+    
+    // Parseamos los items/productos por si el cliente se guardó adentro
+    const itemsParsed = parseJSON(item.items);
+    let primerItem: any = {};
+    if (Array.isArray(itemsParsed) && itemsParsed.length > 0) {
+      primerItem = itemsParsed[0];
+    } else if (typeof itemsParsed === 'object' && itemsParsed !== null) {
+      primerItem = itemsParsed;
+    }
+
     const empresa = 
-      item.razon_social || 
-      item.empresa || 
-      item.nombre_empresa ||
-      rawClient.razon_social || 
-      rawClient.empresa || 
-      rawClient.nombre || 
-      metadata.razon_social ||
-      metadata.empresa ||
-      primerItem.razon_social ||
-      primerItem.empresa || 
+      item.razon_social || item.empresa || item.nombre_empresa || item.company ||
+      datosCliente.razon_social || datosCliente.empresa || datosCliente.nombre ||
+      datosClient.razon_social || datosClient.empresa || datosClient.nombre ||
+      cliente.razon_social || cliente.empresa || cliente.nombre ||
+      metadata.razon_social || metadata.empresa ||
+      payload.razon_social || payload.empresa ||
+      primerItem.razon_social || primerItem.empresa || 
       "Sin especificar";
 
     const representante = 
-      item.representante || 
-      item.contacto || 
-      item.nombre_contacto ||
-      rawClient.representante || 
-      rawClient.contacto ||
-      metadata.representante ||
-      primerItem.representante || 
+      item.representante || item.contacto || item.nombre_contacto ||
+      datosCliente.representante || datosCliente.contacto || datosCliente.nombre ||
+      datosClient.representante || datosClient.contacto ||
+      cliente.representante || cliente.contacto ||
+      metadata.representante || metadata.contacto ||
+      payload.representante || payload.contacto ||
+      primerItem.representante || primerItem.contacto || 
       "N/D";
 
     const email = 
-      item.email || 
-      item.correo ||
-      rawClient.email || 
-      rawClient.correo ||
-      metadata.email ||
-      primerItem.email || 
+      item.email || item.correo ||
+      datosCliente.email || datosCliente.correo ||
+      datosClient.email || datosClient.correo ||
+      cliente.email || cliente.correo ||
+      metadata.email || metadata.correo ||
+      payload.email || payload.correo ||
+      primerItem.email || primerItem.correo || 
       "N/D";
 
     const telefono = 
-      item.telefono_celular || 
-      item.telefono_oficina || 
-      item.telefono || 
-      item.celular ||
-      rawClient.telefono_celular || 
-      rawClient.telefono_oficina || 
-      rawClient.telefono || 
-      metadata.telefono ||
-      primerItem.telefono || 
+      item.telefono || item.telefono_celular || item.celular || item.telefono_oficina ||
+      datosCliente.telefono || datosCliente.celular ||
+      datosClient.telefono || datosClient.celular ||
+      cliente.telefono || cliente.celular ||
+      metadata.telefono || metadata.celular ||
+      payload.telefono || payload.celular ||
+      primerItem.telefono || primerItem.celular || 
       "N/D";
 
     return { empresa, representante, email, telefono };
@@ -347,12 +367,12 @@ export default function Cotizaciones() {
                 </div>
               </div>
 
-              {/* ÍTEMS / PRODUCTOS FORMATEADOS SEGÚN EL TIPO DE COTIZACIÓN */}
+              {/* ÍTEMS / PRODUCTOS */}
               <div style={{ marginBottom: "20px" }}>
                 <p style={{ ...labelStyle, marginBottom: "8px" }}>Ítems / Contenido de la Cotización:</p>
                 <div style={{ backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px", maxHeight: "180px", overflowY: "auto" }}>
                   {(() => {
-                    const itemsList = cotizacionSeleccionada.items || cotizacionSeleccionada.productos || cotizacionSeleccionada.details;
+                    const itemsList = parseJSON(cotizacionSeleccionada.items) || parseJSON(cotizacionSeleccionada.productos) || parseJSON(cotizacionSeleccionada.details);
                     if (Array.isArray(itemsList) && itemsList.length > 0) {
                       return (
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
@@ -371,7 +391,8 @@ export default function Cotizaciones() {
                                   {prod.SKU || prod.sku || prod.codigo || "N/D"}
                                 </td>
                                 <td style={{ padding: "10px 14px", color: "#fff" }}>
-                                  {prod.descripcion || prod.description || prod.nombre || "Sin descripción"}
+                                  {/* Tu campo 'Descripción' siempre tiene contenido según tus correcciones */}
+                                  {prod.Descripción || prod.descripcion || prod.description || prod.nombre || "Sin descripción"}
                                 </td>
                                 <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>
                                   {prod.cantidad || prod.quantity || 1}
@@ -388,7 +409,7 @@ export default function Cotizaciones() {
                       return (
                         <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
                           <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU / Ref:</strong> {itemsList.SKU || itemsList.sku || "N/D"}</p>
-                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.descripcion || itemsList.description || itemsList.nombre || "N/D"}</p>
+                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.Descripción || itemsList.descripcion || itemsList.description || itemsList.nombre || "N/D"}</p>
                           <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || itemsList.precioUnitario || itemsList.precio || 0).toFixed(2)}</p>
                         </div>
                       );
@@ -399,7 +420,7 @@ export default function Cotizaciones() {
                 </div>
               </div>
 
-              {/* ACCIONES Y DOCUMENTO PDF DESDE EL BUCKET "documentos" */}
+              {/* ACCIONES Y DOCUMENTO PDF */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(218, 165, 32, 0.3)", paddingTop: "15px" }}>
                 <div>
                   <span style={{ fontSize: "0.85rem", color: "#888" }}>Total General: </span>
@@ -409,7 +430,7 @@ export default function Cotizaciones() {
                 </div>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                   {cargandoPdf ? (
-                    <span style={{ fontSize: "0.8rem", color: "#DAA520", fontStyle: "italic" }}>Buscando documento en storage...</span>
+                    <span style={{ fontSize: "0.8rem", color: "#DAA520", fontStyle: "italic" }}>Buscando documento...</span>
                   ) : cotizacionSeleccionada.pdf_url_final ? (
                     <a
                       href={cotizacionSeleccionada.pdf_url_final}
@@ -422,7 +443,7 @@ export default function Cotizaciones() {
                       VER DOCUMENTO QT (PDF)
                     </a>
                   ) : (
-                    <span style={{ fontSize: "0.8rem", color: "#666" }}>Archivo no encontrado en bucket "documentos"</span>
+                    <span style={{ fontSize: "0.8rem", color: "#666" }}>Archivo no encontrado en bucket</span>
                   )}
                   <button 
                     onClick={cerrarDetalle} 
