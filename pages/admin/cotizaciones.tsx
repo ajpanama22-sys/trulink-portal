@@ -30,10 +30,8 @@ export default function Cotizaciones() {
   };
 
   const resolverDatosCliente = (item: any) => {
-    // Extraer datos dependiendo de si están en columnas planas o anidados en objetos de cliente/items
+    // Extraer datos dependiendo de si están en columnas planas, o anidados en objetos de cliente/items
     const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
-    
-    // Si items es un objeto con datos de cliente (común en fiber_quote / fabricacion)
     const primerItem = Array.isArray(item.items) ? item.items[0] : (item.items || {});
 
     const empresa = item.empresa || clienteInfo.razon_social || clienteInfo.empresa || clienteInfo.nombre || primerItem.empresa || "Sin especificar";
@@ -329,10 +327,18 @@ export default function Cotizaciones() {
                           <tbody>
                             {itemsList.map((prod: any, idx: number) => (
                               <tr key={idx} style={{ borderBottom: "1px solid #161616" }}>
-                                <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.sku || prod.SKU || prod.codigo || "N/D"}</td>
-                                <td style={{ padding: "10px 14px", color: "#fff" }}>{prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
-                                <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
-                                <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>${Number(prod.total || prod.precio || prod.subtotal || 0).toFixed(2)}</td>
+                                <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>
+                                  {prod.SKU || prod.sku || prod.codigo || "N/D"}
+                                </td>
+                                <td style={{ padding: "10px 14px", color: "#fff" }}>
+                                  {prod.descripcion || prod.description || prod.nombre || "Sin descripción"}
+                                </td>
+                                <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>
+                                  {prod.cantidad || prod.quantity || 1}
+                                </td>
+                                <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>
+                                  ${Number(prod.total || (Number(prod.precioUnitario || prod.precio || 0) * Number(prod.cantidad || 1)) || prod.subtotal || 0).toFixed(2)}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -341,9 +347,9 @@ export default function Cotizaciones() {
                     } else if (typeof itemsList === 'object' && itemsList !== null && Object.keys(itemsList).length > 0) {
                       return (
                         <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
-                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU / Ref:</strong> {itemsList.sku || itemsList.SKU || "N/D"}</p>
+                          <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU / Ref:</strong> {itemsList.SKU || itemsList.sku || "N/D"}</p>
                           <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.descripcion || itemsList.description || itemsList.nombre || "N/D"}</p>
-                          <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || itemsList.precio || 0).toFixed(2)}</p>
+                          <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || itemsList.precioUnitario || itemsList.precio || 0).toFixed(2)}</p>
                         </div>
                       );
                     } else {
