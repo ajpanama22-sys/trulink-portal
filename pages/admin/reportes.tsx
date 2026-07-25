@@ -35,9 +35,11 @@ export default function Reportes() {
     setCargando(true);
 
     try {
+      // CORRECCIÓN: Apuntar exactamente a los nombres reales de las tablas en Supabase
+      // cablesdb, herrajesdb, accesoriosdb
       let query = supabase.from(tipo).select("*");
 
-      if (desde && hasta) {
+      if (desde && hasta && tipo === "quotes") {
         query = query.gte("created_at", `${desde}T00:00:00`).lte("created_at", `${hasta}T23:59:59`);
       }
 
@@ -105,12 +107,14 @@ export default function Reportes() {
     cargarDatosReporte(tipoReporte, fechaDesde, fechaHasta);
   };
 
-  // GENERADOR DE PDF CORPORATIVO CON ESTÉTICA NEGRO/DORADO Y GRÁFICAS ANALÍTICAS
+  // GENERADOR DE PDF CORPORATIVO CON ESTÉTICA NEGRO/DORADO Y CAMPOS ESPECÍFICOS PARA CLIENTES/COLABORADORES
   const handleDescargarReporteOficial = () => {
     if (datosReporte.length === 0) {
       alert("No hay registros disponibles para exportar en este rango.");
       return;
     }
+
+    const esDirectorio = tipoReporte === "clientes" || tipoReporte === "colaboradores";
 
     if (formatoExportacion === "pdf") {
       const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -156,18 +160,19 @@ export default function Reportes() {
 
       doc.setFontSize(10);
       doc.text(`Total de Registros: ${resumenEjecutivo.totalRegistros}`, 14, currentY);
-      doc.text(`Monto Consolidado: $${resumenEjecutivo.montoTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 80, currentY);
-      doc.text(`Promedio por Registro: $${resumenEjecutivo.promedioValor.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 150, currentY);
+      if (!esDirectorio) {
+        doc.text(`Monto Consolidado: $${resumenEjecutivo.montoTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 80, currentY);
+        doc.text(`Promedio por Registro: $${resumenEjecutivo.promedioValor.toLocaleString("en-US", { minimumFractionDigits: 2 })}`, 150, currentY);
+      }
       currentY += 10;
 
-      // Generación de Gráfica Analítica Vectorial Multicolor en el PDF
+      // Generación de Gráfica Analítica Vectorial en el PDF
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
-      doc.setTextColor(184, 134, 11); // Tono Oro Oscuro
+      doc.setTextColor(184, 134, 11);
       doc.text("ANÁLISIS GRÁFICO DE DISTRIBUCIÓN", 14, currentY);
       currentY += 6;
 
-      // Dibujo de Gráfica de Barras Multicorporativa simulando analítica
       const chartX = 14;
       const chartY = currentY;
       const chartWidth = 182;
@@ -178,13 +183,12 @@ export default function Reportes() {
       doc.setDrawColor(218, 165, 32);
       doc.rect(chartX, chartY, chartWidth, chartHeight, "S");
 
-      // Barras de ejemplo multicolores basadas en los datos
       const barColors = [
-        [218, 165, 32], // Dorado Principal
-        [40, 116, 166], // Azul Corporativo
-        [39, 174, 96],  // Verde Finanzas
-        [142, 68, 173], // Morado Analítico
-        [211, 84, 0]    // Naranja Acento
+        [218, 165, 32],
+        [40, 116, 166],
+        [39, 174, 96],
+        [142, 68, 173],
+        [211, 84, 0]
       ];
 
       const maxBars = Math.min(datosReporte.length, 10);
@@ -201,15 +205,26 @@ export default function Reportes() {
 
       currentY += chartHeight + 12;
 
-      // Tabla de Datos con Autotable (Estilo Dorado y Negro)
-      const tableColumns = ["ID / SKU", "Descripción / Nombre", "Monto / Stock", "Estado", "Fecha"];
-      const tableRows = datosReporte.map((row) => [
+      // Tabla de Datos con Autotable adaptada para Clientes/Colaboradores (Sin monto/stock, con Email y Teléfono Móvil)
+      let tableColumns = ["ID / SKU", "Nombre / Empresa", "Correo Electrónico (Mail)", "Teléfono Móvil", "Fecha Registro"];
+      let tableRows = datosReporte.map((row) => [
         row.id ? String(row.id).substring(0, 8) : (row.sku || "N/A"),
-        row.descripcion || row.nombre || row.client_name || row.email || "Registro General",
-        row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---")),
-        row.estado_pago || row.tipo || row.role || "Activo",
+        row.nombre || row.client_name || row.empresa || "---",
+        row.email || row.correo || "---",
+        row.telefono || row.phone || row.movil || "---",
         row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"
       ]);
+
+      if (!esDirectorio) {
+        tableColumns = ["ID / SKU", "Descripción / Nombre", "Monto / Stock", "Estado", "Fecha"];
+        tableRows = datosReporte.map((row) => [
+          row.id ? String(row.id).substring(0, 8) : (row.sku || "N/A"),
+          row.descripcion || row.nombre || row.client_name || row.email || "Registro General",
+          row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---")),
+          row.estado_pago || row.tipo || row.role || "Activo",
+          row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"
+        ]);
+      }
 
       (doc as any).autoTable({
         startY: currentY,
@@ -244,20 +259,30 @@ export default function Reportes() {
         doc.text(`Página ${i} de ${pageCount}`, 200, 285, { align: "right" });
       }
 
-      // Descarga inmediata del PDF estilizado
       doc.save(`Reporte_Oficial_${tipoReporte}_${new Date().toISOString().slice(0, 10)}.pdf`);
 
     } else {
-      // Exportación en formato CSV / Excel optimizado
-      let csvContent = "data:text/csv;charset=utf-8,ID_SKU,Descripcion,Monto_Stock,Estado_Tipo,Fecha\n";
+      // Exportación en formato CSV
+      let csvHeader = esDirectorio 
+        ? "data:text/csv;charset=utf-8,ID_SKU,Nombre,Email,Telefono_Movil,Fecha\n" 
+        : "data:text/csv;charset=utf-8,ID_SKU,Descripcion,Monto_Stock,Estado_Tipo,Fecha\n";
+      
+      let csvContent = csvHeader;
       datosReporte.forEach((row) => {
         const idSeguro = `"${row.id || row.sku || "N/A"}"`;
-        const descSegura = `"${(row.descripcion || row.nombre || row.client_name || row.email || "General").replace(/"/g, '""')}"`;
-        const montoSeguro = `"${row.total || row.precio || row.stock || 0}"`;
-        const estadoSeguro = `"${row.estado_pago || row.tipo || row.role || "Activo"}"`;
-        const fechaSegura = `"${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}"`;
-
-        csvContent += [idSeguro, descSegura, montoSeguro, estadoSeguro, fechaSegura].join(",") + "\n";
+        if (esDirectorio) {
+          const nombreSeguro = `"${(row.nombre || row.client_name || row.empresa || "---").replace(/"/g, '""')}"`;
+          const emailSeguro = `"${(row.email || row.correo || "---").replace(/"/g, '""')}"`;
+          const telSeguro = `"${(row.telefono || row.phone || row.movil || "---").replace(/"/g, '""')}"`;
+          const fechaSegura = `"${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}"`;
+          csvContent += [idSeguro, nombreSeguro, emailSeguro, telSeguro, fechaSegura].join(",") + "\n";
+        } else {
+          const descSegura = `"${(row.descripcion || row.nombre || row.client_name || row.email || "General").replace(/"/g, '""')}"`;
+          const montoSeguro = `"${row.total || row.precio || row.stock || 0}"`;
+          const estadoSeguro = `"${row.estado_pago || row.tipo || row.role || "Activo"}"`;
+          const fechaSegura = `"${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}"`;
+          csvContent += [idSeguro, descSegura, montoSeguro, estadoSeguro, fechaSegura].join(",") + "\n";
+        }
       });
 
       const encodedUri = encodeURI(csvContent);
@@ -269,6 +294,8 @@ export default function Reportes() {
       document.body.removeChild(link);
     }
   };
+
+  const esDirectorio = tipoReporte === "clientes" || tipoReporte === "colaboradores";
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
@@ -296,11 +323,11 @@ export default function Reportes() {
               <label style={labelStyle}>Tipo de Reporte</label>
               <select value={tipoReporte} onChange={(e) => setTipoReporte(e.target.value)} style={inputStyle}>
                 <option value="quotes" style={{ background: "#111", color: "#DAA520" }}>Cotizaciones y Finanzas</option>
-                <option value="cablesdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Cables</option>
-                <option value="herrajesdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Herrajes</option>
-                <option value="accesoriosdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Accesorios</option>
-                <option value="clientes" style={{ background: "#111", color: "#DAA520" }}>Directorio de Clientes</option>
-                <option value="colaboradores" style={{ background: "#111", color: "#DAA520" }}>Directorio de Colaboradores</option>
+                <option value="cablesdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Cables (cablesdb)</option>
+                <option value="herrajesdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Herrajes (herrajesdb)</option>
+                <option value="accesoriosdb" style={{ background: "#111", color: "#DAA520" }}>Inventario de Accesorios (accesoriosdb)</option>
+                <option value="clientes" style={{ background: "#111", color: "#DAA520" }}>Directorio de Clientes (clientes)</option>
+                <option value="colaboradores" style={{ background: "#111", color: "#DAA520" }}>Directorio de Colaboradores (colaboradores)</option>
               </select>
             </div>
 
@@ -335,8 +362,9 @@ export default function Reportes() {
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "20px", marginBottom: "35px" }}>
           <CardMetric title="Total Registros" value={resumenEjecutivo.totalRegistros} sub="Elementos en el reporte actual" glowColor="rgba(218,165,32,0.3)" />
-          <CardMetric title="Monto Consolidado" value={`$${resumenEjecutivo.montoTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Valor financiero total acumulado" highlight={true} glowColor="rgba(255,215,0,0.5)" />
-          <CardMetric title="Promedio por Registro" value={`$${resumenEjecutivo.promedioValor.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Ticket medio analizado" glowColor="rgba(218,165,32,0.3)" />
+          {!esDirectorio && (
+            <CardMetric title="Monto Consolidado" value={`$${resumenEjecutivo.montoTotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Valor financiero total acumulado" highlight={true} glowColor="rgba(255,215,0,0.5)" />
+          )}
           <CardMetric title="Estado del Módulo" value={resumenEjecutivo.estadoFiltro} sub="Conexión Supabase activa" highlight={true} glowColor="rgba(255,215,0,0.5)" />
         </div>
 
@@ -351,7 +379,7 @@ export default function Reportes() {
             </div>
           ) : datosReporte.length === 0 ? (
             <div style={{ padding: "40px", textAlign: "center" }}>
-              <p style={{ color: "#888" }}>No se encontraron registros en la tabla consultada.</p>
+              <p style={{ color: "#888" }}>No se encontraron registros en la tabla consultada ({tipoReporte}).</p>
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -359,29 +387,33 @@ export default function Reportes() {
                 <thead>
                   <tr style={{ borderBottom: "2px solid rgba(218, 165, 32, 0.4)", color: "#FFD700" }}>
                     <th style={{ padding: "12px" }}>ID / SKU</th>
-                    <th style={{ padding: "12px" }}>Descripción / Nombre</th>
-                    <th style={{ padding: "12px" }}>Monto / Stock</th>
-                    <th style={{ padding: "12px" }}>Estado / Tipo</th>
+                    <th style={{ padding: "12px" }}>{esDirectorio ? "Nombre / Empresa" : "Descripción / Nombre"}</th>
+                    <th style={{ padding: "12px" }}>{esDirectorio ? "Correo Electrónico (Mail)" : "Monto / Stock"}</th>
+                    <th style={{ padding: "12px" }}>{esDirectorio ? "Teléfono Móvil" : "Estado / Tipo"}</th>
                     <th style={{ padding: "12px" }}>Fecha Creación</th>
                   </tr>
                 </thead>
                 <tbody>
                   {datosReporte.slice(0, 10).map((row, idx) => {
                     const idSeguro = row.id ? String(row.id).substring(0, 8) : (row.sku ? String(row.sku) : "N/A");
-                    const descSegura = row.descripcion || row.nombre || row.client_name || row.email || "Registro General";
-                    const montoSeguro = row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---"));
-                    const estadoSeguro = row.estado_pago || row.tipo || row.role || "Activo";
+                    const col2 = esDirectorio ? (row.nombre || row.client_name || row.empresa || "---") : (row.descripcion || row.nombre || row.client_name || row.email || "Registro General");
+                    const col3 = esDirectorio ? (row.email || row.correo || "---") : (row.total ? `$${Number(row.total).toFixed(2)}` : (row.precio ? `$${Number(row.precio).toFixed(2)}` : (row.stock ?? "---")));
+                    const col4 = esDirectorio ? (row.telefono || row.phone || row.movil || "---") : (row.estado_pago || row.tipo || row.role || "Activo");
                     const fechaSegura = row.created_at ? new Date(row.created_at).toLocaleDateString() : "---";
 
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid #1c1c1c", color: "#ccc" }}>
                         <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>{idSeguro}</td>
-                        <td style={{ padding: "12px" }}>{descSegura}</td>
-                        <td style={{ padding: "12px", fontWeight: "bold", color: "#fff" }}>{montoSeguro}</td>
+                        <td style={{ padding: "12px" }}>{col2}</td>
+                        <td style={{ padding: "12px", fontWeight: "bold", color: "#fff" }}>{col3}</td>
                         <td style={{ padding: "12px" }}>
-                          <span style={{ backgroundColor: "rgba(218,165,32,0.1)", color: "#FFD700", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid rgba(218,165,32,0.3)" }}>
-                            {estadoSeguro}
-                          </span>
+                          {esDirectorio ? (
+                            <span style={{ color: "#DAA520", fontWeight: "600" }}>{col4}</span>
+                          ) : (
+                            <span style={{ backgroundColor: "rgba(218,165,32,0.1)", color: "#FFD700", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid rgba(218,165,32,0.3)" }}>
+                              {col4}
+                            </span>
+                          )}
                         </td>
                         <td style={{ padding: "12px", color: "#888", fontSize: "0.8rem" }}>{fechaSegura}</td>
                       </tr>
