@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
+import FondoCircuitos from "../components/FondoCircuitos"; // <--- Importamos el fondo
 
 export default function PortalCliente() {
   const router = useRouter();
@@ -128,6 +129,9 @@ export default function PortalCliente() {
       fontFamily: "'Inter', sans-serif",
       overflowX: "hidden"
     }}>
+      {/* Fondo de circuitos animado en todas partes */}
+      <FondoCircuitos />
+
       <style jsx global>{`
         html, body {
           margin: 0;
@@ -136,8 +140,8 @@ export default function PortalCliente() {
           color: #DAA520;
         }
         .trulink-card {
-          background: linear-gradient(145deg, #0a0a0a, #050505);
-          border: 1px solid rgba(218, 165, 32, 0.25);
+          background: linear-gradient(145deg, rgba(15,15,15,0.9), rgba(5,5,5,0.95));
+          border: 1px solid rgba(218, 165, 32, 0.3);
           border-radius: 16px;
           padding: 22px;
           width: 270px;
@@ -145,9 +149,11 @@ export default function PortalCliente() {
           transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
           box-shadow: 0 10px 30px rgba(0,0,0,0.9);
           position: relative;
+          z-index: 2;
           overflow: hidden;
           box-sizing: border-box;
           text-align: center;
+          backdrop-filter: blur(5px);
         }
         .trulink-card::before {
           content: '';
@@ -156,7 +162,7 @@ export default function PortalCliente() {
           left: -100%;
           width: 100%;
           height: 100%;
-          background: linear-gradient(90deg, transparent, rgba(218, 165, 32, 0.08), transparent);
+          background: linear-gradient(90deg, transparent, rgba(218, 165, 32, 0.12), transparent);
           transition: 0.5s;
         }
         .trulink-card:hover::before {
@@ -165,7 +171,7 @@ export default function PortalCliente() {
         .trulink-card:hover { 
           transform: translateY(-8px); 
           border-color: #DAA520; 
-          box-shadow: 0 0 35px rgba(218, 165, 32, 0.25), 0 15px 35px rgba(0,0,0,0.9); 
+          box-shadow: 0 0 35px rgba(218, 165, 32, 0.35), 0 15px 35px rgba(0,0,0,0.9); 
         }
         .card-img-container {
           width: 100%;
@@ -185,7 +191,8 @@ export default function PortalCliente() {
           transform: scale(1.08);
         }
         .logout-btn {
-          background: transparent;
+          background: rgba(0,0,0,0.6);
+          backdrop-filter: blur(5px);
           color: #DAA520;
           border: 1px solid rgba(218, 165, 32, 0.4);
           padding: 10px 22px;
@@ -196,6 +203,8 @@ export default function PortalCliente() {
           letter-spacing: 1px;
           text-transform: uppercase;
           transition: all 0.3s ease;
+          z-index: 2;
+          position: relative;
         }
         .logout-btn:hover { 
           background-color: #DAA520; 
@@ -298,7 +307,7 @@ export default function PortalCliente() {
       )}
 
       {/* Encabezado Superior */}
-      <div style={{ width: "100%", maxWidth: "1200px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div style={{ width: "100%", maxWidth: "1200px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", zIndex: 2, position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <img src="/images/trulink-logo.png" alt="Trulink Fiber" style={{ height: "36px", objectFit: "contain" }} onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
           <span style={{ fontSize: "0.75rem", letterSpacing: "3px", color: "rgba(218, 165, 32, 0.6)", textTransform: "uppercase" }}>Portal B2B</span>
@@ -309,7 +318,7 @@ export default function PortalCliente() {
       </div>
 
       {/* Contenido Principal */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", margin: "auto 0" }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", margin: "auto 0", zIndex: 2, position: "relative" }}>
         <div style={{ textAlign: "center", marginBottom: "45px" }}>
           <h1 style={{ 
             color: "#DAA520", 
@@ -339,11 +348,11 @@ export default function PortalCliente() {
             <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSpacing: "0.8px" }}>Fabricación de Cables</h2>
           </div>
 
-          <div className="trulink-card" onClick={() => router.push("/productos")}>
+          <div className="trulink-card" onClick={() => router.push("/productos")} >
             <div className="card-img-container">
               <img src="/images/terminado.png" alt="Productos" className="card-img" />
             </div>
-            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSpacing: "0.8px" }}>Productos Terminados</h2>
+            <h2 style={{ color: "#DAA520", fontSize: "1rem", margin: 0, fontWeight: "500", letterSibing: "0.8px" }}>Productos Terminados</h2>
           </div>
 
           <div className="trulink-card" onClick={() => router.push("/seguimiento")}>
@@ -356,7 +365,7 @@ export default function PortalCliente() {
       </div>
 
       {/* Pie de página discreto */}
-      <div style={{ width: "100%", textAlign: "center", marginTop: "40px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.4)", letterSpacing: "1px" }}>
+      <div style={{ width: "100%", textAlign: "center", marginTop: "40px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.4)", letterSpacing: "1px", zIndex: 2, position: "relative" }}>
         © 2026 Trulink Fiber LLC — Excelencia y Vanguardia Tecnológica
       </div>
     </div>

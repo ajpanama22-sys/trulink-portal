@@ -1,12 +1,12 @@
-import type { AppProps } from 'next/app'
-import '../styles/globals.css'
+import type { AppProps } from 'next/app';
+import FondoCircuitos from '../components/FondoCircuitos';
 
-function MyApp({ Component, pageProps }: AppProps) {
+export default function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
+      {/* El fondo interactivo se renderiza globalmente en todas las vistas */}
+      <FondoCircuitos />
       <Component {...pageProps} />
     </>
-  )
+  );
 }
-
-export default MyApp
