@@ -30,15 +30,19 @@ export default function Cotizaciones() {
   };
 
   const resolverDatosCliente = (item: any) => {
-    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || {};
+    const clienteInfo = item.datos_client || item.datos_cliente || item.cliente || item.client || {};
+    const metadata = item.metadata || item.raw_data || item.payload || {};
     const primerItem = Array.isArray(item.items) ? (item.items[0] || {}) : (item.items || {});
 
     const empresa = 
       item.razon_social || 
       item.empresa || 
+      item.nombre_empresa ||
       clienteInfo.razon_social || 
       clienteInfo.empresa || 
       clienteInfo.nombre || 
+      metadata.razon_social ||
+      metadata.empresa ||
       primerItem.razon_social ||
       primerItem.empresa || 
       "Sin especificar";
@@ -46,14 +50,19 @@ export default function Cotizaciones() {
     const representante = 
       item.representante || 
       item.contacto || 
+      item.nombre_contacto ||
       clienteInfo.representante || 
       clienteInfo.contacto ||
+      metadata.representante ||
       primerItem.representante || 
       "N/D";
 
     const email = 
       item.email || 
+      item.correo ||
       clienteInfo.email || 
+      clienteInfo.correo ||
+      metadata.email ||
       primerItem.email || 
       "N/D";
 
@@ -61,9 +70,11 @@ export default function Cotizaciones() {
       item.telefono_celular || 
       item.telefono_oficina || 
       item.telefono || 
+      item.celular ||
       clienteInfo.telefono_celular || 
       clienteInfo.telefono_oficina || 
       clienteInfo.telefono || 
+      metadata.telefono ||
       primerItem.telefono || 
       "N/D";
 
@@ -465,7 +476,7 @@ const modalOverlayStyle = {
   height: "100vh",
   backgroundColor: "rgba(0, 0, 0, 0.8)",
   display: "flex",
-  justifyContent: "center",
+  justifyModel: "center",
   alignItems: "center",
   zIndex: 1000
 };
