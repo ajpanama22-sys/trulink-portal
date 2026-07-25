@@ -25,6 +25,7 @@ export default function Fabricacion() {
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
 
   useEffect(() => {
     setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
@@ -34,14 +35,15 @@ export default function Fabricacion() {
       if (user) {
         const { data, error } = await supabase
           .from('clients')
-          .select('empresa, representante, email')
+          .select('empresa, representante, email, telefono')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (data) {
           setNombreEmpresa(data.empresa || '');
           setRepresentante(data.representante || '');
-          setMailCliente(data.email || '');
+          setMailCliente(data.email || user.email || '');
+          setTelefonoCliente(data.telefono || '');
         }
       }
     };
@@ -107,8 +109,16 @@ export default function Fabricacion() {
   };
 
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
-    // 1. OBTENER EL USUARIO AUTENTICADO PARA VINCULAR LA COTIZACIÓN
-    const { data: { user } } = await supabase.auth.getUser();
+    // 1. Obtener el usuario autenticado actual
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error("No se pudo verificar la sesión del usuario.");
+
+    // 2. Obtener los datos corporativos desde la tabla de clientes (clients)
+    const { data: clientProfile } = await supabase
+      .from('clients')
+      .select('empresa, representante, telefono')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
@@ -118,26 +128,32 @@ export default function Fabricacion() {
       total: item.precioCarrete * item.cantidad
     }));
 
+    const empresaVal = clientProfile?.empresa || nombreEmpresa || "No especificada";
+    const representanteVal = clientProfile?.representante || representante || "No especificado";
+    const telefonoVal = clientProfile?.telefono || telefonoCliente || "N/D";
+    const emailVal = user.email || mailCliente || "";
+
     const { data: existente } = await supabase
       .from('quotes')
       .select('id')
       .eq('referencia', referenciaActual)
-      .single();
+      .maybeSingle();
 
     let resultado;
     if (existente) {
       resultado = await supabase
         .from('quotes')
         .update({
-          user_id: user?.id, // <-- INYECCIÓN DE USER_ID
+          user_id: user.id,
+          cliente_email: emailVal,
+          empresa: empresaVal,
+          representante: representanteVal,
+          telefono: telefonoVal,
           total: granTotal,
           items: itemsFormateados,
           status: 'pending',
-          type: 'fabricacion', // <-- ACTUALIZADO EL TIPO DE COTIZACIÓN
+          type: 'fabricacion',
           pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
           fecha_estimada_entrega: calcularFechaEntrega()
         })
         .eq('referencia', referenciaActual)
@@ -146,19 +162,22 @@ export default function Fabricacion() {
     } else {
       resultado = await supabase
         .from('quotes')
-        .insert([{
-          user_id: user?.id, // <-- INYECCIÓN DE USER_ID
-          referencia: referenciaActual,
-          total: granTotal,
-          items: itemsFormateados,
-          status: 'pending',
-          type: 'fabricacion', // <-- ACTUALIZADO EL TIPO DE COTIZACIÓN
-          pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
-          fecha_estimada_entrega: calcularFechaEntrega()
-        }])
+        .insert([
+          {
+            user_id: user.id,
+            referencia: referenciaActual,
+            cliente_email: emailVal,
+            empresa: empresaVal,
+            representante: representanteVal,
+            telefono: telefonoVal,
+            total: granTotal,
+            items: itemsFormateados,
+            status: 'pending',
+            type: 'fabricacion',
+            pdf_url: pdfPublicUrl,
+            fecha_estimada_entrega: calcularFechaEntrega()
+          }
+        ])
         .select()
         .single();
     }

@@ -49,6 +49,7 @@ export default function Productos() {
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
 
   useEffect(() => {
     // Generación de referencia única QT sólida basada en marca temporal y aleatoriedad
@@ -64,14 +65,15 @@ export default function Productos() {
       if (user) {
         const { data } = await supabase
           .from('clients')
-          .select('empresa, representante, email')
+          .select('empresa, representante, email, telefono')
           .eq('user_id', user.id)
           .maybeSingle();
 
         if (data) {
           setNombreEmpresa(data.empresa || '');
           setRepresentante(data.representante || '');
-          setMailCliente(data.email || '');
+          setMailCliente(data.email || user.email || '');
+          setTelefonoCliente(data.telefono || '');
         }
       }
     };
@@ -124,6 +126,17 @@ export default function Productos() {
   };
 
   const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
+    // 1. Obtener el usuario autenticado actual
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error("No se pudo verificar la sesión del usuario.");
+
+    // 2. Obtener los datos corporativos desde la tabla de clientes (clients)
+    const { data: clientProfile } = await supabase
+      .from('clients')
+      .select('empresa, representante, telefono, email')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
     const itemsFormateados = carrito.map(item => ({
       SKU: item.SKU,
       descripcion: item.nombre,
@@ -131,6 +144,11 @@ export default function Productos() {
       precioUnitario: item.precio,
       total: item.precio * item.cantidad
     }));
+
+    const empresaVal = clientProfile?.empresa || nombreEmpresa || "No especificada";
+    const representanteVal = clientProfile?.representante || representante || "No especificado";
+    const telefonoVal = clientProfile?.telefono || telefonoCliente || "N/D";
+    const emailVal = user.email || mailCliente || "";
 
     const { data: existente } = await supabase
       .from('quotes')
@@ -143,34 +161,40 @@ export default function Productos() {
       resultado = await supabase
         .from('quotes')
         .update({
+          user_id: user.id,
+          cliente_email: emailVal,
+          empresa: empresaVal,
+          representante: representanteVal,
+          telefono: telefonoVal,
           total: totalCotizacion,
           items: itemsFormateados,
           status: 'pending',
           type: 'producto',
           pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
           fecha_estimada_entrega: calcularFechaEntrega()
         })
         .eq('referencia', referenciaUnica)
-        .select();
+        .select()
+        .single();
     } else {
       resultado = await supabase
         .from('quotes')
         .insert([{
+          user_id: user.id,
           referencia: referenciaUnica,
+          cliente_email: emailVal,
+          empresa: empresaVal,
+          representante: representanteVal,
+          telefono: telefonoVal,
           total: totalCotizacion,
           items: itemsFormateados,
           status: 'pending',
           type: 'producto',
           pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
           fecha_estimada_entrega: calcularFechaEntrega()
         }])
-        .select();
+        .select()
+        .single();
     }
 
     if (resultado.error) {

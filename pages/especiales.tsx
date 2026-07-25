@@ -78,11 +78,12 @@ export default function PedidosEspeciales() {
         .from("especiales")
         .getPublicUrl(fileName);
 
-      // 4. Guardar el registro en la tabla pedidos_especiales
+      // 4. Guardar el registro en la tabla pedidos_especiales con el user_id vinculado
       const { error: dbError } = await supabase
         .from("pedidos_especiales")
         .insert([
           {
+            user_id: user.id,
             cliente_email: clienteEmail,
             nota_descriptiva: nota,
             archivo_url: publicUrl,
