@@ -35,9 +35,13 @@ export default function Reportes() {
     setCargando(true);
 
     try {
-      const { data, error } = await supabase
-        .from(tipo)
-        .select("*");
+      let query = supabase.from(tipo).select("*");
+
+      if (desde && hasta) {
+        query = query.gte("created_at", `${desde}T00:00:00`).lte("created_at", `${hasta}T23:59:59`);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Error en consulta Supabase:", error);
@@ -429,7 +433,6 @@ const inputStyle = {
   outline: "none",
   fontSize: "0.92rem",
   fontWeight: "600",
-  boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)",
   boxSizing: "border-box" as const
 };
 
