@@ -32,16 +32,27 @@ export default function Fabricacion() {
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data, error } = await supabase
-          .from('clients')
-          .select('empresa, representante, email')
+        // Consulta robusta en la tabla 'clientes' filtrando por user_id
+        let { data, error } = await supabase
+          .from('clientes')
+          .select('*')
           .eq('user_id', user.id)
           .single();
 
+        // Respaldo de búsqueda por email (con ilike) si no se encuentra por ID directo
+        if (!data && user.email) {
+          const { data: dataByEmail } = await supabase
+            .from('clientes')
+            .select('*')
+            .ilike('email', user.email.trim())
+            .single();
+          data = dataByEmail;
+        }
+
         if (data) {
-          setNombreEmpresa(data.empresa || '');
-          setRepresentante(data.representante || '');
-          setMailCliente(data.email || '');
+          setNombreEmpresa(data.empresa || data.razon_social || '');
+          setRepresentante(data.representante || data.nombre_representante || '');
+          setMailCliente(data.email || user.email || '');
         }
       }
     };
