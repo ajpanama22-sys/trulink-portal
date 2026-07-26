@@ -38,7 +38,7 @@ export default function Reportes() {
       let queryTable = tipo;
       if (tipo === "analitica_ventas") queryTable = "quotes";
       if (tipo === "analitica_clientes") queryTable = "clientes";
-      if (tipo === "defectuosos_devueltos") queryTable = "cablesdb"; // Base principal o consulta unificada
+      if (tipo === "defectuosos_devueltos") queryTable = "cablesdb";
 
       let query = supabase.from(queryTable).select("*");
 
@@ -54,7 +54,6 @@ export default function Reportes() {
       } else {
         let resultados = data || [];
         if (tipo === "defectuosos_devueltos") {
-          // Filtrar elementos marcados como defectuosos o devueltos en la descripción o estado
           resultados = resultados.filter((item: any) => {
             const desc = String(item.descripcion || item.Descripción || item.status || item.estado || "").toLowerCase();
             return desc.includes("defectuoso") || desc.includes("devuelto") || desc.includes("rma") || desc.includes("dañado");
@@ -395,26 +394,26 @@ export default function Reportes() {
           const estadoSeguro = `"${tipoReporte === "defectuosos_devueltos" ? "Defectuoso / Devuelto" : "Activo"}"`;
           csvContent += [skuSeguro, descSegura, stockSeguro, precioASeguro, estadoSeguro].join(",") + "\n";
         } else if (esProduccion) {
-          const idSeguro = `"${row.id || "N/A"}"`;
+          const idSegura = `"${row.id || "N/A"}"`;
           const fabSegura = `"${(row.fabrica || row.linea || "---").replace(/"/g, '""')}"`;
           const prodSeguro = `"${(row.producto || row.descripcion || "---").replace(/"/g, '""')}"`;
           const cantSegura = `"${row.cantidad || 0}"`;
           const statusSeguro = `"${row.status || row.estado || "En Proceso"}"`;
-          csvContent += [idSeguro, fabSegura, prodSeguro, cantSegura, statusSeguro].join(",") + "\n";
+          csvContent += [idSegura, fabSegura, prodSeguro, cantSegura, statusSeguro].join(",") + "\n";
         } else if (esDespachos) {
-          const idSeguro = `"${row.id || "N/A"}"`;
+          const idSegura = `"${row.id || "N/A"}"`;
           const destSeguro = `"${(row.destino || row.cliente || "---").replace(/"/g, '""')}"`;
           const guiaSegura = `"${(row.guia || row.transportista || "---").replace(/"/g, '""')}"`;
           const cantSegura = `"${row.items_count || row.cantidad || 1}"`;
           const statusSeguro = `"${row.status || row.estado || "Preparación"}"`;
-          csvContent += [idSeguro, destSeguro, guiaSegura, cantSegura, statusSeguro].join(",") + "\n";
+          csvContent += [idSegura, destSeguro, guiaSegura, cantSegura, statusSeguro].join(",") + "\n";
         } else {
-          const idSeguro = `"${row.id || row.sku || "N/A"}"`;
+          const idSegura = `"${row.id || row.sku || "N/A"}"`;
           const descSegura = `"${(row.descripcion || row.concepto || row.nombre || "General").replace(/"/g, '""')}"`;
           const montoSeguro = `"${row.total || row.monto || 0}"`;
           const tipoSeguro = `"${row.tipo || row.estado_pago || "Completado"}"`;
           const fechaSegura = `"${row.created_at ? new Date(row.created_at).toLocaleDateString() : "---"}"`;
-          csvContent += [idSeguro, descSegura, montoSeguro, tipoSeguro, fechaSegura].join(",") + "\n";
+          csvContent += [idSegura, descSegura, montoSeguro, tipoSeguro, fechaSegura].join(",") + "\n";
         }
       });
 
@@ -553,24 +552,15 @@ export default function Reportes() {
                     const col2 = esQuotes ? (row.client_name || row.cliente || row.empresa || "Sin especificar") : tipoReporte === "analitica_clientes" ? (row.nombre || row.empresa || "---") : esDirectorio ? (row.nombre || row.client_name || row.empresa || row.proveedor || "---") : esInventario ? (row.Descripción || row.descripcion || "---") : esProduccion ? (row.fabrica || row.linea || "---") : esDespachos ? (row.destino || row.cliente || "---") : (row.descripcion || row.concepto || row.nombre || "Transacción");
                     const col3 = esQuotes ? `${row.client_email || row.email || "N/D"} / ${row.client_phone || row.telefono || row.phone || "N/D"}` : tipoReporte === "analitica_clientes" ? (row.pais || row.country || "Panamá") : esDirectorio ? (row.email || row.correo || "---") : esInventario ? (row.cantidad ?? row.Cantidad ?? row.Stock ?? row.stock ?? 0) : esProduccion ? (row.producto || row.descripcion || "---") : esDespachos ? (row.guia || row.transportista || "---") : `$${Number(row.total || row.monto || 0).toFixed(2)}`;
                     const col4 = esQuotes ? (row.quote_type || row.tipo || "fiber_quote") : tipoReporte === "analitica_clientes" ? (row.email || row.correo || "---") : esDirectorio ? (row.telefono || row.phone || row.movil || "---") : esInventario ? `$${Number((row.precio_a ?? row.Precio_A) || 0).toFixed(2)}` : esProduccion ? (row.cantidad || 0) : esDespachos ? (row.items_count || row.cantidad || 1) : (row.tipo || row.estado_pago || "Completado");
-                    const col5 = esQuotes ? `$${Number(row.total || 0).toFixed(2)}` : tipoReporte === "analitica_clientes" ? (row.telefono || row.phone || "---") : esInventario ? (tipoReporte === "defectuosos_devueltos" ? "Defectuoso / Devuelto" : "Activo") : esProduccion || esDespachos ? (row.status || row.estado || "En Proceso") : (row.created_at ? new Date(row.created_at).toLocaleDateString() : "---");
+                    const col5 = esQuotes ? `$${Number(row.total || 0).toFixed(2)}` : tipoReporte === "analitica_clientes" ? (row.telefono || row.phone || "---") : esInventario ? (tipoReporte === "defectuosos_devueltos" ? "Defectuoso / Devuelto" : "Activo") : esProduccion || esDespachos ? (row.status || row.estado || "N/A") : (row.created_at ? new Date(row.created_at).toLocaleDateString() : "---");
 
                     return (
-                      <tr key={idx} style={{ borderBottom: "1px solid #1c1c1c", color: "#ccc" }}>
-                        <td style={{ padding: "12px", color: "#FFD700", fontWeight: "bold" }}>
-                          {col1}
-                          {esQuotes && row.created_at && (
-                            <div style={{ fontSize: "0.75rem", color: "#888", fontWeight: "normal" }}>{new Date(row.created_at).toLocaleDateString()}</div>
-                          )}
-                        </td>
-                        <td style={{ padding: "12px" }}>{col2}</td>
-                        <td style={{ padding: "12px", fontWeight: "bold", color: "#fff" }}>{col3}</td>
-                        <td style={{ padding: "12px" }}>
-                          <span style={{ backgroundColor: "rgba(218,165,32,0.1)", color: "#FFD700", padding: "4px 10px", borderRadius: "6px", fontSize: "0.75rem", border: "1px solid rgba(218,165,32,0.3)" }}>
-                            {col4}
-                          </span>
-                        </td>
-                        <td style={{ padding: "12px", color: esQuotes ? "#FFD700" : (esProduccion || esDespachos ? "#FFD700" : "#888"), fontSize: esQuotes ? "0.95rem" : "0.8rem", fontWeight: esQuotes || esProduccion || esDespachos ? "bold" : "normal" }}>{col5}</td>
+                      <tr key={idx} style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.15)", background: idx % 2 === 0 ? "transparent" : "rgba(218, 165, 32, 0.02)" }}>
+                        <td style={{ padding: "12px", color: "#eee" }}>{col1}</td>
+                        <td style={{ padding: "12px", color: "#eee" }}>{col2}</td>
+                        <td style={{ padding: "12px", color: "#eee" }}>{col3}</td>
+                        <td style={{ padding: "12px", color: "#eee" }}>{col4}</td>
+                        <td style={{ padding: "12px", color: "#eee" }}>{col5}</td>
                       </tr>
                     );
                   })}
@@ -584,43 +574,52 @@ export default function Reportes() {
   );
 }
 
-function CardMetric({ title, value, sub, highlight = false, glowColor = "rgba(218,165,32,0.2)" }: { title: string; value: any; sub: string; highlight?: boolean; glowColor?: string }) {
-  return (
-    <div style={{ 
-      background: highlight ? "linear-gradient(145deg, #121005 0%, #1a1608 100%)" : "linear-gradient(145deg, #080808 0%, #121212 100%)", 
-      border: `1px solid ${highlight ? "rgba(255,215,0,0.8)" : "rgba(218,165,32,0.3)"}`, 
-      borderRadius: "10px", 
-      padding: "22px",
-      boxShadow: `0 8px 24px ${glowColor}`
-    }}>
-      <span style={{ fontSize: "0.78rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.6px", fontWeight: "bold" }}>{title}</span>
-      <h3 style={{ fontSize: "1.6rem", color: highlight ? "#FFD700" : "#fff", margin: "10px 0 6px 0", fontWeight: "800", textShadow: highlight ? "0 0 12px rgba(255,215,0,0.3)" : "none" }}>{value}</h3>
-      <span style={{ fontSize: "0.78rem", color: "#888", fontWeight: "500" }}>{sub}</span>
-    </div>
-  );
-}
-
 const labelStyle = {
   display: "block",
-  fontSize: "0.78rem",
-  color: "#aaa",
+  fontSize: "0.8rem",
   textTransform: "uppercase" as const,
-  letterSpacing: "0.6px",
+  color: "#DAA520",
   marginBottom: "6px",
-  fontWeight: "bold"
+  fontWeight: "700" as const,
+  letterSpacing: "0.5px"
 };
 
 const inputStyle = {
   width: "100%",
-  backgroundColor: "#0d0d0d",
-  border: "1px solid rgba(218, 165, 32, 0.5)",
+  padding: "10px 14px",
+  background: "#111",
+  border: "1px solid rgba(218, 165, 32, 0.4)",
   borderRadius: "6px",
-  padding: "11px 15px",
   color: "#FFD700",
-  outline: "none",
-  fontSize: "0.92rem",
-  fontWeight: "600",
-  boxSizing: "border-box" as const
+  fontSize: "0.9rem",
+  outline: "none"
+};
+
+const btnPrimary = {
+  background: "linear-gradient(135deg, #FFD700 0%, #DAA520 50%, #B8860B 100%)",
+  color: "#000",
+  border: "none",
+  padding: "10px 20px",
+  borderRadius: "6px",
+  fontWeight: "bold" as const,
+  cursor: "pointer",
+  textTransform: "uppercase" as const,
+  fontSize: "0.85rem",
+  letterSpacing: "0.8px",
+  boxShadow: "0 4px 15px rgba(218,165,32,0.3)"
+};
+
+const btnGoldOutline = {
+  background: "transparent",
+  color: "#FFD700",
+  border: "1px solid #DAA520",
+  padding: "10px 20px",
+  borderRadius: "6px",
+  fontWeight: "bold" as const,
+  cursor: "pointer",
+  textTransform: "uppercase" as const,
+  fontSize: "0.85rem",
+  letterSpacing: "0.8px"
 };
 
 const cardBoxStyle = {
@@ -631,30 +630,18 @@ const cardBoxStyle = {
   boxShadow: "0 8px 32px rgba(0,0,0,0.6)"
 };
 
-const btnPrimary = {
-  backgroundColor: "#DAA520",
-  color: "#000",
-  border: "none",
-  borderRadius: "6px",
-  padding: "12px 22px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  fontSize: "0.9rem",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.8px",
-  boxShadow: "0 0 15px rgba(218,165,32,0.4)"
-};
-
-const btnGoldOutline = {
-  backgroundColor: "transparent",
-  color: "#FFD700",
-  border: "1px solid #FFD700",
-  borderRadius: "6px",
-  padding: "12px 22px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  fontSize: "0.9rem",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.8px",
-  boxShadow: "0 0 10px rgba(255,215,0,0.2)"
-};
+function CardMetric({ title, value, sub, highlight = false, glowColor = "rgba(218,165,32,0.2)" }: any) {
+  return (
+    <div style={{
+      background: "linear-gradient(145deg, #0f0f0f 0%, #1a1a1a 100%)",
+      border: `1px solid ${highlight ? "rgba(255,215,0,0.8)" : "rgba(218, 165, 32, 0.3)"}`,
+      borderRadius: "10px",
+      padding: "20px",
+      boxShadow: `0 4px 20px ${glowColor}`
+    }}>
+      <p style={{ fontSize: "0.78rem", textTransform: "uppercase", color: "#aaa", marginBottom: "8px", letterSpacing: "0.5px" }}>{title}</p>
+      <h4 style={{ fontSize: "1.35rem", color: "#FFD700", fontWeight: "700", marginBottom: "6px", wordBreak: "break-all" }}>{value}</h4>
+      <p style={{ fontSize: "0.72rem", color: "#777" }}>{sub}</p>
+    </div>
+  );
+}
