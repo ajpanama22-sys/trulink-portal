@@ -193,7 +193,7 @@ export default function AdminValidaciones() {
           pais: itemCompleto.pais || null,
           telefono_oficina: itemCompleto.telefono_oficina || null,
           telefono_celular: itemCompleto.telefono_celular || null,
-          comentarios_admin: comentarioAdmin // GUARDAMOS EL COMENTARIO AQUÍ
+          comentarios_admin: comentarioAdmin
         }, { onConflict: 'email' });
 
       if (clienteError) {
@@ -202,7 +202,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Actualizar el estado únicamente en solicitudes_acceso
+      // 2. Actualizar el estado en solicitudes_acceso a 'aprobado'
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -252,12 +252,12 @@ export default function AdminValidaciones() {
         console.error("Error enviando correo de rechazo:", err);
       }
 
-      // Actualizamos a 'rechazado' y guardamos el comentario. (NO SE BORRA EL REGISTRO)
+      // Actualizamos a 'rechazado' y guardamos el motivo en solicitudes_acceso
       const { error: rejectError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
             status: 'rechazado',
-            motivo_rechazo: comentarioAdmin // GUARDAMOS EL MOTIVO DE RECHAZO AQUÍ
+            motivo_rechazo: comentarioAdmin
         })
         .eq('id', id);
 
@@ -500,7 +500,6 @@ export default function AdminValidaciones() {
                   </div>
 
                   <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    {/* Al hacer clic, abrimos el modal en vez de procesar directo */}
                     <button onClick={() => abrirModal(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={btnActivar}>
                       ACTIVAR
                     </button>
@@ -635,17 +634,17 @@ const overlayStyle: React.CSSProperties = {
   left: 0,
   width: "100%",
   height: "100%",
-  backgroundColor: "rgba(0, 0, 0, 0.85)", // Fondo oscuro semitransparente
+  backgroundColor: "rgba(0, 0, 0, 0.85)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   zIndex: 1000,
-  backdropFilter: "blur(4px)" // Efecto cristal elegante
+  backdropFilter: "blur(4px)"
 };
 
 const modalStyle: React.CSSProperties = {
   background: "#111111",
-  border: "1px solid rgba(218, 165, 32, 0.5)", // Borde dorado
+  border: "1px solid rgba(218, 165, 32, 0.5)",
   borderRadius: "12px",
   padding: "30px",
   width: "100%",
@@ -662,7 +661,7 @@ const textareaStyle: React.CSSProperties = {
   padding: "12px",
   fontSize: "0.95rem",
   outline: "none",
-  resize: "none", // Evita que se estire manual, se queda en 3 líneas
+  resize: "none",
   boxSizing: "border-box",
   fontFamily: "inherit"
 };
