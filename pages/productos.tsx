@@ -60,13 +60,71 @@ export default function Productos() {
     };
     setReferenciaActual(generarReferenciaUnica());
 
-    const fetchClientInfo = async () => {
-      let clienteMail = "";
-      let clienteEmpresa = "";
-      let clienteRep = "";
-      let clienteTipo = "A";
+    fetchClientInfo();
+  }, []);
 
-      // 1. Prioridad: Obtener del almacenamiento local guardado en el Login/Header
+  const fetchClientInfo = async () => {
+    let clienteMail = "";
+    let clienteEmpresa = "";
+    let clienteRep = "";
+    let clienteTipo = "A";
+
+    const storedUser =
+      sessionStorage.getItem("trulink_user") ||
+      localStorage.getItem("trulink_user") ||
+      sessionStorage.getItem("user") ||
+      localStorage.getItem("user");
+
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        clienteMail = parsed.email || "";
+        clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || "";
+        clienteRep = parsed.contacto || parsed.representante || parsed.nombre || "";
+        clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || "A";
+      } catch (e) {
+        console.error("Error al leer datos locales del usuario:", e);
+      }
+    }
+
+    if (supabase) {
+      let authEmail = clienteMail;
+      if (!authEmail) {
+        const { data: { session } } = await supabase.auth.getSession();
+        authEmail = session?.user?.email || "";
+      }
+
+      if (authEmail) {
+        clienteMail = authEmail;
+        const { data: clienteDB } = await supabase
+          .from("clientes")
+          .select("razon_social, contacto, representante, email, tipo_cliente, nombre")
+          .ilike("email", authEmail.trim())
+          .maybeSingle();
+
+        if (clienteDB) {
+          clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
+          clienteRep = clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
+          clienteMail = clienteDB.email || clienteMail;
+          clienteTipo = clienteDB.tipo_cliente || clienteTipo;
+        }
+      }
+    }
+
+    setNombreEmpresa(clienteEmpresa || "Sin especificar");
+    setRepresentante(clienteRep || "N/D");
+    setMailCliente(clienteMail || "N/D");
+    setTipoCliente(clienteTipo);
+  };
+
+  // Función de alta seguridad para obtener datos frescos al momento de facturar/guardar
+  const obtenerDatosClienteFresco = async () => {
+    let clienteMail = mailCliente;
+    let clienteEmpresa = nombreEmpresa;
+    let clienteRep = representante;
+    let clienteTipo = tipoCliente;
+
+    if (!clienteMail || clienteMail === "N/D") {
       const storedUser =
         sessionStorage.getItem("trulink_user") ||
         localStorage.getItem("trulink_user") ||
@@ -76,49 +134,41 @@ export default function Productos() {
       if (storedUser) {
         try {
           const parsed = JSON.parse(storedUser);
-          clienteMail = parsed.email || "";
-          clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || "";
-          clienteRep = parsed.contacto || parsed.representante || parsed.nombre || "";
-          clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || "A";
-        } catch (e) {
-          console.error("Error al leer datos locales del usuario:", e);
-        }
+          clienteMail = parsed.email || clienteMail;
+          clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || clienteEmpresa;
+          clienteRep = parsed.contacto || parsed.representante || parsed.nombre || clienteRep;
+          clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || clienteTipo;
+        } catch (e) {}
       }
+    }
 
-      // 2. Consulta de respaldo en Supabase Auth y tabla 'clientes' si faltan datos
-      if (supabase) {
-        let authEmail = clienteMail;
-        if (!authEmail) {
-          const { data: { session } } = await supabase.auth.getSession();
-          authEmail = session?.user?.email || "";
-        }
+    if ((!clienteMail || clienteMail === "N/D") && supabase) {
+      const { data: { session } } = await supabase.auth.getSession();
+      clienteMail = session?.user?.email || clienteMail;
+    }
 
-        if (authEmail) {
-          clienteMail = authEmail;
-          const { data: clienteDB } = await supabase
-            .from("clientes")
-            .select("razon_social, contacto, representante, email, tipo_cliente, nombre")
-            .ilike("email", authEmail.trim())
-            .maybeSingle();
+    if (clienteMail && clienteMail !== "N/D" && supabase) {
+      const { data: clienteDB } = await supabase
+        .from("clientes")
+        .select("razon_social, contacto, representante, email, tipo_cliente, nombre")
+        .ilike("email", clienteMail.trim())
+        .maybeSingle();
 
-          if (clienteDB) {
-            clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
-            clienteRep = clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
-            clienteMail = clienteDB.email || clienteMail;
-            clienteTipo = clienteDB.tipo_cliente || clienteTipo;
-          }
-        }
+      if (clienteDB) {
+        clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
+        clienteRep = clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
+        clienteMail = clienteDB.email || clienteMail;
+        clienteTipo = clienteDB.tipo_cliente || clienteTipo;
       }
+    }
 
-      // Asignar los estados garantizados
-      setNombreEmpresa(clienteEmpresa || "Sin especificar");
-      setRepresentante(clienteRep || "N/D");
-      setMailCliente(clienteMail || "N/D");
-      setTipoCliente(clienteTipo);
+    return {
+      empresa: clienteEmpresa && clienteEmpresa !== "Sin especificar" ? clienteEmpresa : "Cliente General",
+      representante: clienteRep && clienteRep !== "N/D" ? clienteRep : "No especificado",
+      email: clienteMail && clienteMail !== "N/D" ? clienteMail : "No especificado",
+      tipo: clienteTipo
     };
-
-    fetchClientInfo();
-  }, []);
+  };
 
   // Determinar dinámicamente el precio del producto según el Tier del cliente
   const getPrecioCliente = (prod: Producto): number => {
@@ -174,7 +224,7 @@ export default function Productos() {
     return hoy.toISOString().split("T")[0];
   };
 
-  const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
+  const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string, infoCliente: any) => {
     const itemsFormateados = carrito.map((item) => ({
       SKU: item.SKU,
       descripcion: item.nombre,
@@ -190,13 +240,12 @@ export default function Productos() {
       status: "pending",
       type: "producto",
       pdf_url: pdfPublicUrl,
-      // Se pasan mapeados a los distintos nombres de columna que pueda tener Supabase
-      empresa: nombreEmpresa,
-      razon_social: nombreEmpresa,
-      representante: representante,
-      cliente_nombre: representante,
-      email: mailCliente,
-      email_cliente: mailCliente,
+      empresa: infoCliente.empresa,
+      razon_social: infoCliente.empresa,
+      representante: infoCliente.representante,
+      cliente_nombre: infoCliente.representante,
+      email: infoCliente.email,
+      email_cliente: infoCliente.email,
       fecha_estimada_entrega: calcularFechaEntrega()
     };
 
@@ -235,7 +284,8 @@ export default function Productos() {
     }
 
     try {
-      const doc = await crearInstanciaPDF();
+      const infoCliente = await obtenerDatosClienteFresco();
+      const doc = await crearInstanciaPDF(infoCliente);
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaActual}.pdf`;
 
@@ -250,7 +300,7 @@ export default function Productos() {
       const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
-      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl);
+      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl, infoCliente);
       router.push(`/checkout?id=${referenciaActual}`);
     } catch (err: any) {
       console.error("ERROR INESPERADO:", err);
@@ -264,9 +314,9 @@ export default function Productos() {
       return;
     }
 
-    const doc = await crearInstanciaPDF();
-
     try {
+      const infoCliente = await obtenerDatosClienteFresco();
+      const doc = await crearInstanciaPDF(infoCliente);
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaActual}.pdf`;
 
@@ -281,14 +331,14 @@ export default function Productos() {
       const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
       const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
-      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl);
+      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl, infoCliente);
       doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
     } catch (err) {
-      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
+      console.error("Error al generar PDF:", err);
     }
   };
 
-  const crearInstanciaPDF = async () => {
+  const crearInstanciaPDF = async (infoCliente: any) => {
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
 
@@ -305,9 +355,9 @@ export default function Productos() {
     doc.text(`Hora: ${horaActual}`, 150, 32);
 
     doc.setFontSize(9);
-    doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
-    doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
-    doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
+    doc.text(`Cliente: ${infoCliente.empresa}`, 14, 42);
+    doc.text(`Representante: ${infoCliente.representante}`, 14, 48);
+    doc.text(`Mail: ${infoCliente.email}`, 14, 54);
 
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 66);
