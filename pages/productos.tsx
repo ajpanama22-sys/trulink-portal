@@ -49,6 +49,7 @@ export default function Productos() {
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
   const [tipoCliente, setTipoCliente] = useState<string>("A"); // Tier A, B, C o D
 
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function Productos() {
     let clienteMail = "";
     let clienteEmpresa = "";
     let clienteRep = "";
+    let clienteTelefono = "";
     let clienteTipo = "A";
 
     const storedUser =
@@ -80,7 +82,8 @@ export default function Productos() {
         const parsed = JSON.parse(storedUser);
         clienteMail = parsed.email || "";
         clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || "";
-        clienteRep = parsed.contacto || parsed.representante || parsed.nombre || "";
+        clienteRep = parsed.nombre_representante || parsed.contacto || parsed.representante || parsed.nombre || "";
+        clienteTelefono = parsed.telefono_movil || parsed.celular || parsed.telefono || "";
         clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || "A";
       } catch (e) {
         console.error("Error al leer datos locales del usuario:", e);
@@ -98,13 +101,14 @@ export default function Productos() {
         clienteMail = authEmail;
         const { data: clienteDB } = await supabase
           .from("clientes")
-          .select("razon_social, contacto, representante, email, tipo_cliente, nombre")
+          .select("razon_social, nombre, representante, nombre_representante, contacto, email, telefono, celular, telefono_movil, tipo_cliente")
           .ilike("email", authEmail.trim())
           .maybeSingle();
 
         if (clienteDB) {
           clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
-          clienteRep = clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
+          clienteRep = clienteDB.nombre_representante || clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
+          clienteTelefono = clienteDB.telefono_movil || clienteDB.celular || clienteDB.telefono || clienteTelefono;
           clienteMail = clienteDB.email || clienteMail;
           clienteTipo = clienteDB.tipo_cliente || clienteTipo;
         }
@@ -114,6 +118,7 @@ export default function Productos() {
     setNombreEmpresa(clienteEmpresa || "Sin especificar");
     setRepresentante(clienteRep || "N/D");
     setMailCliente(clienteMail || "N/D");
+    setTelefonoCliente(clienteTelefono || "N/D");
     setTipoCliente(clienteTipo);
   };
 
@@ -121,6 +126,7 @@ export default function Productos() {
     let clienteMail = mailCliente;
     let clienteEmpresa = nombreEmpresa;
     let clienteRep = representante;
+    let clienteTelefono = telefonoCliente;
     let clienteTipo = tipoCliente;
 
     if (!clienteMail || clienteMail === "N/D") {
@@ -135,7 +141,8 @@ export default function Productos() {
           const parsed = JSON.parse(storedUser);
           clienteMail = parsed.email || clienteMail;
           clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || clienteEmpresa;
-          clienteRep = parsed.contacto || parsed.representante || parsed.nombre || clienteRep;
+          clienteRep = parsed.nombre_representante || parsed.contacto || parsed.representante || parsed.nombre || clienteRep;
+          clienteTelefono = parsed.telefono_movil || parsed.celular || parsed.telefono || clienteTelefono;
           clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || clienteTipo;
         } catch (e) {}
       }
@@ -149,13 +156,14 @@ export default function Productos() {
     if (clienteMail && clienteMail !== "N/D" && supabase) {
       const { data: clienteDB } = await supabase
         .from("clientes")
-        .select("razon_social, contacto, representante, email, tipo_cliente, nombre")
+        .select("razon_social, nombre, representante, nombre_representante, contacto, email, telefono, celular, telefono_movil, tipo_cliente")
         .ilike("email", clienteMail.trim())
         .maybeSingle();
 
       if (clienteDB) {
         clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
-        clienteRep = clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
+        clienteRep = clienteDB.nombre_representante || clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
+        clienteTelefono = clienteDB.telefono_movil || clienteDB.celular || clienteDB.telefono || clienteTelefono;
         clienteMail = clienteDB.email || clienteMail;
         clienteTipo = clienteDB.tipo_cliente || clienteTipo;
       }
@@ -165,6 +173,7 @@ export default function Productos() {
       empresa: clienteEmpresa && clienteEmpresa !== "Sin especificar" ? clienteEmpresa : "Cliente General",
       representante: clienteRep && clienteRep !== "N/D" ? clienteRep : "No especificado",
       email: clienteMail && clienteMail !== "N/D" ? clienteMail : "No especificado",
+      telefono: clienteTelefono && clienteTelefono !== "N/D" ? clienteTelefono : "No especificado",
       tipo: clienteTipo
     };
   };
@@ -238,9 +247,9 @@ export default function Productos() {
       type: "producto",
       pdf_url: pdfPublicUrl,
       empresa: infoCliente.empresa,
-      razon_social: infoCliente.empresa,
       representante: infoCliente.representante,
       email: infoCliente.email,
+      telefono: infoCliente.telefono,
       fecha_estimada_entrega: calcularFechaEntrega()
     };
 
@@ -289,17 +298,19 @@ export default function Productos() {
     doc.text(`Fecha: ${fechaActual}`, 150, 26);
     doc.text(`Hora: ${horaActual}`, 150, 32);
 
+    // Cabecera de datos del cliente estructurada correctamente
     doc.setFontSize(9);
-    doc.text(`Cliente: ${infoCliente.empresa}`, 14, 42);
-    doc.text(`Representante: ${infoCliente.representante}`, 14, 48);
-    doc.text(`Mail: ${infoCliente.email}`, 14, 54);
+    doc.text(`Cliente: ${infoCliente.empresa}`, 14, 40);
+    doc.text(`Representante: ${infoCliente.representante}`, 14, 46);
+    doc.text(`Mail: ${infoCliente.email}`, 14, 52);
+    doc.text(`Teléfono Móvil: ${infoCliente.telefono}`, 14, 58);
 
     doc.setFontSize(16);
-    doc.text("TRULINK FIBER LLC", 14, 66);
+    doc.text("TRULINK FIBER LLC", 14, 70);
     doc.setFontSize(10);
-    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
-    doc.text("Tel: +507 6640 3720", 14, 78);
-    doc.text("www.trulinkfiber.com", 14, 84);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
+    doc.text("Tel: +507 6640 3720", 14, 82);
+    doc.text("www.trulinkfiber.com", 14, 88);
 
     const rows = carrito.map((item) => [
       item.SKU,
@@ -312,7 +323,7 @@ export default function Productos() {
     (doc as any).autoTable({
       head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
       body: rows,
-      startY: 92,
+      startY: 96,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
@@ -321,20 +332,25 @@ export default function Productos() {
     doc.setFontSize(12);
     doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
 
-    doc.setFontSize(10);
+    // Textos inferiores ajustados para evitar desbordes y cortes
+    doc.setFontSize(9);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
     doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-    doc.text(
-      "Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.",
-      14,
-      finalY + 22
-    );
-    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
 
+    const textoFormaPago = "Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.";
+    const lineasFormaPago = doc.splitTextToSize(textoFormaPago, 180);
+    doc.text(lineasFormaPago, 14, finalY + 22);
+
+    const alturaBloquePago = lineasFormaPago.length * 5;
+    const yMetodosPago = finalY + 22 + alturaBloquePago + 6;
+
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, yMetodosPago, { align: "center" });
+
+    // Sello corporativo con dimensiones proporcionadas y simétricas (cuadrado 32x32)
     try {
-      doc.addImage("/images/firmaco.png", "PNG", 150, finalY + 42, 40, 20);
+      doc.addImage("/images/firmaco.png", "PNG", 160, yMetodosPago + 8, 32, 32);
     } catch (e) {
-      console.error("No se pudo cargar la firma en el PDF:", e);
+      console.error("No se pudo cargar el sello en el PDF:", e);
     }
 
     return doc;
