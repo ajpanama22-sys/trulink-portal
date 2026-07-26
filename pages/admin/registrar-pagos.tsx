@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "./Sidebar";
 
 export default function RegistrarPagoVisual() {
   const [cargando, setCargando] = useState(false);
@@ -40,7 +40,7 @@ export default function RegistrarPagoVisual() {
       setResultado(data.resumen);
       alert(`¡Transacción registrada con éxito! Documento emitido: ${data.resumen.documentoEmitido}`);
       
-      // Limpiar formulario opcionalmente
+      // Limpiar formulario
       setReferencia("");
       setMontoPagado("");
       setReferenciaBancaria("");
@@ -55,7 +55,7 @@ export default function RegistrarPagoVisual() {
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
-      {/* Sidebar / Menú Operativo (currentActive coincide con la key del Sidebar) */}
+      {/* Sidebar del panel de administración */}
       <Sidebar currentActive="registrar-pago" />
 
       <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
