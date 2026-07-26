@@ -32,7 +32,10 @@ export async function generarYEnviarDocumento({ referencia }: ProcesarDocumentoP
     
     const tipoDocumento = esPagoTotal ? "FACTURA COMERCIAL" : "RECIBO DE PAGO PARCIAL";
     const clienteEmail = quote.email || quote.client_email;
-    const clienteNombre = quote.nombre_cliente || quote.cliente || "Estimado Cliente";
+    const clienteNombre = quote.nombre_cliente || quote.cliente || "Trulink Fiber Customer";
+    const representante = quote.representante || "Fred Jurado";
+    const telefonoCliente = quote.telefono || quote.telefono_movil || "+507 66403720";
+    const metodoPago = quote.metodo_pago || "Transferencia / Yappy / PayPal";
 
     if (!clienteEmail) {
       console.warn(`⚠️ La cotización ${referencia} no tiene un correo electrónico asociado para el envío.`);
@@ -41,54 +44,187 @@ export async function generarYEnviarDocumento({ referencia }: ProcesarDocumentoP
 
     // 2. Generar el PDF en memoria usando PDFKit
     const pdfBuffer: Buffer = await new Promise((resolve, reject) => {
-      const doc = new PDFDocument({ margin: 50, size: 'A4' });
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
       const buffers: Buffer[] = [];
 
       doc.on("data", (chunk) => buffers.push(chunk));
       doc.on("end", () => resolve(Buffer.concat(buffers)));
       doc.on("error", (err) => reject(err));
 
-      // Encabezado Estilo Trulink (Negro y Dorado)
-      doc.rect(0, 0, doc.page.width, 100).fill("#000000");
-      doc.fillColor("#DAA520").fontSize(22).font("Helvetica-Bold").text("TRULINK FIBER LLC", 50, 35, { align: "left" });
-      doc.fillColor("#FFFFFF").fontSize(10).font("Helvetica").text(tipoDocumento, 50, 65, { align: "left" });
+      if (esPagoTotal) {
+        // ==========================================
+        // LAYOUT 1: FACTURA COMERCIAL (Estilo Cotización Corporativa)
+        // ==========================================
+        doc.fillColor("#000000").fontSize(18).font("Helvetica-Bold").text("TRULINK FIBER LLC", 40, 40);
+        doc.fontSize(9).font("Helvetica").fillColor("#555555");
+        doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111");
+        doc.text("Tel: +507 6640 3720 | www.trulinkfiber.com");
 
-      doc.moveDown(4);
+        doc.moveTo(40, 85).lineTo(555, 85).strokeColor("#DAA520").lineWidth(1.5).stroke();
 
-      // Datos del Cliente y Documento
-      doc.fillColor("#000000").fontSize(10).font("Helvetica-Bold").text(`Referencia: `, { continued: true });
-      doc.font("Helvetica").text(quote.referencia);
-      doc.font("Helvetica-Bold").text(`Fecha de Emisión: `, { continued: true });
-      doc.font("Helvetica").text(new Date().toLocaleDateString());
-      doc.font("Helvetica-Bold").text(`Cliente: `, { continued: true });
-      doc.font("Helvetica").text(clienteNombre);
+        doc.y = 95;
+        doc.fillColor("#DAA520").fontSize(14).font("Helvetica-Bold").text(tipoDocumento, { align: "right" });
+        doc.fillColor("#000000").fontSize(10);
+        doc.text(`Referencia: ${quote.referencia}`, { align: "right" });
+        doc.text(`Fecha: ${new Date().toLocaleDateString()}`, { align: "right" });
 
-      doc.moveDown(2);
+        doc.moveDown(1);
 
-      // Tabla de Resumen Financiero
-      doc.rect(50, doc.y, 495, 25).fill("#DAA520");
-      doc.fillColor("#000000").font("Helvetica-Bold").text("Concepto", 60, doc.y + 7, { continued: true });
-      doc.text("Monto ($ USD)", 400, doc.y, { align: "right" });
-      doc.moveDown(1.5);
+        doc.rect(40, doc.y, 515, 65).fillAndStroke("#F9F9F9", "#CCCCCC");
+        const clientBoxY = doc.y + 8;
+        doc.fillColor("#000000").fontSize(9).font("Helvetica-Bold");
+        doc.text(`Cliente:`, 50, clientBoxY);
+        doc.font("Helvetica").text(`${clienteNombre}`, 120, clientBoxY);
 
-      doc.font("Helvetica").text(`Total de Cotización (${quote.referencia})`, 60, doc.y);
-      doc.text(`$${totalCotizacion.toFixed(2)}`, 400, doc.y, { align: "right" });
-      doc.moveDown(1);
+        doc.font("Helvetica-Bold").text(`Representante:`, 50, clientBoxY + 14);
+        doc.font("Helvetica").text(`${representante}`, 120, clientBoxY + 14);
 
-      doc.text(`Monto Abonado / Pagado`, 60, doc.y);
-      doc.text(`$${montoPagado.toFixed(2)}`, 400, doc.y, { align: "right" });
-      doc.moveDown(1);
+        doc.font("Helvetica-Bold").text(`Mail:`, 50, clientBoxY + 28);
+        doc.font("Helvetica").text(`${clienteEmail}`, 120, clientBoxY + 28);
 
-      doc.font("Helvetica-Bold").text(`Saldo Pendiente`, 60, doc.y);
-      doc.text(`$${saldoPendiente > 0 ? saldoPendiente.toFixed(2) : "0.00"}`, 400, doc.y, { align: "right" });
-      doc.moveDown(2);
+        doc.font("Helvetica-Bold").text(`Teléfono:`, 50, clientBoxY + 42);
+        doc.font("Helvetica").text(`${telefonoCliente}`, 120, clientBoxY + 42);
 
-      // Notas y Advertencias Operativas
-      doc.fontSize(9).font("Helvetica-Oblique").fillColor("#555555");
-      if (!esPagoTotal) {
-        doc.text("Aviso Importante: Este documento representa un recibo por abono parcial. El saldo pendiente debe ser liquidado antes de proceder con el despacho de los equipos. Tenga en cuenta que la vigencia de los precios e inventario está sujeta a un plazo máximo de 15 días corridos desde su emisión inicial.");
+        doc.moveDown(4);
+
+        const tableTop = doc.y;
+        doc.rect(40, tableTop, 515, 20).fill("#000000");
+        doc.fillColor("#DAA520").fontSize(8).font("Helvetica-Bold");
+        doc.text("DESCRIPCIÓN", 45, tableTop + 6);
+        doc.text("HILOS", 240, tableTop + 6);
+        doc.text("CANT", 290, tableTop + 6);
+        doc.text("P. UNITARIO", 335, tableTop + 6);
+        doc.text("P. CARRETE", 410, tableTop + 6);
+        doc.text("TOTAL", 485, tableTop + 6);
+
+        let rowY = tableTop + 20;
+        doc.fillColor("#000000").font("Helvetica").fontSize(9);
+
+        const items = quote.items || [{ descripcion: quote.descripcion || "Material de Fibra Óptica", hilos: quote.hilos || "6", cant: quote.cant || 1, p_unitario: quote.p_unitario || totalCotizacion, p_carrete: quote.p_carrete || totalCotizacion, total: totalCotizacion }];
+
+        items.forEach((item: any, idx: number) => {
+          if (idx % 2 === 0) {
+            doc.rect(40, rowY, 515, 18).fill("#F4F4F4");
+          }
+          doc.fillColor("#000000");
+          doc.text(item.descripcion || "ASU", 45, rowY + 5, { width: 190 });
+          doc.text(String(item.hilos || "-"), 240, rowY + 5);
+          doc.text(String(item.cant || "1"), 290, rowY + 5);
+          doc.text(`$${parseFloat(item.p_unitario || totalCotizacion).toFixed(2)}`, 335, rowY + 5);
+          doc.text(`$${parseFloat(item.p_carrete || totalCotizacion).toFixed(2)}`, 410, rowY + 5);
+          doc.text(`$${parseFloat(item.total || totalCotizacion).toFixed(2)}`, 485, rowY + 5);
+          rowY += 18;
+        });
+
+        doc.y = rowY + 15;
+        doc.fontSize(11).font("Helvetica-Bold").text(`TOTAL PAGADO: $${totalCotizacion.toFixed(2)}`, { align: "right" });
+        
+        doc.moveDown(2);
+        doc.fontSize(8).font("Helvetica").fillColor("#333333");
+        doc.text("Precios: EXW PANAMÁ");
+        doc.text("NOTA: Transacción liquidada al 100%. Los equipos pasan a fase de despacho logístico.");
+        doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES");
+
       } else {
-        doc.text("¡Pago completado al 100%! Su orden ha sido validada por el motor financiero y pasará a la cola de preparación logística y de manufactura.");
+        // ==========================================
+        // LAYOUT 2: RECIBO DE PAGO PARCIAL (Estilo Ticket Elegante / Referencia)
+        // ==========================================
+        const startX = 120;
+        const receiptWidth = 355;
+        let currentY = 40;
+
+        // Marco exterior estilo ticket
+        doc.rect(startX, currentY, receiptWidth, 540).fillAndStroke("#FFFFFF", "#DAA520");
+
+        // Cabecera del Recibo
+        currentY += 15;
+        doc.fillColor("#DAA520").fontSize(14).font("Helvetica-Bold").text("Trulink Fiber LLC", startX, currentY, { align: "center", width: receiptWidth });
+        currentY += 18;
+        doc.fontSize(7).font("Helvetica").fillColor("#555555").text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM", startX, currentY, { align: "center", width: receiptWidth });
+
+        // Banner Negro con número de recibo / referencia
+        currentY += 20;
+        doc.rect(startX + 15, currentY, receiptWidth - 30, 22).fill("#000000");
+        doc.fillColor("#DAA520").fontSize(9).font("Helvetica-Bold").text(`PAYMENT RECEIPT #${quote.referencia}`, startX + 15, currentY + 7, { align: "center", width: receiptWidth - 30 });
+
+        // Datos de la cuenta y cliente
+        currentY += 32;
+        doc.fillColor("#000000").fontSize(8).font("Helvetica-Bold");
+        doc.text(`Account Name: `, startX + 25, currentY, { continued: true });
+        doc.font("Helvetica").text(`${clienteNombre}`);
+        currentY += 14;
+        doc.font("Helvetica-Bold").text(`Representative: `, startX + 25, currentY, { continued: true });
+        doc.font("Helvetica").text(`${representante}`);
+        currentY += 14;
+        doc.font("Helvetica-Bold").text(`Support Email: `, startX + 25, currentY, { continued: true });
+        doc.font("Helvetica").text(`${clienteEmail}`);
+
+        // Tabla de Productos / Servicios (Estilo Ticket)
+        currentY += 20;
+        doc.rect(startX + 15, currentY, receiptWidth - 30, 18).fill("#EAEAEA");
+        doc.fillColor("#000000").fontSize(8).font("Helvetica-Bold");
+        doc.text("SERVICE / PRODUCT", startX + 25, currentY + 5);
+        doc.text("AMOUNT", startX + 250, currentY + 5, { align: "right", width: 70 });
+
+        currentY += 22;
+        doc.font("Helvetica").fontSize(8);
+        doc.text(`Cotización Base (${quote.referencia})`, startX + 25, currentY, { width: 210 });
+        doc.text(`$${totalCotizacion.toFixed(2)}`, startX + 250, currentY, { align: "right", width: 70 });
+
+        currentY += 18;
+        doc.text(`Abono Actual Recibido`, startX + 25, currentY, { width: 210 });
+        doc.text(`$${montoPagado.toFixed(2)}`, startX + 250, currentY, { align: "right", width: 70 });
+
+        // Bloque de Totales (Subtotal / Saldo Pendiente)
+        currentY += 25;
+        doc.moveTo(startX + 25, currentY).lineTo(startX + receiptWidth - 25, currentY).strokeColor("#CCCCCC").lineWidth(0.5).stroke();
+        
+        currentY += 8;
+        doc.font("Helvetica-Bold").text("TOTAL COTIZADO:", startX + 25, currentY);
+        doc.font("Helvetica").text(`$${totalCotizacion.toFixed(2)}`, startX + 250, currentY, { align: "right", width: 70 });
+
+        currentY += 14;
+        doc.font("Helvetica-Bold").text("ACUMULADO PAGADO:", startX + 25, currentY);
+        doc.font("Helvetica").text(`$${montoPagado.toFixed(2)}`, startX + 250, currentY, { align: "right", width: 70 });
+
+        // Franja de Saldo Pendiente (Destacada en Dorado/Negro)
+        currentY += 20;
+        doc.rect(startX + 15, currentY, receiptWidth - 30, 24).fill("#111111");
+        doc.fillColor("#DAA520").fontSize(9).font("Helvetica-Bold");
+        doc.text("SALDO PENDIENTE:", startX + 25, currentY + 8);
+        doc.text(`$${saldoPendiente.toFixed(2)}`, startX + 250, currentY + 8, { align: "right", width: 70 });
+
+        // Datos de Pago
+        currentY += 35;
+        doc.fillColor("#000000").fontSize(8).font("Helvetica-Bold");
+        doc.text("Payment Method:", startX + 25, currentY, { continued: true });
+        doc.font("Helvetica").text(` ${metodoPago}`);
+        currentY += 12;
+        doc.font("Helvetica-Bold").text("Payment Date:", startX + 25, currentY, { continued: true });
+        doc.font("Helvetica").text(` ${new Date().toLocaleDateString()}`);
+        currentY += 12;
+        doc.font("Helvetica-Bold").text("Payment Status:", startX + 25, currentY, { continued: true });
+        doc.font("Helvetica-Bold").fillColor("#D35400").text(" PARTIAL - PENDING BALANCE");
+
+        // Mensaje y Código de Barras Simulado
+        currentY += 25;
+        doc.fillColor("#000000").fontSize(8).font("Helvetica-Bold").text("THANK YOU FOR YOUR BUSINESS!", startX, currentY, { align: "center", width: receiptWidth });
+
+        currentY += 15;
+        // Simulación visual de código de barras
+        const barcodeX = startX + 75;
+        const barcodeW = 205;
+        doc.rect(barcodeX, currentY, barcodeW, 25).fill("#000000");
+        // Líneas blancas simulando barras
+        for (let i = 5; i < barcodeW; i += 8) {
+          doc.rect(barcodeX + i, currentY, 3, 25).fill("#FFFFFF");
+        }
+
+        currentY += 32;
+        doc.fontSize(6).font("Helvetica").fillColor("#666666");
+        doc.text("MANAGE YOUR ACCOUNT & VIEW INVOICES ONLINE:", startX, currentY, { align: "center", width: receiptWidth });
+        currentY += 9;
+        doc.font("Helvetica-Bold").fillColor("#DAA520").text("WWW.TRULINKFIBER.COM/SUPPORT", startX, currentY, { align: "center", width: receiptWidth });
       }
 
       doc.end();
