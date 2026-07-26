@@ -8,54 +8,74 @@ interface UserProfile {
   empresa?: string;
   rol?: string;
   tipo?: string;
+  razon_social?: string;
+  tipo_cliente?: string;
 }
 
 export default function HeaderUser() {
   const [user, setUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
-    // 1. Cargar desde sessionStorage
-    const storedUser = sessionStorage.getItem("trulink_user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-        return;
-      } catch (e) {
-        console.error("Error al leer perfil almacenado:", e);
+    const fetchUserData = async () => {
+      // 1. Probar en sessionStorage y localStorage
+      const storedUser = 
+        sessionStorage.getItem("trulink_user") || 
+        localStorage.getItem("trulink_user") ||
+        sessionStorage.getItem("user") ||
+        localStorage.getItem("user");
+
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && (parsed.nombre || parsed.email || parsed.razon_social)) {
+            setUser({
+              ...parsed,
+              nombre: parsed.nombre || parsed.razon_social || parsed.email?.split('@')[0],
+              rol: parsed.rol || parsed.tipo_cliente || parsed.tipo?.toUpperCase() || 'CLIENTE'
+            });
+            return;
+          }
+        } catch (e) {
+          console.error("Error al leer perfil almacenado:", e);
+        }
       }
-    }
 
-    // 2. Fallback con Supabase Auth + consulta a la tabla 'clientes' si se refresca la pantalla
-    const checkSupabaseAuth = async () => {
-      if (!supabase) return;
-      
-      const { data: authData } = await supabase.auth.getUser();
-      const email = authData?.user?.email;
+      // 2. Fallback con Supabase Auth + consulta a la tabla 'clientes' si se recarga la pantalla
+      if (supabase) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        let email = sessionData?.session?.user?.email;
 
-      if (email) {
-        // Consultar la información real en la tabla clientes
-        const { data: cliente } = await supabase
-          .from("clientes")
-          .select("razon_social, tipo_cliente")
-          .ilike("email", email.trim())
-          .maybeSingle();
+        if (!email) {
+          const { data: authData } = await supabase.auth.getUser();
+          email = authData?.user?.email;
+        }
 
-        const userData: UserProfile = {
-          email: email,
-          nombre: cliente?.razon_social || email.split('@')[0],
-          rol: cliente?.tipo_cliente || 'Cliente'
-        };
+        if (email) {
+          const { data: cliente } = await supabase
+            .from("clientes")
+            .select("razon_social, tipo_cliente")
+            .ilike("email", email.trim())
+            .maybeSingle();
 
-        setUser(userData);
-        sessionStorage.setItem("trulink_user", JSON.stringify(userData));
+          const userData: UserProfile = {
+            email: email,
+            nombre: cliente?.razon_social || email.split('@')[0],
+            rol: cliente?.tipo_cliente || 'CLIENTE'
+          };
+
+          setUser(userData);
+          sessionStorage.setItem("trulink_user", JSON.stringify(userData));
+        }
       }
     };
 
-    checkSupabaseAuth();
+    fetchUserData();
   }, []);
 
   const handleLogout = async () => {
     sessionStorage.clear();
+    localStorage.removeItem("trulink_user");
+    localStorage.removeItem("user");
     if (supabase) {
       await supabase.auth.signOut();
     }
@@ -64,12 +84,16 @@ export default function HeaderUser() {
 
   if (!user) return null;
 
-  const iniciales = (user.nombre || user.email || "U")
+  const nombreAMostrar = user.nombre || user.razon_social || user.email || "Usuario";
+  const rolAMostrar = user.rol || user.tipo_cliente || user.tipo?.toUpperCase() || "CLIENTE";
+
+  const iniciales = nombreAMostrar
     .split(" ")
+    .filter(Boolean)
     .map((n) => n[0])
     .join("")
     .substring(0, 2)
-    .toUpperCase();
+    .toUpperCase() || "U";
 
   return (
     <div
@@ -98,7 +122,8 @@ export default function HeaderUser() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          letterSpacing: "0.5px"
+          letterSpacing: "0.5px",
+          flexShrink: 0
         }}
       >
         {iniciales}
@@ -111,19 +136,24 @@ export default function HeaderUser() {
             fontSize: "0.85rem",
             fontWeight: "600",
             color: "#FFFFFF",
-            letterSpacing: "0.5px"
+            letterSpacing: "0.5px",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            maxWidth: "180px"
           }}
         >
-          {user.nombre}
+          {nombreAMostrar}
         </div>
         <div
           style={{
             fontSize: "0.7rem",
             color: "#DAA520",
-            letterSpacing: "0.3px"
+            letterSpacing: "0.3px",
+            textTransform: "uppercase"
           }}
         >
-          {user.rol || user.tipo?.toUpperCase()}
+          {rolAMostrar}
         </div>
       </div>
 
@@ -138,7 +168,7 @@ export default function HeaderUser() {
           cursor: "pointer",
           padding: "4px 8px",
           fontSize: "0.9rem",
-          marginLeft: "8px",
+          marginLeft: "4px",
           transition: "color 0.2s ease"
         }}
         onMouseOver={(e) => (e.currentTarget.style.color = "#e74c3c")}
