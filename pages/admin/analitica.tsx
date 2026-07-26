@@ -29,6 +29,12 @@ export const Analitica: React.FC = () => {
   }, []);
 
   const cargarDatosAnalitica = async () => {
+    if (!supabase) {
+      setErrorMsg("El cliente de Supabase no está inicializado.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
