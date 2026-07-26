@@ -117,7 +117,6 @@ export default function Productos() {
     setTipoCliente(clienteTipo);
   };
 
-  // Función de alta seguridad para obtener datos frescos al momento de facturar/guardar
   const obtenerDatosClienteFresco = async () => {
     let clienteMail = mailCliente;
     let clienteEmpresa = nombreEmpresa;
@@ -170,7 +169,6 @@ export default function Productos() {
     };
   };
 
-  // Determinar dinámicamente el precio del producto según el Tier del cliente
   const getPrecioCliente = (prod: Producto): number => {
     const tier = (tipoCliente || "A").toString().trim().toUpperCase();
     if (tier === "B" || tier === "PRECIO_B" || tier === "CLIENTE B2B") return prod.precio_b ?? prod.precio_a ?? 0;
@@ -179,7 +177,6 @@ export default function Productos() {
     return prod.precio_a ?? 0;
   };
 
-  // Lógica de filtrado en tiempo real
   useEffect(() => {
     if (!busqueda.trim()) {
       setProductosFiltrados(productos);
@@ -244,7 +241,6 @@ export default function Productos() {
       razon_social: infoCliente.empresa,
       representante: infoCliente.representante,
       email: infoCliente.email,
-      email_cliente: infoCliente.email,
       fecha_estimada_entrega: calcularFechaEntrega()
     };
 
@@ -276,76 +272,16 @@ export default function Productos() {
     return Array.isArray(resultado.data) ? resultado.data[0] : resultado.data;
   };
 
-  const procesarPago = async () => {
-    if (carrito.length === 0) {
-      alert("La cotización está vacía. Por favor, agregue artículos.");
-      return;
-    }
-
-    try {
-      const infoCliente = await obtenerDatosClienteFresco();
-      const doc = await crearInstanciaPDF(infoCliente);
-      const pdfBlob = doc.output("blob");
-      const fileName = `${referenciaActual}.pdf`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
-
-      if (uploadError) {
-        console.error("Error al subir PDF al bucket:", uploadError.message);
-      }
-
-      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
-      const pdfPublicUrl = publicUrlData?.publicUrl || "";
-
-      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl, infoCliente);
-      router.push(`/checkout?id=${referenciaActual}`);
-    } catch (err: any) {
-      console.error("ERROR INESPERADO:", err);
-      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
-    }
-  };
-
-  const generarPDF = async () => {
-    if (carrito.length === 0) {
-      alert("La cotización está vacía.");
-      return;
-    }
-
-    try {
-      const infoCliente = await obtenerDatosClienteFresco();
-      const doc = await crearInstanciaPDF(infoCliente);
-      const pdfBlob = doc.output("blob");
-      const fileName = `${referenciaActual}.pdf`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("documentos")
-        .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
-
-      if (uploadError) {
-        console.error("Error al subir PDF al bucket:", uploadError.message);
-      }
-
-      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
-      const pdfPublicUrl = publicUrlData?.publicUrl || "";
-
-      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl, infoCliente);
-      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
-    } catch (err) {
-      console.error("Error al generar PDF:", err);
-    }
-  };
-
-  const crearInstanciaPDF = async (infoCliente: any) => {
+  const crearInstanciaPDF = (infoCliente: any) => {
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
 
     const doc = new jsPDF();
+
     try {
       doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
     } catch (e) {
-      console.error("No se pudo cargar la imagen del logo en el PDF:", e);
+      console.error("No se pudo cargar el logo en el PDF:", e);
     }
 
     doc.setFontSize(10);
@@ -396,16 +332,76 @@ export default function Productos() {
     doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
 
     try {
-      const firma = "/images/firmaco.png";
-      const props = doc.getImageProperties(firma);
-      const firmaWidth = 40;
-      const firmaHeight = (props.height * firmaWidth) / props.width;
-      doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
+      doc.addImage("/images/firmaco.png", "PNG", 150, finalY + 42, 40, 20);
     } catch (e) {
-      console.error("No se pudo cargar la firma:", e);
+      console.error("No se pudo cargar la firma en el PDF:", e);
     }
 
     return doc;
+  };
+
+  const generarPDF = async () => {
+    if (carrito.length === 0) {
+      alert("La cotización está vacía.");
+      return;
+    }
+
+    try {
+      const infoCliente = await obtenerDatosClienteFresco();
+      const doc = crearInstanciaPDF(infoCliente);
+
+      // Forzar descarga local inmediata
+      doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
+
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaActual}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
+      } else {
+        const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+        const pdfPublicUrl = publicUrlData?.publicUrl || "";
+        await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl, infoCliente);
+      }
+    } catch (err: any) {
+      console.error("Error al generar PDF:", err);
+      alert(`Ocurrió un error al generar el PDF: ${err.message || err}`);
+    }
+  };
+
+  const procesarPago = async () => {
+    if (carrito.length === 0) {
+      alert("La cotización está vacía. Por favor, agregue artículos.");
+      return;
+    }
+
+    try {
+      const infoCliente = await obtenerDatosClienteFresco();
+      const doc = crearInstanciaPDF(infoCliente);
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaActual}.pdf`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
+
+      if (uploadError) {
+        console.error("Error al subir PDF al bucket:", uploadError.message);
+      }
+
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
+
+      await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl, infoCliente);
+      router.push(`/checkout?id=${referenciaActual}`);
+    } catch (err: any) {
+      console.error("ERROR INESPERADO:", err);
+      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
+    }
   };
 
   const seleccionarCategoria = async (tabla: string) => {
