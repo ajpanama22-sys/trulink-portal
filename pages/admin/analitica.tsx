@@ -2,6 +2,55 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
+// Estilos y componentes auxiliares reutilizables
+const inputStyle = {
+  background: "#111",
+  color: "#DAA520",
+  border: "1px solid rgba(218, 165, 32, 0.4)",
+  padding: "10px 15px",
+  borderRadius: "8px",
+  outline: "none",
+  fontSize: "0.9rem"
+};
+
+const btnPrimary = {
+  background: "linear-gradient(135deg, #FFD700 0%, #DAA520 100%)",
+  color: "#000",
+  border: "none",
+  padding: "10px 20px",
+  borderRadius: "8px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  textTransform: "uppercase",
+  fontSize: "0.85rem",
+  boxShadow: "0 0 15px rgba(255,215,0,0.3)"
+};
+
+const cardBoxStyle = {
+  background: "linear-gradient(145deg, #0a0a0a 0%, #141414 100%)",
+  border: "1px solid rgba(218, 165, 32, 0.3)",
+  borderRadius: "12px",
+  padding: "24px",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.6)"
+};
+
+function CardMetric({ title, value, sub, highlight = false, glowColor = "rgba(218,165,32,0.2)" }: { title: string; value: string | number; sub: string; highlight?: boolean; glowColor?: string }) {
+  return (
+    <div style={{
+      ...cardBoxStyle,
+      border: highlight ? "1px solid #FFD700" : "1px solid rgba(218, 165, 32, 0.3)",
+      boxShadow: `0 8px 32px ${glowColor}`,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between"
+    }}>
+      <span style={{ fontSize: "0.8rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "600" }}>{title}</span>
+      <span style={{ fontSize: "1.6rem", fontWeight: "800", color: highlight ? "#FFD700" : "#fff", margin: "10px 0" }}>{value}</span>
+      <span style={{ fontSize: "0.75rem", color: "#888" }}>{sub}</span>
+    </div>
+  );
+}
+
 export default function Analitica() {
   const [cargando, setCargando] = useState(true);
   const [tipoFiltro, setTipoFiltro] = useState("mes_actual");
@@ -241,27 +290,6 @@ export default function Analitica() {
   };
 
   const porcentajeConversor = volumenCotizaciones > 0 ? Number(((numFacturas / volumenCotizaciones) * 100).toFixed(1)) : 0;
- 
-  const totalPagosGlobal = pagosStripe + pagosPaypal + pagosWise + pagosTransferencia || 1;
-  const pctStripe = Number(((pagosStripe / totalPagosGlobal) * 100).toFixed(1));
-  const pctPaypal = Number(((pagosPaypal / totalPagosGlobal) * 100).toFixed(1));
-  const pctWise = Number(((pagosWise / totalPagosGlobal) * 100).toFixed(1));
-  const pctTrans = Number(((pagosTransferencia / totalPagosGlobal) * 100).toFixed(1));
-
-  const totalSkusTerminados = skusCables + skusHerrajes + skusAccesorios || 1;
-  const pctCables = Number(((skusCables / totalSkusTerminados) * 100).toFixed(1));
-  const pctHerrajes = Number(((skusHerrajes / totalSkusTerminados) * 100).toFixed(1));
-  const pctAccesorios = Number(((skusAccesorios / totalSkusTerminados) * 100).toFixed(1));
-  const granTotalSkus = totalSkusFabricacion + totalSkusTerminados;
-
-  const totalClientesCount = clientesPorPais.reduce((acc, curr) => acc + curr.count, 0) || 1;
-  const clientesConPct = clientesPorPais.map(c => ({ ...c, pct: Number(((c.count / totalClientesCount) * 100).toFixed(1)) }));
-
-  const totalVentasMonto = ventasPorPais.reduce((acc, curr) => acc + curr.total, 0) || 1;
-  const ventasConPct = ventasPorPais.map(v => ({ ...v, pct: Number(((v.total / totalVentasMonto) * 100).toFixed(1)) }));
-
-  const totalMovimientoTop = productosTop.reduce((acc, curr) => acc + curr.movimientos, 0) || 1;
-  const topConPct = productosTop.map(p => ({ ...p, pct: Number(((p.movimientos / totalMovimientoTop) * 100).toFixed(1)) }));
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
