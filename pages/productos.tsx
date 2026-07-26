@@ -42,7 +42,7 @@ export default function Productos() {
   const [paginaActual, setPaginaActual] = useState(1);
   const productosPorPagina = 12;
 
-  // Estado para la referencia única con prefijo QT- y fecha/hora precisa
+  // Estado para la referencia única con prefijo QT-
   const [referenciaActual, setReferenciaActual] = useState<string>("");
 
   // Estados para los datos del cliente automatizados
@@ -52,7 +52,7 @@ export default function Productos() {
   const [tipoCliente, setTipoCliente] = useState<string>("A"); // Tier A, B, C o D
 
   useEffect(() => {
-    // Generación de referencia única QT basada en marca temporal y aleatoriedad
+    // Generación de referencia única QT
     const generarReferenciaUnica = () => {
       const timestamp = Date.now().toString().slice(-6);
       const randomNum = Math.floor(100 + Math.random() * 900);
@@ -61,36 +61,75 @@ export default function Productos() {
     setReferenciaActual(generarReferenciaUnica());
 
     const fetchClientInfo = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from("clients")
-          .select("empresa, representante, email, tipo_cliente, tier, nivel_precio")
-          .eq("user_id", user.id)
-          .maybeSingle();
+      let clienteMail = "";
+      let clienteEmpresa = "";
+      let clienteRep = "";
+      let clienteTipo = "A";
 
-        if (data) {
-          setNombreEmpresa(data.empresa || "");
-          setRepresentante(data.representante || "");
-          setMailCliente(data.email || "");
-          setTipoCliente(data.tipo_cliente || data.tier || data.nivel_precio || "A");
+      // 1. Prioridad: Obtener del almacenamiento local guardado en el Login/Header
+      const storedUser =
+        sessionStorage.getItem("trulink_user") ||
+        localStorage.getItem("trulink_user") ||
+        sessionStorage.getItem("user") ||
+        localStorage.getItem("user");
+
+      if (storedUser) {
+        try {
+          const parsed = JSON.parse(storedUser);
+          clienteMail = parsed.email || "";
+          clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || "";
+          clienteRep = parsed.contacto || parsed.representante || parsed.nombre || "";
+          clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || "A";
+        } catch (e) {
+          console.error("Error al leer datos locales del usuario:", e);
         }
       }
+
+      // 2. Consulta de respaldo en Supabase Auth y tabla 'clientes' si faltan datos
+      if (supabase) {
+        let authEmail = clienteMail;
+        if (!authEmail) {
+          const { data: { session } } = await supabase.auth.getSession();
+          authEmail = session?.user?.email || "";
+        }
+
+        if (authEmail) {
+          clienteMail = authEmail;
+          const { data: clienteDB } = await supabase
+            .from("clientes")
+            .select("razon_social, contacto, representante, email, tipo_cliente, nombre")
+            .ilike("email", authEmail.trim())
+            .maybeSingle();
+
+          if (clienteDB) {
+            clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
+            clienteRep = clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
+            clienteMail = clienteDB.email || clienteMail;
+            clienteTipo = clienteDB.tipo_cliente || clienteTipo;
+          }
+        }
+      }
+
+      // Asignar los estados garantizados
+      setNombreEmpresa(clienteEmpresa || "Sin especificar");
+      setRepresentante(clienteRep || "N/D");
+      setMailCliente(clienteMail || "N/D");
+      setTipoCliente(clienteTipo);
     };
 
     fetchClientInfo();
   }, []);
 
-  // Función para determinar dinámicamente el precio del producto según el Tier del cliente
+  // Determinar dinámicamente el precio del producto según el Tier del cliente
   const getPrecioCliente = (prod: Producto): number => {
     const tier = (tipoCliente || "A").toString().trim().toUpperCase();
-    if (tier === "B" || tier === "PRECIO_B") return prod.precio_b ?? prod.precio_a ?? 0;
+    if (tier === "B" || tier === "PRECIO_B" || tier === "CLIENTE B2B") return prod.precio_b ?? prod.precio_a ?? 0;
     if (tier === "C" || tier === "PRECIO_C") return prod.precio_c ?? prod.precio_a ?? 0;
     if (tier === "D" || tier === "PRECIO_D") return prod.precio_d ?? prod.precio_a ?? 0;
     return prod.precio_a ?? 0;
   };
 
-  // Lógica de filtrado en tiempo real sobre la tabla o categoría activa cargada
+  // Lógica de filtrado en tiempo real
   useEffect(() => {
     if (!busqueda.trim()) {
       setProductosFiltrados(productos);
@@ -144,6 +183,23 @@ export default function Productos() {
       total: item.precio * item.cantidad
     }));
 
+    const datosCotizacion = {
+      referencia: referenciaUnica,
+      total: totalCotizacion,
+      items: itemsFormateados,
+      status: "pending",
+      type: "producto",
+      pdf_url: pdfPublicUrl,
+      // Se pasan mapeados a los distintos nombres de columna que pueda tener Supabase
+      empresa: nombreEmpresa,
+      razon_social: nombreEmpresa,
+      representante: representante,
+      cliente_nombre: representante,
+      email: mailCliente,
+      email_cliente: mailCliente,
+      fecha_estimada_entrega: calcularFechaEntrega()
+    };
+
     const { data: existente } = await supabase
       .from("quotes")
       .select("id")
@@ -154,36 +210,13 @@ export default function Productos() {
     if (existente) {
       resultado = await supabase
         .from("quotes")
-        .update({
-          total: totalCotizacion,
-          items: itemsFormateados,
-          status: "pending",
-          type: "producto",
-          pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
-          fecha_estimada_entrega: calcularFechaEntrega()
-        })
+        .update(datosCotizacion)
         .eq("referencia", referenciaUnica)
         .select();
     } else {
       resultado = await supabase
         .from("quotes")
-        .insert([
-          {
-            referencia: referenciaUnica,
-            total: totalCotizacion,
-            items: itemsFormateados,
-            status: "pending",
-            type: "producto",
-            pdf_url: pdfPublicUrl,
-            empresa: nombreEmpresa,
-            representante: representante,
-            email: mailCliente,
-            fecha_estimada_entrega: calcularFechaEntrega()
-          }
-        ])
+        .insert([datosCotizacion])
         .select();
     }
 
@@ -192,8 +225,7 @@ export default function Productos() {
       throw new Error(resultado.error.message);
     }
 
-    const dataRes = Array.isArray(resultado.data) ? resultado.data[0] : resultado.data;
-    return dataRes;
+    return Array.isArray(resultado.data) ? resultado.data[0] : resultado.data;
   };
 
   const procesarPago = async () => {
@@ -204,7 +236,6 @@ export default function Productos() {
 
     try {
       const doc = await crearInstanciaPDF();
-
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaActual}.pdf`;
 
@@ -262,7 +293,11 @@ export default function Productos() {
     const horaActual = new Date().toLocaleTimeString();
 
     const doc = new jsPDF();
-    doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+    try {
+      doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+    } catch (e) {
+      console.error("No se pudo cargar la imagen del logo en el PDF:", e);
+    }
 
     doc.setFontSize(10);
     doc.text(`Referencia: ${referenciaActual}`, 150, 20);

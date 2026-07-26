@@ -1,291 +1,318 @@
-import { useState } from "react";
-import { useRouter } from "next/router";
-import { supabase } from "../lib/supabaseClient";
+import React, { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+import jsPDF from "jspdf";
+import { useRouter } from "next/navigation";
 
-export default function PedidosEspeciales() {
+// Inicialización de Supabase (ajusta la ruta de importación si usas un cliente global)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+interface ItemCotizacion {
+  tipo: string;
+  hilos: number;
+  longitudKm: number;
+  cantidad: number;
+  precioCarrete: number;
+}
+
+export default function EspecialesPage() {
   const router = useRouter();
-  const [nota, setNota] = useState("");
-  const [archivo, setArchivo] = useState<File | null>(null);
-  const [mensaje, setMensaje] = useState("");
-  const [cargando, setCargando] = useState(false);
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    marginBottom: "20px",
-    padding: "15px",
-    backgroundColor: "#0a0a0a",
-    color: "#DAA520",
-    border: "1px solid rgba(218, 165, 32, 0.4)",
-    borderRadius: "14px",
-    outline: "none",
-    boxSizing: "border-box",
-    fontSize: "0.95rem",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)"
+  // Estados de la sesión y cliente
+  const [userId, setUserId] = useState<string | null>(null);
+  const [nombreEmpresa, setNombreEmpresa] = useState<string>("");
+  const [representante, setRepresentante] = useState<string>("");
+  const [mailCliente, setMailCliente] = useState<string>("");
+  const [referenciaActual, setReferenciaActual] = useState<string>("");
+
+  // Estados de la cotización y especificaciones
+  const [cotizacion, setCotizacion] = useState<ItemCotizacion[]>([]);
+  const [especificacionesText, setEspecificacionesText] = useState<string>("");
+  const [archivoAdjunto, setArchivoAdjunto] = useState<File | null>(null);
+  const [subiendoArchivo, setSubiendoArchivo] = useState<boolean>(false);
+  const [granTotal, setGranTotal] = useState<number>(0);
+
+  // Cargar datos del usuario y generar referencia única al montar el componente
+  useEffect(() => {
+    const inicializarDatos = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        setMailCliente(user.email || "");
+        
+        // Opcional: Buscar datos adicionales de la empresa del usuario si los tienes en una tabla perfiles
+        const { data: perfil } = await supabase
+          .from("perfiles")
+          .select("empresa, representante")
+          .eq("id", user.id)
+          .single();
+
+        if (perfil) {
+          setNombreEmpresa(perfil.empresa || "");
+          setRepresentante(perfil.representante || "");
+        }
+      }
+
+      // Generar referencia única basada en marca temporal
+      const refUnica = `ESP-${Date.now().toString().slice(-6)}`;
+      setReferenciaActual(refUnica);
+    };
+
+    inicializarDatos();
+  }, []);
+
+  // Calcular total cada vez que cambie la cotización
+  useEffect(() => {
+    const total = cotizacion.reduce((acc, item) => acc + (item.precioCarrete * item.cantidad), 0);
+    setGranTotal(total);
+  }, [cotizacion]);
+
+  // Simulación de cálculo de fecha de entrega
+  const calcularFechaEntrega = () => {
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() + 15); // 15 días hábiles estimados
+    return fecha.toISOString().split("T")[0];
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setArchivo(e.target.files[0]);
+  // Función para generar un PDF básico de respaldo
+  const generarDocumentoPDF = () => {
+    const doc = new jsPDF();
+    doc.setFont("Helvetica", "bold");
+    doc.text("Trulink Fiber LLC - Cotización Especial", 14, 20);
+    doc.setFont("Helvetica", "normal");
+    doc.text(`Referencia: ${referenciaActual}`, 14, 30);
+    doc.text(`Empresa: ${nombreEmpresa || "No especificada"}`, 14, 40);
+    doc.text(`Representante: ${representante || mailCliente}`, 14, 50);
+    doc.text(`Especificaciones: ${especificacionesText || "Ninguna"}`, 14, 60);
+    
+    let y = 75;
+    doc.text("Ítems:", 14, y);
+    cotizacion.forEach((item, idx) => {
+      y += 10;
+      doc.text(`${idx + 1}. Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km) x ${item.cantidad} = $${item.precioCarrete * item.cantidad}`, 14, y);
+    });
+
+    return doc;
+  };
+
+  // Subir archivo adjunto a Supabase Storage
+  const subirAdjuntoCliente = async (): Promise<string | null> => {
+    if (!archivoAdjunto) return null;
+
+    try {
+      setSubiendoArchivo(true);
+      const fileExt = archivoAdjunto.name.split(".").pop();
+      const fileName = `adjuntos/${referenciaActual}_especificacion.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("documentos")
+        .upload(fileName, archivoAdjunto, { contentType: archivoAdjunto.type, upsert: true });
+
+      if (uploadError) {
+        console.error("Error al subir el archivo del cliente:", uploadError.message);
+        return null;
+      }
+
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      return publicUrlData?.publicUrl || null;
+    } catch (err) {
+      console.error("Excepción al subir adjunto:", err);
+      return null;
+    } finally {
+      setSubiendoArchivo(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setCargando(true);
-    setMensaje("");
+  // Guardar en la tabla 'quotes' de Supabase
+  const guardarCotizacionEnSupabase = async (pdfPublicUrl: string, adjuntoClienteUrl?: string | null) => {
+    const itemsFormateados = cotizacion.map(item => ({
+      SKU: item.tipo,
+      descripcion: `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
+      cantidad: item.cantidad,
+      precioUnitario: item.precioCarrete,
+      total: item.precioCarrete * item.cantidad
+    }));
 
-    if (!archivo) {
-      setMensaje("Por favor, adjunta un archivo con las especificaciones y cantidades.");
-      setCargando(false);
-      return;
+    const payload = {
+      user_id: userId,
+      referencia: referenciaActual,
+      total: granTotal,
+      items: itemsFormateados,
+      status: "pending",
+      type: "especiales",
+      pdf_url: pdfPublicUrl,
+      empresa: nombreEmpresa,
+      representante: representante,
+      email: mailCliente,
+      fecha_estimada_entrega: calcularFechaEntrega(),
+      especificaciones_texto: especificacionesText,
+      archivo_adjunto_url: adjuntoClienteUrl || null
+    };
+
+    const { data: existente } = await supabase
+      .from("quotes")
+      .select("id")
+      .eq("referencia", referenciaActual)
+      .single();
+
+    let resultado;
+    if (existente) {
+      resultado = await supabase
+        .from("quotes")
+        .update(payload)
+        .eq("referencia", referenciaActual)
+        .select()
+        .single();
+    } else {
+      resultado = await supabase
+        .from("quotes")
+        .insert([payload])
+        .select()
+        .single();
     }
 
-    if (!supabase) {
-      setMensaje("Error de configuración: Cliente de Supabase no inicializado.");
-      setCargando(false);
+    if (resultado.error) {
+      console.error("ERROR DETALLADO DE SUPABASE:", resultado.error);
+      throw new Error(resultado.error.message);
+    }
+    return resultado.data;
+  };
+
+  // Manejador principal de envío (botón o tecla Enter)
+  const handleEnviarEspecificacion = async () => {
+    if (cotizacion.length === 0 && !especificacionesText && !archivoAdjunto) {
+      alert("Por favor agregue ítems o detalles de especificación antes de enviar.");
       return;
     }
 
     try {
-      // 1. Verificar la sesión del usuario
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) throw new Error("No se pudo verificar la sesión del usuario.");
+      // 1. Subir adjunto del cliente si existe
+      const adjuntoUrl = await subirAdjuntoCliente();
 
-      const clienteEmail = user.email || "";
+      // 2. Generar PDF y subirlo al bucket
+      const doc = generarDocumentoPDF();
+      const pdfBlob = doc.output("blob");
+      const fileName = `${referenciaActual}.pdf`;
 
-      // 2. Extraer datos completos del cliente desde la base de datos
-      const { data: clientProfile } = await supabase
-        .from('clients')
-        .select('empresa, representante')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      await supabase.storage
+        .from("documentos")
+        .upload(fileName, pdfBlob, { contentType: "application/pdf", upsert: true });
 
-      const nombreEmpresa = clientProfile?.empresa || "Empresa no especificada";
-      const nombreRepresentante = clientProfile?.representante || "Representante no especificado";
+      const { data: publicUrlData } = supabase.storage.from("documentos").getPublicUrl(fileName);
+      const pdfPublicUrl = publicUrlData?.publicUrl || "";
 
-      // 3. Subir el archivo al bucket "especiales"
-      const fileExt = archivo.name.split('.').pop();
-      const fileName = `${clienteEmail}_${Date.now()}.${fileExt}`;
+      // 3. Registrar en base de datos vinculando al cliente y sus adjuntos
+      await guardarCotizacionEnSupabase(pdfPublicUrl, adjuntoUrl);
 
-      const { error: uploadError } = await supabase.storage
-        .from("especiales")
-        .upload(fileName, archivo);
-
-      if (uploadError) throw new Error("Error al subir el archivo: " + uploadError.message);
-
-      const { data: { publicUrl } } = supabase.storage
-        .from("especiales")
-        .getPublicUrl(fileName);
-
-      // 4. Guardar el registro en la tabla pedidos_especiales con el user_id vinculado
-      const { error: dbError } = await supabase
-        .from("pedidos_especiales")
-        .insert([
-          {
-            user_id: user.id,
-            cliente_email: clienteEmail,
-            nota_descriptiva: nota,
-            archivo_url: publicUrl,
-          }
-        ]);
-
-      if (dbError) throw new Error("Error al guardar en la base de datos: " + dbError.message);
-
-      // 5. Enviar el correo automatizado con toda la información enriquecida
-      await fetch("/api/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: "fred.jurado@trulinkfiber.com",
-          subject: `Nuevo Pedido Especial de ${nombreEmpresa}`,
-          text: `Has recibido una nueva solicitud de pedido especial.\n\n` +
-                `DATOS DEL CLIENTE:\n` +
-                `- Empresa: ${nombreEmpresa}\n` +
-                `- Representante: ${nombreRepresentante}\n` +
-                `- Correo: ${clienteEmail}\n\n` +
-                `NOTA DESCRIPTIVA:\n${nota}\n\n` +
-                `ARCHIVO DE ESPECIFICACIONES:\n${publicUrl}`
-        })
-      });
-
-      setMensaje("Pedido especial enviado con éxito. Nuestro equipo lo revisará pronto.");
-      setNota("");
-      setArchivo(null);
-      const fileInput = document.getElementById('archivo-input') as HTMLInputElement;
-      if (fileInput) fileInput.value = "";
-
-    } catch (error: any) {
-      setMensaje(error.message || "Ocurrió un error inesperado.");
-    } finally {
-      setCargando(false);
+      alert(`Especificaciones enviadas con éxito. Referencia: ${referenciaActual}`);
+      router.push(`/checkout?id=${referenciaActual}`);
+    } catch (err: any) {
+      console.error("ERROR AL ENVIAR:", err);
+      alert(`Ocurrió un error al procesar el envío: ${err.message || err}`);
     }
   };
 
   return (
-    <div style={{
-      backgroundColor: "#000000",
-      color: "#DAA520",
-      minHeight: "100vh",
-      padding: "40px 20px",
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-      boxSizing: "border-box"
-    }}>
-      <style jsx global>{`
-        html, body {
-          margin: 0;
-          padding: 0;
-          background-color: #000000 !important;
-          color: #DAA520;
-        }
-        @keyframes pulse-border {
-          0% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
-          50% { box-shadow: 0 0 35px rgba(218, 165, 32, 0.35), inset 0 0 25px rgba(218, 165, 32, 0.1); }
-          100% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
-        }
-        .container-fiber {
-          animation: pulse-border 4s infinite ease-in-out;
-        }
-        .nav-btn {
-          background: linear-gradient(135deg, #0a0a0a 0%, #161616 100%) !important;
-          color: #DAA520 !important;
-          border: 1px solid rgba(218, 165, 32, 0.3) !important;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
-        .nav-btn:hover {
-          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
-          color: #000000 !important;
-          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
-          transform: translateY(-1px);
-        }
-        .action-btn {
-          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
-          color: #000000 !important;
-          font-weight: 600;
-          border: none;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .action-btn:hover {
-          filter: brightness(1.15);
-          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
-          transform: translateY(-1px);
-        }
-        textarea:focus, input[type="file"]:focus {
-          border-color: #DAA520 !important;
-          box-shadow: 0 0 10px rgba(218, 165, 32, 0.3) !important;
-        }
-      `}</style>
-
-      {/* Header Bar */}
-      <div style={{ width: "100%", maxWidth: "700px", display: "flex", justifyContent: "flex-start", marginBottom: "25px" }}>
-        <button
-          onClick={() => router.push("/portal-cliente")}
-          className="nav-btn"
-          style={{ padding: "10px 20px", borderRadius: "10px", fontWeight: "600", cursor: "pointer", fontSize: "0.85rem" }}
-        >
-          ← Volver al Portal
-        </button>
-      </div>
-
-      {/* Title Section */}
-      <div style={{ textAlign: "center", marginBottom: "35px", maxWidth: "700px" }}>
-        <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "110px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
-        <h1 style={{ color: "#DAA520", marginBottom: "10px", fontSize: "2rem", fontWeight: "700", letterSpacing: "1.5px" }}>
-          PEDIDOS ESPECIALES
+    <div style={{ backgroundColor: "#000000", color: "#FFFFFF", minHeight: "100vh", padding: "30px", fontFamily: "Arial, sans-serif" }}>
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
+        
+        {/* Encabezado */}
+        <h1 style={{ color: "#DAA520", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "15px", marginBottom: "25px" }}>
+          Módulo de Especificaciones Especiales
         </h1>
-        <p style={{ color: "#C0C0C0", fontSize: "0.95rem", lineHeight: "1.5", maxWidth: "600px", margin: "0 auto" }}>
-          Utiliza este formulario para solicitar productos fuera de catálogo. Adjunta las especificaciones técnicas y las cantidades requeridas.
-        </p>
-      </div>
 
-      {/* Form Container */}
-      <form 
-        onSubmit={handleSubmit}
-        className="container-fiber"
-        style={{
-          width: "100%",
-          maxWidth: "700px",
-          backgroundColor: "#060606",
-          padding: "35px",
-          borderRadius: "24px",
-          border: "1px solid rgba(218, 165, 32, 0.3)",
-          boxSizing: "border-box"
-        }}
-      >
-        <label style={{ display: "block", marginBottom: "10px", fontWeight: "600", color: "#DAA520", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
-          Nota Descriptiva
-        </label>
-        <textarea
-          value={nota}
-          onChange={(e) => setNota(e.target.value)}
-          placeholder="Describe brevemente tu solicitud..."
-          required
-          style={{ ...inputStyle, minHeight: "150px", resize: "vertical" }}
-        />
-
-        <label style={{ display: "block", marginBottom: "10px", fontWeight: "600", color: "#DAA520", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
-          Adjuntar Especificaciones (PDF, Excel, etc.)
-        </label>
-        <div style={{ ...inputStyle, padding: "12px", display: "flex", alignItems: "center", backgroundColor: "#0a0a0a" }}>
-          <input
-            id="archivo-input"
-            type="file"
-            onChange={handleFileChange}
-            required
-            style={{ 
-              color: "#DAA520", 
-              width: "100%", 
-              background: "transparent", 
-              border: "none", 
-              outline: "none",
-              cursor: "pointer"
-            }}
-          />
+        {/* Sección de Identificación del Cliente */}
+        <div style={{ backgroundColor: "#080808", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "16px", padding: "20px", marginBottom: "25px" }}>
+          <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem" }}>Información del Cliente y Referencia</h3>
+          <p style={{ color: "#CCCCCC", fontSize: "0.9rem", margin: "5px 0" }}>
+            Cliente / Empresa: <strong style={{ color: "#DAA520" }}>{nombreEmpresa || mailCliente || "Cargando..."}</strong>
+          </p>
+          <p style={{ color: "#CCCCCC", fontSize: "0.9rem", margin: "5px 0" }}>
+            Referencia Actual: <strong style={{ color: "#DAA520" }}>{referenciaActual}</strong>
+          </p>
         </div>
 
-        <button 
-          type="submit"
-          disabled={cargando}
-          className="action-btn"
-          style={{
-            width: "100%",
-            padding: "15px",
-            fontSize: "1rem",
-            borderRadius: "14px",
-            cursor: cargando ? "not-allowed" : "pointer",
-            opacity: cargando ? 0.7 : 1,
-            letterSpacing: "0.5px",
-            marginTop: "10px"
-          }}
-        >
-          {cargando ? "Enviando solicitud..." : "Enviar Pedido Especial"}
-        </button>
+        {/* Sección de Especificaciones y Adjuntos */}
+        <div style={{ backgroundColor: "#080808", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "16px", padding: "20px", marginBottom: "25px" }}>
+          <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem" }}>Detalles Técnicos y Requerimientos</h3>
+          <p style={{ color: "#888888", fontSize: "0.8rem", marginBottom: "12px" }}>
+            Escriba sus especificaciones y presione <strong>Enter</strong> o haga clic en enviar para registrar la cotización en la base de datos.
+          </p>
 
-        {mensaje && (
-          <div style={{
-            marginTop: "25px",
-            textAlign: "center",
-            padding: "14px",
-            borderRadius: "12px",
-            backgroundColor: mensaje.includes("éxito") ? "rgba(0, 255, 0, 0.08)" : "rgba(255, 68, 68, 0.08)",
-            color: mensaje.includes("éxito") ? "#00FF00" : "#FF5252",
-            border: `1px solid ${mensaje.includes("éxito") ? "rgba(0, 255, 0, 0.3)" : "rgba(255, 82, 82, 0.3)"}`,
-            fontSize: "0.9rem",
-            fontWeight: "500",
-            letterSpacing: "0.3px"
-          }}>
-            {mensaje}
+          <textarea
+            value={especificacionesText}
+            onChange={(e) => setEspecificacionesText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleEnviarEspecificacion();
+              }
+            }}
+            placeholder="Escriba aquí los requerimientos especiales... (Presione Enter para enviar)"
+            rows={4}
+            style={{
+              width: "100%",
+              backgroundColor: "#000000",
+              color: "#DAA520",
+              border: "1px solid rgba(218, 165, 32, 0.4)",
+              borderRadius: "8px",
+              padding: "12px",
+              fontSize: "0.9rem",
+              outline: "none",
+              boxSizing: "border-box",
+              marginBottom: "15px"
+            }}
+          />
+
+          <div style={{ display: "flex", alignItems: "center", gap: "15px", flexWrap: "wrap" }}>
+            <input
+              type="file"
+              id="fileEspecificacion"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  setArchivoAdjunto(e.target.files[0]);
+                }
+              }}
+              style={{ display: "none" }}
+            />
+            <label
+              htmlFor="fileEspecificacion"
+              style={{
+                backgroundColor: "#111111",
+                color: "#DAA520",
+                border: "1px solid #DAA520",
+                padding: "10px 18px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: "bold"
+              }}
+            >
+              {archivoAdjunto ? `📎 ${archivoAdjunto.name}` : "📎 Adjuntar Archivo Técnico"}
+            </label>
+
+            <button
+              onClick={handleEnviarEspecificacion}
+              disabled={subiendoArchivo}
+              style={{
+                backgroundColor: "#DAA520",
+                color: "#000000",
+                border: "none",
+                padding: "10px 22px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "0.85rem",
+                fontWeight: "bold",
+                marginLeft: "auto"
+              }}
+            >
+              {subiendoArchivo ? "Procesando..." : "Enviar Cotización Especial"}
+            </button>
           </div>
-        )}
-      </form>
+        </div>
 
-      {/* Footer */}
-      <p style={{ marginTop: "35px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.7)", textAlign: "center", letterSpacing: "0.5px" }}>
-        © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
-      </p>
+      </div>
     </div>
   );
 }
