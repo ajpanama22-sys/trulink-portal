@@ -202,12 +202,14 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Actualizar el estado en solicitudes_acceso a 'aprobado'
+      // 2. Actualizar el estado en solicitudes_acceso a 'aprobado' y guardar comentarios
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
           status: 'aprobado', 
-          password_token: passwordToken
+          password_token: passwordToken,
+          comentarios_admin: comentarioAdmin,
+          motivo_rechazo: comentarioAdmin
         })
         .eq('id', id);
 
@@ -256,7 +258,8 @@ export default function AdminValidaciones() {
         .from("solicitudes_acceso")
         .update({ 
             status: 'rechazado',
-            motivo_rechazo: comentarioAdmin
+            motivo_rechazo: comentarioAdmin,
+            comentarios_admin: comentarioAdmin
         })
         .eq('id', id);
 
