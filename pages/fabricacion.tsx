@@ -25,6 +25,7 @@ export default function Fabricacion() {
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
+  const [telefonoMovil, setTelefonoMovil] = useState("");
 
   useEffect(() => {
     setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
@@ -32,7 +33,7 @@ export default function Fabricacion() {
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Consulta robusta en la tabla 'clientes' filtrando por user_id
+        // Consulta en la tabla 'clientes' filtrando por user_id
         let { data, error } = await supabase
           .from('clientes')
           .select('*')
@@ -51,8 +52,9 @@ export default function Fabricacion() {
 
         if (data) {
           setNombreEmpresa(data.empresa || data.razon_social || '');
-          setRepresentante(data.representante || data.nombre_representante || '');
+          setRepresentante(data.nombre_representante || data.representante || '');
           setMailCliente(data.email || user.email || '');
+          setTelefonoMovil(data.telefono_celular || '');
         }
       }
     };
@@ -149,6 +151,7 @@ export default function Fabricacion() {
           empresa: nombreEmpresa,
           representante: representante,
           email: mailCliente,
+          telefono_celular: telefonoMovil,
           fecha_estimada_entrega: calcularFechaEntrega()
         })
         .eq('referencia', referenciaActual)
@@ -168,6 +171,7 @@ export default function Fabricacion() {
           empresa: nombreEmpresa,
           representante: representante,
           email: mailCliente,
+          telefono_celular: telefonoMovil,
           fecha_estimada_entrega: calcularFechaEntrega()
         }])
         .select()
@@ -197,13 +201,14 @@ export default function Fabricacion() {
     doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
     doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
     doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
+    doc.text(`Teléfono Móvil: ${telefonoMovil || "N/D"}`, 14, 60);
 
     doc.setFontSize(16);
-    doc.text("TRULINK FIBER LLC", 14, 66);
+    doc.text("TRULINK FIBER LLC", 14, 70);
     doc.setFontSize(10);
-    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
-    doc.text("Tel: +507 6640 3720", 14, 78);
-    doc.text("www.trulinkfiber.com", 14, 84);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
+    doc.text("Tel: +507 6640 3720", 14, 82);
+    doc.text("www.trulinkfiber.com", 14, 88);
     
     const rows = cotizacion.map(item => [
       item.tipo,
@@ -217,7 +222,7 @@ export default function Fabricacion() {
     (doc as any).autoTable({
       head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
       body: rows,
-      startY: 92,
+      startY: 96,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });
