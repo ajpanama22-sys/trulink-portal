@@ -33,12 +33,12 @@ export default function Fabricacion() {
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Consulta en la tabla 'clientes' filtrando por user_id
+        // Consulta en la tabla 'clientes' filtrando por user_id usando maybeSingle para evitar errores si no existe
         let { data, error } = await supabase
           .from('clientes')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         // Respaldo de búsqueda por email (con ilike) si no se encuentra por ID directo
         if (!data && user.email) {
@@ -46,7 +46,7 @@ export default function Fabricacion() {
             .from('clientes')
             .select('*')
             .ilike('email', user.email.trim())
-            .single();
+            .maybeSingle();
           data = dataByEmail;
         }
 
@@ -135,7 +135,7 @@ export default function Fabricacion() {
       .from('quotes')
       .select('id')
       .eq('referencia', referenciaActual)
-      .single();
+      .maybeSingle();
 
     let resultado;
     if (existente) {
