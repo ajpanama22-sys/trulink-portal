@@ -26,7 +26,6 @@ export default function Fabricacion() {
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
   const [telefonoMovil, setTelefonoMovil] = useState("");
-  const [porcentajePago, setPorcentajePago] = useState<number | null>(null);
 
   useEffect(() => {
     setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
@@ -34,12 +33,14 @@ export default function Fabricacion() {
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // Consulta en la tabla 'clientes' filtrando por user_id
         let { data, error } = await supabase
           .from('clientes')
           .select('*')
           .eq('user_id', user.id)
           .single();
 
+        // Respaldo de búsqueda por email (con ilike) si no se encuentra por ID directo
         if (!data && user.email) {
           const { data: dataByEmail } = await supabase
             .from('clientes')
@@ -54,7 +55,6 @@ export default function Fabricacion() {
           setRepresentante(data.nombre_representante || data.representante || '');
           setMailCliente(data.email || user.email || '');
           setTelefonoMovil(data.telefono_celular || '');
-          setPorcentajePago(data.porcentaje_pago !== undefined ? data.porcentaje_pago : null);
         }
       }
     };
@@ -119,11 +119,6 @@ export default function Fabricacion() {
     hoy.setDate(hoy.getDate() + 3);
     return hoy.toISOString().split('T')[0];
   };
-
-  // Cálculo dinámico de porcentajes de pago
-  const p1 = porcentajePago !== null && !isNaN(Number(porcentajePago)) ? Number(porcentajePago) : 50;
-  const p2 = 100 - p1;
-  const textoFormaPago = `${p1}% a la orden de compra o aceptacion de la oferta y ${p2}% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.`;
 
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -239,7 +234,7 @@ export default function Fabricacion() {
     doc.setFontSize(10);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
     doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-    doc.text(`Forma de pago: ${textoFormaPago}`, 14, finalY + 22);
+    doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
     doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
 
     try {
@@ -669,7 +664,7 @@ export default function Fabricacion() {
         <div style={{ marginTop: "25px", color: "#B0B0B0", fontSize: "0.85rem", borderTop: "1px dashed rgba(218, 165, 32, 0.3)", paddingTop: "15px", lineHeight: "1.6" }}>
           <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>Precios:</strong> EXW PANAMÁ</p>
           <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
-          <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>Forma de pago:</strong> {textoFormaPago}</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
           <p style={{ margin: "6px 0" }}><strong style={{ color: "#DAA520" }}>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
         </div>
 
