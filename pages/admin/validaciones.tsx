@@ -138,7 +138,7 @@ export default function AdminValidaciones() {
 
   const abrirModal = (id: string, tipoAccion: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
     setModalConfig({ isOpen: true, tipoAccion, id, emailCliente, razonSocialParam, itemCompleto });
-    setComentarioAdmin(""); // Limpiamos el texto al abrir
+    setComentarioAdmin("");
   };
 
   const cerrarModal = () => {
@@ -178,7 +178,7 @@ export default function AdminValidaciones() {
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = 'C';
 
-      // 1. Guardar/Actualizar en la TABLA CLIENTES (incluyendo el comentario)
+      // 1. Guardar/Actualizar en la TABLA CLIENTES (Conflict resolution por 'razon_social')
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -194,7 +194,7 @@ export default function AdminValidaciones() {
           telefono_oficina: itemCompleto.telefono_oficina || null,
           telefono_celular: itemCompleto.telefono_celular || null,
           comentarios_admin: comentarioAdmin
-        }, { onConflict: 'email' });
+        }, { onConflict: 'razon_social' });
 
       if (clienteError) {
         alert("Error al guardar en clientes: " + clienteError.message);
@@ -252,7 +252,6 @@ export default function AdminValidaciones() {
         console.error("Error enviando correo de rechazo:", err);
       }
 
-      // Actualizamos a 'rechazado' y guardamos el motivo en solicitudes_acceso
       const { error: rejectError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -268,7 +267,7 @@ export default function AdminValidaciones() {
       }
     }
 
-    // 4. ACTUALIZACIÓN OPTIMISTA (Sacamos la solicitud de pantalla al instante)
+    // 4. ACTUALIZACIÓN OPTIMISTA
     setDataList(prev => prev.filter(item => item.id !== id));
     setFilteredList(prev => prev.filter(item => item.id !== id));
     
@@ -515,7 +514,7 @@ export default function AdminValidaciones() {
         )}
       </div>
 
-      {/* --- MODAL DE COMENTARIOS DE 3 LÍNEAS --- */}
+      {/* --- MODAL DE COMENTARIOS --- */}
       {modalConfig.isOpen && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
@@ -530,7 +529,7 @@ export default function AdminValidaciones() {
             
             <textarea 
               rows={3} 
-              placeholder="Ingresa tu comentario aquí (Opcional si es activación, recomendado si es rechazo)..."
+              placeholder="Ingresa tu comentario aquí..."
               value={comentarioAdmin}
               onChange={(e) => setComentarioAdmin(e.target.value)}
               style={textareaStyle}
@@ -566,7 +565,6 @@ export default function AdminValidaciones() {
   );
 }
 
-// ESTILOS EXISTENTES
 const selectStyle = {
   background: "#1a1a1a",
   color: "#E0E0E0",
@@ -627,7 +625,6 @@ const btnRechazar = {
   minWidth: "110px"
 };
 
-// NUEVOS ESTILOS PARA EL MODAL
 const overlayStyle: React.CSSProperties = {
   position: "fixed",
   top: 0,
