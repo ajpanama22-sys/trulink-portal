@@ -25,16 +25,29 @@ export default function HeaderUser() {
       }
     }
 
-    // 2. Fallback de verificación directa con Supabase Auth si se refresca la pantalla
+    // 2. Fallback con Supabase Auth + consulta a la tabla 'clientes' si se refresca la pantalla
     const checkSupabaseAuth = async () => {
       if (!supabase) return;
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        setUser({
-          email: data.user.email,
-          nombre: data.user.email?.split('@')[0],
-          rol: 'Usuario Autenticado'
-        });
+      
+      const { data: authData } = await supabase.auth.getUser();
+      const email = authData?.user?.email;
+
+      if (email) {
+        // Consultar la información real en la tabla clientes
+        const { data: cliente } = await supabase
+          .from("clientes")
+          .select("razon_social, tipo_cliente")
+          .ilike("email", email.trim())
+          .maybeSingle();
+
+        const userData: UserProfile = {
+          email: email,
+          nombre: cliente?.razon_social || email.split('@')[0],
+          rol: cliente?.tipo_cliente || 'Cliente'
+        };
+
+        setUser(userData);
+        sessionStorage.setItem("trulink_user", JSON.stringify(userData));
       }
     };
 
