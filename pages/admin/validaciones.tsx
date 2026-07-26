@@ -22,6 +22,25 @@ export default function AdminValidaciones() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
+  // ESTADOS PARA EL MODAL DE COMENTARIOS
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean;
+    tipoAccion: 'ACTIVAR' | 'RECHAZAR' | null;
+    id: string;
+    emailCliente: string;
+    razonSocialParam: string;
+    itemCompleto: any;
+  }>({
+    isOpen: false,
+    tipoAccion: null,
+    id: "",
+    emailCliente: "",
+    razonSocialParam: "",
+    itemCompleto: null
+  });
+  const [comentarioAdmin, setComentarioAdmin] = useState<string>("");
+  const [procesandoAccion, setProcesandoAccion] = useState<boolean>(false);
+
   useEffect(() => {
     cargarSolicitudes();
   }, []);
@@ -117,9 +136,23 @@ export default function AdminValidaciones() {
     setFilteredList(resultado);
   };
 
-  const procesarSolicitud = async (id: string, tipoAccion: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
+  const abrirModal = (id: string, tipoAccion: 'ACTIVAR' | 'RECHAZAR', emailCliente: string, razonSocialParam: string, itemCompleto: any) => {
+    setModalConfig({ isOpen: true, tipoAccion, id, emailCliente, razonSocialParam, itemCompleto });
+    setComentarioAdmin(""); // Limpiamos el texto al abrir
+  };
+
+  const cerrarModal = () => {
+    setModalConfig({ isOpen: false, tipoAccion: null, id: "", emailCliente: "", razonSocialParam: "", itemCompleto: null });
+    setComentarioAdmin("");
+  };
+
+  const confirmarAccion = async () => {
+    const { id, tipoAccion, emailCliente, razonSocialParam, itemCompleto } = modalConfig;
     const supabase = getSupabase();
-    if (!supabase) return;
+    
+    if (!supabase || !tipoAccion) return;
+
+    setProcesandoAccion(true);
 
     const pagoInfo = formasPago[id] || { tipo: "50%", porcentaje: 50 };
     let descripcionFormaPago = "";
@@ -142,11 +175,10 @@ export default function AdminValidaciones() {
 
     if (tipoAccion === 'ACTIVAR') {
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
-      
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = 'C';
 
-      // 1. Guardar/Actualizar en la TABLA CLIENTES (incluyendo forma_pago y porcentaje_pago)
+      // 1. Guardar/Actualizar en la TABLA CLIENTES (incluyendo el comentario)
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -160,11 +192,13 @@ export default function AdminValidaciones() {
           porcentaje_pago: porcentajeInicialReal,
           pais: itemCompleto.pais || null,
           telefono_oficina: itemCompleto.telefono_oficina || null,
-          telefono_celular: itemCompleto.telefono_celular || null
+          telefono_celular: itemCompleto.telefono_celular || null,
+          comentarios_admin: comentarioAdmin // GUARDAMOS EL COMENTARIO AQUÍ
         }, { onConflict: 'email' });
 
       if (clienteError) {
         alert("Error al guardar en clientes: " + clienteError.message);
+        setProcesandoAccion(false);
         return;
       }
 
@@ -172,19 +206,20 @@ export default function AdminValidaciones() {
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
-          status: 'active', 
+          status: 'aprobado', 
           password_token: passwordToken
         })
         .eq('id', id);
 
       if (updateError) {
         alert("Error al actualizar la solicitud en base de datos: " + updateError.message);
+        setProcesandoAccion(false);
         return;
       }
 
-      // 3. Enviar correo de activación vía API / Brevo
+      // 3. Enviar correo de activación
       try {
-        const response = await fetch("/api/send-email", {
+        await fetch("/api/send-email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -197,13 +232,12 @@ export default function AdminValidaciones() {
             porcentaje_saldo: porcentajeSaldoReal
           })
         });
-        if (!response.ok) throw new Error("Fallo al enviar correo de activación");
-        alert(`¡Solicitud activada con éxito y cliente registrado! Correo enviado a ${emailCliente}`);
       } catch (err: any) {
-        alert("Cliente registrado en BD, pero hubo un error enviando el correo: " + err.message);
+        console.error("Cliente registrado, error enviando correo: ", err.message);
       }
 
     } else {
+      // LOGICA DE RECHAZO
       try {
         await fetch("/api/send-email", {
           method: "POST",
@@ -218,26 +252,35 @@ export default function AdminValidaciones() {
         console.error("Error enviando correo de rechazo:", err);
       }
 
-      const { error: deleteError } = await supabase
+      // Actualizamos a 'rechazado' y guardamos el comentario. (NO SE BORRA EL REGISTRO)
+      const { error: rejectError } = await supabase
         .from("solicitudes_acceso")
-        .update({ status: 'rejected' })
+        .update({ 
+            status: 'rechazado',
+            motivo_rechazo: comentarioAdmin // GUARDAMOS EL MOTIVO DE RECHAZO AQUÍ
+        })
         .eq('id', id);
 
-      if (deleteError) {
-        await supabase.from("solicitudes_acceso").delete().eq('id', id);
+      if (rejectError) {
+        alert("Error al rechazar en base de datos: " + rejectError.message);
+        setProcesandoAccion(false);
+        return;
       }
-
-      alert(`La solicitud de ${razonSocialParam} ha sido rechazada.`);
     }
 
-    cargarSolicitudes();
+    // 4. ACTUALIZACIÓN OPTIMISTA (Sacamos la solicitud de pantalla al instante)
+    setDataList(prev => prev.filter(item => item.id !== id));
+    setFilteredList(prev => prev.filter(item => item.id !== id));
+    
+    setProcesandoAccion(false);
+    cerrarModal();
   };
 
   return (
     <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
       <Sidebar currentActive="validaciones" />
 
-      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
+      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box", position: "relative" }}>
         
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
           <div>
@@ -457,10 +500,11 @@ export default function AdminValidaciones() {
                   </div>
 
                   <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <button onClick={() => procesarSolicitud(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={btnActivar}>
+                    {/* Al hacer clic, abrimos el modal en vez de procesar directo */}
+                    <button onClick={() => abrirModal(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={btnActivar}>
                       ACTIVAR
                     </button>
-                    <button onClick={() => procesarSolicitud(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={btnRechazar}>
+                    <button onClick={() => abrirModal(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={btnRechazar}>
                       RECHAZAR
                     </button>
                   </div>
@@ -471,10 +515,59 @@ export default function AdminValidaciones() {
           </div>
         )}
       </div>
+
+      {/* --- MODAL DE COMENTARIOS DE 3 LÍNEAS --- */}
+      {modalConfig.isOpen && (
+        <div style={overlayStyle}>
+          <div style={modalStyle}>
+            <h2 style={{ color: modalConfig.tipoAccion === 'ACTIVAR' ? "#2ecc71" : "#e74c3c", marginTop: 0, fontSize: "1.2rem", letterSpacing: "1px" }}>
+              {modalConfig.tipoAccion === 'ACTIVAR' ? 'ACTIVACIÓN DE CLIENTE' : 'RECHAZO DE SOLICITUD'}
+            </h2>
+            <p style={{ fontSize: "0.9rem", color: "#CCC", marginBottom: "15px" }}>
+              {modalConfig.tipoAccion === 'ACTIVAR' 
+                ? `¿Deseas añadir un comentario interno o nota para el expediente de ${modalConfig.razonSocialParam}?` 
+                : `Por favor, indica el motivo del rechazo o nota interna para ${modalConfig.razonSocialParam}.`}
+            </p>
+            
+            <textarea 
+              rows={3} 
+              placeholder="Ingresa tu comentario aquí (Opcional si es activación, recomendado si es rechazo)..."
+              value={comentarioAdmin}
+              onChange={(e) => setComentarioAdmin(e.target.value)}
+              style={textareaStyle}
+            />
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
+              <button 
+                onClick={cerrarModal} 
+                disabled={procesandoAccion}
+                style={{ ...baseBtn, background: "transparent", color: "#AAA", border: "1px solid #555" }}
+              >
+                CANCELAR
+              </button>
+              <button 
+                onClick={confirmarAccion} 
+                disabled={procesandoAccion}
+                style={{ 
+                  ...baseBtn, 
+                  background: modalConfig.tipoAccion === 'ACTIVAR' ? "rgba(46, 204, 113, 0.2)" : "rgba(231, 76, 60, 0.2)", 
+                  color: modalConfig.tipoAccion === 'ACTIVAR' ? "#2ecc71" : "#e74c3c", 
+                  border: `1px solid ${modalConfig.tipoAccion === 'ACTIVAR' ? "#2ecc71" : "#e74c3c"}`,
+                  opacity: procesandoAccion ? 0.5 : 1
+                }}
+              >
+                {procesandoAccion ? "PROCESANDO..." : "CONFIRMAR ACCIÓN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
+// ESTILOS EXISTENTES
 const selectStyle = {
   background: "#1a1a1a",
   color: "#E0E0E0",
@@ -533,4 +626,43 @@ const btnRechazar = {
   color: "#e74c3c",
   border: "1px solid rgba(231, 76, 60, 0.5)",
   minWidth: "110px"
+};
+
+// NUEVOS ESTILOS PARA EL MODAL
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  backgroundColor: "rgba(0, 0, 0, 0.85)", // Fondo oscuro semitransparente
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1000,
+  backdropFilter: "blur(4px)" // Efecto cristal elegante
+};
+
+const modalStyle: React.CSSProperties = {
+  background: "#111111",
+  border: "1px solid rgba(218, 165, 32, 0.5)", // Borde dorado
+  borderRadius: "12px",
+  padding: "30px",
+  width: "100%",
+  maxWidth: "500px",
+  boxShadow: "0 10px 40px rgba(0,0,0,0.8)"
+};
+
+const textareaStyle: React.CSSProperties = {
+  width: "100%",
+  background: "#1a1a1a",
+  color: "#E0E0E0",
+  border: "1px solid rgba(218, 165, 32, 0.4)",
+  borderRadius: "8px",
+  padding: "12px",
+  fontSize: "0.95rem",
+  outline: "none",
+  resize: "none", // Evita que se estire manual, se queda en 3 líneas
+  boxSizing: "border-box",
+  fontFamily: "inherit"
 };
