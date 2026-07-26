@@ -243,7 +243,6 @@ export default function Productos() {
       empresa: infoCliente.empresa,
       razon_social: infoCliente.empresa,
       representante: infoCliente.representante,
-      cliente_nombre: infoCliente.representante,
       email: infoCliente.email,
       email_cliente: infoCliente.email,
       fecha_estimada_entrega: calcularFechaEntrega()
