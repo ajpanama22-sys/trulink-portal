@@ -178,7 +178,7 @@ export default function AdminValidaciones() {
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = 'C';
 
-      // 1. Guardar/Actualizar en la TABLA CLIENTES (Conflict resolution por 'razon_social')
+      // 1. Guardar/Actualizar en la TABLA CLIENTES (Conflict resolution por 'email')
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -194,7 +194,7 @@ export default function AdminValidaciones() {
           telefono_oficina: itemCompleto.telefono_oficina || null,
           telefono_celular: itemCompleto.telefono_celular || null,
           comentarios_admin: comentarioAdmin
-        }, { onConflict: 'razon_social' });
+        }, { onConflict: 'email' });
 
       if (clienteError) {
         alert("Error al guardar en clientes: " + clienteError.message);
