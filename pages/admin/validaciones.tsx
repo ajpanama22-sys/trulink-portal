@@ -143,11 +143,10 @@ export default function AdminValidaciones() {
     if (tipoAccion === 'ACTIVAR') {
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       
-      const datosCompletos = itemCompleto.datos_completos || {};
-      const tipoClienteVal = datosCompletos.tipo_cliente || itemCompleto.tipo_solicitud || 'Integrador';
-      const priceListVal = datosCompletos.price_list || 'C';
+      const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
+      const priceListVal = 'C';
 
-      // 1. Guardar/Actualizar en la tabla clientes (únicamente columnas reales: forma_pago y porcentaje_pago)
+      // 1. Guardar/Actualizar en la tabla clientes utilizando todas las columnas reales de ambas tablas
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -158,7 +157,10 @@ export default function AdminValidaciones() {
           status: 'pendiente_password',
           password_token: passwordToken,
           forma_pago: pagoInfo.tipo,
-          porcentaje_pago: porcentajeInicialReal
+          porcentaje_pago: porcentajeInicialReal,
+          pais: itemCompleto.pais || null,
+          telefono_oficina: itemCompleto.telefono_oficina || null,
+          telefono_celular: itemCompleto.telefono_celular || null
         }, { onConflict: 'email' });
 
       if (clienteError) {
@@ -180,7 +182,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 3. Enviar correo de activación con los porcentajes correctos
+      // 3. Enviar correo de activación
       try {
         const response = await fetch("/api/send-email", {
           method: "POST",
@@ -328,14 +330,23 @@ export default function AdminValidaciones() {
                         ID: {item.id ? item.id.substring(0, 8) : 'N/A'}
                       </span>
                       <span style={{ fontSize: "0.75rem", color: "#888" }}>Fecha: {fechaCreacion}</span>
+                      {item.tipo_solicitud && (
+                        <span style={{ fontSize: "0.75rem", background: "#222", color: "#AAA", padding: "3px 8px", borderRadius: "4px" }}>
+                          Tipo: {item.tipo_solicitud}
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ fontWeight: "600", fontSize: "1.05rem", color: "#FFF" }}>
                       {item.razon_social || 'Sin Razón Social'}
                     </div>
 
-                    <div style={{ fontSize: "0.88rem", color: "#AAA" }}>
-                      Correo: <span style={{ color: "#DAA520", fontWeight: "500" }}>{item.email}</span>
+                    <div style={{ fontSize: "0.88rem", color: "#AAA", display: "flex", gap: "20px", flexWrap: "wrap" }}>
+                      <span>Correo: <strong style={{ color: "#DAA520" }}>{item.email}</strong></span>
+                      {item.pais && <span>País: <strong style={{ color: "#FFF" }}>{item.pais}</strong></span>}
+                      {(item.telefono_celular || item.telefono_oficina) && (
+                        <span>Teléfono: <strong style={{ color: "#FFF" }}>{item.telefono_celular || item.telefono_oficina}</strong></span>
+                      )}
                     </div>
 
                     {/* SECCIÓN DE DOCUMENTOS ADJUNTOS */}

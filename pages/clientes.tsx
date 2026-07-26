@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
 
-// Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
 export const dynamic = 'force-dynamic';
 
 const codigosPaises = [
@@ -63,28 +62,23 @@ export default function Clientes() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
-      
-      // Validación estricta: verificar que todos los archivos sean formato PDF
       for (const file of filesArray) {
         if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
           alert("Restricción del sistema: Solo se permiten archivos en formato PDF.");
-          e.target.value = ""; // Limpiar el input de archivos
+          e.target.value = "";
           return;
         }
       }
-
       setSelectedFiles(filesArray);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!terminosAceptados) {
       alert("Debe leer y aceptar los Términos y Condiciones para continuar.");
       return;
     }
-
     if (selectedFiles.length === 0) {
       alert("Por favor, adjunta al menos un documento PDF de soporte.");
       return;
@@ -97,23 +91,13 @@ export default function Clientes() {
     }
 
     setCargando(true);
-
     try {
       const telefonoOficinaCompleto = `${formData.codigo_pais_oficina} ${formData.telefono_oficina}`.trim();
       const telefonoCelularCompleto = `${formData.codigo_pais_celular} ${formData.telefono_celular}`.trim();
-
-      const datosCompletosConTelefonos = {
-        ...formData,
-        telefono_oficina: telefonoOficinaCompleto,
-        telefono_celular: telefonoCelularCompleto
-      };
-
-      // Generamos un ID único temporal en el cliente para estructurar la ruta de almacenamiento
       const tempId = crypto.randomUUID();
       let rutasArchivos: string[] = [];
       const categoria = formData.tipo_solicitud === "Cliente B2B" ? "b2b" : "inversores";
 
-      // 1. Subimos cada archivo al bucket "registros" conservando su nombre real y extensión
       for (const file of selectedFiles) {
         const timestamp = Date.now();
         const limpiarNombre = file.name.replace(/[^a-zA-Z0-9_.-]/g, "_");
@@ -141,25 +125,30 @@ export default function Clientes() {
         throw new Error("No se pudo completar la subida de los archivos al Storage.");
       }
 
-      // 2. Guardamos las URLs serializadas en formato JSON para evitar errores con múltiples archivos
       const { error: dbError } = await supabase
         .from("solicitudes_acceso")
         .insert([{
           tipo_solicitud: formData.tipo_solicitud,
+          perfil_cliente: formData.perfil_cliente,
           razon_social: formData.razon_social,
+          identificacion_fiscal: formData.identificacion_fiscal,
+          sitio_web: formData.sitio_web,
+          industria: formData.industria,
+          pais: formData.pais,
+          direccion: formData.direccion,
+          nombre_representante: formData.nombre_representante,
+          cargo: formData.cargo,
           email: formData.email,
           telefono_oficina: telefonoOficinaCompleto,
           telefono_celular: telefonoCelularCompleto,
           status: "pendiente",
-          datos_completos: datosCompletosConTelefonos,
-          documento_url: JSON.stringify(rutasArchivos),
+          documento_url: rutasArchivos
         }]);
 
       if (dbError) throw dbError;
 
       alert("¡Solicitud y documentos PDF enviados con éxito de forma automática!");
       window.location.reload();
-
     } catch (error: any) {
       alert("Error al procesar la solicitud: " + error.message);
     } finally {
@@ -364,9 +353,9 @@ export default function Clientes() {
             El solicitante se compromete a entregar documentación válida, vigente y exclusivamente en formato PDF. 
             El incumplimiento de requisitos legales, fiscales o de formato será motivo de rechazo inmediato. 
             Toda la información enviada será tratada bajo confidencialidad y protección de datos. 
-            El acceso aprobado implica aceptación plena de estas condiciones.
+            El acceso approved implica aceptación plena de estas condiciones.
           </textarea>
-          
+
           <div style={{ display: "flex", alignItems: "center", marginBottom: "25px", cursor: "pointer" }}>
             <input 
               type="checkbox" 
