@@ -50,17 +50,15 @@ export default function Productos() {
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
-  const [tipoCliente, setTipoCliente] = useState<string>("A"); // Tier A, B, C o D
+  const [tipoCliente, setTipoCliente] = useState<string>("A");
 
   useEffect(() => {
-    // Generación de referencia única QT
     const generarReferenciaUnica = () => {
       const timestamp = Date.now().toString().slice(-6);
       const randomNum = Math.floor(100 + Math.random() * 900);
       return `QT-${timestamp}-${randomNum}`;
     };
     setReferenciaActual(generarReferenciaUnica());
-
     fetchClientInfo();
   }, []);
 
@@ -107,9 +105,7 @@ export default function Productos() {
 
         if (clienteDB) {
           clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
-          // Mapeo exhaustivo para capturar el nombre correcto del representante sin importar la columna
           clienteRep = clienteDB.representante || clienteDB.nombre_representante || clienteDB.contacto || clienteDB.nombre || clienteRep;
-          // Mapeo actualizado priorizando la columna exacta telefono_celular
           clienteTelefono = clienteDB.telefono_celular || clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
           clienteMail = clienteDB.email || clienteMail;
           clienteTipo = clienteDB.tipo_cliente || clienteTipo;
