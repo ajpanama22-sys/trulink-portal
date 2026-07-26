@@ -82,8 +82,8 @@ export default function Productos() {
         const parsed = JSON.parse(storedUser);
         clienteMail = parsed.email || "";
         clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || "";
-        clienteRep = parsed.nombre_representante || parsed.contacto || parsed.representante || parsed.nombre || "";
-        clienteTelefono = parsed.telefono_movil || parsed.celular || parsed.telefono || "";
+        clienteRep = parsed.representante || parsed.nombre_representante || parsed.contacto || parsed.nombre || "";
+        clienteTelefono = parsed.telefono || parsed.telefono_movil || parsed.celular || "";
         clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || "A";
       } catch (e) {
         console.error("Error al leer datos locales del usuario:", e);
@@ -101,14 +101,16 @@ export default function Productos() {
         clienteMail = authEmail;
         const { data: clienteDB } = await supabase
           .from("clientes")
-          .select("razon_social, nombre, representante, nombre_representante, contacto, email, telefono, celular, telefono_movil, tipo_cliente")
+          .select("*")
           .ilike("email", authEmail.trim())
           .maybeSingle();
 
         if (clienteDB) {
           clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
-          clienteRep = clienteDB.nombre_representante || clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
-          clienteTelefono = clienteDB.telefono_movil || clienteDB.celular || clienteDB.telefono || clienteTelefono;
+          // Mapeo exhaustivo para capturar el nombre correcto del representante sin importar la columna
+          clienteRep = clienteDB.representante || clienteDB.nombre_representante || clienteDB.contacto || clienteDB.nombre || clienteRep;
+          // Mapeo exhaustivo para capturar el teléfono sin importar la columna
+          clienteTelefono = clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
           clienteMail = clienteDB.email || clienteMail;
           clienteTipo = clienteDB.tipo_cliente || clienteTipo;
         }
@@ -116,9 +118,9 @@ export default function Productos() {
     }
 
     setNombreEmpresa(clienteEmpresa || "Sin especificar");
-    setRepresentante(clienteRep || "N/D");
-    setMailCliente(clienteMail || "N/D");
-    setTelefonoCliente(clienteTelefono || "N/D");
+    setRepresentante(clienteRep || "No especificado");
+    setMailCliente(clienteMail || "No especificado");
+    setTelefonoCliente(clienteTelefono || "No especificado");
     setTipoCliente(clienteTipo);
   };
 
@@ -129,7 +131,7 @@ export default function Productos() {
     let clienteTelefono = telefonoCliente;
     let clienteTipo = tipoCliente;
 
-    if (!clienteMail || clienteMail === "N/D") {
+    if (!clienteMail || clienteMail === "No especificado" || clienteMail === "N/D") {
       const storedUser =
         sessionStorage.getItem("trulink_user") ||
         localStorage.getItem("trulink_user") ||
@@ -141,29 +143,29 @@ export default function Productos() {
           const parsed = JSON.parse(storedUser);
           clienteMail = parsed.email || clienteMail;
           clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || clienteEmpresa;
-          clienteRep = parsed.nombre_representante || parsed.contacto || parsed.representante || parsed.nombre || clienteRep;
-          clienteTelefono = parsed.telefono_movil || parsed.celular || parsed.telefono || clienteTelefono;
+          clienteRep = parsed.representante || parsed.nombre_representante || parsed.contacto || parsed.nombre || clienteRep;
+          clienteTelefono = parsed.telefono || parsed.telefono_movil || parsed.celular || clienteTelefono;
           clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || clienteTipo;
         } catch (e) {}
       }
     }
 
-    if ((!clienteMail || clienteMail === "N/D") && supabase) {
+    if ((!clienteMail || clienteMail === "No especificado" || clienteMail === "N/D") && supabase) {
       const { data: { session } } = await supabase.auth.getSession();
       clienteMail = session?.user?.email || clienteMail;
     }
 
-    if (clienteMail && clienteMail !== "N/D" && supabase) {
+    if (clienteMail && clienteMail !== "No especificado" && clienteMail !== "N/D" && supabase) {
       const { data: clienteDB } = await supabase
         .from("clientes")
-        .select("razon_social, nombre, representante, nombre_representante, contacto, email, telefono, celular, telefono_movil, tipo_cliente")
+        .select("*")
         .ilike("email", clienteMail.trim())
         .maybeSingle();
 
       if (clienteDB) {
         clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
-        clienteRep = clienteDB.nombre_representante || clienteDB.contacto || clienteDB.representante || clienteDB.nombre || clienteRep;
-        clienteTelefono = clienteDB.telefono_movil || clienteDB.celular || clienteDB.telefono || clienteTelefono;
+        clienteRep = clienteDB.representante || clienteDB.nombre_representante || clienteDB.contacto || clienteDB.nombre || clienteRep;
+        clienteTelefono = clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
         clienteMail = clienteDB.email || clienteMail;
         clienteTipo = clienteDB.tipo_cliente || clienteTipo;
       }
@@ -171,9 +173,9 @@ export default function Productos() {
 
     return {
       empresa: clienteEmpresa && clienteEmpresa !== "Sin especificar" ? clienteEmpresa : "Cliente General",
-      representante: clienteRep && clienteRep !== "N/D" ? clienteRep : "No especificado",
-      email: clienteMail && clienteMail !== "N/D" ? clienteMail : "No especificado",
-      telefono: clienteTelefono && clienteTelefono !== "N/D" ? clienteTelefono : "No especificado",
+      representante: clienteRep && clienteRep !== "No especificado" && clienteRep !== "N/D" ? clienteRep : "No especificado",
+      email: clienteMail && clienteMail !== "No especificado" && clienteMail !== "N/D" ? clienteMail : "No especificado",
+      telefono: clienteTelefono && clienteTelefono !== "No especificado" && clienteTelefono !== "N/D" ? clienteTelefono : "No especificado",
       tipo: clienteTipo
     };
   };
@@ -281,14 +283,33 @@ export default function Productos() {
     return Array.isArray(resultado.data) ? resultado.data[0] : resultado.data;
   };
 
-  const crearInstanciaPDF = (infoCliente: any) => {
+  // Función auxiliar para cargar imágenes de forma asíncrona para jsPDF
+  const cargarImagenComoBase64 = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "Anonymous";
+      img.src = url;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.onerror = (err) => reject(err);
+    });
+  };
+
+  const crearInstanciaPDF = async (infoCliente: any) => {
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
 
     const doc = new jsPDF();
 
     try {
-      doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+      const logoBase64 = await cargarImagenComoBase64("/images/logo.png");
+      doc.addImage(logoBase64, "PNG", 14, 10, 40, 20);
     } catch (e) {
       console.error("No se pudo cargar el logo en el PDF:", e);
     }
@@ -298,7 +319,7 @@ export default function Productos() {
     doc.text(`Fecha: ${fechaActual}`, 150, 26);
     doc.text(`Hora: ${horaActual}`, 150, 32);
 
-    // Cabecera de datos del cliente estructurada correctamente
+    // Cabecera de datos del cliente estructurada correctamente con valores frescos
     doc.setFontSize(9);
     doc.text(`Cliente: ${infoCliente.empresa}`, 14, 40);
     doc.text(`Representante: ${infoCliente.representante}`, 14, 46);
@@ -332,7 +353,6 @@ export default function Productos() {
     doc.setFontSize(12);
     doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
 
-    // Textos inferiores ajustados para evitar desbordes y cortes
     doc.setFontSize(9);
     doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
     doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
@@ -346,9 +366,9 @@ export default function Productos() {
 
     doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, yMetodosPago, { align: "center" });
 
-    // Sello corporativo con dimensiones proporcionadas y simétricas (cuadrado 32x32)
     try {
-      doc.addImage("/images/firmaco.png", "PNG", 160, yMetodosPago + 8, 32, 32);
+      const selloBase64 = await cargarImagenComoBase64("/images/firmaco.png");
+      doc.addImage(selloBase64, "PNG", 160, yMetodosPago + 8, 32, 32);
     } catch (e) {
       console.error("No se pudo cargar el sello en el PDF:", e);
     }
@@ -364,9 +384,8 @@ export default function Productos() {
 
     try {
       const infoCliente = await obtenerDatosClienteFresco();
-      const doc = crearInstanciaPDF(infoCliente);
+      const doc = await crearInstanciaPDF(infoCliente);
 
-      // Forzar descarga local inmediata
       doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
 
       const pdfBlob = doc.output("blob");
@@ -397,7 +416,7 @@ export default function Productos() {
 
     try {
       const infoCliente = await obtenerDatosClienteFresco();
-      const doc = crearInstanciaPDF(infoCliente);
+      const doc = await crearInstanciaPDF(infoCliente);
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaActual}.pdf`;
 
