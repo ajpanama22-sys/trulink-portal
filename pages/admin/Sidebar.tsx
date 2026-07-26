@@ -16,6 +16,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     { key: 'proveedores', label: 'Proveedores y Fábricas', path: '/admin/proveedores' },
     { key: 'manufactura', label: 'Manufactura', path: '/admin/manufactura' },
     { key: 'inventario', label: 'Inventario', path: '/admin/inventario' },
+    { key: 'rmas', label: 'RMA y Garantías', path: '/admin/rmas' },
     { key: 'usuarios', label: 'Usuarios', path: '/admin/usuarios' },
     { key: 'analitica', label: 'Analítica', path: '/admin/analitica' },
     { key: 'reportes', label: 'Reportes', path: '/admin/reportes' },
