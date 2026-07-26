@@ -83,7 +83,7 @@ export default function Productos() {
         clienteMail = parsed.email || "";
         clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || "";
         clienteRep = parsed.representante || parsed.nombre_representante || parsed.contacto || parsed.nombre || "";
-        clienteTelefono = parsed.telefono || parsed.telefono_movil || parsed.celular || "";
+        clienteTelefono = parsed.telefono_celular || parsed.telefono || parsed.telefono_movil || parsed.celular || "";
         clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || "A";
       } catch (e) {
         console.error("Error al leer datos locales del usuario:", e);
@@ -109,8 +109,8 @@ export default function Productos() {
           clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
           // Mapeo exhaustivo para capturar el nombre correcto del representante sin importar la columna
           clienteRep = clienteDB.representante || clienteDB.nombre_representante || clienteDB.contacto || clienteDB.nombre || clienteRep;
-          // Mapeo exhaustivo para capturar el teléfono sin importar la columna
-          clienteTelefono = clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
+          // Mapeo actualizado priorizando la columna exacta telefono_celular
+          clienteTelefono = clienteDB.telefono_celular || clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
           clienteMail = clienteDB.email || clienteMail;
           clienteTipo = clienteDB.tipo_cliente || clienteTipo;
         }
@@ -144,7 +144,7 @@ export default function Productos() {
           clienteMail = parsed.email || clienteMail;
           clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || clienteEmpresa;
           clienteRep = parsed.representante || parsed.nombre_representante || parsed.contacto || parsed.nombre || clienteRep;
-          clienteTelefono = parsed.telefono || parsed.telefono_movil || parsed.celular || clienteTelefono;
+          clienteTelefono = parsed.telefono_celular || parsed.telefono || parsed.telefono_movil || parsed.celular || clienteTelefono;
           clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || clienteTipo;
         } catch (e) {}
       }
@@ -165,7 +165,7 @@ export default function Productos() {
       if (clienteDB) {
         clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
         clienteRep = clienteDB.representante || clienteDB.nombre_representante || clienteDB.contacto || clienteDB.nombre || clienteRep;
-        clienteTelefono = clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
+        clienteTelefono = clienteDB.telefono_celular || clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
         clienteMail = clienteDB.email || clienteMail;
         clienteTipo = clienteDB.tipo_cliente || clienteTipo;
       }
@@ -283,7 +283,6 @@ export default function Productos() {
     return Array.isArray(resultado.data) ? resultado.data[0] : resultado.data;
   };
 
-  // Función auxiliar para cargar imágenes de forma asíncrona para jsPDF
   const cargarImagenComoBase64 = (url: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -319,7 +318,6 @@ export default function Productos() {
     doc.text(`Fecha: ${fechaActual}`, 150, 26);
     doc.text(`Hora: ${horaActual}`, 150, 32);
 
-    // Cabecera de datos del cliente estructurada correctamente con valores frescos
     doc.setFontSize(9);
     doc.text(`Cliente: ${infoCliente.empresa}`, 14, 40);
     doc.text(`Representante: ${infoCliente.representante}`, 14, 46);
