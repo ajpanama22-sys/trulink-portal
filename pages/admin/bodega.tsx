@@ -22,17 +22,19 @@ interface Producto {
 export default function Bodega() {
   const [subModulo, setSubModulo] = useState<"buscador" | "crear" | "editar" | "eliminar">("buscador");
   
-  // Selección de tablas/buckets
-  const [tablaActiva, setTablaActiva] = useState<string>("cabledb");
-  const tablasDisponibles = ["cabledb", "accesoriosdb", "equiposdb"];
+  // Mapeo solicitado: CABLES (cablesdb), ACCESORIOS (accesoriosdb), HERRAJES (herrajesdb)
+  const [tablaActiva, setTablaActiva] = useState<string>("cablesdb");
+  const tablasDisponibles = [
+    { key: "cablesdb", label: "CABLES" },
+    { key: "accesoriosdb", label: "ACCESORIOS" },
+    { key: "herrajesdb", label: "HERRAJES" }
+  ];
 
-  // Buscador y Resultados
   const [busqueda, setBusqueda] = useState("");
   const [resultados, setResultados] = useState<Producto[]>([]);
   const [cargando, setCargando] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
 
-  // Estados Formulario Crear
   const [tablaCreacion, setTablaCreacion] = useState<string>("");
   const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
   const [nuevaFamiliaSeleccionada, setNuevaFamiliaSeleccionada] = useState("");
@@ -48,7 +50,6 @@ export default function Bodega() {
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
 
-  // Estados Formulario Editar
   const [editPrecioA, setEditPrecioA] = useState<number | "">("");
   const [editPrecioB, setEditPrecioB] = useState<number | "">("");
   const [editPrecioC, setEditPrecioC] = useState<number | "">("");
@@ -58,13 +59,10 @@ export default function Bodega() {
   const [editDescripcion, setEditDescripcion] = useState("");
   const [editEspecificaciones, setEditEspecificaciones] = useState("");
 
-  // Estado Eliminar
   const [pasoEliminar, setPasoEliminar] = useState<1 | 2>(1);
 
-  // Helper para manejar cambios en inputs numéricos
   const parseNumInput = (val: string): number | "" => (val === "" ? "" : Number(val));
 
-  // Cargar productos por tabla activa en el buscador
   useEffect(() => {
     if (subModulo === "buscador") {
       buscarProductos();
@@ -132,10 +130,7 @@ export default function Bodega() {
   };
 
   const guardarNuevoProducto = async () => {
-    if (!supabase) {
-      alert("Error de conexión con la base de datos.");
-      return;
-    }
+    if (!supabase) return;
     if (!tablaCreacion) {
       alert("Debes seleccionar una base de datos.");
       return;
@@ -264,33 +259,31 @@ export default function Bodega() {
 
   return (
     <div style={{ width: "100%" }}>
-      {/* MENÚ DE SUBMÓDULO BODEGA */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
         <button onClick={() => setSubModulo("buscador")} style={subTabBtn(subModulo === "buscador")}>🔍 BUSCADOR BODEGA</button>
         <button onClick={() => { setSubModulo("crear"); setTablaCreacion(""); }} style={subTabBtn(subModulo === "crear")}>+ NUEVO PRODUCTO</button>
       </div>
 
-      {/* SUBMÓDULO 1: BUSCADOR */}
       {subModulo === "buscador" && (
         <div style={cardBox}>
           <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-            {tablasDisponibles.map((t) => (
+            {tablasDisponibles.map((item) => (
               <button
-                key={t}
-                onClick={() => setTablaActiva(t)}
+                key={item.key}
+                onClick={() => setTablaActiva(item.key)}
                 style={{
                   padding: "8px 16px",
                   borderRadius: "4px",
                   border: "1px solid #DAA520",
-                  backgroundColor: tablaActiva === t ? "#DAA520" : "transparent",
-                  color: tablaActiva === t ? "#000" : "#DAA520",
+                  backgroundColor: tablaActiva === item.key ? "#DAA520" : "transparent",
+                  color: tablaActiva === item.key ? "#000" : "#DAA520",
                   fontWeight: "bold",
                   fontSize: "0.75rem",
                   cursor: "pointer",
                   textTransform: "uppercase"
                 }}
               >
-                {t.replace("db", "").toUpperCase()}
+                {item.label}
               </button>
             ))}
           </div>
@@ -358,7 +351,6 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* SUBMÓDULO 2: CREAR PRODUCTO */}
       {subModulo === "crear" && (
         <div style={{ ...cardBox, maxWidth: "750px" }}>
           {!tablaCreacion ? (
@@ -366,14 +358,11 @@ export default function Bodega() {
               <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", color: "#DAA520", textTransform: "uppercase" }}>
                 PASO 1: SELECCIONA LA BASE DE DATOS DE DESTINO
               </h2>
-              <p style={{ color: "#aaa", fontSize: "0.85rem", marginBottom: "20px" }}>
-                Por favor, elige el inventario en el cual deseas registrar el nuevo producto:
-              </p>
               <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
-                {tablasDisponibles.map((t) => (
+                {tablasDisponibles.map((item) => (
                   <button
-                    key={t}
-                    onClick={() => seleccionarTablaCreacion(t)}
+                    key={item.key}
+                    onClick={() => seleccionarTablaCreacion(item.key)}
                     style={{
                       padding: "15px 25px",
                       borderRadius: "6px",
@@ -386,7 +375,7 @@ export default function Bodega() {
                       textTransform: "uppercase"
                     }}
                   >
-                    📦 {t.replace("db", "").toUpperCase()}
+                    📦 {item.label}
                   </button>
                 ))}
               </div>
@@ -395,7 +384,7 @@ export default function Bodega() {
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
                 <h2 style={{ fontSize: "1.1rem", color: "#fff" }}>
-                  CREANDO EN: <span style={{ color: "#DAA520", textTransform: "uppercase" }}>{tablaCreacion.replace("db", "")}</span>
+                  CREANDO EN: <span style={{ color: "#DAA520", textTransform: "uppercase" }}>{tablasDisponibles.find(t => t.key === tablaCreacion)?.label}</span>
                 </h2>
                 <button onClick={() => setTablaCreacion("")} style={{ ...btnSecundario, fontSize: "0.7rem" }}>
                   CAMBIAR BASE DE DATOS
@@ -440,7 +429,6 @@ export default function Bodega() {
                 <textarea value={nuevasEspecificaciones} onChange={(e) => setNuevasEspecificaciones(e.target.value)} placeholder="Especificaciones principales..." style={{ ...inputStyleFull, height: "60px", resize: "vertical" }} />
               </div>
 
-              {/* MATRIZ DE PRECIOS CON HANDLERS NUMÉRICOS CORREGIDOS */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "10px", marginBottom: "15px" }}>
                 <div>
                   <label style={labelStyle}>P. A (ISP)</label>
@@ -482,7 +470,6 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* SUBMÓDULO 3: EDITAR */}
       {subModulo === "editar" && productoSeleccionado && (
         <div style={{ ...cardBox, maxWidth: "700px" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: "#fff" }}>
@@ -525,7 +512,6 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* SUBMÓDULO 4: ELIMINAR */}
       {subModulo === "eliminar" && productoSeleccionado && (
         <div style={{ ...cardBox, maxWidth: "500px", border: "1px solid #e74c3c" }}>
           <h2 style={{ fontSize: "1rem", color: "#e74c3c", marginBottom: "15px" }}>⚠️ ELIMINAR PRODUCTO DE BODEGA</h2>
