@@ -15,6 +15,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     { key: 'registrar-pago', label: 'Registrar Pago', path: '/admin/registrar-pago' },
     { key: 'proveedores', label: 'Proveedores y Fábricas', path: '/admin/proveedores' },
     { key: 'manufactura', label: 'Manufactura', path: '/admin/manufactura' },
+    { key: 'despachos', label: 'Despachos (EXW)', path: '/admin/despachos' },
     { key: 'inventario', label: 'Inventario', path: '/admin/inventario' },
     { key: 'rmas', label: 'RMA y Garantías', path: '/admin/rmas' },
     { key: 'usuarios', label: 'Usuarios', path: '/admin/usuarios' },
