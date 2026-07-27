@@ -247,7 +247,7 @@ export default function Productos() {
       empresa: infoCliente.empresa,
       representante: infoCliente.representante,
       email: infoCliente.email,
-      telefono: infoCliente.telefono,
+      telefono: infoCliente.telefono_celular,
       fecha_estimada_entrega: calcularFechaEntrega()
     };
 
