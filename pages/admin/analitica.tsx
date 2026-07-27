@@ -5,7 +5,7 @@ import {
   Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, CreditCard, 
   ShieldCheck, CheckCircle, XCircle, Wrench, Zap, Cpu, Activity, Shield, PieChart, Database, Search
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase'; // Ajusta la ruta de tu cliente de Supabase
+import { supabase } from '../../lib/supabaseClient'; // Ajusta la ruta de tu cliente de Supabase
 
 export default function AnaliticaModule() {
   const [activeTab, setActiveTab] = useState<'operativo' | 'financiero' | 'comercial' | 'usuarios' | 'registros' | 'bi'>('operativo');
