@@ -32,14 +32,19 @@ export default function Bodega() {
   const [cargando, setCargando] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
 
-  // Estados Formulario Crear
-  const [tablaCreacion, setTablaCreacion] = useState("cabledb");
+  // Estados Formulario Crear (Comienza sin tabla seleccionada para forzar la elección previa)
+  const [tablaCreacion, setTablaCreacion] = useState<string>("");
   const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
   const [nuevaFamiliaSeleccionada, setNuevaFamiliaSeleccionada] = useState("");
   const [nombreNuevaFamilia, setNombreNuevaFamilia] = useState("");
   const [nuevoSku, setNuevoSku] = useState("");
   const [nuevaDescripcion, setNuevaDescripcion] = useState("");
   const [nuevasEspecificaciones, setNuevasEspecificaciones] = useState("");
+  const [nuevoPrecioA, setNuevoPrecioA] = useState<number | "">("");
+  const [nuevoPrecioB, setNuevoPrecioB] = useState<number | "">("");
+  const [nuevoPrecioC, setNuevoPrecioC] = useState<number | "">("");
+  const [nuevoPrecioD, setNuevoPrecioD] = useState<number | "">("");
+  const [nuevaCantidad, setNuevaCantidad] = useState<number | "">("");
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
 
@@ -56,10 +61,12 @@ export default function Bodega() {
   // Estado Eliminar
   const [pasoEliminar, setPasoEliminar] = useState<1 | 2>(1);
 
-  // Cargar productos por tabla activa
+  // Cargar productos por tabla activa en el buscador
   useEffect(() => {
-    buscarProductos();
-  }, [tablaActiva]);
+    if (subModulo === "buscador") {
+      buscarProductos();
+    }
+  }, [tablaActiva, subModulo]);
 
   const buscarProductos = async () => {
     setCargando(true);
@@ -75,6 +82,96 @@ export default function Bodega() {
       console.error("Error al consultar inventario:", err);
     } finally {
       setCargando(false);
+    }
+  };
+
+  // Selección explícita de base de datos para la creación
+  const seleccionarTablaCreacion = async (tabla: string) => {
+    setTablaCreacion(tabla);
+    setFamiliasCreacion([]);
+    setNuevaFamiliaSeleccionada("");
+    setNombreNuevaFamilia("");
+    
+    // Consultar familias existentes en la tabla seleccionada
+    try {
+      const { data, error } = await supabase.from(tabla).select("Familia, familia");
+      if (!error && data) {
+        const unicas = Array.from(
+          new Set(data.map((item) => item.Familia || item.familia).filter(Boolean))
+        ) as string[];
+        setFamiliasCreacion(unicas);
+      }
+    } catch (err) {
+      console.error("Error al consultar familias:", err);
+    }
+  };
+
+  // Subir imagen a Supabase Storage
+  const handleSubirImagen = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const filePath = `productos/${fileName}`;
+
+    setSubiendoImagen(true);
+    try {
+      const { error: uploadError } = await supabase.storage.from('catalogos').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage.from('catalogos').getPublicUrl(filePath);
+      setNuevaImagenUrl(urlData.publicUrl);
+    } catch (err: any) {
+      alert("Error al subir imagen: " + err.message);
+    } finally {
+      setSubiendoImagen(false);
+    }
+  };
+
+  const guardarNuevoProducto = async () => {
+    if (!tablaCreacion) {
+      alert("Debes seleccionar una base de datos.");
+      return;
+    }
+    if (!nuevoSku.trim()) {
+      alert("El SKU es obligatorio.");
+      return;
+    }
+
+    const familiaFinal = nuevaFamiliaSeleccionada === "__NUEVA__" ? nombreNuevaFamilia : nuevaFamiliaSeleccionada;
+
+    const nuevoProducto = {
+      SKU: nuevoSku.trim(),
+      Descripción: nuevaDescripcion.trim(),
+      Especificaciones: nuevasEspecificaciones.trim(),
+      Familia: familiaFinal.trim(),
+      precio_a: nuevoPrecioA === "" ? 0 : Number(nuevoPrecioA),
+      precio_b: nuevoPrecioB === "" ? 0 : Number(nuevoPrecioB),
+      precio_c: nuevoPrecioC === "" ? 0 : Number(nuevoPrecioC),
+      precio_d: nuevoPrecioD === "" ? 0 : Number(nuevoPrecioD),
+      cantidad: nuevaCantidad === "" ? 0 : Number(nuevaCantidad),
+      imagen_url: nuevaImagenUrl
+    };
+
+    try {
+      const { error } = await supabase.from(tablaCreacion).insert([nuevoProducto]);
+      if (error) throw error;
+
+      alert("Producto creado con éxito.");
+      // Limpiar formulario y reiniciar flujo
+      setTablaCreacion("");
+      setNuevoSku("");
+      setNuevaDescripcion("");
+      setNuevasEspecificaciones("");
+      setNuevoPrecioA("");
+      setNuevoPrecioB("");
+      setNuevoPrecioC("");
+      setNuevoPrecioD("");
+      setNuevaCantidad("");
+      setNuevaImagenUrl("");
+      setSubModulo("buscador");
+    } catch (err: any) {
+      alert("Error al crear producto: " + err.message);
     }
   };
 
@@ -164,9 +261,10 @@ export default function Bodega() {
       {/* MENÚ DE SUBMÓDULO BODEGA */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
         <button onClick={() => setSubModulo("buscador")} style={subTabBtn(subModulo === "buscador")}>🔍 BUSCADOR BODEGA</button>
-        <button onClick={() => setSubModulo("crear")} style={subTabBtn(subModulo === "crear")}>+ NUEVO PRODUCTO</button>
+        <button onClick={() => { setSubModulo("crear"); setTablaCreacion(""); }} style={subTabBtn(subModulo === "crear")}>+ NUEVO PRODUCTO</button>
       </div>
 
+      {/* SUBMÓDULO 1: BUSCADOR */}
       {subModulo === "buscador" && (
         <div style={cardBox}>
           {/* SELECTOR DE TABLAS DE BODEGA */}
@@ -256,12 +354,144 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* MODULO EDITAR PRECIOS / STOCK */}
+      {/* SUBMÓDULO 2: CREAR PRODUCTO (SELECCIÓN PREVIA DE BASE DE DATOS) */}
+      {subModulo === "crear" && (
+        <div style={{ ...cardBox, maxWidth: "750px" }}>
+          {!tablaCreacion ? (
+            <div>
+              <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", color: "#DAA520", textTransform: "uppercase" }}>
+                PASO 1: SELECCIONA LA BASE DE DATOS DE DESTINO
+              </h2>
+              <p style={{ color: "#aaa", fontSize: "0.85rem", marginBottom: "20px" }}>
+                Por favor, elige el inventario en el cual deseas registrar el nuevo producto:
+              </p>
+              <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
+                {tablasDisponibles.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => seleccionarTablaCreacion(t)}
+                    style={{
+                      padding: "15px 25px",
+                      borderRadius: "6px",
+                      border: "1px solid #DAA520",
+                      backgroundColor: "#000",
+                      color: "#DAA520",
+                      fontWeight: "bold",
+                      fontSize: "0.9rem",
+                      cursor: "pointer",
+                      textTransform: "uppercase"
+                    }}
+                  >
+                    📦 {t.replace("db", "").toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h2 style={{ fontSize: "1.1rem", color: "#fff" }}>
+                  CREANDO EN: <span style={{ color: "#DAA520", textTransform: "uppercase" }}>{tablaCreacion.replace("db", "")}</span>
+                </h2>
+                <button onClick={() => setTablaCreacion("")} style={{ ...btnSecundario, fontSize: "0.7rem" }}>
+                  CHANGE BASE DE DATOS
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
+                <div>
+                  <label style={labelStyle}>SKU / Código *</label>
+                  <input type="text" value={nuevoSku} onChange={(e) => setNuevoSku(e.target.value)} placeholder="Ej: TL-FO-101" style={inputStyleFull} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Familia de Producto</label>
+                  <select
+                    value={nuevaFamiliaSeleccionada}
+                    onChange={(e) => setNuevaFamiliaSeleccionada(e.target.value)}
+                    style={inputStyleFull}
+                  >
+                    <option value="">-- Seleccionar Familia --</option>
+                    {familiasCreacion.map((f, i) => (
+                      <option key={i} value={f}>{f}</option>
+                    ))}
+                    <option value="__NUEVA__">+ CREAR NUEVA FAMILIA</option>
+                  </select>
+                </div>
+              </div>
+
+              {nuevaFamiliaSeleccionada === "__NUEVA__" && (
+                <div style={{ marginBottom: "15px" }}>
+                  <label style={labelStyle}>Nombre de la Nueva Familia</label>
+                  <input type="text" value={nombreNuevaFamilia} onChange={(e) => setNombreNuevaFamilia(e.target.value)} placeholder="Escribe la nueva familia..." style={inputStyleFull} />
+                </div>
+              )}
+
+              <div style={{ marginBottom: "15px" }}>
+                <label style={labelStyle}>Descripción</label>
+                <input type="text" value={nuevaDescripcion} onChange={(e) => setNuevaDescripcion(e.target.value)} placeholder="Descripción detallada del producto" style={inputStyleFull} />
+              </div>
+
+              <div style={{ marginBottom: "15px" }}>
+                <label style={labelStyle}>Especificaciones Técnicas</label>
+                <textarea value={nuevasEspecificaciones} onChange={(e) => setNuevasEspecificaciones(e.target.value)} placeholder="Especificaciones principales..." style={{ ...inputStyleFull, height: "60px", resize: "vertical" }} />
+              </div>
+
+              {/* MATRIZ DE PRECIOS */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "10px", marginBottom: "15px" }}>
+                <div>
+                  <label style={labelStyle}>P. A (ISP)</label>
+                  <input type="number" step="0.01" value={nuevoPrecioA} onChange={(e) => setNuevoPrecioA(e.target.value)} style={inputStyleFull} />
+                </div>
+                <div>
+                  <label style={labelStyle}>P. B (Mayorista)</label>
+                  <input type="number" step="0.01" value={nuevoPrecioB} onChange={(e) => setNuevoPrecioB(e.target.value)} style={inputStyleFull} />
+                </div>
+                <div>
+                  <label style={labelStyle}>P. C (Integrador)</label>
+                  <input type="number" step="0.01" value={nuevoPrecioC} onChange={(e) => setNuevoPrecioC(e.target.value)} style={inputStyleFull} />
+                </div>
+                <div>
+                  <label style={labelStyle}>P. D (Final)</label>
+                  <input type="number" step="0.01" value={nuevoPrecioD} onChange={(e) => setNuevoPrecioD(e.target.value)} style={inputStyleFull} />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px" }}>
+                <div>
+                  <label style={labelStyle}>Stock Inicial</label>
+                  <input type="number" value={nuevaCantidad} onChange={(e) => setNuevaCantidad(e.target.value)} style={inputStyleFull} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Imagen del Producto</label>
+                  <input type="file" accept="image/*" onChange={handleSubirImagen} style={{ color: "#aaa", fontSize: "0.8rem" }} />
+                  {subiendoImagen && <span style={{ color: "#DAA520", fontSize: "0.75rem", display: "block" }}>Subiendo imagen...</span>}
+                  {nuevaImagenUrl && <img src={nuevaImagenUrl} alt="Vista previa" style={{ width: "40px", height: "40px", marginTop: "5px", objectFit: "contain", borderRadius: "3px" }} />}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={guardarNuevoProducto} style={btnAccion}>REGISTRAR PRODUCTO</button>
+                <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SUBMÓDULO 3: EDITAR PRECIOS / STOCK / DATOS */}
       {subModulo === "editar" && productoSeleccionado && (
         <div style={{ ...cardBox, maxWidth: "700px" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: "#fff" }}>
             Editando SKU: <span style={{ color: "#DAA520" }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</span>
           </h2>
+          <div style={{ marginBottom: "15px" }}>
+            <label style={labelStyle}>Descripción</label>
+            <input type="text" value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} style={inputStyleFull} />
+          </div>
+          <div style={{ marginBottom: "15px" }}>
+            <label style={labelStyle}>Especificaciones</label>
+            <textarea value={editEspecificaciones} onChange={(e) => setEditEspecificaciones(e.target.value)} style={{ ...inputStyleFull, height: "60px", resize: "vertical" }} />
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
             <div>
               <label style={labelStyle}>Precio A (ISP)</label>
@@ -291,7 +521,7 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* MODULO ELIMINAR CON DOUBLE CHECK */}
+      {/* SUBMÓDULO 4: ELIMINAR CON DOUBLE CHECK */}
       {subModulo === "eliminar" && productoSeleccionado && (
         <div style={{ ...cardBox, maxWidth: "500px", border: "1px solid #e74c3c" }}>
           <h2 style={{ fontSize: "1rem", color: "#e74c3c", marginBottom: "15px" }}>⚠️ ELIMINAR PRODUCTO DE BODEGA</h2>
