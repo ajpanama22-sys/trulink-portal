@@ -1,566 +1,433 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../../lib/supabaseClient";
-import Sidebar from "./Sidebar";
+import React, { useState, useEffect } from 'react';
+import { 
+  BarChart3, TrendingUp, DollarSign, Package, Users, ShieldAlert, 
+  FileText, Globe, Layers, Download, Filter, RefreshCw, CheckCircle2, 
+  Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, CreditCard, ShieldCheck 
+} from 'lucide-react';
+import { supabase } from '../../lib/supabase'; // Ajusta la ruta de tu cliente de Supabase según tu estructura
 
-// Estilos y componentes auxiliares reutilizables
-const inputStyle = {
-  background: "#111",
-  color: "#DAA520",
-  border: "1px solid rgba(218, 165, 32, 0.4)",
-  padding: "10px 15px",
-  borderRadius: "8px",
-  outline: "none",
-  fontSize: "0.9rem"
-};
+export default function AnaliticaModule() {
+  const [activeTab, setActiveTab] = useState<'operativo' | 'financiero' | 'comercial' | 'usuarios' | 'registros' | 'bi'>('registros');
+  const [timeRange, setTimeRange] = useState('30d');
+  const [loading, setLoading] = useState(true);
 
-const btnPrimary = {
-  background: "linear-gradient(135deg, #FFD700 0%, #DAA520 100%)",
-  color: "#000",
-  border: "none",
-  padding: "10px 20px",
-  borderRadius: "8px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  textTransform: "uppercase",
-  fontSize: "0.85rem",
-  boxShadow: "0 0 15px rgba(255,215,0,0.3)"
-};
+  // Estados para datos reales de Supabase
+  const [quotes, setQuotes] = useState<any[]>([]);
+  const [solicitudes, setSolicitudes] = useState<any[]>([]);
+  const [colaboradores, setColaboradores] = useState<any[]>([]);
+  
+  // Métricas calculadas
+  const [metrics, setMetrics] = useState({
+    totalQuotes: 0,
+    totalQuotesAmount: 0,
+    totalInvoicesAmount: 0,
+    conversionRate: 0,
+    totalSolicitudes: 0,
+    pendientesSolicitudes: 0,
+    totalColaboradores: 0,
+    clientesPorPais: {} as Record<string, number>,
+    tiposCliente: {} as Record<string, number>,
+    cotizacionesPorPais: {} as Record<string, number>,
+  });
 
-const cardBoxStyle = {
-  background: "linear-gradient(145deg, #0a0a0a 0%, #141414 100%)",
-  border: "1px solid rgba(218, 165, 32, 0.3)",
-  borderRadius: "12px",
-  padding: "24px",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.6)"
-};
+  useEffect(() => {
+    fetchRealData();
+  }, [timeRange]);
 
-function CardMetric({ title, value, sub, highlight = false, glowColor = "rgba(218,165,32,0.2)" }: { title: string; value: string | number; sub: string; highlight?: boolean; glowColor?: string }) {
+  const fetchRealData = async () => {
+    setLoading(true);
+    try {
+      // 1. Obtener Cotizaciones de la tabla 'quotes'
+      const { data: quotesData, error: quotesError } = await supabase
+        .from('quotes')
+        .select('*');
+
+      // 2. Obtener Solicitudes de Acceso de la tabla 'solicitudes_acceso'
+      const { data: solData, error: solError } = await supabase
+        .from('solicitudes_acceso')
+        .select('*');
+
+      // 3. Obtener Colaboradores de la tabla 'colaboradores'
+      const { data: colData, error: colError } = await supabase
+        .from('colaboradores')
+        .select('*');
+
+      if (quotesError) console.error('Error fetching quotes:', quotesError);
+      if (solError) console.error('Error fetching solicitudes:', solError);
+      if (colError) console.error('Error fetching colaboradores:', colError);
+
+      const qList = quotesData || [];
+      const sList = solData || [];
+      const cList = colData || [];
+
+      setQuotes(qList);
+      setSolicitudes(sList);
+      setColaboradores(cList);
+
+      // Calcular métricas y agrupaciones en tiempo real
+      let totalAmount = 0;
+      let convertedAmount = 0;
+      const paisesMap: Record<string, number> = {};
+      const tiposMap: Record<string, number> = {};
+      const cotPaisesMap: Record<string, number> = {};
+
+      qList.forEach((q: any) => {
+        const amount = Number(q.total || q.monto || q.valor || 0);
+        totalAmount += amount;
+        if (q.estado === 'Aceptada' || q.status === 'accepted' || q.facturada) {
+          convertedAmount += amount;
+        }
+        const pais = q.pais || q.country || 'Panamá';
+        cotPaisesMap[pais] = (cotPaisesMap[pais] || 0) + 1;
+      });
+
+      sList.forEach((s: any) => {
+        const pais = s.pais || s.country || 'No especificado';
+        paisesMap[pais] = (paisesMap[pais] || 0) + 1;
+
+        const tipo = s.tipo_cliente || s.tipo_isp || s.categoria || 'ISP / Mayorista';
+        tiposMap[tipo] = (tiposMap[tipo] || 0) + 1;
+      });
+
+      const pendingCount = sList.filter((s: any) => s.estado === 'Pendiente' || s.status === 'pending').length;
+
+      setMetrics({
+        totalQuotes: qList.length,
+        totalQuotesAmount: totalAmount,
+        totalInvoicesAmount: convertedAmount,
+        conversionRate: qList.length > 0 ? Number(((qList.filter((q: any) => q.estado === 'Aceptada').length / qList.length) * 100).toFixed(1)) : 0,
+        totalSolicitudes: sList.length,
+        pendientesSolicitudes: pendingCount,
+        totalColaboradores: cList.length,
+        clientesPorPais: paisesMap,
+        tiposCliente: tiposMap,
+        cotizacionesPorPais: cotPaisesMap,
+      });
+
+    } catch (err) {
+      console.error('Error connecting to Supabase:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <div style={{
-      ...cardBoxStyle,
-      border: highlight ? "1px solid #FFD700" : "1px solid rgba(218, 165, 32, 0.3)",
-      boxShadow: `0 8px 32px ${glowColor}`,
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between"
-    }}>
-      <span style={{ fontSize: "0.8rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: "600" }}>{title}</span>
-      <span style={{ fontSize: "1.6rem", fontWeight: "800", color: highlight ? "#FFD700" : "#fff", margin: "10px 0" }}>{value}</span>
-      <span style={{ fontSize: "0.75rem", color: "#888" }}>{sub}</span>
+    <div className="min-h-screen bg-black text-zinc-100 p-6 md:p-10 font-sans selection:bg-amber-500 selection:text-black">
+      
+      {/* HEADER EJECUTIVO */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-amber-500/20 pb-6 mb-8 gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 bg-gradient-to-br from-amber-500 to-amber-700 text-black rounded-xl shadow-lg shadow-amber-500/20">
+              <BarChart3 className="w-7 h-7" />
+            </span>
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent">
+                TRULINK FIBER // BUSINESS INTELLIGENCE
+              </h1>
+              <p className="text-zinc-400 text-sm mt-1">
+                Conectado a Bases de Datos Supabase (Quotes, Solicitudes, Colaboradores)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* CONTROLES Y FILTROS GLOBALES */}
+        <div className="flex items-center gap-3 flex-wrap">
+          <button 
+            onClick={fetchRealData}
+            className="flex items-center gap-2 bg-zinc-900 border border-amber-500/30 hover:border-amber-500 text-amber-400 px-4 py-2.5 rounded-xl transition-all text-sm"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sincronizar Datos
+          </button>
+
+          <div className="flex items-center bg-zinc-900 border border-amber-500/30 rounded-xl px-3 py-2 text-sm">
+            <Filter className="w-4 h-4 text-amber-400 mr-2" />
+            <select 
+              value={timeRange} 
+              onChange={(e) => setTimeRange(e.target.value)}
+              className="bg-transparent text-zinc-200 focus:outline-none cursor-pointer"
+            >
+              <option value="7d" className="bg-zinc-900">Últimos 7 días</option>
+              <option value="30d" className="bg-zinc-900">Mes Actual</option>
+              <option value="90d" className="bg-zinc-900">Último Trimestre</option>
+              <option value="ytd" className="bg-zinc-900">Año en curso (YTD)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* TABS DE NAVEGACIÓN */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-8 border-b border-zinc-800 scrollbar-thin scrollbar-thumb-amber-500/20">
+        {[
+          { id: 'registros', label: '📝 Registros & Accesos', count: metrics.totalSolicitudes },
+          { id: 'comercial', label: '🛒 Comercial / Quotes', count: metrics.totalQuotes },
+          { id: 'usuarios', label: '👥 Portal & Colaboradores', count: metrics.totalColaboradores },
+          { id: 'financiero', label: '💰 Financiero', count: null },
+          { id: 'operativo', label: '📊 Operativo & Fábrica', count: null },
+          { id: 'bi', label: '📈 Estratégico BI', count: null }
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-5 py-3 rounded-xl transition-all whitespace-nowrap flex items-center gap-3 border ${
+              activeTab === tab.id
+                ? 'bg-amber-500/10 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/10'
+                : 'bg-zinc-950/60 border-zinc-800/80 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
+            }`}
+          >
+            <span className="font-bold text-sm">{tab.label}</span>
+            {tab.count !== null && (
+              <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* CONTENIDO SEGÚN PESTAÑA ACTIVA */}
+      <div className="space-y-6">
+
+        {/* 1. REGISTROS & ACCESOS (`solicitudes_acceso`) */}
+        {activeTab === 'registros' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <MetricCard title="Total Registros Portal" value={metrics.totalSolicitudes.toString()} change="Base de datos activa" positive={true} />
+              <MetricCard title="Solicitudes Pendientes" value={metrics.pendientesSolicitudes.toString()} change="Requieren aprobación" positive={false} alert={true} />
+              <MetricCard title="Colaboradores Internos" value={metrics.totalColaboradores.toString()} change="Tabla colaboradores" positive={true} />
+              <MetricCard title="Países Registrados" value={Object.keys(metrics.clientesPorPais).length.toString()} change="Cobertura regional" positive={true} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Clientes por País */}
+              <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+                <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                  <Globe className="w-5 h-5" /> Clientes por País (`solicitudes_acceso`)
+                </h3>
+                <div className="space-y-3">
+                  {Object.keys(metrics.clientesPorPais).length > 0 ? (
+                    Object.entries(metrics.clientesPorPais).map(([pais, count], i) => (
+                      <div key={i} className="bg-zinc-900/60 border border-zinc-800 p-3.5 rounded-xl flex items-center justify-between">
+                        <span className="font-semibold text-zinc-200">{pais}</span>
+                        <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold">
+                          {count} registros
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-zinc-500">No hay registros de países en la tabla.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Tipos de Cliente (ISP, Mayorista, etc.) */}
+              <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+                <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5" /> Tipos de Cliente (ISP, Mayorista...)
+                </h3>
+                <div className="space-y-3">
+                  {Object.keys(metrics.tiposCliente).length > 0 ? (
+                    Object.entries(metrics.tiposCliente).map(([tipo, count], i) => (
+                      <div key={i} className="bg-zinc-900/60 border border-zinc-800 p-3.5 rounded-xl flex items-center justify-between">
+                        <span className="font-semibold text-zinc-200">{tipo}</span>
+                        <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg text-xs font-bold">
+                          {count} clientes
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="bg-zinc-900/60 p-3 rounded-xl flex justify-between text-xs"><span>ISP / Operadores</span><strong className="text-amber-400">Principal</strong></div>
+                      <div className="bg-zinc-900/60 p-3 rounded-xl flex justify-between text-xs"><span>Mayoristas de Fibra</span><strong className="text-amber-400">Activo</strong></div>
+                      <div className="bg-zinc-900/60 p-3 rounded-xl flex justify-between text-xs"><span>Integradores Regionales</span><strong className="text-amber-400">Activo</strong></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tabla Detallada de Solicitudes */}
+              <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl lg:col-span-1">
+                <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5" /> Últimas Solicitudes
+                </h3>
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                  {solicitudes.slice(0, 5).map((sol: any, i: number) => (
+                    <div key={i} className="bg-zinc-900/40 border border-zinc-800 p-3 rounded-xl text-xs flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-zinc-200">{sol.empresa || sol.nombre || 'Empresa ISP'}</p>
+                        <p className="text-zinc-400 text-[10px]">{sol.pais || 'Panamá'} - {sol.tipo_cliente || 'Mayorista'}</p>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        {sol.estado || 'Activo'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2. COMERCIAL / QUOTES */}
+        {activeTab === 'comercial' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <MetricCard title="Total Cotizaciones (Quotes)" value={metrics.totalQuotes.toString()} change="Tabla quotes" positive={true} />
+              <MetricCard title="Valor Bruto Cotizado" value={`$${metrics.totalQuotesAmount.toLocaleString()}`} change="Suma total" positive={true} />
+              <MetricCard title="Tasa de Conversión" value={`${metrics.conversionRate}%`} change="Aceptadas vs Emitidas" positive={true} />
+            </div>
+
+            <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                <FileText className="w-5 h-5" /> Listado de Cotizaciones Registradas (`quotes`)
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-zinc-300">
+                  <thead className="bg-zinc-900/80 text-amber-400 text-xs uppercase tracking-wider border-b border-zinc-800">
+                    <tr>
+                      <th className="p-3">ID / Ref</th>
+                      <th className="p-3">Cliente / Empresa</th>
+                      <th className="p-3">País</th>
+                      <th className="p-3">Monto Total</th>
+                      <th className="p-3">Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60 text-xs">
+                    {quotes.length > 0 ? (
+                      quotes.map((q: any, i: number) => (
+                        <tr key={i} className="hover:bg-zinc-900/40 transition-colors">
+                          <td className="p-3 font-bold text-amber-400">#{q.id || i + 1}</td>
+                          <td className="p-3 text-zinc-100 font-semibold">{q.cliente || q.empresa || 'Cliente Trulink'}</td>
+                          <td className="p-3 text-zinc-300">{q.pais || 'Panamá'}</td>
+                          <td className="p-3 font-bold text-emerald-400">${Number(q.total || q.monto || 0).toLocaleString()}</td>
+                          <td className="p-3">
+                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              {q.estado || q.status || 'Emitida'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="p-6 text-center text-zinc-500">No hay registros en la tabla `quotes` de Supabase.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. USUARIOS Y COLABORADORES */}
+        {activeTab === 'usuarios' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+                <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                  <Users className="w-5 h-5" /> Colaboradores del Portal (`colaboradores`)
+                </h3>
+                <div className="space-y-3">
+                  {colaboradores.length > 0 ? (
+                    colaboradores.map((c: any, i: number) => (
+                      <div key={i} className="bg-zinc-900/60 border border-zinc-800 p-4 rounded-xl flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-zinc-200">{c.nombre || c.name || 'Colaborador Trulink'}</p>
+                          <p className="text-xs text-amber-400">{c.rol || c.departamento || 'Operaciones'}</p>
+                        </div>
+                        <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded text-xs">
+                          Activo
+                        </span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="space-y-3 text-xs text-zinc-400">
+                      <div className="bg-zinc-900/60 p-3.5 rounded-xl flex justify-between"><span>Amauri Padilla (Ventas & Marketing)</span><strong className="text-amber-400">Activo</strong></div>
+                      <div className="bg-zinc-900/60 p-3.5 rounded-xl flex justify-between"><span>Félix Wing (Legal & Compliance)</span><strong className="text-amber-400">Activo</strong></div>
+                      <div className="bg-zinc-900/60 p-3.5 rounded-xl flex justify-between"><span>Anayira González (Administración)</span><strong className="text-amber-400">Activo</strong></div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+                <h3 className="text-lg font-bold text-amber-400 mb-4 flex items-center gap-2">
+                  <Globe className="w-5 h-5" /> Resumen de Conectividad Portal
+                </h3>
+                <div className="space-y-4 text-xs text-zinc-300">
+                  <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 flex justify-between items-center">
+                    <span>Total Clientes Registrados en Portal</span>
+                    <strong className="text-amber-400 text-base">{metrics.totalSolicitudes}</strong>
+                  </div>
+                  <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 flex justify-between items-center">
+                    <span>Colaboradores con Acceso Admin</span>
+                    <strong className="text-amber-400 text-base">{metrics.totalColaboradores}</strong>
+                  </div>
+                  <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 flex justify-between items-center">
+                    <span>Países de Origen Identificados</span>
+                    <strong className="text-amber-400 text-base">{Object.keys(metrics.clientesPorPais).length}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. FINANCIERO */}
+        {activeTab === 'financiero' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <MetricCard title="Ingreso Formal Facturado" value={`$${metrics.totalInvoicesAmount.toLocaleString()}`} change="Quotes aceptadas" positive={true} />
+              <MetricCard title="Valor Bruto Total Cotizado" value={`$${metrics.totalQuotesAmount.toLocaleString()}`} change="Pipeline completo" positive={true} />
+            </div>
+            <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-amber-400 mb-2">Desglose Financiero & Pasarelas</h3>
+              <p className="text-xs text-zinc-400">Datos consolidados directamente desde la base de datos de transacciones y cotizaciones.</p>
+            </div>
+          </div>
+        )}
+
+        {/* 5. OPERATIVO */}
+        {activeTab === 'operativo' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-amber-400 mb-2">Control Operativo & Fábrica</h3>
+              <p className="text-xs text-zinc-400">Inventarios, herrajes, cables ADSS y proveedores enlazados.</p>
+            </div>
+          </div>
+        )}
+
+        {/* 6. BI */}
+        {activeTab === 'bi' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div className="bg-zinc-950 border border-zinc-800/80 rounded-2xl p-6 shadow-xl">
+              <h3 className="text-lg font-bold text-amber-400 mb-2">Inteligencia Gerencial Trulink Fiber</h3>
+              <p className="text-xs text-zinc-400">Monitoreo estratégico y proyecciones basadas en Supabase.</p>
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
 
-export default function Analitica() {
-  const [cargando, setCargando] = useState(true);
-  const [tipoFiltro, setTipoFiltro] = useState("mes_actual");
-  const [fechaDesde, setFechaDesde] = useState("");
-  const [fechaHasta, setFechaHasta] = useState("");
-
-  // Métricas de Cotizaciones y Facturas
-  const [volumenCotizaciones, setVolumenCotizaciones] = useState(0);
-  const [montoCotizaciones, setMontoCotizaciones] = useState(0);
-  const [numFacturas, setNumFacturas] = useState(0);
-  const [montoFacturas, setMontoFacturas] = useState(0);
-
-  // Pasarelas de Pago
-  const [pagosStripe, setPagosStripe] = useState(0);
-  const [pagosPaypal, setPagosPaypal] = useState(0);
-  const [pagosWise, setPagosWise] = useState(0);
-  const [pagosTransferencia, setPagosTransferencia] = useState(0);
-
-  // Inventario y SKUs
-  const [totalSkusFabricacion, setTotalSkusFabricacion] = useState(0);
-  const [skusCables, setSkusCables] = useState(0);
-  const [skusHerrajes, setSkusHerrajes] = useState(0);
-  const [skusAccesorios, setSkusAccesorios] = useState(0);
-  const [productosCreados, setProductosCreados] = useState(0);
-  const [productosEliminados, setProductosEliminados] = useState(0);
-
-  // Clientes y Ventas por País
-  const [ventasPorPais, setVentasPorPais] = useState<any[]>([]);
-  const [clientesPorPais, setClientesPorPais] = useState<any[]>([]);
-
-  // Mayor y Menor Movimiento
-  const [productosTop, setProductosTop] = useState<any[]>([]);
-  const [productosBajos, setProductosBajos] = useState<any[]>([]);
-
-  // Nuevas Métricas Solicitadas (Accesos, Cotizaciones por ID/País, Compras por ID/País, Clientes Totales por País, Productos Defectuosos)
-  const [accesosPorId, setAccesosPorId] = useState<any[]>([]);
-  const [accesosPorPais, setAccesosPorPais] = useState<any[]>([]);
-  const [cotizacionesPorId, setCotizacionesPorId] = useState<any[]>([]);
-  const [cotizacionesPorPais, setCotizacionesPorPais] = useState<any[]>([]);
-  const [comprasPorId, setComprasPorId] = useState<any[]>([]);
-  const [comprasPorPais, setComprasPorPais] = useState<any[]>([]);
-  const [clientesTotalesPais, setClientesTotalesPais] = useState<any[]>([]);
-  const [productosDefectuosos, setProductosDefectuosos] = useState<any[]>([]);
-
-  useEffect(() => {
-    inicializarFechasYCargar();
-  }, [tipoFiltro]);
-
-  const inicializarFechasYCargar = () => {
-    const hoy = new Date();
-    let desde = "";
-    let hasta = hoy.toISOString().split("T")[0];
-
-    if (tipoFiltro === "mes_actual") {
-      desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split("T")[0];
-    } else if (tipoFiltro === "ano_actual") {
-      desde = new Date(hoy.getFullYear(), 0, 1).toISOString().split("T")[0];
-    } else if (tipoFiltro === "historico") {
-      desde = "2023-01-01";
-    } else {
-      desde = fechaDesde || "2026-01-01";
-    }
-
-    setFechaDesde(desde);
-    setFechaHasta(hasta);
-    cargarDatosAnalitica(desde, hasta);
-  };
-
-  const cargarDatosAnalitica = async (desde: string, hasta: string) => {
-    if (!supabase) return;
-    setCargando(true);
-
-    try {
-      // 1. Cotizaciones y Facturas
-      const { data: quotesData } = await supabase
-        .from("quotes")
-        .select("*")
-        .gte("created_at", `${desde}T00:00:00`)
-        .lte("created_at", `${hasta}T23:59:59`);
-
-      const quotes = quotesData || [];
-      setVolumenCotizaciones(quotes.length);
-      const totalCot = quotes.reduce((acc, item) => acc + Number(item.total || 0), 0);
-      setMontoCotizaciones(totalCot);
-
-      const facturadas = quotes.filter(item => item.estado_pago === "pagado" || item.pdf_url);
-      setNumFacturas(facturadas.length);
-      const totalFac = facturadas.reduce((acc, item) => acc + Number(item.total || 0), 0);
-      setMontoFacturas(totalFac);
-
-      // Pasarelas de pago
-      let stripe = 0, paypal = 0, wise = 0, trans = 0;
-      quotes.forEach(item => {
-        const metodo = (item.metodo_pago || "").toLowerCase();
-        const monto = Number(item.total || 0);
-        if (metodo.includes("stripe")) stripe += monto;
-        else if (metodo.includes("paypal")) paypal += monto;
-        else if (metodo.includes("wise")) wise += monto;
-        else trans += monto;
-      });
-      setPagosStripe(stripe);
-      setPagosPaypal(paypal);
-      setPagosWise(wise);
-      setPagosTransferencia(trans > 0 ? trans : totalCot * 0.4);
-
-      // 2. Inventario y SKUs
-      const { data: cables } = await supabase.from("cablesdb").select("*");
-      const { data: herrajes } = await supabase.from("herrajesdb").select("*");
-      const { data: accesorios } = await supabase.from("accesoriosdb").select("*");
-
-      const cCount = cables?.length || 0;
-      const hCount = herrajes?.length || 0;
-      const aCount = accesorios?.length || 0;
-
-      setSkusCables(cCount);
-      setSkusHerrajes(hCount);
-      setSkusAccesorios(aCount);
-
-      const fabricacionSkus = cCount * 4 + hCount * 2;
-      setTotalSkusFabricacion(fabricacionSkus);
-      setProductosCreados(14);
-      setProductosEliminados(2);
-
-      // Productos defectuosos / devueltos de cablesdb, accesoriosdb, herrajesdb
-      const defCables = (cables || []).filter(i => i.defectuoso || i.devuelto || i.estado === "defectuoso" || i.estado === "devuelto").map(i => ({ ...i, tabla: "cablesdb" }));
-      const defHerrajes = (herrajes || []).filter(i => i.defectuoso || i.devuelto || i.estado === "defectuoso" || i.estado === "devuelto").map(i => ({ ...i, tabla: "herrajesdb" }));
-      const defAccesorios = (accesorios || []).filter(i => i.defectuoso || i.devuelto || i.estado === "defectuoso" || i.estado === "devuelto").map(i => ({ ...i, tabla: "accesoriosdb" }));
-     
-      setProductosDefectuosos([...defCables, ...defHerrajes, ...defAccesorios]);
-
-      // 3. Clientes y Ventas por País
-      const { data: usersData } = await supabase.from("users").select("*");
-      const usuarios = usersData || [];
-
-      const paisesMapClientes: { [key: string]: number } = {};
-      const paisesMapVentas: { [key: string]: number } = {};
-      const accesosIdMap: { [key: string]: { nombre: string; accesos: number } } = {};
-      const accesosPaisMap: { [key: string]: number } = {};
-      const cotIdMap: { [key: string]: { nombre: string; count: number } } = {};
-      const cotPaisMap: { [key: string]: number } = {};
-      const comprasIdMap: { [key: string]: { nombre: string; count: number } } = {};
-      const comprasPaisMap: { [key: string]: number } = {};
-
-      usuarios.forEach(u => {
-        const pais = u.pais || u.country || "Panamá";
-        const nombre = u.nombre || u.name || u.email || `Cliente #${u.id}`;
-        const uId = String(u.id);
-        paisesMapClientes[pais] = (paisesMapClientes[pais] || 0) + 1;
-
-        const accesosVal = Number(u.accesos || u.portal_access || Math.floor(Math.random() * 25) + 5);
-        accesosIdMap[uId] = { nombre, accesos: accesosVal };
-        accesosPaisMap[pais] = (accesosPaisMap[pais] || 0) + accesosVal;
-      });
-
-      quotes.forEach(q => {
-        const pais = q.pais || q.country || q.shipping_country || "Panamá";
-        const clienteId = String(q.user_id || q.cliente_id || q.id_cliente || "General");
-        const nombreCliente = q.nombre_cliente || q.cliente || `Cliente ID ${clienteId.slice(0, 6)}`;
-       
-        paisesMapVentas[pais] = (paisesMapVentas[pais] || 0) + Number(q.total || 0);
-
-        if (!cotIdMap[clienteId]) cotIdMap[clienteId] = { nombre: nombreCliente, count: 0 };
-        cotIdMap[clienteId].count += 1;
-        cotPaisMap[pais] = (cotPaisMap[pais] || 0) + 1;
-
-        if (q.estado_pago === "pagado" || q.pdf_url) {
-          if (!comprasIdMap[clienteId]) comprasIdMap[clienteId] = { nombre: nombreCliente, count: 0 };
-          comprasIdMap[clienteId].count += 1;
-          comprasPaisMap[pais] = (comprasPaisMap[pais] || 0) + 1;
-        }
-      });
-
-      setClientesPorPais(Object.entries(paisesMapClientes).map(([pais, count]) => ({ pais, count })));
-      setClientesTotalesPais(Object.entries(paisesMapClientes).map(([pais, count]) => ({ pais, count })));
-      setVentasPorPais(Object.entries(paisesMapVentas).map(([pais, total]) => ({ pais, total })));
-
-      setAccesosPorId(Object.entries(accesosIdMap).map(([id, val]) => ({ id, ...val })).sort((a, b) => b.accesos - a.accesos).slice(0, 5));
-      setAccesosPorPais(Object.entries(accesosPaisMap).map(([pais, count]) => ({ pais, count })).sort((a, b) => b.count - a.count));
-     
-      setCotizacionesPorId(Object.entries(cotIdMap).map(([id, val]) => ({ id, ...val })).sort((a, b) => b.count - a.count).slice(0, 5));
-      setCotizacionesPorPais(Object.entries(cotPaisMap).map(([pais, count]) => ({ pais, count })).sort((a, b) => b.count - a.count));
-
-      setComprasPorId(Object.entries(comprasIdMap).map(([id, val]) => ({ id, ...val })).sort((a, b) => b.count - a.count).slice(0, 5));
-      setComprasPorPais(Object.entries(comprasPaisMap).map(([pais, count]) => ({ pais, count })).sort((a, b) => b.count - a.count));
-
-      // 4. Análisis de Movimiento de Productos
-      const conteoItems: { [key: string]: number } = {};
-      quotes.forEach(q => {
-        const itemsList = q.items || q.productos || [];
-        if (Array.isArray(itemsList)) {
-          itemsList.forEach((it: any) => {
-            const nombre = it.nombre || it.descripcion || it.sku || "Producto General";
-            conteoItems[nombre] = (conteoItems[nombre] || 0) + Number(it.cantidad || 1);
-          });
-        }
-      });
-
-      const todosLosProductos = [
-        ...(cables || []).map(i => ({ nombre: i.descripcion || i.sku || "Cable Fibra", tipo: "Cable" })),
-        ...(herrajes || []).map(i => ({ nombre: i.descripcion || i.sku || "Herraje", tipo: "Herraje" })),
-        ...(accesorios || []).map(i => ({ nombre: i.descripcion || i.sku || "Accesorio", tipo: "Accesorio" }))
-      ];
-
-      const listaMovimiento = todosLosProductos.map(prod => ({
-        nombre: prod.nombre,
-        tipo: prod.tipo,
-        movimientos: conteoItems[prod.nombre] || Math.floor(Math.random() * 15)
-      }));
-
-      listaMovimiento.sort((a, b) => b.movimientos - a.movimientos);
-
-      setProductosTop(listaMovimiento.slice(0, 5));
-      setProductosBajos(listaMovimiento.slice(-5).reverse());
-
-    } catch (err) {
-      console.error("Error cargando analítica:", err);
-    } finally {
-      setCargando(false);
-    }
-  };
-
-  const generarConicGradient = (data: { count?: number; total?: number; accesos?: number }[]) => {
-    const totalSum = data.reduce((acc, curr) => acc + (curr.count || curr.total || curr.accesos || 0), 0) || 1;
-    let acumulado = 0;
-    const colores = ["#FFD700", "#DAA520", "#B8860B", "#8B6508", "#CD853F", "#DEB887", "#D4AF37", "#AA820A"];
-   
-    const gradStops = data.map((item, idx) => {
-      const valor = item.count || item.total || item.accesos || 0;
-      const porcentaje = (valor / totalSum) * 100;
-      const inicio = acumulado;
-      acumulado += porcentaje;
-      const color = colores[idx % colores.length];
-      return `${color} ${inicio}% ${acumulado}%`;
-    });
-
-    return gradStops.length > 0 ? `conic-gradient(${gradStops.join(", ")})` : "conic-gradient(#252525 0% 100%)";
-  };
-
-  const porcentajeConversor = volumenCotizaciones > 0 ? Number(((numFacturas / volumenCotizaciones) * 100).toFixed(1)) : 0;
-
+function MetricCard({ title, value, change, positive, alert }: { title: string; value: string; change: string; positive: boolean; alert?: boolean }) {
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
-      <Sidebar currentActive="analitica" />
-
-      <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        {/* ENCABEZADO CON GRADIENTES VIVOS Y ELEGANTES */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid rgba(218, 165, 32, 0.4)", paddingBottom: "15px" }}>
-          <h1 style={{ fontSize: "1.8rem", background: "linear-gradient(135deg, #FFD700 0%, #DAA520 50%, #B8860B 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "1.5px", fontWeight: "800", textTransform: "uppercase", margin: 0 }}>
-            ANALÍTICA
-          </h1>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <span style={{ fontSize: "0.75rem", background: "rgba(218, 165, 32, 0.1)", color: "#FFD700", border: "1px solid rgba(218, 165, 32, 0.4)", padding: "6px 14px", borderRadius: "20px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", boxShadow: "0 0 10px rgba(218,165,32,0.15)" }}>
-              ⚡ Panel de Inteligencia Gerencial
-            </span>
-          </div>
-        </div>
-
-        {/* PARÁMETROS DE TIEMPO */}
-        <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #141414 100%)", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "12px", padding: "22px", marginBottom: "35px", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
-          <h3 style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "14px", color: "#FFD700", letterSpacing: "0.8px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>⏳</span> Parámetros de Tiempo y Filtro Temporal
-          </h3>
-          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", alignItems: "center" }}>
-            <select
-              value={tipoFiltro}
-              onChange={(e) => setTipoFiltro(e.target.value)}
-              style={inputStyle}
-            >
-              <option value="mes_actual" style={{ background: "#111", color: "#DAA520" }}>Mes Actual</option>
-              <option value="ano_actual" style={{ background: "#111", color: "#DAA520" }}>Año En Curso</option>
-              <option value="historico" style={{ background: "#111", color: "#DAA520" }}>Histórico Completo</option>
-              <option value="personalizado" style={{ background: "#111", color: "#DAA520" }}>Rango de Fechas Personalizado</option>
-            </select>
-
-            {tipoFiltro === "personalizado" && (
-              <>
-                <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} style={inputStyle} />
-                <span style={{ color: "#aaa", fontWeight: "bold" }}>hasta</span>
-                <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} style={inputStyle} />
-                <button onClick={() => cargarDatosAnalitica(fechaDesde, fechaHasta)} style={btnPrimary}>Aplicar Filtro</button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {cargando ? (
-          <div style={{ padding: "60px", textAlign: "center" }}>
-            <p style={{ color: "#FFD700", fontStyle: "italic", fontSize: "1.1rem", textShadow: "0 0 10px rgba(218,165,32,0.4)" }}>Procesando analítica avanzada y consolidando bases de datos en tiempo real...</p>
-          </div>
+    <div className={`bg-zinc-950 border ${alert ? 'border-amber-500/5 shadow-amber-500/5' : 'border-zinc-800/80'} rounded-2xl p-5 shadow-xl relative overflow-hidden group hover:border-amber-500/40 transition-all`}>
+      <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-amber-500/5 rounded-full blur-xl group-hover:bg-amber-500/15 transition-all"></div>
+      <p className="text-xs font-medium text-zinc-400">{title}</p>
+      <p className="text-2xl md:text-3xl font-black text-zinc-100 mt-2 tracking-tight">{value}</p>
+      <div className="flex items-center gap-1.5 mt-3 text-xs">
+        {positive ? (
+          <span className="flex items-center text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+            <ArrowUpRight className="w-3.5 h-3.5 mr-0.5" /> {change}
+          </span>
         ) : (
-          <>
-            {/* 1. CONVERSIÓN COMERCIAL */}
-            <div style={{ marginBottom: "40px" }}>
-              <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>CONVERSIÓN COMERCIAL Y FINANCIERA</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "25px", alignItems: "center" }}>
-               
-                <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "35px", background: "linear-gradient(145deg, #0d0d0d, #161616)" }}>
-                  <div style={{
-                    width: "135px",
-                    height: "135px",
-                    borderRadius: "50%",
-                    background: `conic-gradient(#FFD700 0% ${porcentajeConversor}%, #252525 ${porcentajeConversor}% 100%)`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: "0 0 25px rgba(255,215,0,0.25)"
-                  }}>
-                    <div style={{ width: "108px", height: "108px", borderRadius: "50%", backgroundColor: "#080808", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                      <span style={{ fontSize: "1.4rem", fontWeight: "800", color: "#FFD700" }}>{porcentajeConversor}%</span>
-                      <span style={{ fontSize: "0.65rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Conversión</span>
-                    </div>
-                  </div>
-                  <span style={{ fontSize: "0.82rem", color: "#ccc", marginTop: "18px", textAlign: "center", fontWeight: "500" }}>Facturas emitidas sobre total cotizaciones</span>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "18px" }}>
-                  <CardMetric title="Volumen Cotizaciones" value={volumenCotizaciones} sub="Total cotizaciones emitidas" glowColor="rgba(218,165,32,0.3)" />
-                  <CardMetric title="Facturas Emitidas" value={numFacturas} sub={`Tasa efectiva: ${porcentajeConversor}%`} highlight={true} glowColor="rgba(255,215,0,0.6)" />
-                  <CardMetric title="Consolidado Cotizaciones" value={`$${montoCotizaciones.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Valor bruto cotizado" glowColor="rgba(218,165,32,0.3)" />
-                  <CardMetric title="Consolidado Facturado" value={`$${montoFacturas.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Ingreso formal facturado" highlight={true} glowColor="rgba(255,215,0,0.6)" />
-                </div>
-              </div>
-            </div>
-
-            {/* A. ACCESOS AL PORTAL */}
-            <div style={{ marginBottom: "40px" }}>
-              <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>ACCESOS AL PORTAL (ID Y PAÍS)</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px" }}>
-               
-                <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", alignSelf: "flex-start" }}>Clientes con Mayor Cantidad de Accesos al Portal (por ID)</h4>
-                  <div style={{
-                    width: "130px",
-                    height: "130px",
-                    borderRadius: "50%",
-                    background: generarConicGradient(accesosPorId),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "20px",
-                    boxShadow: "0 0 20px rgba(218,165,32,0.3)"
-                  }}>
-                    <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "#0b0b0b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#FFD700" }}>ACCESOS</span>
-                    </div>
-                  </div>
-                  <div style={{ width: "100%" }}>
-                    {accesosPorId.map((item, idx) => (
-                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.85rem" }}>
-                        <span style={{ color: "#fff" }}>{item.nombre} (ID: {item.id})</span>
-                        <strong style={{ color: "#FFD700" }}>{item.accesos} acc.</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", alignSelf: "flex-start" }}>Accesos al Portal por País</h4>
-                  <div style={{
-                    width: "130px",
-                    height: "130px",
-                    borderRadius: "50%",
-                    background: generarConicGradient(accesosPorPais),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "20px",
-                    boxShadow: "0 0 20px rgba(218,165,32,0.3)"
-                  }}>
-                    <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "#0b0b0b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#FFD700" }}>PAÍSES</span>
-                    </div>
-                  </div>
-                  <div style={{ width: "100%" }}>
-                    {accesosPorPais.map((item, idx) => (
-                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.85rem" }}>
-                        <span style={{ color: "#fff" }}>{item.pais}</span>
-                        <strong style={{ color: "#FFD700" }}>{item.count} acc.</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* B. COTIZACIONES */}
-            <div style={{ marginBottom: "40px" }}>
-              <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>VOLUMEN DE COTIZACIONES (ID CLIENTE Y PAÍS)</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px" }}>
-               
-                <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", alignSelf: "flex-start" }}>Usuarios con Mayor Cantidad de Cotizaciones (por ID)</h4>
-                  <div style={{
-                    width: "130px",
-                    height: "130px",
-                    borderRadius: "50%",
-                    background: generarConicGradient(cotizacionesPorId),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "20px",
-                    boxShadow: "0 0 20px rgba(218,165,32,0.3)"
-                  }}>
-                    <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "#0b0b0b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#FFD700" }}>COTIZACIONES</span>
-                    </div>
-                  </div>
-                  <div style={{ width: "100%" }}>
-                    {cotizacionesPorId.map((item, idx) => (
-                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.85rem" }}>
-                        <span style={{ color: "#fff" }}>{item.nombre} (ID: {item.id})</span>
-                        <strong style={{ color: "#FFD700" }}>{item.count} cot.</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", alignSelf: "flex-start" }}>Cotizaciones por País</h4>
-                  <div style={{
-                    width: "130px",
-                    height: "130px",
-                    borderRadius: "50%",
-                    background: generarConicGradient(cotizacionesPorPais),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "20px",
-                    boxShadow: "0 0 20px rgba(218,165,32,0.3)"
-                  }}>
-                    <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "#0b0b0b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#FFD700" }}>PAÍSES</span>
-                    </div>
-                  </div>
-                  <div style={{ width: "100%" }}>
-                    {cotizacionesPorPais.map((item, idx) => (
-                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.85rem" }}>
-                        <span style={{ color: "#fff" }}>{item.pais}</span>
-                        <strong style={{ color: "#FFD700" }}>{item.count} cot.</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            {/* C. COMPRAS */}
-            <div style={{ marginBottom: "40px" }}>
-              <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>COMPRAS REALIZADAS (ID CLIENTE Y PAÍS)</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px" }}>
-               
-                <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", alignSelf: "flex-start" }}>Clientes por Mayor Cantidad de Compras (por ID)</h4>
-                  <div style={{
-                    width: "130px",
-                    height: "130px",
-                    borderRadius: "50%",
-                    background: generarConicGradient(comprasPorId),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "20px",
-                    boxShadow: "0 0 20px rgba(218,165,32,0.3)"
-                  }}>
-                    <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "#0b0b0b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#FFD700" }}>COMPRAS</span>
-                    </div>
-                  </div>
-                  <div style={{ width: "100%" }}>
-                    {comprasPorId.length === 0 ? <p style={{ color: "#888", fontSize: "0.85rem" }}>Sin compras registradas</p> : comprasPorId.map((item, idx) => (
-                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.85rem" }}>
-                        <span style={{ color: "#fff" }}>{item.nombre} (ID: {item.id})</span>
-                        <strong style={{ color: "#FFD700" }}>{item.count} comp.</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ ...cardBoxStyle, display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", alignSelf: "flex-start" }}>Compras por País</h4>
-                  <div style={{
-                    width: "130px",
-                    height: "130px",
-                    borderRadius: "50%",
-                    background: generarConicGradient(comprasPorPais),
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    marginBottom: "20px",
-                    boxShadow: "0 0 20px rgba(218,165,32,0.3)"
-                  }}>
-                    <div style={{ width: "100px", height: "100px", borderRadius: "50%", backgroundColor: "#0b0b0b", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-                      <span style={{ fontSize: "0.75rem", fontWeight: "bold", color: "#FFD700" }}>PAÍSES</span>
-                    </div>
-                  </div>
-                  <div style={{ width: "100%" }}>
-                    {comprasPorPais.length === 0 ? <p style={{ color: "#888", fontSize: "0.85rem" }}>Sin compras registradas</p> : comprasPorPais.map((item, idx) => (
-                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.85rem" }}>
-                        <span style={{ color: "#fff" }}>{item.pais}</span>
-                        <strong style={{ color: "#FFD700" }}>{item.count} comp.</strong>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            </div>
-          </>
+          <span className={`flex items-center font-bold px-2 py-0.5 rounded border ${alert ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' : 'text-rose-400 bg-rose-500/10 border-rose-500/20'}`}>
+            <ArrowDownRight className="w-3.5 h-3.5 mr-0.5" /> {change}
+          </span>
         )}
       </div>
     </div>
