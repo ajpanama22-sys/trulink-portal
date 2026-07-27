@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
-import Sidebar from "../../components/admin/Sidebar";
+import Sidebar from "./Sidebar";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -28,9 +28,7 @@ export default function DespachosDashboard() {
   const router = useRouter();
   const [despachos, setDespachos] = useState<DespachoItem[]>([]);
   
-  // Pestaña activa: "fabrica" o "producto"
   const [pestanaActiva, setPestanaActiva] = useState<"fabrica" | "producto">("fabrica");
-  
   const [busqueda, setBusqueda] = useState<string>("");
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<DespachoItem | null>(null);
   const [pagadoTotalInput, setPagadoTotalInput] = useState<boolean>(false);
@@ -93,9 +91,7 @@ export default function DespachosDashboard() {
     }
   };
 
-  // Filtrado estrictamente basado en la pestaña activa y barra de búsqueda
   const despachosFiltrados = despachos.filter((item) => {
-    // Si no tiene tipo asignado, por defecto lo agrupamos en fábrica o según convenga, o validamos exacto:
     const tipoItem = item.tipo_cotizacion || "fabrica";
     const coincidePestana = tipoItem === pestanaActiva;
     
@@ -109,7 +105,6 @@ export default function DespachosDashboard() {
     return coincidePestana && coincideBusqueda;
   });
 
-  // Métricas rápidas para la pestaña activa
   const totalPestana = despachos.filter(i => (i.tipo_cotizacion || "fabrica") === pestanaActiva).length;
   const despachadosPestana = despachos.filter(i => (i.tipo_cotizacion || "fabrica") === pestanaActiva && i.status === "despachado_exw").length;
 
@@ -163,7 +158,6 @@ export default function DespachosDashboard() {
           th { background-color: #111; color: #DAA520; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; }
         `}</style>
 
-        {/* Encabezado de Alto Nivel */}
         <div style={{ marginBottom: "25px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "15px" }}>
           <div>
             <span style={{ fontSize: "0.7rem", color: "rgba(218, 165, 32, 0.7)", letterSpacing: "3px", textTransform: "uppercase", display: "block", marginBottom: "5px" }}>
@@ -185,7 +179,6 @@ export default function DespachosDashboard() {
           </div>
         </div>
 
-        {/* Pestañas de Navegación de Categoría (Fábrica vs Productos Terminados) */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "25px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "15px" }}>
           <button
             onClick={() => setPestanaActiva("fabrica")}
@@ -202,7 +195,7 @@ export default function DespachosDashboard() {
               color: pestanaActiva === "fabrica" ? "#3498db" : "rgba(255, 255, 255, 0.6)",
               transition: "all 0.3s ease",
               display: "flex",
-              alignItem: "center",
+              alignItems: "center",
               gap: "8px"
             }}
           >
@@ -224,7 +217,7 @@ export default function DespachosDashboard() {
               color: pestanaActiva === "producto" ? "#9b59b6" : "rgba(255, 255, 255, 0.6)",
               transition: "all 0.3s ease",
               display: "flex",
-              alignItem: "center",
+              alignItems: "center",
               gap: "8px"
             }}
           >
@@ -232,10 +225,7 @@ export default function DespachosDashboard() {
           </button>
         </div>
 
-        {/* Contenedor Principal de la Pestaña Activa */}
         <div className="card-item" style={{ padding: "25px", backgroundColor: "#080808" }}>
-          
-          {/* Banner indicador dinámico según la pestaña */}
           <div style={{ 
             backgroundColor: pestanaActiva === "fabrica" ? "rgba(52, 152, 219, 0.05)" : "rgba(155, 89, 182, 0.05)",
             border: `1px solid ${pestanaActiva === "fabrica" ? "rgba(52, 152, 219, 0.3)" : "rgba(155, 89, 182, 0.3)"}`,
@@ -332,7 +322,6 @@ export default function DespachosDashboard() {
           )}
         </div>
 
-        {/* Modal de Control Ejecutivo EXW */}
         {ordenSeleccionada && (
           <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, padding: "20px" }}>
             <div className="card-item" style={{ width: "500px", maxWidth: "100%", maxHeight: "90vh", overflowY: "auto", padding: "30px", backgroundColor: "#0a0a0a", border: "1px solid #DAA520" }}>
