@@ -32,7 +32,7 @@ export default function Bodega() {
   const [cargando, setCargando] = useState(false);
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
 
-  // Estados Formulario Crear (Comienza sin tabla seleccionada para forzar la elección previa)
+  // Estados Formulario Crear
   const [tablaCreacion, setTablaCreacion] = useState<string>("");
   const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
   const [nuevaFamiliaSeleccionada, setNuevaFamiliaSeleccionada] = useState("");
@@ -48,7 +48,7 @@ export default function Bodega() {
   const [nuevaImagenUrl, setNuevaImagenUrl] = useState("");
   const [subiendoImagen, setSubiendoImagen] = useState(false);
 
-  // Estados Formulario Editar (Precios A, B, C, D)
+  // Estados Formulario Editar
   const [editPrecioA, setEditPrecioA] = useState<number | "">("");
   const [editPrecioB, setEditPrecioB] = useState<number | "">("");
   const [editPrecioC, setEditPrecioC] = useState<number | "">("");
@@ -60,6 +60,9 @@ export default function Bodega() {
 
   // Estado Eliminar
   const [pasoEliminar, setPasoEliminar] = useState<1 | 2>(1);
+
+  // Helper para manejar cambios en inputs numéricos
+  const parseNumInput = (val: string): number | "" => (val === "" ? "" : Number(val));
 
   // Cargar productos por tabla activa en el buscador
   useEffect(() => {
@@ -86,7 +89,6 @@ export default function Bodega() {
     }
   };
 
-  // Selección explícita de base de datos para la creación
   const seleccionarTablaCreacion = async (tabla: string) => {
     setTablaCreacion(tabla);
     setFamiliasCreacion([]);
@@ -95,7 +97,6 @@ export default function Bodega() {
     
     if (!supabase) return;
 
-    // Consultar familias existentes en la tabla seleccionada
     try {
       const { data, error } = await supabase.from(tabla).select("Familia, familia");
       if (!error && data) {
@@ -109,7 +110,6 @@ export default function Bodega() {
     }
   };
 
-  // Subir imagen a Supabase Storage
   const handleSubirImagen = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !supabase) return;
     const file = e.target.files[0];
@@ -165,7 +165,6 @@ export default function Bodega() {
       if (error) throw error;
 
       alert("Producto creado con éxito.");
-      // Limpiar formulario y reiniciar flujo
       setTablaCreacion("");
       setNuevoSku("");
       setNuevaDescripcion("");
@@ -274,7 +273,6 @@ export default function Bodega() {
       {/* SUBMÓDULO 1: BUSCADOR */}
       {subModulo === "buscador" && (
         <div style={cardBox}>
-          {/* SELECTOR DE TABLAS DE BODEGA */}
           <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
             {tablasDisponibles.map((t) => (
               <button
@@ -308,7 +306,6 @@ export default function Bodega() {
             <button onClick={buscarProductos} style={btnAccion}>BUSCAR</button>
           </div>
 
-          {/* TABLA DE PRODUCTOS CON PRECIOS A, B, C, D */}
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.85rem" }}>
               <thead>
@@ -361,7 +358,7 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* SUBMÓDULO 2: CREAR PRODUCTO (SELECCIÓN PREVIA DE BASE DE DATOS) */}
+      {/* SUBMÓDULO 2: CREAR PRODUCTO */}
       {subModulo === "crear" && (
         <div style={{ ...cardBox, maxWidth: "750px" }}>
           {!tablaCreacion ? (
@@ -443,30 +440,30 @@ export default function Bodega() {
                 <textarea value={nuevasEspecificaciones} onChange={(e) => setNuevasEspecificaciones(e.target.value)} placeholder="Especificaciones principales..." style={{ ...inputStyleFull, height: "60px", resize: "vertical" }} />
               </div>
 
-              {/* MATRIZ DE PRECIOS */}
+              {/* MATRIZ DE PRECIOS CON HANDLERS NUMÉRICOS CORREGIDOS */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "10px", marginBottom: "15px" }}>
                 <div>
                   <label style={labelStyle}>P. A (ISP)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioA} onChange={(e) => setNuevoPrecioA(e.target.value)} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioA} onChange={(e) => setNuevoPrecioA(parseNumInput(e.target.value))} style={inputStyleFull} />
                 </div>
                 <div>
                   <label style={labelStyle}>P. B (Mayorista)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioB} onChange={(e) => setNuevoPrecioB(e.target.value)} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioB} onChange={(e) => setNuevoPrecioB(parseNumInput(e.target.value))} style={inputStyleFull} />
                 </div>
                 <div>
                   <label style={labelStyle}>P. C (Integrador)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioC} onChange={(e) => setNuevoPrecioC(e.target.value)} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioC} onChange={(e) => setNuevoPrecioC(parseNumInput(e.target.value))} style={inputStyleFull} />
                 </div>
                 <div>
                   <label style={labelStyle}>P. D (Final)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioD} onChange={(e) => setNuevoPrecioD(e.target.value)} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioD} onChange={(e) => setNuevoPrecioD(parseNumInput(e.target.value))} style={inputStyleFull} />
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px" }}>
                 <div>
                   <label style={labelStyle}>Stock Inicial</label>
-                  <input type="number" value={nuevaCantidad} onChange={(e) => setNuevaCantidad(e.target.value)} style={inputStyleFull} />
+                  <input type="number" value={nuevaCantidad} onChange={(e) => setNuevaCantidad(parseNumInput(e.target.value))} style={inputStyleFull} />
                 </div>
                 <div>
                   <label style={labelStyle}>Imagen del Producto</label>
@@ -485,7 +482,7 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* SUBMÓDULO 3: EDITAR PRECIOS / STOCK / DATOS */}
+      {/* SUBMÓDULO 3: EDITAR */}
       {subModulo === "editar" && productoSeleccionado && (
         <div style={{ ...cardBox, maxWidth: "700px" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: "#fff" }}>
@@ -502,24 +499,24 @@ export default function Bodega() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
             <div>
               <label style={labelStyle}>Precio A (ISP)</label>
-              <input type="number" step="0.01" value={editPrecioA} onChange={(e) => setEditPrecioA(e.target.value)} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioA} onChange={(e) => setEditPrecioA(parseNumInput(e.target.value))} style={inputStyleFull} />
             </div>
             <div>
               <label style={labelStyle}>Precio B (Mayorista)</label>
-              <input type="number" step="0.01" value={editPrecioB} onChange={(e) => setEditPrecioB(e.target.value)} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioB} onChange={(e) => setEditPrecioB(parseNumInput(e.target.value))} style={inputStyleFull} />
             </div>
             <div>
               <label style={labelStyle}>Precio C (Integrador)</label>
-              <input type="number" step="0.01" value={editPrecioC} onChange={(e) => setEditPrecioC(e.target.value)} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioC} onChange={(e) => setEditPrecioC(parseNumInput(e.target.value))} style={inputStyleFull} />
             </div>
             <div>
               <label style={labelStyle}>Precio D (Cliente Final)</label>
-              <input type="number" step="0.01" value={editPrecioD} onChange={(e) => setEditPrecioD(e.target.value)} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioD} onChange={(e) => setEditPrecioD(parseNumInput(e.target.value))} style={inputStyleFull} />
             </div>
           </div>
           <div style={{ marginBottom: "15px" }}>
             <label style={labelStyle}>Stock / Cantidad</label>
-            <input type="number" value={editCantidad} onChange={(e) => setEditCantidad(e.target.value === "" ? "" : Number(e.target.value))} style={inputStyleFull} />
+            <input type="number" value={editCantidad} onChange={(e) => setEditCantidad(parseNumInput(e.target.value))} style={inputStyleFull} />
           </div>
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
             <button onClick={guardarCambiosInteligente} style={btnAccion}>GUARDAR CAMBIOS</button>
@@ -528,7 +525,7 @@ export default function Bodega() {
         </div>
       )}
 
-      {/* SUBMÓDULO 4: ELIMINAR CON DOUBLE CHECK */}
+      {/* SUBMÓDULO 4: ELIMINAR */}
       {subModulo === "eliminar" && productoSeleccionado && (
         <div style={{ ...cardBox, maxWidth: "500px", border: "1px solid #e74c3c" }}>
           <h2 style={{ fontSize: "1rem", color: "#e74c3c", marginBottom: "15px" }}>⚠️ ELIMINAR PRODUCTO DE BODEGA</h2>
