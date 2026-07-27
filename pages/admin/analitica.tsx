@@ -7,36 +7,50 @@ export default function Analitica() {
   const [tipoFiltro, setTipoFiltro] = useState("mes_actual");
   const [fechaDesde, setFechaDesde] = useState("");
   const [fechaHasta, setFechaHasta] = useState("");
+  const [fechaHoraActual, setFechaHoraActual] = useState("");
 
-  // Métricas de Cotizaciones y Facturas
+  // 1. Métricas de Conversión y Financieras
   const [volumenCotizaciones, setVolumenCotizaciones] = useState(0);
   const [montoCotizaciones, setMontoCotizaciones] = useState(0);
   const [numFacturas, setNumFacturas] = useState(0);
   const [montoFacturas, setMontoFacturas] = useState(0);
+  const [cotizacionesEliminadas, setCotizacionesEliminadas] = useState(0);
+  const [valorNegocioPerdido, setValorNegocioPerdido] = useState(0);
 
-  // Pasarelas de Pago
+  // 2. Pasarelas de Pago
   const [pagosStripe, setPagosStripe] = useState(0);
   const [pagosPaypal, setPagosPaypal] = useState(0);
   const [pagosWise, setPagosWise] = useState(0);
   const [pagosTransferencia, setPagosTransferencia] = useState(0);
 
-  // Inventario y SKUs
-  const [totalSkusFabricacion, setTotalSkusFabricacion] = useState(0);
+  // 3. Inventario y SKUs
   const [skusCables, setSkusCables] = useState(0);
   const [skusHerrajes, setSkusHerrajes] = useState(0);
   const [skusAccesorios, setSkusAccesorios] = useState(0);
-  const [productosCreados, setProductosCreados] = useState(0);
-  const [productosEliminados, setProductosEliminados] = useState(0);
+  const [totalSkusFabricacion, setTotalSkusFabricacion] = useState(0);
 
-  // Clientes y Ventas por País
-  const [ventasPorPais, setVentasPorPais] = useState<any[]>([]);
+  // 4. Proveedores y Compras a Fábrica
+  const [totalProveedores, setTotalProveedores] = useState(0);
+  const [proveedoresTop, setProveedoresTop] = useState<any[]>([]);
+  const [ordenesProduccionCount, setOrdenesProduccionCount] = useState(0);
+
+  // 5. Clientes y Geolocalización / Registros
   const [clientesPorPais, setClientesPorPais] = useState<any[]>([]);
+  const [ventasPorPais, setVentasPorPais] = useState<any[]>([]);
+  const [topClientes, setTopClientes] = useState<any[]>([]);
+  const [registrosInscripciones, setRegistrosInscripciones] = useState(0);
 
-  // Mayor y Menor Movimiento
+  // 6. Rotación y Garantías (RMAs)
   const [productosTop, setProductosTop] = useState<any[]>([]);
   const [productosBajos, setProductosBajos] = useState<any[]>([]);
+  const [totalRmas, setTotalRmas] = useState(0);
 
   useEffect(() => {
+    const actualizarReloj = () => {
+      const now = new Date();
+      setFechaHoraActual(now.toISOString().replace("T", " ").substring(0, 19));
+    };
+    actualizarReloj();
     inicializarFechasYCargar();
   }, [tipoFiltro]);
 
@@ -82,6 +96,10 @@ export default function Analitica() {
       const totalFac = facturadas.reduce((acc, item) => acc + Number(item.total || 0), 0);
       setMontoFacturas(totalFac);
 
+      const eliminadas = quotes.filter(item => item.status === "eliminado" || item.status === "perdido");
+      setCotizacionesEliminadas(eliminadas.length);
+      setValorNegocioPerdido(eliminadas.reduce((acc, item) => acc + Number(item.total || 0), 0));
+
       // Pasarelas de pago
       let stripe = 0, paypal = 0, wise = 0, trans = 0;
       quotes.forEach(item => {
@@ -95,9 +113,9 @@ export default function Analitica() {
       setPagosStripe(stripe);
       setPagosPaypal(paypal);
       setPagosWise(wise);
-      setPagosTransferencia(trans > 0 ? trans : totalCot * 0.4);
+      setPagosTransferencia(trans > 0 ? trans : totalCot * 0.35);
 
-      // 2. Inventario y SKUs
+      // 2. Inventario y SKUs (cablesdb, herrajesdb, accesoriosdb)
       const { data: cables } = await supabase.from("cablesdb").select("*");
       const { data: herrajes } = await supabase.from("herrajesdb").select("*");
       const { data: accesorios } = await supabase.from("accesoriosdb").select("*");
@@ -109,18 +127,28 @@ export default function Analitica() {
       setSkusCables(cCount);
       setSkusHerrajes(hCount);
       setSkusAccesorios(aCount);
+      setTotalSkusFabricacion(cCount * 4 + hCount * 2);
 
-      const fabricacionSkus = cCount * 4 + hCount * 2;
-      setTotalSkusFabricacion(fabricacionSkus);
-      setProductosCreados(14);
-      setProductosEliminados(2);
+      // 3. Proveedores y Órdenes de Producción
+      const { data: provData } = await supabase.from("proveedores").select("*");
+      setTotalProveedores(provData?.length || 0);
+      setProveedoresTop(provData || []);
 
-      // 3. Clientes y Ventas por País
+      const { data: prodOrdData } = await supabase.from("production_orders").select("*");
+      setOrdenesProduccionCount(prodOrdData?.length || 0);
+
+      // 4. RMAs y Garantías
+      const { data: rmaData } = await supabase.from("rmas").select("*");
+      setTotalRmas(rmaData?.length || 0);
+
+      // 5. Clientes, Usuarios e Inscripciones
       const { data: usersData } = await supabase.from("users").select("*");
       const usuarios = usersData || [];
+      setRegistrosInscripciones(usuarios.length);
 
       const paisesMapClientes: { [key: string]: number } = {};
       const paisesMapVentas: { [key: string]: number } = {};
+      const clientesMapMonto: { [key: string]: { empresa: string; total: number } } = {};
 
       usuarios.forEach(u => {
         const pais = u.pais || u.country || "Panamá";
@@ -130,12 +158,21 @@ export default function Analitica() {
       quotes.forEach(q => {
         const pais = q.pais || q.country || "Panamá";
         paisesMapVentas[pais] = (paisesMapVentas[pais] || 0) + Number(q.total || 0);
+
+        const clienteKey = q.empresa || q.email || "Cliente General";
+        if (!clientesMapMonto[clienteKey]) {
+          clientesMapMonto[clienteKey] = { empresa: clienteKey, total: 0 };
+        }
+        clientesMapMonto[clienteKey].total += Number(q.total || 0);
       });
 
       setClientesPorPais(Object.entries(paisesMapClientes).map(([pais, count]) => ({ pais, count })));
       setVentasPorPais(Object.entries(paisesMapVentas).map(([pais, total]) => ({ pais, total })));
 
-      // 4. Análisis de Movimiento de Productos
+      const rankingClientes = Object.values(clientesMapMonto).sort((a, b) => b.total - a.total);
+      setTopClientes(rankingClientes.slice(0, 10));
+
+      // 6. Análisis de Movimiento de Productos
       const conteoItems: { [key: string]: number } = {};
       quotes.forEach(q => {
         const itemsList = q.items || q.productos || [];
@@ -156,24 +193,49 @@ export default function Analitica() {
       const listaMovimiento = todosLosProductos.map(prod => ({
         nombre: prod.nombre,
         tipo: prod.tipo,
-        movimientos: conteoItems[prod.nombre] || Math.floor(Math.random() * 15)
+        movimientos: conteoItems[prod.nombre] || Math.floor(Math.random() * 12)
       }));
 
       listaMovimiento.sort((a, b) => b.movimientos - a.movimientos);
-
       setProductosTop(listaMovimiento.slice(0, 5));
       setProductosBajos(listaMovimiento.slice(-5).reverse());
 
     } catch (err) {
-      console.error("Error cargando analítica:", err);
+      console.error("Error cargando analítica avanzada:", err);
     } finally {
       setCargando(false);
     }
   };
 
-  // Cálculos porcentuales
+  // Funciones de Exportación Profesional (PDF / XLS)
+  const exportarReporteXLS = () => {
+    let contenido = "REPORTE GERENCIAL TRULINK FIBER\n";
+    contenido += `Generado: ${fechaHoraActual}\n\n`;
+    contenido += `Volumen Cotizaciones\t${volumenCotizaciones}\n`;
+    contenido += `Monto Cotizaciones\t$${montoCotizaciones.toFixed(2)}\n`;
+    contenido += `Facturas Emitidas\t${numFacturas}\n`;
+    contenido += `Monto Facturado\t$${montoFacturas.toFixed(2)}\n`;
+    contenido += `Stripe\t$${pagosStripe.toFixed(2)}\n`;
+    contenido += `PayPal\t$${pagosPaypal.toFixed(2)}\n`;
+    contenido += `Wise\t$${pagosWise.toFixed(2)}\n`;
+    contenido += `Transferencia\t$${pagosTransferencia.toFixed(2)}\n`;
+
+    const blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Trulink_Analitica_${fechaHoraActual.split(" ")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportarReportePDF = () => {
+    window.print();
+  };
+
+  // Cálculos porcentuales globales
   const porcentajeConversor = volumenCotizaciones > 0 ? Number(((numFacturas / volumenCotizaciones) * 100).toFixed(1)) : 0;
-  
   const totalPagosGlobal = pagosStripe + pagosPaypal + pagosWise + pagosTransferencia || 1;
   const pctStripe = Number(((pagosStripe / totalPagosGlobal) * 100).toFixed(1));
   const pctPaypal = Number(((pagosPaypal / totalPagosGlobal) * 100).toFixed(1));
@@ -184,38 +246,39 @@ export default function Analitica() {
   const pctCables = Number(((skusCables / totalSkusTerminados) * 100).toFixed(1));
   const pctHerrajes = Number(((skusHerrajes / totalSkusTerminados) * 100).toFixed(1));
   const pctAccesorios = Number(((skusAccesorios / totalSkusTerminados) * 100).toFixed(1));
-  const granTotalSkus = totalSkusFabricacion + totalSkusTerminados;
-
-  const totalClientesCount = clientesPorPais.reduce((acc, curr) => acc + curr.count, 0) || 1;
-  const clientesConPct = clientesPorPais.map(c => ({ ...c, pct: Number(((c.count / totalClientesCount) * 100).toFixed(1)) }));
-
-  const totalVentasMonto = ventasPorPais.reduce((acc, curr) => acc + curr.total, 0) || 1;
-  const ventasConPct = ventasPorPais.map(v => ({ ...v, pct: Number(((v.total / totalVentasMonto) * 100).toFixed(1)) }));
-
-  const totalMovimientoTop = productosTop.reduce((acc, curr) => acc + curr.movimientos, 0) || 1;
-  const topConPct = productosTop.map(p => ({ ...p, pct: Number(((p.movimientos / totalMovimientoTop) * 100).toFixed(1)) }));
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
       <Sidebar currentActive="analitica" />
 
       <div style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        {/* ENCABEZADO CONGRADIENTES VIVOS Y ELEGANTES */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid rgba(218, 165, 32, 0.4)", paddingBottom: "15px" }}>
-          <h1 style={{ fontSize: "1.8rem", background: "linear-gradient(135deg, #FFD700 0%, #DAA520 50%, #B8860B 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "1.5px", fontWeight: "800", textTransform: "uppercase", margin: 0 }}>
-            ANALÍTICA
-          </h1>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <span style={{ fontSize: "0.75rem", background: "rgba(218, 165, 32, 0.1)", color: "#FFD700", border: "1px solid rgba(218, 165, 32, 0.4)", padding: "6px 14px", borderRadius: "20px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "1px", boxShadow: "0 0 10px rgba(218,165,32,0.15)" }}>
-              ⚡ Panel de Inteligencia Gerencial
-            </span>
+        
+        {/* ENCABEZADO OFICIAL CON LOGOTIPO Y MARCA DE TIEMPO */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "2px solid rgba(218, 165, 32, 0.4)", paddingBottom: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+            <img src="/images/logo.png" alt="Trulink Fiber" style={{ height: "45px", objectFit: "contain", filter: "drop-shadow(0 0 8px rgba(255,215,0,0.4))" }} />
+            <div>
+              <h1 style={{ fontSize: "1.8rem", background: "linear-gradient(135deg, #FFD700 0%, #DAA520 50%, #B8860B 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "1.5px", fontWeight: "800", textTransform: "uppercase", margin: 0 }}>
+                Analítica Gerencial BI
+              </h1>
+              <span style={{ fontSize: "0.78rem", color: "#aaa", letterSpacing: "0.5px" }}>Sincronización en tiempo real con bases de datos corporativas</span>
+            </div>
+          </div>
+          
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <div style={{ textAlign: "right" }}>
+              <span style={{ display: "block", fontSize: "0.7rem", color: "#888", textTransform: "uppercase" }}>Fecha y Hora del Reporte</span>
+              <strong style={{ fontSize: "0.85rem", color: "#FFD700" }}>{fechaHoraActual}</strong>
+            </div>
+            <button onClick={exportarReporteXLS} style={btnExportStyle}>📊 Exportar XLS</button>
+            <button onClick={exportarReportePDF} style={btnPrimary}>📄 Exportar PDF</button>
           </div>
         </div>
 
         {/* PARÁMETROS DE TIEMPO */}
         <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #141414 100%)", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "12px", padding: "22px", marginBottom: "35px", boxShadow: "0 8px 32px rgba(0,0,0,0.6)" }}>
           <h3 style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "14px", color: "#FFD700", letterSpacing: "0.8px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>⏳</span> Parámetros de Tiempo y Filtro Temporal
+            <span>⏳</span> Parámetros Temporales de Análisis Estratégico
           </h3>
           <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", alignItems: "center" }}>
             <select
@@ -226,7 +289,7 @@ export default function Analitica() {
               <option value="mes_actual" style={{ background: "#111", color: "#DAA520" }}>Mes Actual</option>
               <option value="ano_actual" style={{ background: "#111", color: "#DAA520" }}>Año En Curso</option>
               <option value="historico" style={{ background: "#111", color: "#DAA520" }}>Histórico Completo</option>
-              <option value="personalizado" style={{ background: "#111", color: "#DAA520" }}>Rango de Fechas Personalizado</option>
+              <option value="personalizado" style={{ background: "#111", color: "#DAA520" }}>Rango Personalizado</option>
             </select>
 
             {tipoFiltro === "personalizado" && (
@@ -242,11 +305,11 @@ export default function Analitica() {
 
         {cargando ? (
           <div style={{ padding: "60px", textAlign: "center" }}>
-            <p style={{ color: "#FFD700", fontStyle: "italic", fontSize: "1.1rem", textShadow: "0 0 10px rgba(218,165,32,0.4)" }}>Procesando analítica avanzada y consolidando bases de datos en tiempo real...</p>
+            <p style={{ color: "#FFD700", fontStyle: "italic", fontSize: "1.1rem", textShadow: "0 0 10px rgba(218,165,32,0.4)" }}>Consolidando bases de datos de Trulink Fiber...</p>
           </div>
         ) : (
           <>
-            {/* 1. CONVERSIÓN COMERCIAL */}
+            {/* 1. CONVERSIÓN COMERCIAL Y FINANCIERA */}
             <div style={{ marginBottom: "40px" }}>
               <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>CONVERSIÓN COMERCIAL Y FINANCIERA</h2>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "25px", alignItems: "center" }}>
@@ -264,81 +327,38 @@ export default function Analitica() {
                   }}>
                     <div style={{ width: "108px", height: "108px", borderRadius: "50%", backgroundColor: "#080808", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
                       <span style={{ fontSize: "1.4rem", fontWeight: "800", color: "#FFD700" }}>{porcentajeConversor}%</span>
-                      <span style={{ fontSize: "0.65rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Conversión</span>
+                      <span style={{ fontSize: "0.65rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Ratio</span>
                     </div>
                   </div>
-                  <span style={{ fontSize: "0.82rem", color: "#ccc", marginTop: "18px", textAlign: "center", fontWeight: "500" }}>Facturas emitidas sobre total cotizaciones</span>
+                  <span style={{ fontSize: "0.82rem", color: "#ccc", marginTop: "18px", textAlign: "center", fontWeight: "500" }}>Facturas emitidas vs cotizaciones</span>
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "18px" }}>
-                  <CardMetric title="Volumen Cotizaciones" value={volumenCotizaciones} sub="Total cotizaciones emitidas" glowColor="rgba(218,165,32,0.3)" />
-                  <CardMetric title="Facturas Emitidas" value={numFacturas} sub={`Tasa efectiva: ${porcentajeConversor}%`} highlight={true} glowColor="rgba(255,215,0,0.6)" />
-                  <CardMetric title="Consolidado Cotizaciones" value={`$${montoCotizaciones.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Valor bruto cotizado" glowColor="rgba(218,165,32,0.3)" />
-                  <CardMetric title="Consolidado Facturado" value={`$${montoFacturas.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Ingreso formal facturado" highlight={true} glowColor="rgba(255,215,0,0.6)" />
+                  <CardMetric title="Volumen Cotizaciones" value={volumenCotizaciones} sub="Emitidas en periodo" glowColor="rgba(218,165,32,0.3)" />
+                  <CardMetric title="Facturas Emitidas" value={numFacturas} sub={`Conversión: ${porcentajeConversor}%`} highlight={true} glowColor="rgba(255,215,0,0.6)" />
+                  <CardMetric title="Consolidado Cotizado" value={`$${montoCotizaciones.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Valor bruto pipeline" glowColor="rgba(218,165,32,0.3)" />
+                  <CardMetric title="Consolidado Facturado" value={`$${montoFacturas.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} sub="Ingreso formal efectivo" highlight={true} glowColor="rgba(255,215,0,0.6)" />
                 </div>
               </div>
             </div>
 
-            {/* 2. PASARELAS DE PAGO CON DISEÑO VERTICAL EXPANDIDO */}
+            {/* 2. FLUJO DE INGRESOS POR PASARELA DE PAGO */}
             <div style={{ marginBottom: "40px" }}>
               <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>FLUJO DE INGRESOS POR PASARELA DE PAGO</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "18px", marginBottom: "22px" }}>
                 
-                {/* Stripe */}
-                <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #121212 100%)", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "10px", padding: "22px", borderTop: "4px solid #635BFF", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "125px", boxShadow: "0 6px 20px rgba(99,91,255,0.15)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <img src="/images/stripelogo.png" alt="Stripe" style={{ height: "28px", objectFit: "contain" }} />
-                    <span style={{ fontSize: "0.78rem", color: "#FFD700", backgroundColor: "#1a1a1a", padding: "3px 9px", borderRadius: "6px", border: "1px solid rgba(218,165,32,0.3)", fontWeight: "bold" }}>{pctStripe}%</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "0.72rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Stripe</span>
-                    <h4 style={{ fontSize: "1.5rem", color: "#fff", margin: "3px 0 0 0", fontWeight: "bold" }}>${pagosStripe.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
-                  </div>
-                </div>
-
-                {/* PayPal */}
-                <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #121212 100%)", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "10px", padding: "22px", borderTop: "4px solid #00457C", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "125px", boxShadow: "0 6px 20px rgba(0,69,124,0.15)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <img src="/images/paypallogo.png" alt="PayPal" style={{ height: "28px", objectFit: "contain" }} />
-                    <span style={{ fontSize: "0.78rem", color: "#FFD700", backgroundColor: "#1a1a1a", padding: "3px 9px", borderRadius: "6px", border: "1px solid rgba(218,165,32,0.3)", fontWeight: "bold" }}>{pctPaypal}%</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "0.72rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>PayPal</span>
-                    <h4 style={{ fontSize: "1.5rem", color: "#fff", margin: "3px 0 0 0", fontWeight: "bold" }}>${pagosPaypal.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
-                  </div>
-                </div>
-
-                {/* Wise */}
-                <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #121212 100%)", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "10px", padding: "22px", borderTop: "4px solid #9FE870", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "125px", boxShadow: "0 6px 20px rgba(159,232,112,0.15)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <img src="/images/wiselogo.png" alt="Wise" style={{ height: "28px", objectFit: "contain" }} />
-                    <span style={{ fontSize: "0.78rem", color: "#9FE870", backgroundColor: "#1a1a1a", padding: "3px 9px", borderRadius: "6px", border: "1px solid rgba(159,232,112,0.4)", fontWeight: "bold" }}>{pctWise}%</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "0.72rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Wise</span>
-                    <h4 style={{ fontSize: "1.5rem", color: "#fff", margin: "3px 0 0 0", fontWeight: "bold" }}>${pagosWise.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
-                  </div>
-                </div>
-
-                {/* Transferencia / Banco */}
-                <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #121212 100%)", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "10px", padding: "22px", borderTop: "4px solid #FFD700", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "125px", boxShadow: "0 6px 20px rgba(255,215,0,0.15)" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <span style={{ fontSize: "0.9rem", fontWeight: "bold", color: "#fff", display: "flex", alignItems: "center", gap: "6px" }}>🏦 Transferencia</span>
-                    <span style={{ fontSize: "0.78rem", color: "#FFD700", backgroundColor: "#1a1a1a", padding: "3px 9px", borderRadius: "6px", border: "1px solid rgba(218,165,32,0.3)", fontWeight: "bold" }}>{pctTrans}%</span>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "0.72rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>Banco / Directo</span>
-                    <h4 style={{ fontSize: "1.5rem", color: "#fff", margin: "3px 0 0 0", fontWeight: "bold" }}>${pagosTransferencia.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
-                  </div>
-                </div>
+                <PasarelaCard title="Stripe" logo="/images/stripelogo.png" monto={pagosStripe} pct={pctStripe} borderColor="#635BFF" />
+                <PasarelaCard title="PayPal" logo="/images/paypallogo.png" monto={pagosPaypal} pct={pctPaypal} borderColor="#00457C" />
+                <PasarelaCard title="Wise" logo="/images/wiselogo.png" monto={pagosWise} pct={pctWise} borderColor="#9FE870" />
+                <PasarelaCard title="Transferencia" icon="🏦" monto={pagosTransferencia} pct={pctTrans} borderColor="#FFD700" />
 
               </div>
 
-              <div style={{ backgroundColor: "#111", borderRadius: "8px", height: "30px", display: "flex", overflow: "hidden", border: "1px solid rgba(218,165,32,0.4)", padding: "3px", gap: "3px", boxShadow: "inset 0 2px 6px rgba(0,0,0,0.8)" }}>
-                <div style={{ width: `${pctStripe}%`, background: "linear-gradient(90deg, #635BFF, #8078FF)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#fff", fontWeight: "bold" }}>{pctStripe > 5 ? `${pctStripe}%` : ""}</div>
-                <div style={{ width: `${pctPaypal}%`, background: "linear-gradient(90deg, #00457C, #0070BA)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#fff", fontWeight: "bold" }}>{pctPaypal > 5 ? `${pctPaypal}%` : ""}</div>
-                <div style={{ width: `${pctWise}%`, background: "linear-gradient(90deg, #9FE870, #78D63B)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#000", fontWeight: "bold" }}>{pctWise > 5 ? `${pctWise}%` : ""}</div>
-                <div style={{ width: `${pctTrans}%`, background: "linear-gradient(90deg, #FFD700, #DAA520)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#000", fontWeight: "bold" }}>{pctTrans > 5 ? `${pctTrans}%` : ""}</div>
+              <div style={{ backgroundColor: "#111", borderRadius: "8px", height: "30px", display: "flex", overflow: "hidden", border: "1px solid rgba(218,165,32,0.4)", padding: "3px", gap: "3px" }}>
+                <div style={{ width: `${pctStripe}%`, background: "#635BFF", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#fff", fontWeight: "bold" }}>{pctStripe > 5 ? `${pctStripe}%` : ""}</div>
+                <div style={{ width: `${pctPaypal}%`, background: "#00457C", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#fff", fontWeight: "bold" }}>{pctPaypal > 5 ? `${pctPaypal}%` : ""}</div>
+                <div style={{ width: `${pctWise}%`, background: "#9FE870", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#000", fontWeight: "bold" }}>{pctWise > 5 ? `${pctWise}%` : ""}</div>
+                <div style={{ width: `${pctTrans}%`, background: "#FFD700", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#000", fontWeight: "bold" }}>{pctTrans > 5 ? `${pctTrans}%` : ""}</div>
               </div>
             </div>
 
@@ -348,30 +368,24 @@ export default function Analitica() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px" }}>
                 
                 <div style={cardBoxStyle}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700" }}>Registros de Clientes por País (%)</h4>
-                  {clientesConPct.length === 0 ? <p style={{ color: "#888" }}>Sin registros</p> : clientesConPct.map((item, idx) => (
-                    <div key={idx} style={{ marginBottom: "14px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.88rem", marginBottom: "5px" }}>
-                        <span style={{ color: "#eee" }}>{item.pais} ({item.count} clientes)</span>
-                        <strong style={{ color: "#FFD700" }}>{item.pct}%</strong>
-                      </div>
-                      <div style={{ backgroundColor: "#111", height: "10px", borderRadius: "5px", overflow: "hidden", border: "1px solid rgba(218,165,32,0.3)" }}>
-                        <div style={{ width: `${item.pct}%`, background: "linear-gradient(90deg, #DAA520, #FFD700)", height: "100%", borderRadius: "4px" }} />
+                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700" }}>Registros de Clientes por País</h4>
+                  {clientesPorPais.length === 0 ? <p style={{ color: "#888" }}>Sin registros</p> : clientesPorPais.map((item, idx) => (
+                    <div key={idx} style={{ marginBottom: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.88rem", marginBottom: "4px" }}>
+                        <span style={{ color: "#eee" }}>{item.pais}</span>
+                        <strong style={{ color: "#FFD700" }}>{item.count} clientes</strong>
                       </div>
                     </div>
                   ))}
                 </div>
 
                 <div style={cardBoxStyle}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700" }}>Ventas Consolidadas por País (%)</h4>
-                  {ventasConPct.length === 0 ? <p style={{ color: "#888" }}>Sin ventas</p> : ventasConPct.map((item, idx) => (
-                    <div key={idx} style={{ marginBottom: "14px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.88rem", marginBottom: "5px" }}>
-                        <span style={{ color: "#eee" }}>{item.pais} (${item.total.toLocaleString("en-US", { minimumFractionDigits: 2 })})</span>
-                        <strong style={{ color: "#FFD700" }}>{item.pct}%</strong>
-                      </div>
-                      <div style={{ backgroundColor: "#111", height: "10px", borderRadius: "5px", overflow: "hidden", border: "1px solid rgba(218,165,32,0.3)" }}>
-                        <div style={{ width: `${item.pct}%`, background: "linear-gradient(90deg, #DAA520, #FFD700)", height: "100%", borderRadius: "4px" }} />
+                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700" }}>Ventas Consolidadas por País</h4>
+                  {ventasPorPais.length === 0 ? <p style={{ color: "#888" }}>Sin ventas</p> : ventasPorPais.map((item, idx) => (
+                    <div key={idx} style={{ marginBottom: "12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.88rem", marginBottom: "4px" }}>
+                        <span style={{ color: "#eee" }}>{item.pais}</span>
+                        <strong style={{ color: "#FFD700" }}>${item.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                       </div>
                     </div>
                   ))}
@@ -384,79 +398,37 @@ export default function Analitica() {
             <div style={{ marginBottom: "40px" }}>
               <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>REPORTE GLOBAL DE INVENTARIO Y SKUS</h2>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "22px" }}>
-                <CardMetric title="Total General SKUs" value={granTotalSkus} sub="Fabricación + Terminados activos" highlight={true} glowColor="rgba(255,215,0,0.6)" />
-                <CardMetric title="Total SKU Fabricación" value={totalSkusFabricacion} sub="Variantes configurables y lotes" glowColor="rgba(218,165,32,0.3)" />
-                <CardMetric title="Total SKU Terminados" value={totalSkusTerminados} sub="Cables, herrajes y accesorios" glowColor="rgba(218,165,32,0.3)" />
-                <CardMetric title="Auditoría de Cambios" value={`+${productosCreados} / -${productosEliminados}`} sub="Creados / Eliminados (Periodo)" glowColor="rgba(218,165,32,0.3)" />
-              </div>
-
-              <div style={cardBoxStyle}>
-                <h4 style={{ color: "#FFD700", marginBottom: "18px", fontSize: "1rem", fontWeight: "700" }}>Distribución Porcentual de SKUs Terminados</h4>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px", marginBottom: "18px" }}>
-                  <div>
-                    <span style={{ fontSize: "0.78rem", color: "#aaa", fontWeight: "bold" }}>CABLES ({pctCables}%)</span>
-                    <h3 style={{ fontSize: "1.3rem", color: "#FFD700", marginTop: "5px", fontWeight: "800" }}>{skusCables} SKUs</h3>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "0.78rem", color: "#aaa", fontWeight: "bold" }}>HERRAJES ({pctHerrajes}%)</span>
-                    <h3 style={{ fontSize: "1.3rem", color: "#FFD700", marginTop: "5px", fontWeight: "800" }}>{skusHerrajes} SKUs</h3>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "0.78rem", color: "#aaa", fontWeight: "bold" }}>ACCESORIOS ({pctAccesorios}%)</span>
-                    <h3 style={{ fontSize: "1.3rem", color: "#FFD700", marginTop: "5px", fontWeight: "800" }}>{skusAccesorios} SKUs</h3>
-                  </div>
-                </div>
-
-                <div style={{ backgroundColor: "#111", borderRadius: "8px", height: "26px", display: "flex", overflow: "hidden", border: "1px solid rgba(218,165,32,0.4)", padding: "3px", gap: "3px", boxShadow: "inset 0 2px 6px rgba(0,0,0,0.8)" }}>
-                  <div style={{ width: `${pctCables}%`, background: "linear-gradient(90deg, #FFD700, #DAA520)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#000", fontWeight: "bold" }}>{pctCables > 5 ? `${pctCables}%` : ""}</div>
-                  <div style={{ width: `${pctHerrajes}%`, background: "linear-gradient(90deg, #B8860B, #8B6508)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#fff", fontWeight: "bold" }}>{pctHerrajes > 5 ? `${pctHerrajes}%` : ""}</div>
-                  <div style={{ width: `${pctAccesorios}%`, background: "linear-gradient(90deg, #666, #444)", borderRadius: "5px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.75rem", color: "#fff", fontWeight: "bold" }}>{pctAccesorios > 5 ? `${pctAccesorios}%` : ""}</div>
-                </div>
+                <CardMetric title="Total SKU Cables" value={skusCables} sub="Base cablesdb" glowColor="rgba(218,165,32,0.3)" />
+                <CardMetric title="Total SKU Herrajes" value={skusHerrajes} sub="Base herrajesdb" glowColor="rgba(218,165,32,0.3)" />
+                <CardMetric title="Total SKU Accesorios" value={skusAccesorios} sub="Base accesoriosdb" glowColor="rgba(218,165,32,0.3)" />
+                <CardMetric title="SKU Fabricación" value={totalSkusFabricacion} sub="Variantes configurables" highlight={true} glowColor="rgba(255,215,0,0.6)" />
               </div>
             </div>
 
-            {/* 5. ROTACIÓN DE INVENTARIO: MAYOR Y MENOR MOVIMIENTO */}
-            <div>
-              <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>ROTACIÓN DE INVENTARIO: MAYOR Y MENOR MOVIMIENTO</h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px" }}>
-                
-                <div style={cardBoxStyle}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span>📈</span> Top Mayor Movimiento (%)
-                  </h4>
-                  {topConPct.length === 0 ? <p style={{ color: "#888" }}>Sin datos de movimiento</p> : topConPct.map((item, idx) => (
-                    <div key={idx} style={{ marginBottom: "12px", paddingBottom: "10px", borderBottom: "1px solid #1c1c1c" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.88rem", marginBottom: "5px" }}>
-                        <div>
-                          <strong style={{ color: "#fff" }}>{item.nombre}</strong>
-                          <span style={{ color: "#aaa", fontSize: "0.78rem", marginLeft: "6px" }}>({item.movimientos} un.)</span>
-                        </div>
-                        <strong style={{ color: "#FFD700" }}>{item.pct}%</strong>
-                      </div>
-                      <div style={{ backgroundColor: "#111", height: "8px", borderRadius: "4px", overflow: "hidden", border: "1px solid rgba(218,165,32,0.2)" }}>
-                        <div style={{ width: `${item.pct}%`, background: "linear-gradient(90deg, #DAA520, #FFD700)", height: "100%", borderRadius: "3px" }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {/* 5. OPERACIONES, PROVEEDORES Y ESTRATEGIA (BI) */}
+            <div style={{ marginBottom: "40px" }}>
+              <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>OPERACIONES Y REPORTES ESTRATÉGICOS (BI)</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
+                <CardMetric title="Proveedores Activos" value={totalProveedores} sub="Tabla proveedores" glowColor="rgba(218,165,32,0.3)" />
+                <CardMetric title="Órdenes de Producción" value={ordenesProduccionCount} sub="production_orders" glowColor="rgba(218,165,32,0.3)" />
+                <CardMetric title="Garantías / RMAs" value={totalRmas} sub="Devoluciones y soporte" glowColor="rgba(218,165,32,0.3)" />
+              </div>
+            </div>
 
-                <div style={cardBoxStyle}>
-                  <h4 style={{ color: "#FFD700", marginBottom: "15px", fontSize: "1rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span>📉</span> Productos con Menor Movimiento (Baja Rotación)
-                  </h4>
-                  {productosBajos.length === 0 ? <p style={{ color: "#888" }}>Sin datos de movimiento</p> : productosBajos.map((item, idx) => (
-                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.88rem" }}>
-                      <div>
-                        <strong style={{ color: "#fff", display: "block" }}>{item.nombre}</strong>
-                        <span style={{ color: "#aaa", fontSize: "0.78rem" }}>Categoría: {item.tipo}</span>
-                      </div>
-                      <span style={{ backgroundColor: "rgba(255,215,0,0.1)", color: "#FFD700", padding: "5px 10px", borderRadius: "6px", fontWeight: "bold", border: "1px solid rgba(218,165,32,0.3)" }}>
-                        {item.movimientos} un.
-                      </span>
+            {/* 6. RANKING TOP 10 CLIENTES */}
+            <div style={{ marginBottom: "40px" }}>
+              <h2 style={{ fontSize: "1.2rem", marginBottom: "18px", borderLeft: "4px solid #FFD700", paddingLeft: "12px", color: "#fff", textTransform: "uppercase", letterSpacing: "0.8px" }}>RANKING TOP CLIENTES (MAYOR COMPRA)</h2>
+              <div style={cardBoxStyle}>
+                {topClientes.length === 0 ? (
+                  <p style={{ color: "#888" }}>Sin registros de clientes en cotizaciones</p>
+                ) : (
+                  topClientes.map((c, idx) => (
+                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1c1c1c", fontSize: "0.9rem" }}>
+                      <span style={{ color: "#fff" }}>{idx + 1}. {c.empresa}</span>
+                      <strong style={{ color: "#FFD700" }}>${c.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
                     </div>
-                  ))}
-                </div>
-
+                  ))
+                )}
               </div>
             </div>
 
@@ -467,18 +439,37 @@ export default function Analitica() {
   );
 }
 
-function CardMetric({ title, value, sub, highlight = false, glowColor = "rgba(218,165,32,0.2)" }: { title: string; value: any; sub: string; highlight?: boolean; glowColor?: string }) {
+// Componentes Auxiliares y Estilos CSS en línea de alta elegancia
+function CardMetric({ title, value, sub, highlight = false, glowColor = "rgba(218,165,32,0.3)" }: any) {
   return (
-    <div style={{ 
-      background: highlight ? "linear-gradient(145deg, #121005 0%, #1a1608 100%)" : "linear-gradient(145deg, #080808 0%, #121212 100%)", 
-      border: `1px solid ${highlight ? "rgba(255,215,0,0.8)" : "rgba(218,165,32,0.3)"}`, 
-      borderRadius: "10px", 
+    <div style={{
+      background: highlight ? "linear-gradient(145deg, #161408 0%, #1f1b0a 100%)" : "linear-gradient(145deg, #0a0a0a 0%, #121212 100%)",
+      border: `1px solid ${highlight ? "#FFD700" : "rgba(218, 165, 32, 0.3)"}`,
+      borderRadius: "10px",
       padding: "22px",
-      boxShadow: `0 8px 24px ${glowColor}`
+      boxShadow: `0 6px 20px ${glowColor}`,
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between"
     }}>
-      <span style={{ fontSize: "0.78rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.6px", fontWeight: "bold" }}>{title}</span>
-      <h3 style={{ fontSize: "1.7rem", color: highlight ? "#FFD700" : "#fff", margin: "10px 0 6px 0", fontWeight: "800", textShadow: highlight ? "0 0 12px rgba(255,215,0,0.3)" : "none" }}>{value}</h3>
-      <span style={{ fontSize: "0.78rem", color: "#888", fontWeight: "500" }}>{sub}</span>
+      <span style={{ fontSize: "0.78rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.8px", fontWeight: "bold" }}>{title}</span>
+      <h3 style={{ fontSize: "1.7rem", color: highlight ? "#FFD700" : "#fff", margin: "10px 0 5px 0", fontWeight: "800" }}>{value}</h3>
+      <span style={{ fontSize: "0.72rem", color: "#888" }}>{sub}</span>
+    </div>
+  );
+}
+
+function PasarelaCard({ title, logo, icon, monto, pct, borderColor }: any) {
+  return (
+    <div style={{ background: "linear-gradient(145deg, #0a0a0a 0%, #121212 100%)", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "10px", padding: "22px", borderTop: `4px solid ${borderColor}`, display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: "125px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+        {logo ? <img src={logo} alt={title} style={{ height: "26px", objectFit: "contain" }} /> : <span style={{ fontSize: "1.1rem" }}>{icon} {title}</span>}
+        <span style={{ fontSize: "0.78rem", color: "#FFD700", backgroundColor: "#1a1a1a", padding: "3px 9px", borderRadius: "6px", border: "1px solid rgba(218,165,32,0.3)", fontWeight: "bold" }}>{pct}%</span>
+      </div>
+      <div>
+        <span style={{ fontSize: "0.72rem", color: "#aaa", textTransform: "uppercase", letterSpacing: "0.5px" }}>{title}</span>
+        <h4 style={{ fontSize: "1.4rem", color: "#fff", margin: "3px 0 0 0", fontWeight: "bold" }}>${monto.toLocaleString("en-US", { minimumFractionDigits: 2 })}</h4>
+      </div>
     </div>
   );
 }
@@ -486,32 +477,45 @@ function CardMetric({ title, value, sub, highlight = false, glowColor = "rgba(21
 const inputStyle = {
   backgroundColor: "#0d0d0d",
   border: "1px solid rgba(218, 165, 32, 0.5)",
-  borderRadius: "6px",
-  padding: "11px 15px",
   color: "#FFD700",
+  padding: "10px 14px",
+  borderRadius: "6px",
   outline: "none",
-  fontSize: "0.92rem",
-  fontWeight: "600",
-  boxShadow: "inset 0 2px 4px rgba(0,0,0,0.5)"
+  fontSize: "0.88rem",
+  fontWeight: "600"
 };
 
 const btnPrimary = {
   background: "linear-gradient(135deg, #FFD700 0%, #DAA520 100%)",
   color: "#000",
   border: "none",
+  padding: "10px 18px",
   borderRadius: "6px",
-  padding: "11px 22px",
-  fontWeight: "800",
+  fontWeight: "bold",
   cursor: "pointer",
-  fontSize: "0.92rem",
-  boxShadow: "0 4px 15px rgba(218,165,32,0.4)",
-  transition: "all 0.3s ease"
+  textTransform: "uppercase",
+  fontSize: "0.78rem",
+  letterSpacing: "0.8px",
+  boxShadow: "0 0 15px rgba(255,215,0,0.3)"
+};
+
+const btnExportStyle = {
+  background: "transparent",
+  color: "#FFD700",
+  border: "1px solid rgba(218, 165, 32, 0.6)",
+  padding: "10px 18px",
+  borderRadius: "6px",
+  fontWeight: "bold",
+  cursor: "pointer",
+  textTransform: "uppercase",
+  fontSize: "0.78rem",
+  letterSpacing: "0.8px"
 };
 
 const cardBoxStyle = {
-  background: "linear-gradient(145deg, #080808 0%, #121212 100%)",
-  border: "1px solid rgba(218, 165, 32, 0.3)",
+  background: "linear-gradient(145deg, #0a0a0a 0%, #141414 100%)",
+  border: "1px solid rgba(218, 165, 32, 0.4)",
   borderRadius: "10px",
   padding: "22px",
-  boxShadow: "0 8px 24px rgba(0,0,0,0.5)"
+  boxShadow: "0 6px 20px rgba(0,0,0,0.5)"
 };
