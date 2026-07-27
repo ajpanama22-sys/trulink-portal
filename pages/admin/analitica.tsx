@@ -19,7 +19,7 @@ import {
   ArrowDownRight 
 } from 'lucide-react';
 
-export const Analitica = ({ supabase }: { supabase: any }) => {
+export default function Analitica({ supabase }: { supabase: any }) {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'accesorios' | 'registros' | 'comercial' | 'usuarios' | 'financiero' | 'bi'>('accesorios');
   const [searchTerm, setSearchTerm] = useState('');
@@ -477,7 +477,7 @@ export const Analitica = ({ supabase }: { supabase: any }) => {
       </div>
     </div>
   );
-};
+}
 
 function MetricCard({ title, value, change, positive, alert, icon }: { title: string; value: string; change: string; positive: boolean; alert?: boolean; icon?: React.ReactNode }) {
   return (
