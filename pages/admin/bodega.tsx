@@ -69,6 +69,7 @@ export default function Bodega() {
   }, [tablaActiva, subModulo]);
 
   const buscarProductos = async () => {
+    if (!supabase) return;
     setCargando(true);
     try {
       let query = supabase.from(tablaActiva).select("*");
@@ -92,6 +93,8 @@ export default function Bodega() {
     setNuevaFamiliaSeleccionada("");
     setNombreNuevaFamilia("");
     
+    if (!supabase) return;
+
     // Consultar familias existentes en la tabla seleccionada
     try {
       const { data, error } = await supabase.from(tabla).select("Familia, familia");
@@ -108,7 +111,7 @@ export default function Bodega() {
 
   // Subir imagen a Supabase Storage
   const handleSubirImagen = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+    if (!e.target.files || e.target.files.length === 0 || !supabase) return;
     const file = e.target.files[0];
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
@@ -129,6 +132,10 @@ export default function Bodega() {
   };
 
   const guardarNuevoProducto = async () => {
+    if (!supabase) {
+      alert("Error de conexión con la base de datos.");
+      return;
+    }
     if (!tablaCreacion) {
       alert("Debes seleccionar una base de datos.");
       return;
@@ -189,7 +196,7 @@ export default function Bodega() {
   };
 
   const guardarCambiosInteligente = async () => {
-    if (!productoSeleccionado) return;
+    if (!productoSeleccionado || !supabase) return;
     const idProd = productoSeleccionado.id;
     const skuProd = productoSeleccionado.SKU || productoSeleccionado.sku;
 
@@ -233,7 +240,7 @@ export default function Bodega() {
       return;
     }
 
-    if (pasoEliminar === 2 && productoSeleccionado) {
+    if (pasoEliminar === 2 && productoSeleccionado && supabase) {
       try {
         const idProd = productoSeleccionado.id;
         const skuProd = productoSeleccionado.SKU || productoSeleccionado.sku;
@@ -394,7 +401,7 @@ export default function Bodega() {
                   CREANDO EN: <span style={{ color: "#DAA520", textTransform: "uppercase" }}>{tablaCreacion.replace("db", "")}</span>
                 </h2>
                 <button onClick={() => setTablaCreacion("")} style={{ ...btnSecundario, fontSize: "0.7rem" }}>
-                  CHANGE BASE DE DATOS
+                  CAMBIAR BASE DE DATOS
                 </button>
               </div>
 
