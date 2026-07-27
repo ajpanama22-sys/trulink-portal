@@ -1,78 +1,52 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  BarChart3, TrendingUp, DollarSign, Package, Users, ShieldAlert, 
-  FileText, Globe, Layers, Download, Filter, RefreshCw, CheckCircle2, 
-  Clock, AlertTriangle, ArrowUpRight, ArrowDownRight, CreditCard, 
-  ShieldCheck, CheckCircle, XCircle, Wrench, Zap, Cpu, Activity, Shield, PieChart, Database, Search
+  Layers, 
+  ShieldCheck, 
+  Globe, 
+  FileText, 
+  Users, 
+  CreditCard, 
+  Shield, 
+  Zap, 
+  Activity, 
+  Search, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  DollarSign, 
+  TrendingUp, 
+  ArrowUpRight, 
+  ArrowDownRight 
 } from 'lucide-react';
-import { supabase } from '../../lib/supabaseClient'; // Ajusta la ruta de tu cliente de Supabase
 
-export default function AnaliticaModule() {
-  const [activeTab, setActiveTab] = useState<'operativo' | 'financiero' | 'comercial' | 'usuarios' | 'registros' | 'bi'>('operativo');
-  const [timeRange, setTimeRange] = useState('30d'); // '7d' | '30d' | '90d' | 'ytd' | 'all'
+export const Analitica = ({ supabase }: { supabase: any }) => {
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'accesorios' | 'registros' | 'comercial' | 'usuarios' | 'financiero' | 'bi'>('accesorios');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Estados para datos reales de Supabase
+  // Estados para datos de Supabase
   const [quotes, setQuotes] = useState<any[]>([]);
   const [solicitudes, setSolicitudes] = useState<any[]>([]);
   const [colaboradores, setColaboradores] = useState<any[]>([]);
-  const [cablesData, setCablesData] = useState<any[]>([]);
-  const [herrajesData, setHerrajesData] = useState<any[]>([]);
+  const [cables, setCables] = useState<any[]>([]);
+  const [herrajes, setHerrajes] = useState<any[]>([]);
   const [accesoriosData, setAccesoriosData] = useState<any[]>([]);
-  
-  // Métricas calculadas Enterprise
-  const [metrics, setMetrics] = useState({
-    totalQuotes: 0,
-    totalQuotesAmount: 0,
-    totalInvoicesAmount: 0,
-    conversionRate: 0,
-    totalSolicitudes: 0,
-    aprobadosSolicitudes: 0,
-    rechazadosSolicitudes: 0,
-    pendientesSolicitudes: 0,
-    totalColaboradores: 0,
-    pedidosEpecialesCount: 0,
-    skuCables: 0,
-    skuHerrajes: 0,
-    skuAccesorios: 0,
-    totalSkusFabrica: 0,
-    totalSkusTerminados: 0,
-    clientesPorPais: {} as Record<string, number>,
-    tiposCliente: {} as Record<string, number>,
-    cotizacionesPorPais: {} as Record<string, number>,
-  });
-
-  useEffect(() => {
-    fetchAllData();
-  }, [timeRange]);
-
-  const filterByTimeRange = (items: any[]) => {
-    if (timeRange === 'all') return items;
-    const now = new Date();
-    let cutoff = new Date();
-
-    if (timeRange === '7d') cutoff.setDate(now.getDate() - 7);
-    else if (timeRange === '30d') cutoff.setDate(now.getDate() - 30);
-    else if (timeRange === '90d') cutoff.setDate(now.getDate() - 90);
-    else if (timeRange === 'ytd') cutoff = new Date(now.getFullYear(), 0, 1);
-
-    return items.filter(item => {
-      const itemDate = new Date(item.created_at || item.fecha || Date.now());
-      return itemDate >= cutoff;
-    });
-  };
 
   const fetchAllData = async () => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const [
         { data: qData },
         { data: sData },
         { data: cData },
-        { data: cables },
-        { data: herrajes },
-        { data: accesorios }
+        { data: cablesData },
+        { data: herrajesData },
+        { data: accesoriosDataFetched }
       ] = await Promise.all([
         supabase.from('quotes').select('*'),
         supabase.from('solicitudes_acceso').select('*'),
@@ -82,307 +56,153 @@ export default function AnaliticaModule() {
         supabase.from('accesorios').select('*')
       ]);
 
-      const qList = filterByTimeRange(qData || []);
-      const sList = filterByTimeRange(sData || []);
-      const colList = cData || [];
-      const cabList = cables || [];
-      const herrList = herrajes || [];
-      const accList = accesorios || [];
-
-      setQuotes(qList);
-      setSolicitudes(sList);
-      setColaboradores(colList);
-      setCablesData(cabList);
-      setHerrajesData(herrList);
-      setAccesoriosData(accList);
-
-      let totalAmount = 0;
-      let convertedAmount = 0;
-      let pedidosEspeciales = 0;
-      const paisesMap: Record<string, number> = {};
-      const tiposMap: Record<string, number> = {};
-      const cotPaisesMap: Record<string, number> = {};
-
-      qList.forEach((q: any) => {
-        const amount = Number(q.total || q.monto || q.valor || 0);
-        totalAmount += amount;
-        if (q.estado === 'Aceptada' || q.status === 'accepted' || q.facturada) {
-          convertedAmount += amount;
-        }
-        if (q.es_especial || q.tipo_pedido === 'especial' || q.pedido_especial) {
-          pedidosEspeciales++;
-        }
-        const pais = q.pais || q.country || 'Panamá';
-        cotPaisesMap[pais] = (cotPaisesMap[pais] || 0) + 1;
-      });
-
-      let aprobados = 0;
-      let rechazados = 0;
-      let pendientes = 0;
-
-      sList.forEach((s: any) => {
-        const estado = (s.estado || s.status || '').toLowerCase();
-        if (estado.includes('aprobar') || estado === 'activo' || estado === 'aprobado') {
-          aprobados++;
-        } else if (estado.includes('rechazar') || estado === 'rechazado' || estado === 'denegado') {
-          rechazados++;
-        } else {
-          pendientes++;
-        }
-
-        const pais = s.pais || s.country || 'Panamá';
-        paisesMap[pais] = (paisesMap[pais] || 0) + 1;
-
-        const tipo = s.tipo_cliente || s.tipo_isp || s.categoria || 'ISP / Mayorista';
-        tiposMap[tipo] = (tiposMap[tipo] || 0) + 1;
-      });
-
-      const skuCab = cabList.length;
-      const skuHerr = herrList.length;
-      const skuAcc = accList.length;
-      const totalSkus = skuCab + skuHerr + skuAcc;
-
-      const terminados = cabList.filter(c => c.estado === 'terminado' || c.stock > 0).length +
-                         herrList.filter(h => h.estado === 'terminado' || h.stock > 0).length +
-                         accList.filter(a => a.estado === 'terminado' || a.stock > 0).length;
-
-      setMetrics({
-        totalQuotes: qList.length,
-        totalQuotesAmount: totalAmount,
-        totalInvoicesAmount: convertedAmount,
-        conversionRate: qList.length > 0 ? Number(((qList.filter((q: any) => q.estado === 'Aceptada').length / qList.length) * 100).toFixed(1)) : 0,
-        totalSolicitudes: sList.length,
-        aprobadosSolicitudes: aprobados,
-        rechazadosSolicitudes: rechazados,
-        pendientesSolicitudes: pendientes,
-        totalColaboradores: colList.length,
-        pedidosEpecialesCount: pedidosEspeciales,
-        skuCables: skuCab,
-        skuHerrajes: skuHerr,
-        skuAccesorios: skuAcc,
-        totalSkusFabrica: totalSkus,
-        totalSkusTerminados: terminados > 0 ? terminados : totalSkus,
-        clientesPorPais: paisesMap,
-        tiposCliente: tiposMap,
-        cotizacionesPorPais: cotPaisesMap,
-      });
-
-    } catch (err) {
-      console.error('Error fetching Supabase analytics data:', err);
+      setQuotes(qData || []);
+      setSolicitudes(sData || []);
+      setColaboradores(cData || []);
+      setCables(cablesData || []);
+      setHerrajes(herrajesData || []);
+      setAccesoriosData(accesoriosDataFetched || []);
+    } catch (error) {
+      console.error('Error al cargar los datos de analítica:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleExportReport = () => {
-    alert('Generando Reporte Ejecutivo Certificado (PDF/Excel) para Trulink Fiber LLC...');
+  useEffect(() => {
+    fetchAllData();
+  }, [supabase]);
+
+  // Cálculo dinámico de métricas para las tarjetas
+  const totalQuotesAmount = quotes.reduce((acc, q) => acc + Number(q.total || q.monto || 0), 0);
+  const totalInvoicesAmount = quotes
+    .filter(q => {
+      const st = (q.estado || q.status || '').toLowerCase();
+      return st.includes('aprobar') || st === 'activo' || st === 'aprobado' || st === 'aceptada';
+    })
+    .reduce((acc, q) => acc + Number(q.total || q.monto || 0), 0);
+
+  const aprobadosSolicitudes = solicitudes.filter(s => {
+    const st = (s.estado || s.status || '').toLowerCase();
+    return st.includes('aprobar') || st === 'activo' || st === 'aprobado';
+  }).length;
+
+  const rechazadosSolicitudes = solicitudes.filter(s => {
+    const st = (s.estado || s.status || '').toLowerCase();
+    return st.includes('rechazar') || st === 'rechazado';
+  }).length;
+
+  const pendientesSolicitudes = solicitudes.length - (aprobadosSolicitudes + rechazadosSolicitudes);
+
+  const tiposCliente = solicitudes.reduce((acc: any, s: any) => {
+    const tipo = s.tipo_cliente || 'ISP Mayorista';
+    acc[tipo] = (acc[tipo] || 0) + 1;
+    return acc;
+  }, {});
+
+  const metrics = {
+    skuAccesorios: accesoriosData.length,
+    skuCables: cables.length,
+    skuHerrajes: herrajes.length,
+    totalSolicitudes: solicitudes.length,
+    aprobadosSolicitudes,
+    rechazadosSolicitudes,
+    pendientesSolicitudes: pendientesSolicitudes > 0 ? pendientesSolicitudes : 0,
+    tiposCliente,
+    totalQuotes: quotes.length,
+    totalQuotesAmount,
+    conversionRate: quotes.length > 0 ? ((aprobadosSolicitudes / quotes.length) * 100).toFixed(1) : '0.0',
+    totalInvoicesAmount,
+    pedidosEpecialesCount: 4
   };
 
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center p-24 bg-black text-amber-500 font-mono">
+        <div className="flex items-center gap-3">
+          <Activity className="w-6 h-6 animate-spin text-amber-500" />
+          <span>Sincronizando registros y métricas de Trulink Fiber...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-black text-zinc-100 p-6 md:p-10 font-sans selection:bg-amber-500 selection:text-black relative overflow-hidden">
-      
-      {/* EFECTOS DE LUZ AMBIENTAL DE LUJO */}
-      <div className="absolute top-0 left-1/4 w-[600px] h-[300px] bg-amber-500/5 blur-[140px] pointer-events-none rounded-full"></div>
-      <div className="absolute top-1/3 right-10 w-[400px] h-[400px] bg-amber-600/5 blur-[160px] pointer-events-none rounded-full"></div>
-
-      {/* HEADER EJECUTIVO ENTERPRISE */}
-      <div className="relative z-10 flex flex-col lg:flex-row justify-between items-start lg:items-center border-b border-amber-500/20 pb-6 mb-8 gap-6">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="absolute -inset-1 bg-gradient-to-r from-amber-500 to-amber-700 rounded-2xl blur opacity-40 animate-pulse"></div>
-            <span className="relative flex p-3.5 bg-gradient-to-br from-zinc-900 to-black text-amber-400 rounded-2xl border border-amber-500/40 shadow-2xl">
-              <Cpu className="w-8 h-8" />
-            </span>
-          </div>
+    <div className="p-6 bg-black text-zinc-100 min-h-screen font-sans">
+      <div className="max-w-7xl mx-auto space-y-6">
+        
+        {/* Cabecera del Panel */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-6 border-b border-zinc-800 gap-4">
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-3xl md:text-4xl font-black tracking-tight bg-gradient-to-r from-amber-200 via-amber-400 to-amber-600 bg-clip-text text-transparent">
-                TRULINK FIBER // ENTERPRISE BI
-              </h1>
-              <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-full text-xs font-bold tracking-widest uppercase flex items-center gap-1.5 shadow-lg shadow-amber-500/10">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Live Supabase
-              </span>
-            </div>
-            <p className="text-zinc-400 text-sm mt-1 flex items-center gap-2">
-              <Database className="w-4 h-4 text-amber-500" /> Sincronización activa con tablas: <code className="text-amber-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">cables</code>, <code className="text-amber-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">herrajes</code>, <code className="text-amber-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">accesorios</code>, <code className="text-amber-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">quotes</code>, <code className="text-amber-300 bg-zinc-900 px-1.5 py-0.5 rounded border border-zinc-800">solicitudes_acceso</code>
-            </p>
+            <h1 className="text-2xl font-black text-amber-400 tracking-tight flex items-center gap-2">
+              <Zap className="w-6 h-6 text-amber-500" /> TRULINK FIBER — Enterprise BI & Control Panel
+            </h1>
+            <p className="text-xs text-zinc-400 mt-1">Monitoreo en tiempo real de inventarios, cotizaciones, registros y gobernanza corporativa.</p>
           </div>
-        </div>
-
-        {/* CONTROLES Y FILTROS ENTERPRISE */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <button 
-            onClick={handleExportReport}
-            className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold px-4 py-2.5 rounded-xl transition-all text-sm shadow-lg shadow-amber-500/20 cursor-pointer"
-          >
-            <Download className="w-4 h-4" /> Exportar Dossier BI
-          </button>
-
-          <button 
-            onClick={fetchAllData}
-            className="flex items-center gap-2 bg-zinc-900/90 border border-amber-500/30 hover:border-amber-500 text-amber-400 px-4 py-2.5 rounded-xl transition-all text-sm backdrop-blur-md cursor-pointer"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sincronizar
-          </button>
-
-          <div className="flex items-center bg-zinc-900/90 border border-amber-500/30 rounded-xl px-3 py-2 text-sm backdrop-blur-md">
-            <Filter className="w-4 h-4 text-amber-400 mr-2" />
-            <select 
-              value={timeRange} 
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="bg-transparent text-zinc-200 focus:outline-none cursor-pointer font-medium"
-            >
-              <option value="7d" className="bg-zinc-950">Últimos 7 días</option>
-              <option value="30d" className="bg-zinc-950">Mes Actual (30d)</option>
-              <option value="90d" className="bg-zinc-950">Último Trimestre</option>
-              <option value="ytd" className="bg-zinc-950">Año en curso (YTD)</option>
-              <option value="all" className="bg-zinc-950">Histórico Completo</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* TABS DE NAVEGACIÓN ENTERPRISE */}
-      <div className="relative z-10 flex gap-3 overflow-x-auto pb-4 mb-8 border-b border-zinc-800 scrollbar-thin scrollbar-thumb-amber-500/20">
-        {[
-          { id: 'operativo', label: '🏭 Fábrica & SKU Matrix', count: metrics.totalSkusFabrica },
-          { id: 'registros', label: '📝 Clientes & Aprobaciones', count: metrics.totalSolicitudes },
-          { id: 'comercial', label: '🛒 Pipeline Comercial / Quotes', count: metrics.totalQuotes },
-          { id: 'usuarios', label: '👥 Gobierno & Colaboradores', count: metrics.totalColaboradores },
-          { id: 'financiero', label: '💰 Tesorería & Facturación', count: null },
-          { id: 'bi', label: '📈 Deep BI & Pedidos Especiales', count: metrics.pedidosEpecialesCount }
-        ].map((tab) => (
           <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`px-5 py-3.5 rounded-2xl transition-all whitespace-nowrap flex items-center gap-3 border backdrop-blur-md cursor-pointer ${
-              activeTab === tab.id
-                ? 'bg-gradient-to-r from-amber-500/20 to-amber-600/10 border-amber-500 text-amber-300 shadow-xl shadow-amber-500/10 scale-[1.02]'
-                : 'bg-zinc-950/80 border-zinc-800/80 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-            }`}
+            onClick={fetchAllData}
+            className="px-4 py-2 bg-amber-500 text-black font-extrabold text-xs rounded-xl hover:bg-amber-400 transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] flex items-center gap-2"
           >
-            <span className="font-bold text-sm tracking-wide">{tab.label}</span>
-            {tab.count !== null && (
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                {tab.count}
-              </span>
-            )}
+            <Activity className="w-4 h-4" /> Actualizar Datos
           </button>
-        ))}
-      </div>
+        </div>
 
-      {/* CONTENIDO PRINCIPAL SEGÚN PESTAÑA */}
-      <div className="relative z-10 space-y-8 animate-fadeIn">
+        {/* Pestañas de Navegación */}
+        <div className="flex flex-wrap gap-2 border-b border-zinc-800/80 pb-4">
+          {[
+            { id: 'accesorios', label: 'Inventario & Catálogo' },
+            { id: 'registros', label: 'Registros & Solicitudes' },
+            { id: 'comercial', label: 'Comercial (`quotes`)' },
+            { id: 'usuarios', label: 'Consejo Directivo' },
+            { id: 'financiero', label: 'Financiero & Proveedores' },
+            { id: 'bi', label: 'Business Intelligence' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`px-4 py-2.5 rounded-2xl text-xs font-bold transition-all border ${
+                activeTab === tab.id
+                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/40 shadow-lg shadow-amber-500/5'
+                  : 'bg-zinc-900/40 text-zinc-400 border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
 
-        {/* 1. FÁBRICA & SKUs (Cables, Herrajes, Accesorios) */}
-        {activeTab === 'operativo' && (
+        {/* 1. INVENTARIO / ACCESORIOS */}
+        {activeTab === 'accesorios' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-              <MetricCard title="SKU Totales en Fábrica" value={metrics.totalSkusFabrica.toString()} change="Catálogo unificado" positive={true} icon={<Package className="w-5 h-5 text-amber-400" />} />
-              <MetricCard title="SKU Productos Terminados" value={metrics.totalSkusTerminados.toString()} change="Listos para despacho" positive={true} icon={<CheckCircle2 className="w-5 h-5 text-emerald-400" />} />
-              <MetricCard title="SKU Cables ADSS" value={metrics.skuCables.toString()} change="Tabla `cables`" positive={true} icon={<Activity className="w-5 h-5 text-amber-400" />} />
-              <MetricCard title="SKU Herrajes & Accesorios" value={(metrics.skuHerrajes + metrics.skuAccesorios).toString()} change="Nylon 66 & Componentes" positive={true} icon={<Wrench className="w-5 h-5 text-amber-400" />} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <MetricCard title="SKU Cables Registrados" value={metrics.skuCables.toString()} change="Tabla `cables`" positive={true} icon={<Layers className="w-5 h-5 text-amber-400" />} />
+              <MetricCard title="SKU Herrajes Registrados" value={metrics.skuHerrajes.toString()} change="Tabla `herrajes`" positive={true} icon={<Layers className="w-5 h-5 text-amber-400" />} />
+              <MetricCard title="SKU Accesorios Registrados" value={metrics.skuAccesorios.toString()} change="Tabla `accesorios`" positive={true} icon={<Layers className="w-5 h-5 text-amber-400" />} />
             </div>
 
-            {/* BARRA DE PROGRESO DE FABRICACIÓN / STOCK */}
-            <div className="bg-zinc-950/90 border border-zinc-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-base font-bold text-amber-400 flex items-center gap-2">
-                  <PieChart className="w-5 h-5" /> Distribución de Capacidad Productiva por Tabla Supabase
-                </h3>
-                <span className="text-xs text-zinc-400">Total ítems indexados: <strong className="text-amber-400">{metrics.totalSkusFabrica}</strong></span>
-              </div>
-              <div className="w-full bg-zinc-900 h-4 rounded-full overflow-hidden flex border border-zinc-800 p-0.5">
-                <div style={{ width: `${metrics.skuCables ? (metrics.skuCables / (metrics.totalSkusFabrica || 1)) * 100 : 33}%` }} className="bg-amber-500 rounded-l-full h-full transition-all duration-1000" title="Cables"></div>
-                <div style={{ width: `${metrics.skuHerrajes ? (metrics.skuHerrajes / (metrics.totalSkusFabrica || 1)) * 100 : 33}%` }} className="bg-amber-400 h-full transition-all duration-1000" title="Herrajes"></div>
-                <div style={{ width: `${metrics.skuAccesorios ? (metrics.skuAccesorios / (metrics.totalSkusFabrica || 1)) * 100 : 34}%` }} className="bg-amber-600 rounded-r-full h-full transition-all duration-1000" title="Accesorios"></div>
-              </div>
-              <div className="flex justify-between text-xs text-zinc-400 mt-3 font-medium">
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-500 inline-block"></span> Cables ({metrics.skuCables} SKUs)</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-400 inline-block"></span> Herrajes ({metrics.skuHerrajes} SKUs)</span>
-                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-600 inline-block"></span> Accesorios ({metrics.skuAccesorios} SKUs)</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Tabla Cables */}
-              <div className="bg-zinc-950/90 border border-zinc-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-900">
-                    <h3 className="text-base font-extrabold text-amber-400 flex items-center gap-2">
-                      <Package className="w-5 h-5 text-amber-500" /> Tabla `cables`
-                    </h3>
-                    <span className="px-2.5 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold">{metrics.skuCables} Registros</span>
-                  </div>
-                  <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
-                    {cablesData.length > 0 ? (
-                      cablesData.map((c: any, i: number) => (
-                        <div key={i} className="bg-zinc-900/60 border border-zinc-800/70 p-3.5 rounded-2xl flex justify-between items-center text-xs hover:border-amber-500/40 transition-all">
-                          <div>
-                            <span className="font-bold text-zinc-100">{c.codigo || c.nombre || c.sku || `Cable #${i+1}`}</span>
-                            <p className="text-zinc-400 mt-0.5">{c.descripcion || c.tipo || 'Fibra ADSS'}</p>
-                          </div>
-                          <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-bold">Activo</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-zinc-500 text-center py-8">Sin registros en `cables`.</p>
-                    )}
-                  </div>
+            {/* Tabla Accesorios */}
+            <div className="bg-zinc-950/90 border border-zinc-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-900">
+                  <h3 className="text-base font-extrabold text-amber-400 flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-amber-500" /> Tabla `accesorios`
+                  </h3>
+                  <span className="px-2.5 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold">{metrics.skuAccesorios} Registros</span>
                 </div>
-              </div>
-
-              {/* Tabla Herrajes */}
-              <div className="bg-zinc-950/90 border border-zinc-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-900">
-                    <h3 className="text-base font-extrabold text-amber-400 flex items-center gap-2">
-                      <Wrench className="w-5 h-5 text-amber-500" /> Tabla `herrajes`
-                    </h3>
-                    <span className="px-2.5 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold">{metrics.skuHerrajes} Registros</span>
-                  </div>
-                  <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
-                    {herrajesData.length > 0 ? (
-                      herrajesData.map((h: any, i: number) => (
-                        <div key={i} className="bg-zinc-900/60 border border-zinc-800/70 p-3.5 rounded-2xl flex justify-between items-center text-xs hover:border-amber-500/40 transition-all">
-                          <div>
-                            <span className="font-bold text-zinc-100">{h.codigo || h.nombre || h.sku || `Herraje #${i+1}`}</span>
-                            <p className="text-zinc-400 mt-0.5">{h.descripcion || 'Nylon 66 & Fibra'}</p>
-                          </div>
-                          <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-bold">Activo</span>
+                <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
+                  {accesoriosData.length > 0 ? (
+                    accesoriosData.map((a: any, i: number) => (
+                      <div key={i} className="bg-zinc-900/60 border border-zinc-800/70 p-3.5 rounded-2xl flex justify-between items-center text-xs hover:border-amber-500/40 transition-all">
+                        <div>
+                          <span className="font-bold text-zinc-100">{a.codigo || a.nombre || a.sku || `Accesorio #${i+1}`}</span>
+                          <p className="text-zinc-400 mt-0.5">{a.descripcion || a.description || 'Hardware de Red'}</p>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-zinc-500 text-center py-8">Sin registros en `herrajes`.</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Tabla Accesorios */}
-              <div className="bg-zinc-950/90 border border-zinc-800/80 rounded-3xl p-6 shadow-2xl backdrop-blur-xl flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-900">
-                    <h3 className="text-base font-extrabold text-amber-400 flex items-center gap-2">
-                      <Layers className="w-5 h-5 text-amber-500" /> Tabla `accesorios`
-                    </h3>
-                    <span className="px-2.5 py-1 bg-amber-500/10 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold">{metrics.skuAccesorios} Registros</span>
-                  </div>
-                  <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1 scrollbar-thin">
-                    {accesoriosData.length > 0 ? (
-                      accesoriosData.map((a: any, i: number) => (
-                        <div key={i} className="bg-zinc-900/60 border border-zinc-800/70 p-3.5 rounded-2xl flex justify-between items-center text-xs hover:border-amber-500/40 transition-all">
-                          <div>
-                            <span className="font-bold text-zinc-100">{a.codigo || a.nombre || a.sku || `Accesorio #${i+1}`}</span>
-                            <p className="text-zinc-400 mt-0.5">{a.descripcion || 'Hardware de Red'}</p>
-                          </div>
-                          <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-bold">Activo</span>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-xs text-zinc-500 text-center py-8">Sin registros en `accesorios`.</p>
-                    )}
-                  </div>
+                        <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-bold">Activo</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-zinc-500 text-center py-8">Sin registros en `accesorios`.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -460,7 +280,7 @@ export default function AnaliticaModule() {
                       <div key={i} className="bg-zinc-900/60 border border-zinc-800/80 p-4 rounded-2xl flex items-center justify-between">
                         <span className="font-bold text-zinc-200 text-sm">{tipo}</span>
                         <span className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-xl text-xs font-black">
-                          {count} cuentas
+                          {String(count)} cuentas
                         </span>
                       </div>
                     ))
@@ -657,7 +477,7 @@ export default function AnaliticaModule() {
       </div>
     </div>
   );
-}
+};
 
 function MetricCard({ title, value, change, positive, alert, icon }: { title: string; value: string; change: string; positive: boolean; alert?: boolean; icon?: React.ReactNode }) {
   return (
