@@ -24,7 +24,7 @@ interface AjusteFabricado {
 export default function Fabricados() {
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [cargando, setCargando] = useState(false);
-  const [mostrarModalModalOF, setMostrarModalOF] = useState(false);
+  const [mostrarModalOF, setMostrarModalOF] = useState(false);
 
   // Estados de modales adicionales para Ajustes y Bitácora
   const [modalAjusteOpen, setModalAjusteOpen] = useState(false);
@@ -82,7 +82,7 @@ export default function Fabricados() {
             monto_total: total,
             monto_pagado: pagado,
             porcentaje_pago: pct,
-            detalles: q.descripcion || q.detalles || "Fabricación de Cable Óptico"
+            detalles: q.Descripción || q.descripcion || q.detalles || "Fabricación de Cable Óptico"
           };
         });
         setCotizacionesAprobadas(mapeadas);
@@ -281,7 +281,7 @@ export default function Fabricados() {
       </table>
 
       {/* MODAL NUEVA ORDEN DE FABRICACIÓN VINCULADA A COTIZACIÓN Y % PAGO */}
-      {mostrarModalModalOF && (
+      {mostrarModalOF && (
         <div style={modalOverlay}>
           <div style={modalContent}>
             <h3 style={{ color: "#DAA520", marginBottom: "15px", textTransform: "uppercase" }}>
