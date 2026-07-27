@@ -318,7 +318,7 @@ export default function Productos() {
     doc.text(`Cliente: ${infoCliente.empresa}`, 14, 40);
     doc.text(`Representante: ${infoCliente.representante}`, 14, 46);
     doc.text(`Mail: ${infoCliente.email}`, 14, 52);
-    doc.text(`Teléfono Móvil: ${infoCliente.telefono}`, 14, 58);
+    doc.text(`Teléfono Móvil: ${infoCliente.telefono_celular}`, 14, 58);
 
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 70);
