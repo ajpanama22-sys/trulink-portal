@@ -176,7 +176,7 @@ export default function Analitica() {
       setTotalRmas(rmaData?.length || 0);
 
       // 6. Clientes y Geolocalización
-      const usuarios = usersData || [];
+      const usuarios = usuariosData || [];
       setRegistrosInscripciones(usuarios.length);
 
       const paisesMapClientes: { [key: string]: number } = {};
