@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -67,6 +67,24 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     },
   ];
 
+  // Estado para controlar qué categorías están abiertas. 
+  // Por defecto, abrimos la categoría que contenga el ítem activo actual.
+  const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>(() => {
+    const initial: { [key: string]: boolean } = {};
+    menuBlocks.forEach((block) => {
+      const hasActiveItem = block.items.some((item) => item.key === currentActive);
+      initial[block.category] = hasActiveItem; // Abierto si contiene la ruta actual, cerrado si no.
+    });
+    return initial;
+  });
+
+  const toggleCategory = (category: string) => {
+    setOpenCategories((prev) => ({
+      ...prev,
+      [category]: !prev[category],
+    }));
+  };
+
   const handleCerrarSesion = async () => {
     if (supabase) {
       await supabase.auth.signOut();
@@ -111,76 +129,103 @@ export default function Sidebar({ currentActive }: SidebarProps) {
           </div>
 
           {/* NAVEGACIÓN AGRUPADA */}
-          <nav style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            {menuBlocks.map((block) => (
-              <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                
-                {/* TÍTULO DEL MÓDULO CENTRADO Y ENMARCADO */}
-                <div style={{
-                  textAlign: "center",
-                  border: "1px solid rgba(218, 165, 32, 0.4)",
-                  background: "rgba(218, 165, 32, 0.08)",
-                  borderRadius: "6px",
-                  padding: "6px 8px",
-                  margin: "0 0 2px 0"
-                }}>
-                  <span style={{
-                    color: "#DAA520",
-                    fontSize: "0.68rem",
-                    fontWeight: "bold",
-                    letterSpacing: "1.2px",
-                    textTransform: "uppercase",
-                    display: "block"
-                  }}>
-                    {block.category}
-                  </span>
-                </div>
+          <nav style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+            {menuBlocks.map((block) => {
+              const isOpen = openCategories[block.category];
+              const hasActiveChild = block.items.some((item) => item.key === currentActive);
 
-                {/* OPCIONES DEL BLOQUE */}
-                {block.items.map((item) => {
-                  const isActive = currentActive === item.key;
-                  return (
-                    <button
-                      key={item.key}
-                      onClick={() => router.push(item.path)}
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: "8px",
-                        border: isActive ? "1px solid #DAA520" : "1px solid transparent",
-                        background: isActive ? "#111111" : "transparent",
-                        color: isActive ? "#FFDF00" : "#d1a73e",
-                        textShadow: isActive 
-                          ? "0 0 10px rgba(255, 223, 0, 0.8), 0 0 20px rgba(218, 165, 32, 0.5)" 
-                          : "none",
-                        boxShadow: isActive ? "0 0 12px rgba(218, 165, 32, 0.2)" : "none",
-                        width: "100%",
-                        cursor: "pointer",
-                        fontWeight: isActive ? "800" : "bold",
-                        fontSize: "0.85rem",
-                        textAlign: "left",
-                        transition: "all 0.25s ease-in-out"
-                      }}
-                      onMouseOver={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.08)";
-                          e.currentTarget.style.color = "#FFDF00";
-                          e.currentTarget.style.textShadow = "0 0 8px rgba(255, 223, 0, 0.6)";
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        if (!isActive) {
-                          e.currentTarget.style.backgroundColor = "transparent";
-                          e.currentTarget.style.color = "#d1a73e";
-                          e.currentTarget.style.textShadow = "none";
-                        }
-                      }}
-                    >
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
-            ))}
+              return (
+                <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  
+                  {/* TÍTULO DEL MÓDULO INTERACTIVO (CLICKEABLE) */}
+                  <div
+                    onClick={() => toggleCategory(block.category)}
+                    style={{
+                      textAlign: "center",
+                      border: hasActiveChild ? "1px solid #DAA520" : "1px solid rgba(218, 165, 32, 0.4)",
+                      background: hasActiveChild ? "rgba(218, 165, 32, 0.15)" : "rgba(218, 165, 32, 0.08)",
+                      borderRadius: "6px",
+                      padding: "8px 10px",
+                      margin: "0",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.background = "rgba(218, 165, 32, 0.2)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.background = hasActiveChild ? "rgba(218, 165, 32, 0.15)" : "rgba(218, 165, 32, 0.08)";
+                    }}
+                  >
+                    <span style={{
+                      color: "#DAA520",
+                      fontSize: "0.68rem",
+                      fontWeight: "bold",
+                      letterSpacing: "1.2px",
+                      textTransform: "uppercase",
+                      flex: 1,
+                      textAlign: "center"
+                    }}>
+                      {block.category}
+                    </span>
+                    <span style={{ color: "#DAA520", fontSize: "0.75rem", fontWeight: "bold" }}>
+                      {isOpen ? '▲' : '▼'}
+                    </span>
+                  </div>
+
+                  {/* OPCIONES DEL BLOQUE (SE MUESTRAN SOLO SI ESTÁ ABIERTO) */}
+                  {isOpen && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "8px", animation: "fadeIn 0.2s ease-in-out" }}>
+                      {block.items.map((item) => {
+                        const isActive = currentActive === item.key;
+                        return (
+                          <button
+                            key={item.key}
+                            onClick={() => router.push(item.path)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "6px",
+                              border: isActive ? "1px solid #DAA520" : "1px solid transparent",
+                              background: isActive ? "#111111" : "transparent",
+                              color: isActive ? "#FFDF00" : "#d1a73e",
+                              textShadow: isActive 
+                                ? "0 0 10px rgba(255, 223, 0, 0.8), 0 0 20px rgba(218, 165, 32, 0.5)" 
+                                : "none",
+                              boxShadow: isActive ? "0 0 12px rgba(218, 165, 32, 0.2)" : "none",
+                              width: "100%",
+                              cursor: "pointer",
+                              fontWeight: isActive ? "800" : "bold",
+                              fontSize: "0.82rem",
+                              textAlign: "left",
+                              transition: "all 0.2s ease-in-out"
+                            }}
+                            onMouseOver={(e) => {
+                              if (!isActive) {
+                                e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.08)";
+                                e.currentTarget.style.color = "#FFDF00";
+                                e.currentTarget.style.textShadow = "0 0 8px rgba(255, 223, 0, 0.6)";
+                              }
+                            }}
+                            onMouseOut={(e) => {
+                              if (!isActive) {
+                                e.currentTarget.style.backgroundColor = "transparent";
+                                e.currentTarget.style.color = "#d1a73e";
+                                e.currentTarget.style.textShadow = "none";
+                              }
+                            }}
+                          >
+                            {item.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </nav>
         </div>
 
