@@ -9,14 +9,16 @@ import GastosServicios from '../../components/admin/contable/GastosServicios';
 import PlanillaNomina from '../../components/admin/contable/PlanillaNomina';
 import Comisiones from '../../components/admin/contable/Comisiones';
 
-// Modal de Registro de Ingresos/Cobros
+// Modales de Registro de Tesorería
 import RegistrarIngresoModal from '../../components/admin/contable/RegistrarIngresoModal';
+import RegistrarGastoModal from '../../components/admin/contable/RegistrarGastoModal';
 
 type TabType = 'resumen' | 'cxc' | 'cxp' | 'gastos' | 'planilla' | 'comisiones';
 
 export default function ModuloContable() {
   const [activeTab, setActiveTab] = useState<TabType>('resumen');
   const [mostrarModalIngreso, setMostrarModalIngreso] = useState(false);
+  const [mostrarModalGasto, setMostrarModalGasto] = useState(false);
 
   const tabs: { key: TabType; label: string; icon: string }[] = [
     { key: 'resumen', label: 'Resumen & Tesorería', icon: '📊' },
@@ -73,18 +75,22 @@ export default function ModuloContable() {
                 + REGISTRAR INGRESO / COBRO
               </button>
               
-              <button style={{
-                background: "transparent",
-                color: "#DAA520",
-                border: "1px solid #DAA520",
-                fontWeight: "bold",
-                padding: "10px 18px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                letterSpacing: "0.5px",
-                transition: "all 0.2s ease"
-              }}>
+              {/* BOTÓN CONECTADO AL MODAL DE REGISTRO DE GASTO */}
+              <button 
+                onClick={() => setMostrarModalGasto(true)}
+                style={{
+                  background: "transparent",
+                  color: "#DAA520",
+                  border: "1px solid #DAA520",
+                  fontWeight: "bold",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  letterSpacing: "0.5px",
+                  transition: "all 0.2s ease"
+                }}
+              >
                 - REGISTRAR GASTO / PAGO
               </button>
             </div>
@@ -140,10 +146,15 @@ export default function ModuloContable() {
         </div>
       </main>
 
-      {/* RENDERIZADO DEL MODAL */}
+      {/* RENDERIZADO DE MODALES */}
       <RegistrarIngresoModal 
         isOpen={mostrarModalIngreso} 
         onClose={() => setMostrarModalIngreso(false)} 
+      />
+
+      <RegistrarGastoModal 
+        isOpen={mostrarModalGasto} 
+        onClose={() => setMostrarModalGasto(false)} 
       />
     </div>
   );
