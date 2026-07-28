@@ -9,10 +9,14 @@ import GastosServicios from '../../components/admin/contable/GastosServicios';
 import PlanillaNomina from '../../components/admin/contable/PlanillaNomina';
 import Comisiones from '../../components/admin/contable/Comisiones';
 
+// Modal de Registro de Ingresos/Cobros
+import RegistrarIngresoModal from '../../components/admin/contable/RegistrarIngresoModal';
+
 type TabType = 'resumen' | 'cxc' | 'cxp' | 'gastos' | 'planilla' | 'comisiones';
 
 export default function ModuloContable() {
   const [activeTab, setActiveTab] = useState<TabType>('resumen');
+  const [mostrarModalIngreso, setMostrarModalIngreso] = useState(false);
 
   const tabs: { key: TabType; label: string; icon: string }[] = [
     { key: 'resumen', label: 'Resumen & Tesorería', icon: '📊' },
@@ -25,13 +29,10 @@ export default function ModuloContable() {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", width: "100%", backgroundColor: "#000000", color: "#ffffff" }}>
-      {/* Sidebar fijo en lateral izquierdo (misma carpeta) */}
       <Sidebar currentActive="modulo-contable" />
 
-      {/* Área Principal a Pantalla Completa */}
       <main style={{ flex: 1, minHeight: "100vh", backgroundColor: "#000000", padding: "30px", boxSizing: "border-box", overflowY: "auto" }}>
         
-        {/* Contenedor Elegante Negro con Borde Dorado */}
         <div style={{
           backgroundColor: "#0d0d0d",
           border: "1px solid rgba(218, 165, 32, 0.4)",
@@ -52,19 +53,23 @@ export default function ModuloContable() {
             </div>
 
             <div style={{ display: "flex", gap: "12px" }}>
-              <button style={{
-                background: "#DAA520",
-                color: "#000000",
-                fontWeight: "bold",
-                border: "none",
-                padding: "10px 18px",
-                borderRadius: "8px",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                letterSpacing: "0.5px",
-                boxShadow: "0 0 10px rgba(218, 165, 32, 0.3)",
-                transition: "all 0.2s ease"
-              }}>
+              {/* BOTÓN CONECTADO AL MODAL DE REGISTRO DE INGRESO */}
+              <button 
+                onClick={() => setMostrarModalIngreso(true)}
+                style={{
+                  background: "#DAA520",
+                  color: "#000000",
+                  fontWeight: "bold",
+                  border: "none",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  fontSize: "0.85rem",
+                  letterSpacing: "0.5px",
+                  boxShadow: "0 0 10px rgba(218, 165, 32, 0.3)",
+                  transition: "all 0.2s ease"
+                }}
+              >
                 + REGISTRAR INGRESO / COBRO
               </button>
               
@@ -134,6 +139,12 @@ export default function ModuloContable() {
 
         </div>
       </main>
+
+      {/* RENDERIZADO DEL MODAL */}
+      <RegistrarIngresoModal 
+        isOpen={mostrarModalIngreso} 
+        onClose={() => setMostrarModalIngreso(false)} 
+      />
     </div>
   );
 }
