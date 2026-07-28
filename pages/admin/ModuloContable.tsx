@@ -53,7 +53,6 @@ export default function ModuloContable() {
   const [modalColaboradorOpen, setModalColaboradorOpen] = useState(false);
   const [modalPagoPlanillaOpen, setModalPagoPlanillaOpen] = useState(false);
   const [colaboradorA-Pagar, setColaboradorAPagar] = useState<Colaborador | null>(null);
-
   // Formulario Transacciones
   const [formMonto, setFormMonto] = useState("");
   const [formCategoria, setFormCategoria] = useState("PAGO_CLIENTE");
