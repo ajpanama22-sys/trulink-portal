@@ -46,7 +46,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         if (diferenciaDias > 15) {
           console.warn(`⚠️ Intento de pago para cotización expirada (${referencia}). Días transcurridos: ${diferenciaDias}`);
-          // Nota: El dinero ya entró a PayPal, aquí se marca como excepción o se maneja administrativamente
         }
 
         // 3. Calcular saldos y acumulados financieros
@@ -72,6 +71,58 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (updateError) {
           throw new Error(`Error al actualizar Supabase: ${updateError.message}`);
         }
+
+        // -------------------------------------------------------------
+        // 4.b ALIMENTAR LA TABLA DE CUENTAS POR COBRAR ('cxc')
+        // -------------------------------------------------------------
+        const porcentajeAcumulado = totalCotizacion > 0 ? (acumuladoTotal / totalCotizacion) * 100 : 0;
+        const esEspecial = pagadoAnterior === 0 && (montoPagado / totalCotizacion) < 0.50;
+
+        let estadoCxC = "ABONADO_PARCIAL";
+        let condicionPago = "50/50_ESTANDAR";
+
+        if (esPagoTotal) {
+          estadoCxC = "PAGADO_TOTAL";
+          condicionPago = "100%_CONTADO";
+        } else if (esEspecial) {
+          estadoCxC = "CLIENTE_ESPECIAL_PENDIENTE";
+          condicionPago = "ESPECIAL_<50%";
+        }
+
+        // Revisar si ya existe la cuenta por cobrar registrada
+        const { data: cxcExistente } = await supabase
+          .from("cxc")
+          .select("id")
+          .eq("num_factura_ref", referencia)
+          .maybeSingle();
+
+        if (cxcExistente) {
+          // Si ya existe, actualizamos saldos y porcentaje
+          await supabase
+            .from("cxc")
+            .update({
+              saldo_pendiente: saldoPendiente > 0 ? saldoPendiente : 0,
+              porcentaje_pagado_actual: porcentajeAcumulado,
+              estado: estadoCxC
+            })
+            .eq("id", cxcExistente.id);
+        } else {
+          // Si es el primer abono, creamos el registro completo en 'cxc'
+          await supabase.from("cxc").insert([{
+            quote_id: quote.id,
+            num_factura_ref: referencia,
+            cliente_nombre: quote.empresa || quote.representante || "Cliente",
+            cliente_email: customerEmail || quote.email || "",
+            monto_total: totalCotizacion,
+            saldo_pendiente: saldoPendiente > 0 ? saldoPendiente : 0,
+            porcentaje_pagado_actual: porcentajeAcumulado,
+            condicion_pago: condicionPago,
+            es_cliente_especial: esEspecial,
+            fecha_estimada_despacho: quote.fecha_estimada || null,
+            estado: estadoCxC
+          }]);
+        }
+        // -------------------------------------------------------------
 
         // 5. Determinar el documento contable a emitir
         const tipoDocumentoEmitido = esPagoTotal ? "Factura Comercial" : "Recibo de Pago Parcial";
