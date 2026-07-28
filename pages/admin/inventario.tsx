@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import Sidebar from "../../components/Sidebar"; // Asegúrate de ajustar la ruta si tu Sidebar está en otra carpeta
+import Sidebar from "./Sidebar";
 import MateriaPrima from "./materiaprima";
 import Fabricados from "./fabricados";
 import Bodega from "./bodega";
