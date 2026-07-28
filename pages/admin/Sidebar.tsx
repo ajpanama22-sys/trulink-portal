@@ -77,139 +77,163 @@ export default function Sidebar({ currentActive }: SidebarProps) {
   };
 
   return (
-    <aside style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px", backgroundColor: "#000", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" }}>
-      {/* SECCIÓN SUPERIOR CON SCROLL SI ES NECESARIO */}
-      <div style={{ display: "flex", flexDirection: "column", overflowY: "auto", maxHeight: "calc(100vh - 150px)", paddingRight: "4px" }}>
-        
-        {/* LOGO Y ENCABEZADO */}
-        <div style={{ textAlign: "center", marginBottom: "25px" }}>
-          <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "100px", marginBottom: "10px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.3))" }} />
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", letterSpacing: "1px", margin: 0 }}>ADMIN PANEL</h2>
+    <>
+      {/* ESTILOS DE SCROLLBAR DORADO/NEGRO */}
+      <style>{`
+        .sidebar-scroll::-webkit-scrollbar {
+          width: 5px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-track {
+          background: #000000;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb {
+          background: rgba(218, 165, 32, 0.4);
+          border-radius: 10px;
+        }
+        .sidebar-scroll::-webkit-scrollbar-thumb:hover {
+          background: #DAA520;
+          box-shadow: 0 0 8px rgba(218, 165, 32, 0.8);
+        }
+        .sidebar-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(218, 165, 32, 0.4) #000000;
+        }
+      `}</style>
+
+      <aside style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px", backgroundColor: "#000000", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" }}>
+        {/* SECCIÓN SUPERIOR CON SCROLL PERSONALIZADO */}
+        <div className="sidebar-scroll" style={{ display: "flex", flexDirection: "column", overflowY: "auto", maxHeight: "calc(100vh - 150px)", paddingRight: "6px" }}>
+          
+          {/* LOGO Y ENCABEZADO */}
+          <div style={{ textAlign: "center", marginBottom: "25px" }}>
+            <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "100px", marginBottom: "10px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.3))" }} />
+            <h2 style={{ color: "#DAA520", fontSize: "1.1rem", letterSpacing: "1px", margin: 0 }}>ADMIN PANEL</h2>
+          </div>
+
+          {/* NAVEGACIÓN AGRUPADA */}
+          <nav style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {menuBlocks.map((block) => (
+              <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                
+                {/* TÍTULO DEL MÓDULO CENTRADO Y ENMARCADO */}
+                <div style={{
+                  textAlign: "center",
+                  border: "1px solid rgba(218, 165, 32, 0.4)",
+                  background: "rgba(218, 165, 32, 0.08)",
+                  borderRadius: "6px",
+                  padding: "6px 8px",
+                  margin: "0 0 2px 0"
+                }}>
+                  <span style={{
+                    color: "#DAA520",
+                    fontSize: "0.68rem",
+                    fontWeight: "bold",
+                    letterSpacing: "1.2px",
+                    textTransform: "uppercase",
+                    display: "block"
+                  }}>
+                    {block.category}
+                  </span>
+                </div>
+
+                {/* OPCIONES DEL BLOQUE */}
+                {block.items.map((item) => {
+                  const isActive = currentActive === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => router.push(item.path)}
+                      style={{
+                        padding: "10px 14px",
+                        borderRadius: "8px",
+                        border: isActive ? "1px solid #DAA520" : "1px solid transparent",
+                        background: isActive ? "#111111" : "transparent",
+                        color: isActive ? "#FFDF00" : "#d1a73e",
+                        textShadow: isActive 
+                          ? "0 0 10px rgba(255, 223, 0, 0.8), 0 0 20px rgba(218, 165, 32, 0.5)" 
+                          : "none",
+                        boxShadow: isActive ? "0 0 12px rgba(218, 165, 32, 0.2)" : "none",
+                        width: "100%",
+                        cursor: "pointer",
+                        fontWeight: isActive ? "800" : "bold",
+                        fontSize: "0.85rem",
+                        textAlign: "left",
+                        transition: "all 0.25s ease-in-out"
+                      }}
+                      onMouseOver={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.08)";
+                          e.currentTarget.style.color = "#FFDF00";
+                          e.currentTarget.style.textShadow = "0 0 8px rgba(255, 223, 0, 0.6)";
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (!isActive) {
+                          e.currentTarget.style.backgroundColor = "transparent";
+                          e.currentTarget.style.color = "#d1a73e";
+                          e.currentTarget.style.textShadow = "none";
+                        }
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
         </div>
 
-        {/* NAVEGACIÓN AGRUPADA */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {menuBlocks.map((block) => (
-            <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              
-              {/* TÍTULO DEL MÓDULO CENTRADO Y ENMARCADO */}
-              <div style={{
-                textAlign: "center",
-                border: "1px solid rgba(218, 165, 32, 0.4)",
-                background: "rgba(218, 165, 32, 0.08)",
-                borderRadius: "6px",
-                padding: "6px 8px",
-                margin: "0 0 2px 0"
-              }}>
-                <span style={{
-                  color: "#DAA520",
-                  fontSize: "0.68rem",
-                  fontWeight: "bold",
-                  letterSpacing: "1.2px",
-                  textTransform: "uppercase",
-                  display: "block"
-                }}>
-                  {block.category}
-                </span>
-              </div>
+        {/* BOTONES FIJOS INFERIORES */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "15px", borderTop: "1px solid rgba(218, 165, 32, 0.2)" }}>
+          <button
+            onClick={() => router.push('/portal-cliente')}
+            style={{
+              padding: "10px",
+              borderRadius: "8px",
+              border: "1px solid #DAA520",
+              background: "transparent",
+              color: "#DAA520",
+              width: "100%",
+              cursor: "pointer",
+              fontWeight: "bold",
+              transition: "all 0.2s ease"
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.1)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            ← Volver al Portal
+          </button>
 
-              {/* OPCIONES DEL BLOQUE */}
-              {block.items.map((item) => {
-                const isActive = currentActive === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    onClick={() => router.push(item.path)}
-                    style={{
-                      padding: "10px 14px",
-                      borderRadius: "8px",
-                      border: isActive ? "1px solid #DAA520" : "1px solid transparent",
-                      background: isActive ? "#111111" : "transparent",
-                      color: isActive ? "#FFDF00" : "#d1a73e",
-                      textShadow: isActive 
-                        ? "0 0 10px rgba(255, 223, 0, 0.8), 0 0 20px rgba(218, 165, 32, 0.5)" 
-                        : "none",
-                      boxShadow: isActive ? "0 0 12px rgba(218, 165, 32, 0.2)" : "none",
-                      width: "100%",
-                      cursor: "pointer",
-                      fontWeight: isActive ? "800" : "bold",
-                      fontSize: "0.85rem",
-                      textAlign: "left",
-                      transition: "all 0.25s ease-in-out"
-                    }}
-                    onMouseOver={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.08)";
-                        e.currentTarget.style.color = "#FFDF00";
-                        e.currentTarget.style.textShadow = "0 0 8px rgba(255, 223, 0, 0.6)";
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      if (!isActive) {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                        e.currentTarget.style.color = "#d1a73e";
-                        e.currentTarget.style.textShadow = "none";
-                      }
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </nav>
-      </div>
-
-      {/* BOTONES FIJOS INFERIORES */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "15px", borderTop: "1px solid rgba(218, 165, 32, 0.2)" }}>
-        <button
-          onClick={() => router.push('/portal-cliente')}
-          style={{
-            padding: "10px",
-            borderRadius: "8px",
-            border: "1px solid #DAA520",
-            background: "transparent",
-            color: "#DAA520",
-            width: "100%",
-            cursor: "pointer",
-            fontWeight: "bold",
-            transition: "all 0.2s ease"
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.1)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-          }}
-        >
-          ← Volver al Portal
-        </button>
-
-        <button
-          onClick={handleCerrarSesion}
-          style={{
-            padding: "12px",
-            borderRadius: "8px",
-            border: "1px solid rgba(231, 76, 60, 0.5)",
-            background: "transparent",
-            color: "#e74c3c",
-            width: "100%",
-            cursor: "pointer",
-            fontWeight: "bold",
-            letterSpacing: "0.5px",
-            transition: "all 0.2s ease"
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.backgroundColor = "rgba(231, 76, 60, 0.1)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-          }}
-        >
-          Cerrar Sesión
-        </button>
-      </div>
-    </aside>
+          <button
+            onClick={handleCerrarSesion}
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              border: "1px solid rgba(231, 76, 60, 0.5)",
+              background: "transparent",
+              color: "#e74c3c",
+              width: "100%",
+              cursor: "pointer",
+              fontWeight: "bold",
+              letterSpacing: "0.5px",
+              transition: "all 0.2s ease"
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(231, 76, 60, 0.1)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = "transparent";
+            }}
+          >
+            Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
