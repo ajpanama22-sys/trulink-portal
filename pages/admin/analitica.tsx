@@ -87,7 +87,7 @@ export default function Analitica() {
     setCargando(true);
 
     try {
-      // 1. Consultas paralelas robustas a Supabase
+ // 1. Consultas paralelas robustas a Supabase
       const [
         { data: quotesData },
         { data: cables },
@@ -97,8 +97,8 @@ export default function Analitica() {
         { data: prodOrdData },
         { data: rmaData },
         { data: usersData },
-        { data: cxcData },
-        { data: cxpData }
+        cxcRes,
+        cxpRes
       ] = await Promise.all([
         supabase.from("quotes").select("*").gte("created_at", `${desde}T00:00:00`).lte("created_at", `${hasta}T23:59:59`),
         supabase.from("cablesdb").select("*"),
@@ -108,11 +108,12 @@ export default function Analitica() {
         supabase.from("production_orders").select("*"),
         supabase.from("rmas").select("*"),
         supabase.from("users").select("*"),
-        supabase.from("cuentas_por_cobrar").select("*").catch(() => ({ data: [] })),
-        supabase.from("cuentas_por_pagar").select("*").catch(() => ({ data: [] }))
+        supabase.from("cuentas_por_cobrar").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("cuentas_por_pagar").select("*").then((res) => res, () => ({ data: [] }))
       ]);
 
-      const quotes = quotesData || [];
+      const cxcData = cxcRes?.data || [];
+      const cxpData = cxpRes?.data || [];
 
       // Procesamiento de Cotizaciones y Facturación
       setVolumenCotizaciones(quotes.length);
