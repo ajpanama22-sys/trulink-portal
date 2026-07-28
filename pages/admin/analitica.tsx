@@ -87,7 +87,7 @@ export default function Analitica() {
     setCargando(true);
 
     try {
- // 1. Consultas paralelas robustas a Supabase
+ /// 1. Consultas paralelas robustas a Supabase
       const [
         { data: quotesData },
         { data: cables },
@@ -112,9 +112,9 @@ export default function Analitica() {
         supabase.from("cuentas_por_pagar").select("*").then((res) => res, () => ({ data: [] }))
       ]);
 
+      const quotes = quotesData || [];
       const cxcData = cxcRes?.data || [];
       const cxpData = cxpRes?.data || [];
-
       // Procesamiento de Cotizaciones y Facturación
       setVolumenCotizaciones(quotes.length);
       const totalCot = quotes.reduce((acc, item) => acc + Number(item.total || 0), 0);
