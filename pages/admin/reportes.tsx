@@ -204,8 +204,8 @@ export default function Reportes() {
       }));
       setReporteProveedores(provFormatted);
 
-      // 5. CONEXIÓN TABLA 'users' (CRM Y CUENTAS)
-      const { data: usersData } = await supabase.from("users").select("*");
+      // 5. CONEXIÓN TABLA 'clientes' (CRM Y CUENTAS)
+      const { data: usersData } = await supabase.from("clientes").select("*");
       const usersFormatted = (usersData || []).map((u, idx) => ({
         id: u.id || idx,
         nombre: u.nombre || u.full_name || u.email?.split("@")[0] || "Usuario Portal",
