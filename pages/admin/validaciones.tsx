@@ -52,17 +52,26 @@ export default function AdminValidaciones() {
       return;
     }
     setLoading(true);
+
+    // Consulta robusta: Trae únicamente las que estén explícitamente pendientes, sean null o estén vacías
     const { data, error } = await supabase
       .from("solicitudes_acceso")
       .select("*")
-      .or("status.is.null,status.eq.pendiente");
+      .or("status.is.null,status.eq.pendiente,status.eq.PENDIENTE,status.eq.");
       
     if (error) {
       console.error("Error al cargar solicitudes:", error);
     } else {
-      setDataList(data || []);
+      // Filtro de seguridad adicional en el cliente para descartar cualquier aprobado o rechazado colado
+      const pendientesLimpias = (data || []).filter(item => {
+        const s = (item.status || "").trim().toLowerCase();
+        return s === "" || s === "pendiente" || s === "pending";
+      });
+
+      setDataList(pendientesLimpias);
+      
       const initialPagos: { [key: string]: { tipo: string; porcentaje: number } } = {};
-      (data || []).forEach((item: any) => {
+      pendientesLimpias.forEach((item: any) => {
         initialPagos[item.id] = { tipo: "50%", porcentaje: 50 };
       });
       setFormasPago(initialPagos);
@@ -171,7 +180,7 @@ export default function AdminValidaciones() {
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = 'C';
 
-      // 1. Guardar en TABLA CLIENTES (Incluye el comentario interno)
+      // 1. Guardar en TABLA CLIENTES
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -195,13 +204,13 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Actualizar solicitud a 'aprobado'
+      // 2. Actualizar solicitud a 'aprobado' de forma estricta
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
           status: 'aprobado', 
           password_token: passwordToken,
-          motivo_rechazo: comentarioAdmin // Guardado interno en la tabla
+          motivo_rechazo: comentarioAdmin
         })
         .eq('id', id);
 
@@ -211,7 +220,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 3. Enviar correo de activación (SIN comentarios internos)
+      // 3. Enviar correo de activación
       try {
         await fetch("/api/send-email", {
           method: "POST",
@@ -234,7 +243,7 @@ export default function AdminValidaciones() {
       // --- LÓGICA DE RECHAZO ---
       const motivoInterno = comentarioAdmin.trim() !== "" ? comentarioAdmin : "Sin comentario interno especificado.";
 
-      // 1. Actualizar solicitud a 'rechazado' guardando el comentario internamente
+      // 1. Actualizar solicitud a 'rechazado' de forma estricta
       const { error: rejectError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -249,7 +258,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Enviar correo de rechazo con el mensaje estándar indicado
+      // 2. Enviar correo de rechazo estándar
       try {
         await fetch("/api/send-email", {
           method: "POST",
