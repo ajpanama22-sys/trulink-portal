@@ -41,16 +41,17 @@ export default function Productos() {
   const [paginaActual, setPaginaActual] = useState(1);
   const productosPorPagina = 12;
 
-  // Estado para la referencia única con prefijo QT- y fecha/hora precisa para evitar duplicados en Supabase
+  // Estado para la referencia única con prefijo QT- y fecha/hora precisa
   const [referenciaActual, setReferenciaActual] = useState<string>("");
 
-  // Estados para los datos del cliente automatizados
+  // Estados robustos para los datos del cliente automatizados
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
+  const [clienteData, setClienteData] = useState<any>(null);
 
   useEffect(() => {
-    // Generación de referencia única QT sólida basada en marca temporal y aleatoriedad controlada
     const generarReferenciaUnica = () => {
       const timestamp = Date.now().toString().slice(-6);
       const randomNum = Math.floor(100 + Math.random() * 900);
@@ -59,32 +60,40 @@ export default function Productos() {
     setReferenciaActual(generarReferenciaUnica());
 
     const fetchClientInfo = async () => {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user?.email) {
-        console.error("No hay sesión activa o falta el correo.");
-        return;
-      }
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        
+        if (authError || !user?.email) {
+          console.error("Error de autenticación:", authError);
+          setNombreEmpresa("No autenticado");
+          return;
+        }
 
-      // Consultamos la tabla real 'clientes' usando el correo electrónico
-      const { data: clienteDB, error: dbError } = await supabase
-        .from("clientes")
-        .select("*")
-        .ilike("email", user.email.trim())
-        .maybeSingle();
+        // Consultamos la tabla real 'clientes' usando el correo electrónico
+        const { data: cliente, error: dbError } = await supabase
+          .from("clientes")
+          .select("*")
+          .ilike("email", user.email.trim())
+          .maybeSingle();
 
-      if (dbError) {
-        console.error("Error al consultar la tabla clientes:", dbError);
-      }
+        if (dbError) {
+          console.error("Error al consultar la tabla clientes:", dbError);
+        }
 
-      if (clienteDB) {
-        setNombreEmpresa(clienteDB.razon_social || clienteDB.nombre || "Cliente General");
-        setRepresentante(clienteDB.representante || clienteDB.nombre_representante || "No especificado");
-        setMailCliente(clienteDB.email || user.email);
-      } else {
-        setNombreEmpresa(user.email);
-        setRepresentante("No especificado");
-        setMailCliente(user.email);
+        if (cliente) {
+          setClienteData(cliente);
+          setNombreEmpresa(cliente.razon_social || cliente.nombre || "Cliente General");
+          setRepresentante(cliente.representante || cliente.nombre_representante || "No especificado");
+          setMailCliente(cliente.email || user.email);
+          setTelefonoCliente(cliente.telefono || cliente.celular || "N/D");
+        } else {
+          setNombreEmpresa(user.email);
+          setRepresentante("No especificado");
+          setMailCliente(user.email);
+          setTelefonoCliente("N/D");
+        }
+      } catch (err) {
+        console.error("Recepción al obtener la información del cliente:", err);
       }
     };
 
@@ -128,6 +137,21 @@ export default function Productos() {
       total: item.precio * item.cantidad
     }));
 
+    const payloadQuote = {
+      referencia: referenciaUnica,
+      tipo: 'producto',
+      empresa: clienteData?.razon_social || nombreEmpresa,
+      representante: representante,
+      email: clienteData?.email || mailCliente,
+      telefono: clienteData?.telefono || telefonoCliente,
+      total: totalCotizacion,
+      items: itemsFormateados,
+      status: 'pending',
+      pdf_url: pdfPublicUrl,
+      fecha_estimada_entrega: calcularFechaEntrega(),
+      created_at: new Date().toISOString()
+    };
+
     // Verificamos si ya existe la cotización con esta referencia usando la tabla 'quotes'
     const { data: existente } = await supabase
       .from('quotes')
@@ -139,34 +163,13 @@ export default function Productos() {
     if (existente) {
       resultado = await supabase
         .from('quotes')
-        .update({
-          total: totalCotizacion,
-          items: itemsFormateados,
-          status: 'pending',
-          type: 'producto',
-          pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
-          fecha_estimada_entrega: calcularFechaEntrega()
-        })
+        .update(payloadQuote)
         .eq('referencia', referenciaUnica)
         .select();
     } else {
       resultado = await supabase
         .from('quotes')
-        .insert([{
-          referencia: referenciaUnica,
-          total: totalCotizacion,
-          items: itemsFormateados,
-          status: 'pending',
-          type: 'producto',
-          pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
-          fecha_estimada_entrega: calcularFechaEntrega()
-        }])
+        .insert([payloadQuote])
         .select();
     }
 
@@ -201,13 +204,14 @@ export default function Productos() {
       doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
       doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
       doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
+      doc.text(`Tel: ${telefonoCliente || "N/D"}`, 14, 60);
 
       doc.setFontSize(16);
-      doc.text("TRULINK FIBER LLC", 14, 66);
+      doc.text("TRULINK FIBER LLC", 14, 70);
       doc.setFontSize(10);
-      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
-      doc.text("Tel: +507 6640 3720", 14, 78);
-      doc.text("www.trulinkfiber.com", 14, 84);
+      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
+      doc.text("Tel: +507 6640 3720", 14, 82);
+      doc.text("www.trulinkfiber.com", 14, 88);
       
       const rows = carrito.map(item => [
         item.SKU,
@@ -220,7 +224,7 @@ export default function Productos() {
       (doc as any).autoTable({
         head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
         body: rows,
-        startY: 92,
+        startY: 96,
         styles: { fontSize: 10, halign: "center" },
         headStyles: { fillColor: [218, 165, 32] }
       });
@@ -289,13 +293,14 @@ export default function Productos() {
     doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
     doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
     doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
+    doc.text(`Tel: ${telefonoCliente || "N/D"}`, 14, 60);
 
     doc.setFontSize(16);
-    doc.text("TRULINK FIBER LLC", 14, 66);
+    doc.text("TRULINK FIBER LLC", 14, 70);
     doc.setFontSize(10);
-    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 72);
-    doc.text("Tel: +507 6640 3720", 14, 78);
-    doc.text("www.trulinkfiber.com", 14, 84);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
+    doc.text("Tel: +507 6640 3720", 14, 82);
+    doc.text("www.trulinkfiber.com", 14, 88);
     
     const rows = carrito.map(item => [
       item.SKU,
@@ -308,7 +313,7 @@ export default function Productos() {
     (doc as any).autoTable({
       head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
       body: rows,
-      startY: 92,
+      startY: 96,
       styles: { fontSize: 10, halign: "center" },
       headStyles: { fillColor: [218, 165, 32] }
     });

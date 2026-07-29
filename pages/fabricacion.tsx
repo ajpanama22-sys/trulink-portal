@@ -34,7 +34,6 @@ export default function Fabricacion() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (user && user.email) {
-        // Consultar directamente a la tabla clientes usando el email del usuario autenticado
         const { data, error } = await supabase
           .from('clientes')
           .select('*')
@@ -42,13 +41,11 @@ export default function Fabricacion() {
           .maybeSingle();
 
         if (data) {
-          // Asignar mapeando correctamente a los campos reales de tu tabla de clientes
           setNombreEmpresa(data.razon_social || '');
           setRepresentante(data.nombre_representante || '');
           setMailCliente(data.email || user.email || '');
           setTelefonoCliente(data.telefono_celular || data.telefono_oficina || '');
         } else {
-          // Si no existe el registro en clientes pero hay sesión, guardamos al menos el email
           setMailCliente(user.email || '');
         }
       }
@@ -96,7 +93,7 @@ export default function Fabricacion() {
   const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
 
   const agregarItem = (tipo: string, hilos: number, longitudKm: number, cantidad: number): void => {
-    const precioMetro = precios[tipo];
+    const precioMetro = precios[tipo] || 0;
     const precioCarrete = precioMetro * (longitudKm * 1000);
     const nuevoItem: Item = { tipo, hilos, longitudKm, cantidad, precioMetro, precioCarrete };
     setCotizacion([...cotizacion, nuevoItem]);
@@ -144,7 +141,7 @@ export default function Fabricacion() {
       empresa: nombreEmpresa,
       representante: representante,
       email: mailCliente,
-      telefono_celular: telefonoCliente, // Corregido de telefonoMovil a telefonoCliente
+      telefono_celular: telefonoCliente,
       fecha_estimada_entrega: calcularFechaEntrega()
     };
 
@@ -186,7 +183,7 @@ export default function Fabricacion() {
     doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
     doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
     doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-    doc.text(`Teléfono Móvil: ${telefonoCliente || "N/D"}`, 14, 60); // Corregido
+    doc.text(`Teléfono Móvil: ${telefonoCliente || "N/D"}`, 14, 60);
 
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 70);
