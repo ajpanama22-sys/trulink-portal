@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
-// Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
 export const dynamic = 'force-dynamic';
 
 export default function AdminValidaciones() {
@@ -10,10 +9,8 @@ export default function AdminValidaciones() {
   const [filteredList, setFilteredList] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Estados para formas de pago por cada solicitud en interfaz
   const [formasPago, setFormasPago] = useState<{ [key: string]: { tipo: string; porcentaje: number } }>({});
 
-  // Estados para filtros y ordenamiento
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const [filterType, setFilterType] = useState<"todos" | "anio" | "mes" | "dia" | "rango">("todos");
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
@@ -22,7 +19,6 @@ export default function AdminValidaciones() {
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
 
-  // ESTADOS PARA EL MODAL DE COMENTARIOS
   const [modalConfig, setModalConfig] = useState<{
     isOpen: boolean;
     tipoAccion: 'ACTIVAR' | 'RECHAZAR' | null;
@@ -100,8 +96,7 @@ export default function AdminValidaciones() {
     if (filterType === "anio" && selectedYear) {
       resultado = resultado.filter(item => {
         if (!item.created_at) return false;
-        const itemYear = new Date(item.created_at).getFullYear().toString();
-        return itemYear === selectedYear;
+        return new Date(item.created_at).getFullYear().toString() === selectedYear;
       });
     } else if (filterType === "mes" && selectedMonth) {
       resultado = resultado.filter(item => {
@@ -113,9 +108,7 @@ export default function AdminValidaciones() {
     } else if (filterType === "dia" && selectedDate) {
       resultado = resultado.filter(item => {
         if (!item.created_at) return false;
-        const dateObj = new Date(item.created_at);
-        const itemDate = dateObj.toISOString().split('T')[0];
-        return itemDate === selectedDate;
+        return new Date(item.created_at).toISOString().split('T')[0] === selectedDate;
       });
     } else if (filterType === "rango") {
       resultado = resultado.filter(item => {
@@ -154,31 +147,31 @@ export default function AdminValidaciones() {
 
     setProcesandoAccion(true);
 
-    const pagoInfo = formasPago[id] || { tipo: "50%", porcentaje: 50 };
-    let descripcionFormaPago = "";
-    let porcentajeInicialReal = 50;
-    let porcentajeSaldoReal = 50;
-
-    if (pagoInfo.tipo === "50%") {
-      porcentajeInicialReal = 50;
-      porcentajeSaldoReal = 50;
-      descripcionFormaPago = "50% a la orden de compra / aceptación de cotización y el 50% restante exactos 3 días antes de la fecha estimada de despacho.";
-    } else if (pagoInfo.tipo === "100%") {
-      porcentajeInicialReal = 100;
-      porcentajeSaldoReal = 0;
-      descripcionFormaPago = "100% de pago anticipado a la aceptación de la cotización o emisión de orden de compra (Sin saldo pendiente).";
-    } else {
-      porcentajeInicialReal = pagoInfo.porcentaje;
-      porcentajeSaldoReal = 100 - porcentajeInicialReal;
-      descripcionFormaPago = `Especial: ${porcentajeInicialReal}% a la aceptación de cotización / orden de compra y el diferencial de saldo de ${porcentajeSaldoReal}% exigible obligatoriamente 3 días antes de la fecha estimada de despacho.`;
-    }
-
     if (tipoAccion === 'ACTIVAR') {
+      const pagoInfo = formasPago[id] || { tipo: "50%", porcentaje: 50 };
+      let porcentajeInicialReal = 50;
+      let porcentajeSaldoReal = 50;
+      let descripcionFormaPago = "";
+
+      if (pagoInfo.tipo === "50%") {
+        porcentajeInicialReal = 50;
+        porcentajeSaldoReal = 50;
+        descripcionFormaPago = "50% a la orden de compra / aceptación de cotización y el 50% restante exactos 3 días antes de la fecha estimada de despacho.";
+      } else if (pagoInfo.tipo === "100%") {
+        porcentajeInicialReal = 100;
+        porcentajeSaldoReal = 0;
+        descripcionFormaPago = "100% de pago anticipado a la aceptación de la cotización o emisión de orden de compra (Sin saldo pendiente).";
+      } else {
+        porcentajeInicialReal = pagoInfo.porcentaje;
+        porcentajeSaldoReal = 100 - porcentajeInicialReal;
+        descripcionFormaPago = `Especial: ${porcentajeInicialReal}% a la aceptación de cotización / orden de compra y el diferencial de saldo de ${porcentajeSaldoReal}% exigible obligatoriamente 3 días antes de la fecha estimada de despacho.`;
+      }
+
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = 'C';
 
-      // 1. Guardar/Actualizar en la TABLA CLIENTES (Conflict resolution por 'email')
+      // 1. Guardar en TABLA CLIENTES (Incluye el comentario interno)
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -202,23 +195,23 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Actualizar el estado en solicitudes_acceso a 'aprobado'
+      // 2. Actualizar solicitud a 'aprobado'
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
           status: 'aprobado', 
           password_token: passwordToken,
-          motivo_rechazo: comentarioAdmin
+          motivo_rechazo: comentarioAdmin // Guardado interno en la tabla
         })
         .eq('id', id);
 
       if (updateError) {
-        alert("Error al actualizar la solicitud en base de datos: " + updateError.message);
+        alert("Error al actualizar la solicitud: " + updateError.message);
         setProcesandoAccion(false);
         return;
       }
 
-      // 3. Enviar correo de activación con bienvenida, condiciones de pago y link de contraseña
+      // 3. Enviar correo de activación (SIN comentarios internos)
       try {
         await fetch("/api/send-email", {
           method: "POST",
@@ -230,21 +223,23 @@ export default function AdminValidaciones() {
             link: `https://portal.trulinkfiber.org/auth/crear-password?token=${passwordToken}`,
             forma_pago_texto: descripcionFormaPago,
             porcentaje_inicial: porcentajeInicialReal,
-            porcentaje_saldo: porcentajeSaldoReal,
-            comentario_admin: comentarioAdmin
+            porcentaje_saldo: porcentajeSaldoReal
           })
         });
       } catch (err: any) {
-        console.error("Cliente registrado, error enviando correo: ", err.message);
+        console.error("Error enviando correo de activación:", err.message);
       }
 
     } else {
-      // 4. LÓGICA DE RECHAZO (Guarda motivo en solicitudes_acceso y envía mail de rechazo)
+      // --- LÓGICA DE RECHAZO ---
+      const motivoInterno = comentarioAdmin.trim() !== "" ? comentarioAdmin : "Sin comentario interno especificado.";
+
+      // 1. Actualizar solicitud a 'rechazado' guardando el comentario internamente
       const { error: rejectError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
             status: 'rechazado',
-            motivo_rechazo: comentarioAdmin
+            motivo_rechazo: motivoInterno
         })
         .eq('id', id);
 
@@ -254,6 +249,7 @@ export default function AdminValidaciones() {
         return;
       }
 
+      // 2. Enviar correo de rechazo con el mensaje estándar indicado
       try {
         await fetch("/api/send-email", {
           method: "POST",
@@ -261,16 +257,15 @@ export default function AdminValidaciones() {
           body: JSON.stringify({
             tipo: "RECHAZO",
             email: emailCliente,
-            razon_social: razonSocialParam,
-            motivo_rechazo: comentarioAdmin
+            razon_social: razonSocialParam
           })
         });
-      } catch (err) {
-        console.error("Error enviando correo de rechazo:", err);
+      } catch (err: any) {
+        console.error("Error enviando correo de rechazo:", err.message);
       }
     }
 
-    // 5. ACTUALIZACIÓN OPTIMISTA DE LA VISTA
+    // Actualización visual inmediata de la lista
     setDataList(prev => prev.filter(item => item.id !== id));
     setFilteredList(prev => prev.filter(item => item.id !== id));
     
@@ -517,22 +512,22 @@ export default function AdminValidaciones() {
         )}
       </div>
 
-      {/* --- MODAL DE COMENTARIOS (ACTIVAR / RECHAZAR) --- */}
+      {/* --- MODAL DE COMENTARIOS (INTERNOS) --- */}
       {modalConfig.isOpen && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
             <h2 style={{ color: modalConfig.tipoAccion === 'ACTIVAR' ? "#2ecc71" : "#e74c3c", marginTop: 0, fontSize: "1.2rem", letterSpacing: "1px" }}>
-              {modalConfig.tipoAccion === 'ACTIVAR' ? 'ACTIVACIÓN DE CLIENTE' : 'RECHAZO DE SOLICITUD'}
+              {modalConfig.tipoAccion === 'ACTIVAR' ? 'ACTIVACIÓN DE CLIENTE' : 'RECHAZAR SOLICITUD'}
             </h2>
             <p style={{ fontSize: "0.9rem", color: "#CCC", marginBottom: "15px" }}>
               {modalConfig.tipoAccion === 'ACTIVAR' 
-                ? `¿Deseas añadir un comentario interno o nota para el expediente de ${modalConfig.razonSocialParam}?` 
-                : `Por favor, indica el motivo del rechazo o nota interna para ${modalConfig.razonSocialParam}.`}
+                ? `Añade un comentario u observación interna para el expediente de ${modalConfig.razonSocialParam} (No se envía por correo):` 
+                : `Añade un motivo o nota interna para el rechazo de ${modalConfig.razonSocialParam} (No se envía por correo):`}
             </p>
             
             <textarea 
               rows={3} 
-              placeholder={modalConfig.tipoAccion === 'ACTIVAR' ? "Comentario opcional para el expediente..." : "Ingresa el motivo del rechazo (obligatorio u opcional)..."}
+              placeholder="Nota o comentario interno..."
               value={comentarioAdmin}
               onChange={(e) => setComentarioAdmin(e.target.value)}
               style={textareaStyle}
