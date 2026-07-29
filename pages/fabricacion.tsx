@@ -21,38 +21,57 @@ export default function Fabricacion() {
   const router = useRouter();
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
   const [referenciaActual, setReferenciaActual] = useState<string>("");
+  const [cargandoSesion, setCargandoSesion] = useState(true);
 
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
+  const [clienteData, setClienteData] = useState<any>(null);
 
   useEffect(() => {
     setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
 
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user && user.email) {
-        const { data, error } = await supabase
-          .from('clientes')
-          .select('*')
-          .eq('email', user.email.trim())
-          .maybeSingle();
 
-        if (data) {
-          setNombreEmpresa(data.razon_social || '');
-          setRepresentante(data.nombre_representante || '');
-          setMailCliente(data.email || user.email || '');
-          setTelefonoCliente(data.telefono_celular || data.telefono_oficina || '');
-        } else {
-          setMailCliente(user.email || '');
-        }
+      // GUARDIA DE SESIÓN: si no hay usuario logueado, no dejamos cotizar como "anónimo".
+      // Se redirige al login del portal de clientes.
+      if (!user || !user.email) {
+        router.replace("/portal-cliente");
+        return;
       }
+
+      const emailUsuario = user.email.trim();
+
+      // Usamos ilike (case-insensitive) para evitar que una diferencia de
+      // mayúsculas/minúsculas entre Auth y la tabla clientes rompa el match.
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("*")
+        .ilike("email", emailUsuario)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error consultando tabla clientes:", error);
+      }
+
+      if (data) {
+        setClienteData(data);
+        setNombreEmpresa(data.razon_social || "");
+        setRepresentante(data.nombre_representante || "");
+        setMailCliente(data.email || emailUsuario);
+        setTelefonoCliente(data.telefono_celular || data.telefono_oficina || "");
+      } else {
+        // Usuario autenticado pero sin fila en clientes: dejamos su email al menos
+        setMailCliente(emailUsuario);
+      }
+
+      setCargandoSesion(false);
     };
 
     fetchClientInfo();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let inactivityTimer: NodeJS.Timeout;
@@ -138,10 +157,10 @@ export default function Fabricacion() {
       status: 'pending',
       type: 'fabricacion',
       pdf_url: pdfPublicUrl,
-      empresa: nombreEmpresa,
-      representante: representante,
-      email: mailCliente,
-      telefono_celular: telefonoCliente,
+      empresa: clienteData?.razon_social || nombreEmpresa,
+      representante: clienteData?.nombre_representante || representante,
+      email: clienteData?.email || mailCliente,
+      telefono_celular: clienteData?.telefono_celular || telefonoCliente,
       fecha_estimada_entrega: calcularFechaEntrega()
     };
 
@@ -173,7 +192,7 @@ export default function Fabricacion() {
 
     const doc = new jsPDF();
     doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
-    
+
     doc.setFontSize(10);
     doc.text(`Referencia: ${referenciaActual}`, 150, 20);
     doc.text(`Fecha: ${fechaActual}`, 150, 26);
@@ -191,7 +210,7 @@ export default function Fabricacion() {
     doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
     doc.text("Tel: +507 6640 3720", 14, 82);
     doc.text("www.trulinkfiber.com", 14, 88);
-    
+
     const rows = cotizacion.map(item => [
       item.tipo,
       item.hilos.toString(),
@@ -200,7 +219,7 @@ export default function Fabricacion() {
       `$${item.precioCarrete.toFixed(2)}`,
       `$${(item.precioCarrete * item.cantidad).toFixed(2)}`
     ]);
-    
+
     (doc as any).autoTable({
       head: [["Descripción", "Hilos", "Cant", "P. Unitario", "P. Carrete", "Total"]],
       body: rows,
@@ -304,6 +323,23 @@ export default function Fabricacion() {
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)"
   };
+
+  // Mientras verificamos la sesión, no mostramos el formulario de cotización.
+  if (cargandoSesion) {
+    return (
+      <div style={{
+        backgroundColor: "#000000",
+        color: "#DAA520",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
+      }}>
+        <p>Verificando sesión...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{

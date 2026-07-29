@@ -36,7 +36,7 @@ export default function Productos() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
-  
+
   // Estados para Paginación
   const [paginaActual, setPaginaActual] = useState(1);
   const productosPorPagina = 12;
@@ -50,6 +50,7 @@ export default function Productos() {
   const [mailCliente, setMailCliente] = useState("");
   const [telefonoCliente, setTelefonoCliente] = useState("");
   const [clienteData, setClienteData] = useState<any>(null);
+  const [cargandoSesion, setCargandoSesion] = useState(true);
 
   useEffect(() => {
     const generarReferenciaUnica = () => {
@@ -61,28 +62,22 @@ export default function Productos() {
 
     const fetchClientInfo = async () => {
       try {
-        let userEmail = "";
-
-        // 1. Intentar obtener el usuario desde Supabase Auth
+        // Fuente de verdad única: la sesión activa de Supabase Auth.
+        // (Se retiró el fallback a localStorage: si la sesión de Auth expira
+        // o cierra, un valor viejo en localStorage generaría cotizaciones
+        // con datos de otro cliente o desactualizados.)
         const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (user?.email) {
-          userEmail = user.email.trim();
-        } else {
-          // 2. Fallback: Leer del localStorage si la sesión se almacena ahí
-          const localEmail = typeof window !== "undefined" ? (localStorage.getItem("userEmail") || localStorage.getItem("email") || localStorage.getItem("clienteEmail")) : "";
-          if (localEmail) {
-            userEmail = localEmail.trim();
-          }
-        }
 
-        if (!userEmail) {
-          console.error("No hay sesión activa ni correo detectado:", authError);
-          setNombreEmpresa("No autenticado");
+        if (!user || !user.email) {
+          // GUARDIA DE SESIÓN: sin usuario logueado no se cotiza.
+          // Se redirige al login del portal de clientes.
+          console.error("No hay sesión activa:", authError);
+          router.replace("/portal-cliente");
           return;
         }
 
-        // 3. Consultar la tabla 'clientes' usando los nombres exactos de tus columnas
+        const userEmail = user.email.trim();
+
         const { data: cliente, error: dbError } = await supabase
           .from("clientes")
           .select("*")
@@ -95,23 +90,26 @@ export default function Productos() {
 
         if (cliente) {
           setClienteData(cliente);
-          setNombreEmpresa(cliente.razon_social || cliente.nombre || "Cliente General");
+          setNombreEmpresa(cliente.razon_social || "Cliente General");
           setRepresentante(cliente.nombre_representante || "No especificado");
           setMailCliente(cliente.email || userEmail);
-          setTelefonoCliente(cliente.telefono_celular || "N/D");
+          setTelefonoCliente(cliente.telefono_celular || cliente.telefono_oficina || "N/D");
         } else {
+          // Usuario autenticado pero sin fila en clientes
           setNombreEmpresa(userEmail);
           setRepresentante("No especificado");
           setMailCliente(userEmail);
           setTelefonoCliente("N/D");
         }
       } catch (err) {
-        console.error("Recepción al obtener la información del cliente:", err);
+        console.error("Excepción al obtener la información del cliente:", err);
+      } finally {
+        setCargandoSesion(false);
       }
     };
 
     fetchClientInfo();
-  }, []);
+  }, [router]);
 
   const totalItems = carrito.reduce((sum, item) => sum + item.cantidad, 0);
   const totalCotizacion = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
@@ -142,6 +140,8 @@ export default function Productos() {
   };
 
   const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+
     const itemsFormateados = carrito.map(item => ({
       SKU: item.SKU,
       descripcion: item.nombre || item.descripcion,
@@ -151,18 +151,18 @@ export default function Productos() {
     }));
 
     const payloadQuote = {
+      user_id: user?.id,
       referencia: referenciaUnica,
-      tipo: 'producto',
+      type: 'producto',
       empresa: clienteData?.razon_social || nombreEmpresa,
       representante: clienteData?.nombre_representante || representante,
       email: clienteData?.email || mailCliente,
-      telefono: clienteData?.telefono_celular || telefonoCliente,
+      telefono_celular: clienteData?.telefono_celular || telefonoCliente, // <- unificado con fabricacion.tsx
       total: totalCotizacion,
       items: itemsFormateados,
       status: 'pending',
       pdf_url: pdfPublicUrl,
-      fecha_estimada_entrega: calcularFechaEntrega(),
-      created_at: new Date().toISOString()
+      fecha_estimada_entrega: calcularFechaEntrega()
     };
 
     // Verificamos si ya existe la cotización con esta referencia usando la tabla 'quotes'
@@ -190,9 +190,73 @@ export default function Productos() {
       console.error("ERROR DETALLADO DE SUPABASE:", resultado.error);
       throw new Error(resultado.error.message);
     }
-    
+
     const dataRes = Array.isArray(resultado.data) ? resultado.data[0] : resultado.data;
     return dataRes;
+  };
+
+  const generarDocumentoPDF = () => {
+    const fechaActual = new Date().toLocaleDateString();
+    const horaActual = new Date().toLocaleTimeString();
+
+    const doc = new jsPDF();
+    doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
+
+    doc.setFontSize(10);
+    doc.text(`Referencia: ${referenciaActual}`, 150, 20);
+    doc.text(`Fecha: ${fechaActual}`, 150, 26);
+    doc.text(`Hora: ${horaActual}`, 150, 32);
+
+    doc.setFontSize(9);
+    doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
+    doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
+    doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
+    doc.text(`Tel: ${telefonoCliente || "N/D"}`, 14, 60);
+
+    doc.setFontSize(16);
+    doc.text("TRULINK FIBER LLC", 14, 70);
+    doc.setFontSize(10);
+    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
+    doc.text("Tel: +507 6640 3720", 14, 82);
+    doc.text("www.trulinkfiber.com", 14, 88);
+
+    const rows = carrito.map(item => [
+      item.SKU,
+      item.nombre,
+      item.cantidad.toString(),
+      `$${item.precio.toFixed(2)}`,
+      `$${(item.precio * item.cantidad).toFixed(2)}`
+    ]);
+
+    (doc as any).autoTable({
+      head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
+      body: rows,
+      startY: 96,
+      styles: { fontSize: 10, halign: "center" },
+      headStyles: { fillColor: [218, 165, 32] }
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFontSize(12);
+    doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
+
+    doc.setFontSize(10);
+    doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
+    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
+    doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
+    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
+
+    try {
+      const firma = "/images/firmaco.png";
+      const props = doc.getImageProperties(firma);
+      const firmaWidth = 40;
+      const firmaHeight = (props.height * firmaWidth) / props.width;
+      doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
+    } catch (e) {
+      console.error("No se pudo cargar la firma:", e);
+    }
+
+    return doc;
   };
 
   const procesarPago = async () => {
@@ -202,66 +266,7 @@ export default function Productos() {
     }
 
     try {
-      const fechaActual = new Date().toLocaleDateString();
-      const horaActual = new Date().toLocaleTimeString();
-
-      const doc = new jsPDF();
-      doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
-      
-      doc.setFontSize(10);
-      doc.text(`Referencia: ${referenciaActual}`, 150, 20);
-      doc.text(`Fecha: ${fechaActual}`, 150, 26);
-      doc.text(`Hora: ${horaActual}`, 150, 32);
-
-      doc.setFontSize(9);
-      doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
-      doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
-      doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-      doc.text(`Tel: ${telefonoCliente || "N/D"}`, 14, 60);
-
-      doc.setFontSize(16);
-      doc.text("TRULINK FIBER LLC", 14, 70);
-      doc.setFontSize(10);
-      doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
-      doc.text("Tel: +507 6640 3720", 14, 82);
-      doc.text("www.trulinkfiber.com", 14, 88);
-      
-      const rows = carrito.map(item => [
-        item.SKU,
-        item.nombre,
-        item.cantidad.toString(),
-        `$${item.precio.toFixed(2)}`,
-        `$${(item.precio * item.cantidad).toFixed(2)}`
-      ]);
-      
-      (doc as any).autoTable({
-        head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
-        body: rows,
-        startY: 96,
-        styles: { fontSize: 10, halign: "center" },
-        headStyles: { fillColor: [218, 165, 32] }
-      });
-
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
-      doc.setFontSize(12);
-      doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
-
-      doc.setFontSize(10);
-      doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
-      doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-      doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
-      doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
-
-      try {
-        const firma = "/images/firmaco.png";
-        const props = doc.getImageProperties(firma);
-        const firmaWidth = 40;
-        const firmaHeight = (props.height * firmaWidth) / props.width;
-        doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
-      } catch (e) {
-        console.error("No se pudo cargar la firma:", e);
-      }
-
+      const doc = generarDocumentoPDF();
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaActual}.pdf`;
 
@@ -291,67 +296,8 @@ export default function Productos() {
       return;
     }
 
-    const fechaActual = new Date().toLocaleDateString();
-    const horaActual = new Date().toLocaleTimeString();
-
-    const doc = new jsPDF();
-    doc.addImage("/images/logo.png", "PNG", 14, 10, 40, 20);
-    
-    doc.setFontSize(10);
-    doc.text(`Referencia: ${referenciaActual}`, 150, 20);
-    doc.text(`Fecha: ${fechaActual}`, 150, 26);
-    doc.text(`Hora: ${horaActual}`, 150, 32);
-
-    doc.setFontSize(9);
-    doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
-    doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
-    doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-    doc.text(`Tel: ${telefonoCliente || "N/D"}`, 14, 60);
-
-    doc.setFontSize(16);
-    doc.text("TRULINK FIBER LLC", 14, 70);
-    doc.setFontSize(10);
-    doc.text("5203 Juan Tabo Blvd NE, Ste 2b, Albuquerque, NM 87111", 14, 76);
-    doc.text("Tel: +507 6640 3720", 14, 82);
-    doc.text("www.trulinkfiber.com", 14, 88);
-    
-    const rows = carrito.map(item => [
-      item.SKU,
-      item.nombre,
-      item.cantidad.toString(),
-      `$${item.precio.toFixed(2)}`,
-      `$${(item.precio * item.cantidad).toFixed(2)}`
-    ]);
-    
-    (doc as any).autoTable({
-      head: [["SKU", "Descripción", "Cant", "P. Unitario", "Total"]],
-      body: rows,
-      startY: 96,
-      styles: { fontSize: 10, halign: "center" },
-      headStyles: { fillColor: [218, 165, 32] }
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    doc.setFontSize(12);
-    doc.text(`TOTAL : $${totalCotizacion.toFixed(2)}`, 150, finalY);
-
-    doc.setFontSize(10);
-    doc.text("Precios: EXW PANAMÁ", 14, finalY + 10);
-    doc.text("NOTA: Esta cotización es válida por 15 días a partir de la fecha de emisión.", 14, finalY + 16);
-    doc.text("Forma de pago: 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.", 14, finalY + 22);
-    doc.text("MÉTODOS DE PAGO: YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES", 105, finalY + 34, { align: "center" });
-
     try {
-      const firma = "/images/firmaco.png";
-      const props = doc.getImageProperties(firma);
-      const firmaWidth = 40;
-      const firmaHeight = (props.height * firmaWidth) / props.width;
-      doc.addImage(firma, "PNG", 150, finalY + 42, firmaWidth, firmaHeight);
-    } catch (e) {
-      console.error("No se pudo cargar la firma:", e);
-    }
-
-    try {
+      const doc = generarDocumentoPDF();
       const pdfBlob = doc.output("blob");
       const fileName = `${referenciaActual}.pdf`;
 
@@ -369,6 +315,7 @@ export default function Productos() {
       await guardarCotizacionEnSupabase(referenciaActual, pdfPublicUrl);
       doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
     } catch (err) {
+      const doc = generarDocumentoPDF();
       doc.save(`${referenciaActual}_TrulinkFiber.pdf`);
     }
   };
@@ -387,6 +334,15 @@ export default function Productos() {
   const productosActuales = productos.slice(indicePrimerProducto, indiceUltimoProducto);
   const totalPaginas = Math.ceil(productos.length / productosPorPagina);
 
+  // Mientras verificamos la sesión, no mostramos el catálogo ni el carrito.
+  if (cargandoSesion) {
+    return (
+      <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
+        <p>Verificando sesión...</p>
+      </div>
+    );
+  }
+
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>
       <style jsx global>{`
@@ -398,22 +354,22 @@ export default function Productos() {
       `}</style>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <button 
-          onClick={() => router.push("/portal-cliente")} 
-          style={{ 
-            backgroundColor: "transparent", 
-            color: "#DAA520", 
-            border: "2px solid #DAA520", 
-            padding: "10px 20px", 
-            borderRadius: "20px", 
-            fontWeight: "bold", 
-            cursor: "pointer" 
+        <button
+          onClick={() => router.push("/portal-cliente")}
+          style={{
+            backgroundColor: "transparent",
+            color: "#DAA520",
+            border: "2px solid #DAA520",
+            padding: "10px 20px",
+            borderRadius: "20px",
+            fontWeight: "bold",
+            cursor: "pointer"
           }}
         >
           ← Volver al Portal
         </button>
-        <button 
-          onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })} 
+        <button
+          onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })}
           style={{ backgroundColor: "#DAA520", color: "#000", padding: "15px", borderRadius: "15px", fontWeight: "bold", border: "none", cursor: "pointer" }}
         >
           🛒 Carrito ({totalItems})
@@ -440,31 +396,31 @@ export default function Productos() {
         </div>
       ) : (
         <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
-          <button 
-            onClick={() => setCategoria(null)} 
-            style={{ 
-              backgroundColor: "transparent", 
-              color: "#DAA520", 
-              border: "2px solid #DAA520", 
-              padding: "10px 20px", 
-              borderRadius: "20px", 
-              fontWeight: "bold", 
-              cursor: "pointer", 
-              marginBottom: "20px" 
+          <button
+            onClick={() => setCategoria(null)}
+            style={{
+              backgroundColor: "transparent",
+              color: "#DAA520",
+              border: "2px solid #DAA520",
+              padding: "10px 20px",
+              borderRadius: "20px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              marginBottom: "20px"
             }}
           >
             ← Volver a Categorías
           </button>
-          
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
             {productosActuales.map((prod) => (
               <div key={prod.SKU} style={{ backgroundColor: "#050505", padding: "15px", borderRadius: "15px", border: "1px solid #DAA520", textAlign: "center" }}>
-                <img 
-                  src={prod.image_url || "/placeholder.png"} 
-                  alt={prod.Ítem} 
-                  className="image-zoom" 
-                  onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')} 
-                  style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px", backgroundColor: "#111" }} 
+                <img
+                  src={prod.image_url || "/placeholder.png"}
+                  alt={prod.Ítem}
+                  className="image-zoom"
+                  onClick={() => window.open(`/producto/${prod.SKU}`, '_blank')}
+                  style={{ width: "100%", height: "150px", objectFit: "contain", borderRadius: "10px", marginBottom: "10px", backgroundColor: "#111" }}
                 />
                 <h3 style={{ fontSize: "0.95rem", color: "#DAA520" }}>{prod.SKU}</h3>
                 <p style={{ fontSize: "0.85rem", height: "40px", overflow: "hidden" }}><strong>{prod.Ítem}</strong></p>
@@ -477,7 +433,7 @@ export default function Productos() {
 
           {totalPaginas > 1 && (
             <div style={{ display: "flex", justifyContent: "center", gap: "15px", marginTop: "40px", alignItems: "center" }}>
-              <button 
+              <button
                 disabled={paginaActual === 1}
                 onClick={() => setPaginaActual(p => Math.max(p - 1, 1))}
                 style={{ backgroundColor: paginaActual === 1 ? "#333" : "#DAA520", color: paginaActual === 1 ? "#666" : "#000", padding: "10px 20px", borderRadius: "8px", border: "none", cursor: paginaActual === 1 ? "not-allowed" : "pointer", fontWeight: "bold" }}
@@ -485,7 +441,7 @@ export default function Productos() {
                 ⬅ Anterior
               </button>
               <span style={{ color: "#FFF", fontWeight: "bold" }}>Página {paginaActual} de {totalPaginas}</span>
-              <button 
+              <button
                 disabled={paginaActual === totalPaginas}
                 onClick={() => setPaginaActual(p => Math.min(p + 1, totalPaginas))}
                 style={{ backgroundColor: paginaActual === totalPaginas ? "#333" : "#DAA520", color: paginaActual === totalPaginas ? "#666" : "#000", padding: "10px 20px", borderRadius: "8px", border: "none", cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer", fontWeight: "bold" }}
@@ -527,7 +483,7 @@ export default function Productos() {
                 ))}
               </tbody>
             </table>
-            
+
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "15px" }}>
               <h2 style={{ color: "#DAA520", margin: 0, fontSize: "1.2rem" }}>TOTAL : ${totalCotizacion.toFixed(2)}</h2>
             </div>
@@ -538,7 +494,7 @@ export default function Productos() {
               <p style={{ margin: "4px 0" }}><strong>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
               <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
             </div>
-            
+
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
               <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
               <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
