@@ -17,13 +17,15 @@ export default function PushAlertModal() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session || !session.user) return;
+      if (!session || !session.user || !session.user.email) return;
+
+      const userEmail: string = session.user.email;
 
       // Consultar rol en la tabla "users" o admin
       const { data: userData } = await supabase
         .from("users")
         .select("role")
-        .ilike("email", session.user.email)
+        .ilike("email", userEmail)
         .single();
 
       if (userData && (userData.role === "superuser" || userData.role === "admin")) {
@@ -34,7 +36,7 @@ export default function PushAlertModal() {
       let { data: cliente } = await supabase
         .from("clientes")
         .select("*")
-        .ilike("email", session.user.email)
+        .ilike("email", userEmail)
         .single();
 
       if (cliente) {
@@ -50,7 +52,7 @@ export default function PushAlertModal() {
       let { data: colaborador } = await supabase
         .from("colaboradores")
         .select("*")
-        .ilike("email", session.user.email)
+        .ilike("email", userEmail)
         .single();
 
       if (colaborador) {
