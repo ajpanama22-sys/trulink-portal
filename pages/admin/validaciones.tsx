@@ -183,7 +183,7 @@ export default function AdminValidaciones() {
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
       const priceListVal = 'C';
 
-      // 1. Guardar en TABLA CLIENTES
+      // 1. Guardar en TABLA CLIENTES (Incluyendo campos adicionales perfil_cliente e industria)
       const { error: clienteError } = await supabase
         .from("clientes")
         .upsert({
@@ -198,6 +198,8 @@ export default function AdminValidaciones() {
           pais: itemCompleto.pais || null,
           telefono_oficina: itemCompleto.telefono_oficina || null,
           telefono_celular: itemCompleto.telefono_celular || null,
+          perfil_cliente: itemCompleto.perfil_cliente || null,
+          industria: itemCompleto.industria || null,
           comentarios_admin: comentarioAdmin
         }, { onConflict: 'email' });
 
@@ -409,6 +411,8 @@ export default function AdminValidaciones() {
                       {(item.telefono_celular || item.telefono_oficina) && (
                         <span>Teléfono: <strong style={{ color: "#FFF" }}>{item.telefono_celular || item.telefono_oficina}</strong></span>
                       )}
+                      {item.perfil_cliente && <span>Perfil: <strong style={{ color: "#DAA520" }}>{item.perfil_cliente}</strong></span>}
+                      {item.industria && <span>Industria: <strong style={{ color: "#DAA520" }}>{item.industria}</strong></span>}
                     </div>
 
                     <div>

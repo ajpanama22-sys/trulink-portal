@@ -29,7 +29,7 @@ type Lead = {
 export default function MarketingEnterprise() {
   const router = useRouter();
   const [seccionActiva, setSeccionActiva] = useState<"dashboard" | "campañas" | "leads">("dashboard");
-  const [campañas, setCampañas] =setCampañaList<Campaña[]>([]);
+  const [campañas, setCampañas] = useState<Campaña[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
