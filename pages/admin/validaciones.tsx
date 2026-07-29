@@ -202,7 +202,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Actualizar el estado en solicitudes_acceso a 'aprobado' usando 'motivo_rechazo'
+      // 2. Actualizar el estado en solicitudes_acceso a 'aprobado'
       const { error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -218,7 +218,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 3. Enviar correo de activación
+      // 3. Enviar correo de activación con bienvenida, condiciones de pago y link de contraseña
       try {
         await fetch("/api/send-email", {
           method: "POST",
@@ -230,7 +230,8 @@ export default function AdminValidaciones() {
             link: `https://portal.trulinkfiber.org/auth/crear-password?token=${passwordToken}`,
             forma_pago_texto: descripcionFormaPago,
             porcentaje_inicial: porcentajeInicialReal,
-            porcentaje_saldo: porcentajeSaldoReal
+            porcentaje_saldo: porcentajeSaldoReal,
+            comentario_admin: comentarioAdmin
           })
         });
       } catch (err: any) {
@@ -238,21 +239,7 @@ export default function AdminValidaciones() {
       }
 
     } else {
-      // LOGICA DE RECHAZO
-      try {
-        await fetch("/api/send-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tipo: "RECHAZO",
-            email: emailCliente,
-            razon_social: razonSocialParam
-          })
-        });
-      } catch (err) {
-        console.error("Error enviando correo de rechazo:", err);
-      }
-
+      // 4. LÓGICA DE RECHAZO (Guarda motivo en solicitudes_acceso y envía mail de rechazo)
       const { error: rejectError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -266,9 +253,24 @@ export default function AdminValidaciones() {
         setProcesandoAccion(false);
         return;
       }
+
+      try {
+        await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tipo: "RECHAZO",
+            email: emailCliente,
+            razon_social: razonSocialParam,
+            motivo_rechazo: comentarioAdmin
+          })
+        });
+      } catch (err) {
+        console.error("Error enviando correo de rechazo:", err);
+      }
     }
 
-    // 4. ACTUALIZACIÓN OPTIMISTA
+    // 5. ACTUALIZACIÓN OPTIMISTA DE LA VISTA
     setDataList(prev => prev.filter(item => item.id !== id));
     setFilteredList(prev => prev.filter(item => item.id !== id));
     
@@ -515,7 +517,7 @@ export default function AdminValidaciones() {
         )}
       </div>
 
-      {/* --- MODAL DE COMENTARIOS --- */}
+      {/* --- MODAL DE COMENTARIOS (ACTIVAR / RECHAZAR) --- */}
       {modalConfig.isOpen && (
         <div style={overlayStyle}>
           <div style={modalStyle}>
@@ -530,7 +532,7 @@ export default function AdminValidaciones() {
             
             <textarea 
               rows={3} 
-              placeholder="Ingresa tu comentario aquí..."
+              placeholder={modalConfig.tipoAccion === 'ACTIVAR' ? "Comentario opcional para el expediente..." : "Ingresa el motivo del rechazo (obligatorio u opcional)..."}
               value={comentarioAdmin}
               onChange={(e) => setComentarioAdmin(e.target.value)}
               style={textareaStyle}

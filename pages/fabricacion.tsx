@@ -25,7 +25,7 @@ export default function Fabricacion() {
   const [nombreEmpresa, setNombreEmpresa] = useState("");
   const [representante, setRepresentante] = useState("");
   const [mailCliente, setMailCliente] = useState("");
-  const [telefonoMovil, setTelefonoMovil] = useState("");
+  const [telefonoCliente, setTelefonoCliente] = useState("");
 
   useEffect(() => {
     setReferenciaActual(`QT-${Date.now().toString().slice(-6)}`);
@@ -33,14 +33,14 @@ export default function Fabricacion() {
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        // Consulta en la tabla 'clientes' filtrando por user_id usando maybeSingle para evitar errores si no existe
+        // Consulta en la tabla 'clientes' filtrando por user_id
         let { data, error } = await supabase
           .from('clientes')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Respaldo de búsqueda por email (con ilike) si no se encuentra por ID directo
+        // Respaldo de búsqueda por email si no se encuentra por ID directo
         if (!data && user.email) {
           const { data: dataByEmail } = await supabase
             .from('clientes')
@@ -54,7 +54,10 @@ export default function Fabricacion() {
           setNombreEmpresa(data.empresa || data.razon_social || '');
           setRepresentante(data.nombre_representante || data.representante || '');
           setMailCliente(data.email || user.email || '');
-          setTelefonoMovil(data.telefono_celular || '');
+          setTelefonoCliente(data.telefono_celular || data.telefono || '');
+        } else if (user) {
+          // Si no hay registro en la tabla clientes pero sí usuario autenticado, al menos rescatar el email
+          setMailCliente(user.email || '');
         }
       }
     };
@@ -138,42 +141,32 @@ export default function Fabricacion() {
       .maybeSingle();
 
     let resultado;
+    const payloadQuote = {
+      user_id: user?.id,
+      referencia: referenciaActual,
+      total: granTotal,
+      items: itemsFormateados,
+      status: 'pending',
+      type: 'fabricacion',
+      pdf_url: pdfPublicUrl,
+      empresa: nombreEmpresa,
+      representante: representante,
+      email: mailCliente,
+      telefono_celular: telefonoCliente, // Corregido de telefonoMovil a telefonoCliente
+      fecha_estimada_entrega: calcularFechaEntrega()
+    };
+
     if (existente) {
       resultado = await supabase
         .from('quotes')
-        .update({
-          user_id: user?.id,
-          total: granTotal,
-          items: itemsFormateados,
-          status: 'pending',
-          type: 'fabricacion',
-          pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
-          telefono_celular: telefonoMovil,
-          fecha_estimada_entrega: calcularFechaEntrega()
-        })
+        .update(payloadQuote)
         .eq('referencia', referenciaActual)
         .select()
         .single();
     } else {
       resultado = await supabase
         .from('quotes')
-        .insert([{
-          user_id: user?.id,
-          referencia: referenciaActual,
-          total: granTotal,
-          items: itemsFormateados,
-          status: 'pending',
-          type: 'fabricacion',
-          pdf_url: pdfPublicUrl,
-          empresa: nombreEmpresa,
-          representante: representante,
-          email: mailCliente,
-          telefono_celular: telefonoMovil,
-          fecha_estimada_entrega: calcularFechaEntrega()
-        }])
+        .insert([payloadQuote])
         .select()
         .single();
     }
@@ -201,7 +194,7 @@ export default function Fabricacion() {
     doc.text(`Cliente: ${nombreEmpresa || "N/D"}`, 14, 42);
     doc.text(`Representante: ${representante || "N/D"}`, 14, 48);
     doc.text(`Mail: ${mailCliente || "N/D"}`, 14, 54);
-    doc.text(`Teléfono Móvil: ${telefonoMovil || "N/D"}`, 14, 60);
+    doc.text(`Teléfono Móvil: ${telefonoCliente || "N/D"}`, 14, 60); // Corregido
 
     doc.setFontSize(16);
     doc.text("TRULINK FIBER LLC", 14, 70);
