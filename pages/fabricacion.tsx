@@ -677,13 +677,30 @@ export default function Fabricacion() {
         </div>
 
         {/* Action Buttons */}
-        <div style={{ textAlign: "center", marginTop: "30px", display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
-          <button onClick={generarPDF} className="action-btn" style={{ padding: "12px 28px", borderRadius: "12px", cursor: "pointer", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
-            Guardar PDF
-          </button>
-          <button onClick={procesarPago} className="action-btn-alt" style={{ padding: "12px 28px", borderRadius: "12px", cursor: "pointer", fontSize: "0.95rem", letterSpacing: "0.5px" }}>
-            Proceder con Pago
-          </button>
+        <div style={{ textAlign: "center", marginTop: "30px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+          {cargandoSesion && (
+            <p style={{ color: "#DAA520", fontSize: "0.85rem", margin: 0, fontStyle: "italic" }}>
+              Cargando datos del cliente, un momento...
+            </p>
+          )}
+          <div style={{ display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
+            <button
+              onClick={generarPDF}
+              disabled={cargandoSesion}
+              className="action-btn"
+              style={{ padding: "12px 28px", borderRadius: "12px", cursor: cargandoSesion ? "not-allowed" : "pointer", fontSize: "0.95rem", letterSpacing: "0.5px", opacity: cargandoSesion ? 0.5 : 1 }}
+            >
+              Guardar PDF
+            </button>
+            <button
+              onClick={procesarPago}
+              disabled={cargandoSesion}
+              className="action-btn-alt"
+              style={{ padding: "12px 28px", borderRadius: "12px", cursor: cargandoSesion ? "not-allowed" : "pointer", fontSize: "0.95rem", letterSpacing: "0.5px", opacity: cargandoSesion ? 0.5 : 1 }}
+            >
+              Proceder con Pago
+            </button>
+          </div>
         </div>
       </div>
 

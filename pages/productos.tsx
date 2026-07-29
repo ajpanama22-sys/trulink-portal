@@ -495,9 +495,26 @@ export default function Productos() {
               <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
             </div>
 
+            {cargandoSesion && (
+              <p style={{ color: "#DAA520", fontSize: "0.85rem", textAlign: "center", marginTop: "15px", fontStyle: "italic" }}>
+                Cargando datos del cliente, un momento...
+              </p>
+            )}
             <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
-              <button onClick={generarPDF} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>GUARDAR PDF</button>
-              <button onClick={procesarPago} style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: "pointer" }}>Proceder con Pago</button>
+              <button
+                onClick={generarPDF}
+                disabled={cargandoSesion}
+                style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: cargandoSesion ? "not-allowed" : "pointer", opacity: cargandoSesion ? 0.5 : 1 }}
+              >
+                GUARDAR PDF
+              </button>
+              <button
+                onClick={procesarPago}
+                disabled={cargandoSesion}
+                style={{ backgroundColor: "#DAA520", color: "#000", fontWeight: "bold", padding: "15px 30px", borderRadius: "10px", border: "none", cursor: cargandoSesion ? "not-allowed" : "pointer", opacity: cargandoSesion ? 0.5 : 1 }}
+              >
+                Proceder con Pago
+              </button>
             </div>
             <button onClick={vaciarCarrito} style={{ marginTop: "10px", width: "100%", backgroundColor: "#333", color: "#FFF", border: "none", padding: "8px", cursor: "pointer", borderRadius: "5px" }}>Vaciar carrito</button>
           </>
