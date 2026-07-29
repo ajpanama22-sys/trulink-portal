@@ -213,7 +213,24 @@ export default function Sidebar({ currentActive }: SidebarProps) {
               );
             })}
           </nav>
+
+          {/* Imagen biku.png ubicada justo debajo del bloque de Configuración / navegación */}
+          <div style={{ textAlign: "center", margin: "10px 0 20px 0", flexShrink: 0 }}>
+            <img 
+              src="/images/biku.png" 
+              alt="Biku" 
+              style={{ 
+                width: "75px", 
+                height: "auto", 
+                borderRadius: "8px", 
+                border: "1px solid rgba(218, 165, 32, 0.4)",
+                boxShadow: "0 0 15px rgba(218, 165, 32, 0.25)",
+                objectFit: "contain"
+              }} 
+            />
+          </div>
         </div>
+
         <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "15px", borderTop: "1px solid rgba(218, 165, 32, 0.2)", flexShrink: 0 }}>
           <button
             onClick={() => router.push('/portal-cliente')}
