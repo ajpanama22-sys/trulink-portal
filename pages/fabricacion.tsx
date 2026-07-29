@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase } from "../lib/supabaseClient";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Usamos el cliente compartido (singleton) en vez de crear una instancia
+// propia con createClient(). Tener varias instancias de Supabase Auth
+// compitiendo por el mismo localStorage causaba el warning "Multiple
+// GoTrueClient instances detected" y comportamiento intermitente al leer
+// la sesión (a veces detectaba al usuario logueado, a veces no).
+const supabase = getSupabase();
 
 type Item = {
   tipo: string;

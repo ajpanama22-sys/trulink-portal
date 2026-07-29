@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase } from "../lib/supabaseClient";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Usamos el cliente compartido (singleton) en vez de crear una instancia
+// propia con createClient(). Ver nota en fabricacion.tsx: varias instancias
+// de Supabase Auth compitiendo por el mismo localStorage causaban lecturas
+// de sesión intermitentes (a veces detectaba al usuario, a veces no).
+const supabase = getSupabase();
 
 type Producto = {
   SKU: string;

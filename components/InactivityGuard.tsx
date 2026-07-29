@@ -1,10 +1,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase } from "../lib/supabaseClient";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = getSupabase();
 
 // Tiempo de inactividad antes de cerrar sesión automáticamente (5 minutos).
 const TIEMPO_INACTIVIDAD_MS = 5 * 60 * 1000;
