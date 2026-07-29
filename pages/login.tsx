@@ -39,13 +39,26 @@ export default function Login() {
    * MAYORISTA  -> LISTA B
    * INTEGRADOR -> LISTA C
    * OTROS/DEFAULT -> LISTA D
+   *
+   * `priceListDB` es el valor guardado en la columna real `price_list`
+   * de la tabla clientes, que se guarda como una sola letra: 'A' | 'B' | 'C' | 'D'.
+   * Si viene con valor válido, se respeta (permite asignar una lista distinta
+   * al default por negociación especial). Si no, se calcula por el perfil.
    */
   const determinarListaPrecio = (
     perfil?: string,
-    listaExplicit?: string
+    priceListDB?: string
   ): "LISTA_A" | "LISTA_B" | "LISTA_C" | "LISTA_D" => {
-    if (listaExplicit && ["LISTA_A", "LISTA_B", "LISTA_C", "LISTA_D"].includes(listaExplicit)) {
-      return listaExplicit as "LISTA_A" | "LISTA_B" | "LISTA_C" | "LISTA_D";
+    const letraMap: Record<string, "LISTA_A" | "LISTA_B" | "LISTA_C" | "LISTA_D"> = {
+      A: "LISTA_A",
+      B: "LISTA_B",
+      C: "LISTA_C",
+      D: "LISTA_D",
+    };
+
+    const letra = (priceListDB || "").toUpperCase().trim();
+    if (letra && letraMap[letra]) {
+      return letraMap[letra];
     }
 
     const p = (perfil || "").toUpperCase().trim();
@@ -161,13 +174,13 @@ export default function Login() {
     // 4. CASO C: CLIENTE B2B O INVERSOR ESTRATÉGICO
     const { data: clienteData } = await supabase
       .from("clientes")
-      .select("id, email, razon_social, tipo_registro, perfil_cliente, lista_precio")
+      .select("id, email, razon_social, tipo_registro, perfil_cliente, price_list")
       .eq("email", userEmail)
       .single();
 
     if (clienteData) {
       const perfilEfectivo = clienteData.perfil_cliente || "CLIENTE FINAL";
-      const listaAsignada = determinarListaPrecio(perfilEfectivo, clienteData.lista_precio);
+      const listaAsignada = determinarListaPrecio(perfilEfectivo, clienteData.price_list);
 
       const clienteProfile: UserSessionProfile = {
         id: clienteData.id,

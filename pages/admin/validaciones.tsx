@@ -151,6 +151,26 @@ export default function AdminValidaciones() {
     setComentarioAdmin("");
   };
 
+  /**
+   * Determina la Lista de Precios (una sola letra, tal como se guarda en la
+   * columna price_list de la tabla clientes) según el perfil B2B del cliente.
+   * ISP -> A | MAYORISTA -> B | INTEGRADOR -> C | resto (Cliente Final) -> D
+   */
+  const determinarPriceList = (perfil?: string): 'A' | 'B' | 'C' | 'D' => {
+    const p = (perfil || "").toUpperCase().trim();
+    switch (p) {
+      case "ISP":
+        return "A";
+      case "MAYORISTA":
+        return "B";
+      case "INTEGRADOR":
+        return "C";
+      case "CLIENTE FINAL":
+      default:
+        return "D";
+    }
+  };
+
   const confirmarAccion = async () => {
     const { id, tipoAccion, emailCliente, razonSocialParam, itemCompleto } = modalConfig;
     const supabase = getSupabase();
@@ -181,7 +201,10 @@ export default function AdminValidaciones() {
 
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
-      const priceListVal = 'C';
+      // Antes esto era un valor fijo 'C' sin importar el perfil del cliente.
+      // Ahora se calcula según el perfil B2B declarado en la solicitud
+      // (ISP -> A, MAYORISTA -> B, INTEGRADOR -> C, CLIENTE FINAL -> D).
+      const priceListVal = determinarPriceList(itemCompleto.perfil_cliente);
 
       // 1. Guardar en TABLA CLIENTES (Incluyendo campos adicionales perfil_cliente e industria)
       const { error: clienteError } = await supabase
