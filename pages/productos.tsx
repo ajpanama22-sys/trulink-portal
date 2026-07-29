@@ -171,7 +171,7 @@ export default function Productos() {
       empresa: clienteEmpresa && clienteEmpresa !== "Sin especificar" ? clienteEmpresa : "Cliente General",
       representante: clienteRep && clienteRep !== "No especificado" && clienteRep !== "N/D" ? clienteRep : "No especificado",
       email: clienteMail && clienteMail !== "No especificado" && clienteMail !== "N/D" ? clienteMail : "No especificado",
-      telefono: clienteTelefono && clienteTelefono !== "No especificado" && clienteTelefono !== "N/D" ? clienteTelefono : "No especificado",
+      telefono_celular: clienteTelefono && clienteTelefono !== "No especificado" && clienteTelefono !== "N/D" ? clienteTelefono : "No especificado",
       tipo: clienteTipo
     };
   };
@@ -247,7 +247,7 @@ export default function Productos() {
       empresa: infoCliente.empresa,
       representante: infoCliente.representante,
       email: infoCliente.email,
-      telefono: infoCliente.telefono_celular,
+      telefono_celular: infoCliente.telefono_celular,
       fecha_estimada_entrega: calcularFechaEntrega()
     };
 
