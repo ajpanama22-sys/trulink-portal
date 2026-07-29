@@ -27,6 +27,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
       items: [
         { key: 'validaciones', label: 'Validaciones', path: '/admin/validaciones' },
         { key: 'cotizaciones', label: 'Cotizaciones', path: '/admin/cotizaciones' },
+        { key: 'crm', label: 'CRM & Oportunidades', path: '/admin/crm' },
         { key: 'marketing', label: 'Marketing', path: '/admin/marketing' },
       ],
     },
