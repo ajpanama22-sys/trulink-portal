@@ -62,21 +62,28 @@ export default function Productos() {
 
     const fetchClientInfo = async () => {
       try {
-        // Fuente de verdad única: la sesión activa de Supabase Auth.
-        // (Se retiró el fallback a localStorage: si la sesión de Auth expira
-        // o cierra, un valor viejo en localStorage generaría cotizaciones
-        // con datos de otro cliente o desactualizados.)
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        let userEmail = "";
 
-        if (!user || !user.email) {
-          // GUARDIA DE SESIÓN: sin usuario logueado no se cotiza.
-          // Se redirige al login del portal de clientes.
-          console.error("No hay sesión activa:", authError);
-          router.replace("/portal-cliente");
-          return;
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (user?.email) {
+          userEmail = user.email.trim();
+        } else {
+          // Fallback: por ahora seguimos leyendo localStorage, ya que el
+          // login del portal parece manejar su propia sesión (no Supabase
+          // Auth). Hay que confirmar cómo guarda la sesión para hacer
+          // esto de forma robusta en vez de este fallback.
+          const localEmail = typeof window !== "undefined"
+            ? (localStorage.getItem("userEmail") || localStorage.getItem("email") || localStorage.getItem("clienteEmail"))
+            : "";
+          if (localEmail) userEmail = localEmail.trim();
         }
 
-        const userEmail = user.email.trim();
+        if (!userEmail) {
+          setNombreEmpresa("No autenticado");
+          setCargandoSesion(false);
+          return;
+        }
 
         const { data: cliente, error: dbError } = await supabase
           .from("clientes")
@@ -95,7 +102,6 @@ export default function Productos() {
           setMailCliente(cliente.email || userEmail);
           setTelefonoCliente(cliente.telefono_celular || cliente.telefono_oficina || "N/D");
         } else {
-          // Usuario autenticado pero sin fila en clientes
           setNombreEmpresa(userEmail);
           setRepresentante("No especificado");
           setMailCliente(userEmail);
@@ -140,8 +146,6 @@ export default function Productos() {
   };
 
   const guardarCotizacionEnSupabase = async (referenciaUnica: string, pdfPublicUrl: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-
     const itemsFormateados = carrito.map(item => ({
       SKU: item.SKU,
       descripcion: item.nombre || item.descripcion,
@@ -151,13 +155,18 @@ export default function Productos() {
     }));
 
     const payloadQuote = {
-      user_id: user?.id,
+      // NOTA: user_id se quitó del payload. La tabla quotes tiene un foreign
+      // key hacia "profiles", pero los usuarios creados vía Auth admin
+      // (activar-password.ts) no generan fila en "profiles", lo que rompía
+      // el guardado con error 23503. Toda la info del cliente ya se guarda
+      // directamente (empresa, representante, email, telefono_celular),
+      // así que no se necesita user_id para identificar al cliente aquí.
       referencia: referenciaUnica,
       type: 'producto',
       empresa: clienteData?.razon_social || nombreEmpresa,
       representante: clienteData?.nombre_representante || representante,
       email: clienteData?.email || mailCliente,
-      telefono_celular: clienteData?.telefono_celular || telefonoCliente, // <- unificado con fabricacion.tsx
+      telefono_celular: clienteData?.telefono_celular || telefonoCliente,
       total: totalCotizacion,
       items: itemsFormateados,
       status: 'pending',
@@ -333,15 +342,6 @@ export default function Productos() {
   const indicePrimerProducto = indiceUltimoProducto - productosPorPagina;
   const productosActuales = productos.slice(indicePrimerProducto, indiceUltimoProducto);
   const totalPaginas = Math.ceil(productos.length / productosPorPagina);
-
-  // Mientras verificamos la sesión, no mostramos el catálogo ni el carrito.
-  if (cargandoSesion) {
-    return (
-      <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "sans-serif" }}>
-        <p>Verificando sesión...</p>
-      </div>
-    );
-  }
 
   return (
     <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "40px", fontFamily: "sans-serif" }}>

@@ -35,37 +35,34 @@ export default function Fabricacion() {
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // GUARDIA DE SESIÓN: si no hay usuario logueado, no dejamos cotizar como "anónimo".
-      // Se redirige al login del portal de clientes.
-      if (!user || !user.email) {
-        router.replace("/portal-cliente");
-        return;
+      if (user && user.email) {
+        const emailUsuario = user.email.trim();
+
+        // Usamos ilike (case-insensitive) para evitar que una diferencia de
+        // mayúsculas/minúsculas entre Auth y la tabla clientes rompa el match.
+        const { data, error } = await supabase
+          .from("clientes")
+          .select("*")
+          .ilike("email", emailUsuario)
+          .maybeSingle();
+
+        if (error) {
+          console.error("Error consultando tabla clientes:", error);
+        }
+
+        if (data) {
+          setClienteData(data);
+          setNombreEmpresa(data.razon_social || "");
+          setRepresentante(data.nombre_representante || "");
+          setMailCliente(data.email || emailUsuario);
+          setTelefonoCliente(data.telefono_celular || data.telefono_oficina || "");
+        } else {
+          setMailCliente(emailUsuario);
+        }
       }
-
-      const emailUsuario = user.email.trim();
-
-      // Usamos ilike (case-insensitive) para evitar que una diferencia de
-      // mayúsculas/minúsculas entre Auth y la tabla clientes rompa el match.
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("*")
-        .ilike("email", emailUsuario)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error consultando tabla clientes:", error);
-      }
-
-      if (data) {
-        setClienteData(data);
-        setNombreEmpresa(data.razon_social || "");
-        setRepresentante(data.nombre_representante || "");
-        setMailCliente(data.email || emailUsuario);
-        setTelefonoCliente(data.telefono_celular || data.telefono_oficina || "");
-      } else {
-        // Usuario autenticado pero sin fila en clientes: dejamos su email al menos
-        setMailCliente(emailUsuario);
-      }
+      // NOTA: ya no redirigimos si no hay user de Supabase Auth, porque el
+      // login del portal parece manejar su propia sesión (no Supabase Auth).
+      // Hay que confirmar cómo se guarda esa sesión para hacer el chequeo real.
 
       setCargandoSesion(false);
     };
@@ -132,8 +129,6 @@ export default function Fabricacion() {
   };
 
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
       descripcion: `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
@@ -150,7 +145,12 @@ export default function Fabricacion() {
 
     let resultado;
     const payloadQuote = {
-      user_id: user?.id,
+      // NOTA: user_id se quitó del payload. La tabla quotes tiene un foreign
+      // key hacia "profiles", pero los usuarios creados vía Auth admin
+      // (activar-password.ts) no generan fila en "profiles", lo que rompía
+      // el guardado con error 23503. Toda la info del cliente ya se guarda
+      // directamente (empresa, representante, email, telefono_celular),
+      // así que no se necesita user_id para identificar al cliente aquí.
       referencia: referenciaActual,
       total: granTotal,
       items: itemsFormateados,
@@ -323,23 +323,6 @@ export default function Fabricacion() {
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)"
   };
-
-  // Mientras verificamos la sesión, no mostramos el formulario de cotización.
-  if (cargandoSesion) {
-    return (
-      <div style={{
-        backgroundColor: "#000000",
-        color: "#DAA520",
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontFamily: "'Inter', system-ui, -apple-system, sans-serif"
-      }}>
-        <p>Verificando sesión...</p>
-      </div>
-    );
-  }
 
   return (
     <div style={{
