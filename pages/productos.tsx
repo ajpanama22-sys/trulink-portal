@@ -61,19 +61,32 @@ export default function Productos() {
 
     const fetchClientInfo = async () => {
       try {
+        let userEmail = "";
+
+        // 1. Intentar obtener el usuario desde Supabase Auth
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
-        if (authError || !user?.email) {
-          console.error("Error de autenticación:", authError);
+        if (user?.email) {
+          userEmail = user.email.trim();
+        } else {
+          // 2. Fallback: Leer del localStorage si la sesión se almacena ahí
+          const localEmail = typeof window !== "undefined" ? (localStorage.getItem("userEmail") || localStorage.getItem("email") || localStorage.getItem("clienteEmail")) : "";
+          if (localEmail) {
+            userEmail = localEmail.trim();
+          }
+        }
+
+        if (!userEmail) {
+          console.error("No hay sesión activa ni correo detectado:", authError);
           setNombreEmpresa("No autenticado");
           return;
         }
 
-        // Consultamos la tabla real 'clientes' usando el correo electrónico
+        // 3. Consultar la tabla 'clientes' usando los nombres exactos de tus columnas
         const { data: cliente, error: dbError } = await supabase
           .from("clientes")
           .select("*")
-          .ilike("email", user.email.trim())
+          .ilike("email", userEmail)
           .maybeSingle();
 
         if (dbError) {
@@ -83,13 +96,13 @@ export default function Productos() {
         if (cliente) {
           setClienteData(cliente);
           setNombreEmpresa(cliente.razon_social || cliente.nombre || "Cliente General");
-          setRepresentante(cliente.representante || cliente.nombre_representante || "No especificado");
-          setMailCliente(cliente.email || user.email);
-          setTelefonoCliente(cliente.telefono || cliente.celular || "N/D");
+          setRepresentante(cliente.nombre_representante || "No especificado");
+          setMailCliente(cliente.email || userEmail);
+          setTelefonoCliente(cliente.telefono_celular || "N/D");
         } else {
-          setNombreEmpresa(user.email);
+          setNombreEmpresa(userEmail);
           setRepresentante("No especificado");
-          setMailCliente(user.email);
+          setMailCliente(userEmail);
           setTelefonoCliente("N/D");
         }
       } catch (err) {
@@ -141,9 +154,9 @@ export default function Productos() {
       referencia: referenciaUnica,
       tipo: 'producto',
       empresa: clienteData?.razon_social || nombreEmpresa,
-      representante: representante,
+      representante: clienteData?.nombre_representante || representante,
       email: clienteData?.email || mailCliente,
-      telefono: clienteData?.telefono || telefonoCliente,
+      telefono: clienteData?.telefono_celular || telefonoCliente,
       total: totalCotizacion,
       items: itemsFormateados,
       status: 'pending',
