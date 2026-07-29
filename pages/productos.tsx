@@ -59,19 +59,32 @@ export default function Productos() {
     setReferenciaActual(generarReferenciaUnica());
 
     const fetchClientInfo = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase
-          .from('clients')
-          .select('empresa, representante, email')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user?.email) {
+        console.error("No hay sesión activa o falta el correo.");
+        return;
+      }
 
-        if (data) {
-          setNombreEmpresa(data.empresa || '');
-          setRepresentante(data.representante || '');
-          setMailCliente(data.email || '');
-        }
+      // Consultamos la tabla real 'clientes' usando el correo electrónico
+      const { data: clienteDB, error: dbError } = await supabase
+        .from("clientes")
+        .select("*")
+        .ilike("email", user.email.trim())
+        .maybeSingle();
+
+      if (dbError) {
+        console.error("Error al consultar la tabla clientes:", dbError);
+      }
+
+      if (clienteDB) {
+        setNombreEmpresa(clienteDB.razon_social || clienteDB.nombre || "Cliente General");
+        setRepresentante(clienteDB.representante || clienteDB.nombre_representante || "No especificado");
+        setMailCliente(clienteDB.email || user.email);
+      } else {
+        setNombreEmpresa(user.email);
+        setRepresentante("No especificado");
+        setMailCliente(user.email);
       }
     };
 
