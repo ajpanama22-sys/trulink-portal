@@ -23,7 +23,7 @@ export default function PushAlertModal() {
       const { data: userData } = await supabase
         .from("users")
         .select("role")
-        .eq("email", session.user.email)
+        .ilike("email", session.user.email)
         .single();
 
       if (userData && (userData.role === "superuser" || userData.role === "admin")) {
@@ -34,7 +34,7 @@ export default function PushAlertModal() {
       let { data: cliente } = await supabase
         .from("clientes")
         .select("*")
-        .eq("email", session.user.email)
+        .ilike("email", session.user.email)
         .single();
 
       if (cliente) {
@@ -50,7 +50,7 @@ export default function PushAlertModal() {
       let { data: colaborador } = await supabase
         .from("colaboradores")
         .select("*")
-        .eq("email", session.user.email)
+        .ilike("email", session.user.email)
         .single();
 
       if (colaborador) {
