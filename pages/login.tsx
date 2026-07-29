@@ -148,7 +148,7 @@ export default function Login() {
     // 3. CASO B: COLABORADOR INTERNO
     const { data: colaboradorData } = await supabase
       .from("colaboradores")
-      .select("id, email, nombre, cargo")
+      .select("*")
       .ilike("email", userEmail)
       .single();
 
@@ -174,7 +174,7 @@ export default function Login() {
     // 4. CASO C: CLIENTE B2B O INVERSOR ESTRATÉGICO
     const { data: clienteData } = await supabase
       .from("clientes")
-      .select("id, email, razon_social, tipo_registro, perfil_cliente, price_list")
+      .select("*")
       .ilike("email", userEmail)
       .single();
 
@@ -189,7 +189,7 @@ export default function Login() {
         empresa: clienteData.razon_social || "N/A",
         rol: perfilEfectivo, // ej: "ISP", "MAYORISTA", "INTEGRADOR"
         tipo: "cliente",
-        tipo_registro: clienteData.tipo_registro || "Cliente B2B",
+        tipo_registro: clienteData.tipo_cliente || "Cliente B2B",
         perfil_cliente: perfilEfectivo,
         lista_precio: listaAsignada // "LISTA_A", "LISTA_B", "LISTA_C", "LISTA_D"
       };
@@ -198,7 +198,7 @@ export default function Login() {
       await verificarPrimerLoginInteligente("clientes", "id", clienteData.id);
 
       // Redirección inteligente según el tipo de registro
-      if (clienteData.tipo_registro === "Inversor Estratégico") {
+      if (clienteData.tipo_cliente === "Inversor Estratégico") {
         window.location.href = "/portal-cliente"; // O "/inversor" si existe vista dedicada
       } else {
         window.location.href = "/portal-cliente";
