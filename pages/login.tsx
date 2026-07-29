@@ -149,7 +149,7 @@ export default function Login() {
     const { data: colaboradorData } = await supabase
       .from("colaboradores")
       .select("id, email, nombre, cargo")
-      .eq("email", userEmail)
+      .ilike("email", userEmail)
       .single();
 
     if (colaboradorData) {
@@ -175,7 +175,7 @@ export default function Login() {
     const { data: clienteData } = await supabase
       .from("clientes")
       .select("id, email, razon_social, tipo_registro, perfil_cliente, price_list")
-      .eq("email", userEmail)
+      .ilike("email", userEmail)
       .single();
 
     if (clienteData) {
