@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// Si esto falla, es porque Vercel no tiene las variables en su configuración
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -8,11 +7,26 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error("ERROR CRÍTICO: Las variables de entorno de Supabase no están definidas en Vercel.");
 }
 
-export const getSupabase = () => {
+// Variable para almacenar la instancia única
+let supabaseInstance: SupabaseClient | null = null;
+
+export const getSupabase = (): SupabaseClient => {
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Supabase no está configurado. Revisa tus variables en Vercel.");
   }
-  return createClient(supabaseUrl, supabaseAnonKey);
+  
+  // Si la instancia ya existe, se reutiliza (Singleton)
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });
+  }
+  
+  return supabaseInstance;
 };
 
-export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+// Exportación directa segura reutilizando la misma instancia
+export const supabase = (supabaseUrl && supabaseAnonKey) ? getSupabase() : null;
