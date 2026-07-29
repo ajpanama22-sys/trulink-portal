@@ -1,249 +1,321 @@
 import { useState, useEffect } from "react";
-import { getSupabase } from "../../lib/supabaseClient";
-import Sidebar from "./Sidebar";
+import { useRouter } from "next/router";
+import { createClient } from "@supabase/supabase-js";
 
-export default function AdminMarketing() {
-  const [tipoCampana, setTipoCampana] = useState("lanzamiento");
-  const [segmento, setSegmento] = useState("todos");
-  const [correoIndividual, setCorreoIndividual] = useState("");
-  const [asunto, setAsunto] = useState("");
-  const [mensaje, setMensaje] = useState("");
-  const [cargando, setCargando] = useState(false);
-  const [totalDestinatarios, setTotalDestinatarios] = useState(0);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+type Campaña = {
+  id: number;
+  nombre: string;
+  tipo: string;
+  estado: string;
+  presupuesto: number;
+  gasto: number;
+  roi: number;
+};
+
+type Lead = {
+  id: number;
+  nombre_contacto: string;
+  empresa: string;
+  email: string;
+  telefono_celular: string;
+  origen: string;
+  estado: string;
+};
+
+export default function MarketingEnterprise() {
+  const router = useRouter();
+  const [seccionActiva, setSeccionActiva] = useState<"dashboard" | "campañas" | "leads">("dashboard");
+  const [campañas, setCampañas] =setCampañaList<Campaña[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Estados para nueva campaña
+  const [nuevaCampana, setNuevaCampana] = useState({
+    nombre: "",
+    tipo: "B2B Outbound",
+    presupuesto: 0,
+  });
 
   useEffect(() => {
-    if (segmento === "individual") {
-      setTotalDestinatarios(correoIndividual ? correoIndividual.split(',').length : 0);
-    } else {
-      calcularAlcance(segmento);
-    }
-  }, [segmento, correoIndividual]);
+    fetchDataMarketing();
+  }, []);
 
-  const calcularAlcance = async (seg: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return;
-
+  const fetchDataMarketing = async () => {
+    setLoading(true);
     try {
-      let query = supabase
-        .from("solicitudes_acceso")
-        .select("*", { count: "exact", head: true });
+      const { data: dataCampañas } = await supabase.from("marketing_campaigns").select("*").order("id", { ascending: false });
+      const { data: dataLeads } = await supabase.from("marketing_leads").select("*").order("id", { ascending: false });
 
-      if (seg !== "todos") {
-        query = query.contains("datos_completos", { perfil_cliente: seg });
-      }
-
-      const { count, error } = await query;
-      
-      if (error) {
-        console.error("Error de Supabase:", error);
-        setTotalDestinatarios(0);
-        return;
-      }
-
-      setTotalDestinatarios(count || 0); 
+      if (dataCampañas) setCampañas(dataCampañas);
+      if (dataLeads) setLeads(dataLeads);
     } catch (error) {
-      console.error("Error calculando alcance:", error);
-      setTotalDestinatarios(0);
-    }
-  };
-
-  const handleDespacharCampana = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!asunto || !mensaje) {
-      alert("Por favor, complete el asunto y el contenido del mensaje.");
-      return;
-    }
-
-    if (segmento === "individual" && !correoIndividual) {
-      alert("Por favor, ingrese al menos un correo individual.");
-      return;
-    }
-
-    const supabase = getSupabase();
-    if (!supabase) {
-      alert("Error de conexión con la base de datos.");
-      return;
-    }
-
-    setCargando(true);
-    try {
-      // Aquí se registraría el envío en Supabase
-      // En una fase posterior, aquí llamarías a tu API (ej. /api/send-email) conectada a Brevo SMTP
-      const { error } = await supabase.from("solicitudes_acceso").insert([{
-        tipo_solicitud: `Campaña: ${tipoCampana}`,
-        razon_social: segmento === "individual" ? `Individual: ${correoIndividual}` : `Segmento: ${segmento}`,
-        email: "marketing@trulinkfiber.org",
-        estado: "enviado",
-        datos_completos: { asunto, mensaje, destinatarios: totalDestinatarios }
-      }]);
-
-      if (error) throw error;
-
-      alert(`¡Campaña despachada con éxito a ${totalDestinatarios} destinatario(s)!`);
-      setAsunto("");
-      setMensaje("");
-      if(segmento === "individual") setCorreoIndividual("");
-    } catch (err: any) {
-      alert("Error al despachar la campaña: " + err.message);
+      console.error("Error al sincronizar con el motor enterprise de Supabase:", error);
     } finally {
-      setCargando(false);
+      setLoading(false);
     }
   };
 
-  const seleccionarPlantilla = (tipo: string) => {
-    setTipoCampana(tipo);
-    if (tipo === "lanzamiento") {
-      setAsunto("🚀 Nuevo lote de producción disponible - Trulink Fiber");
-      setMensaje("Estimado [CLIENTE],\n\nNos complace anunciar la disponibilidad de nuestro nuevo lote de fábrica en cables de alta resistencia y herrajes 100% de nylon y fibra.\n\nConsulte el catálogo actualizado en el portal B2B.");
-    } else if (tipo === "volumen") {
-      setAsunto("📊 Ofertas especiales por volumen para listas de distribuidores - Trulink Fiber");
-      setMensaje("Estimado [CLIENTE],\n\nHemos habilitado una estructura de precios escalonada por volumen para proyectos de expansión. Ingrese al portal para cotizar directamente los suministros de planta.");
-    } else if (tipo === "tecnico") {
-      setAsunto("⚙️ Boletín Técnico: Especificaciones de resistencia y normativas de fábrica");
-      setMensaje("Hola [CLIENTE],\n\nCompartimos nuestro último informe técnico con especificaciones de tensión, durabilidad y fichas de cumplimiento normativo para nuestros socios estratégicos.");
+  const handleCrearCampana = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nuevaCampana.nombre) return alert("Ingrese el nombre de la campaña.");
+
+    const { error } = await supabase.from("marketing_campaigns").insert([
+      {
+        nombre: nuevaCampana.nombre,
+        tipo: nuevaCampana.tipo,
+        estado: "Activa",
+        presupuesto: nuevaCampana.presupuesto,
+        gasto: 0.0,
+        roi: 0.0,
+      },
+    ]);
+
+    if (error) {
+      alert(`Error al registrar campaña: ${error.message}`);
+    } else {
+      setNuevaCampana({ nombre: "", tipo: "B2B Outbound", presupuesto: 0 });
+      fetchDataMarketing();
+      alert("Campaña desplegada con éxito en el clúster.");
     }
   };
+
+  const totalPresupuesto = campañas.reduce((acc, c) => acc + Number(c.presupuesto), 0);
+  const totalGasto = campañas.reduce((acc, c) => acc + Number(c.gasto), 0);
 
   return (
-    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
-      <Sidebar currentActive="marketing" />
+    <div style={{ backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", padding: "50px 30px", fontFamily: "sans-serif" }}>
+      <style jsx global>{`
+        html, body {
+          margin: 0;
+          padding: 0;
+          background-color: #000 !important;
+          color: #DAA520;
+        }
+        .card-enterprise {
+          background-color: #080808;
+          border: 1px solid rgba(218, 165, 32, 0.35);
+          border-radius: 14px;
+          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+        }
+        .card-enterprise:hover {
+          border-color: #DAA520;
+          box-shadow: 0 15px 40px rgba(0, 0, 0, 1), 0 0 25px rgba(218, 165, 32, 0.25);
+          transform: translateY(-3px);
+        }
+        .custom-btn {
+          background-color: transparent;
+          color: #DAA520;
+          border: 1px solid rgba(218, 165, 32, 0.5);
+          padding: 10px 22px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.85rem;
+          letter-spacing: 1px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        .custom-btn:hover, .custom-btn.active {
+          background-color: #DAA520 !important;
+          color: #000 !important;
+          box-shadow: 0 0 20px rgba(218, 165, 32, 0.5);
+        }
+        .gold-btn {
+          background-color: #DAA520;
+          color: #000;
+          border: none;
+          padding: 12px 26px;
+          border-radius: 8px;
+          font-weight: bold;
+          font-size: 0.9rem;
+          letter-spacing: 1px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+        .gold-btn:hover {
+          background-color: #f1c40f;
+          box-shadow: 0 0 25px rgba(218, 165, 32, 0.6);
+        }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid rgba(218, 165, 32, 0.25); padding: 14px; text-align: center; color: #FFF; font-size: 0.9rem; }
+        th { background-color: #0a0a0a; color: #DAA520; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1.5px; }
+        input, select { background-color: #050505; color: #DAA520; border: 1px solid rgba(218, 165, 32, 0.4); padding: 12px; border-radius: 8px; outline: none; width: 100%; font-size: 0.9rem; }
+      `}</style>
 
-      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
-        
-        {/* Header Superior */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
+      {/* Header Corporativo */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", maxWidth: "1300px", margin: "0 auto 40px auto" }}>
+        <button onClick={() => router.push("/portal-cliente")} className="custom-btn">
+          ← Volver al Portal Principal
+        </button>
+        <div style={{ display: "flex", gap: "15px" }}>
+          <button onClick={() => setSeccionActiva("dashboard")} className={`custom-btn ${seccionActiva === "dashboard" ? "active" : ""}`}>
+            📊 Dashboard
+          </button>
+          <button onClick={() => setSeccionActiva("campañas")} className={`custom-btn ${seccionActiva === "campañas" ? "active" : ""}`}>
+            🎯 Campañas B2B
+          </button>
+          <button onClick={() => setSeccionActiva("leads")} className={`custom-btn ${seccionActiva === "leads" ? "active" : ""}`}>
+            💼 Pipeline Leads
+          </button>
+        </div>
+      </div>
+
+      <div style={{ textAlign: "center", marginBottom: "50px" }}>
+        <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "140px", marginBottom: "20px" }} />
+        <h1 style={{ color: "#DAA520", fontSize: "1.8rem", fontWeight: "300", letterSpacing: "3px", textTransform: "uppercase", margin: 0 }}>
+          ENTERPRISE MARKETING SUITE
+        </h1>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem", letterSpacing: "1px", marginTop: "8px" }}>
+          SISTEMA DE INTELIGENCIA COMERCIAL Y ADQUISICIÓN GLOBAL • TRULINK FIBER LLC
+        </p>
+      </div>
+
+      <div style={{ maxWidth: "1300px", margin: "0 auto" }}>
+        {seccionActiva === "dashboard" && (
           <div>
-            <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
-              CENTRO DE MARKETING OMNICANAL
-            </h1>
-            <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
-              Segmenta, diseña y despacha campañas comerciales directas a tu red de integradores y mayoristas.
-            </p>
-          </div>
-          <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
-            ESTADO: ACTIVO
-          </div>
-        </div>
-
-        {/* SELECTORES DE TIPO DE CAMPAÑA */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px", marginBottom: "30px" }}>
-          {[
-            { id: "lanzamiento", icon: "🚀", title: "Lanzamiento de Stock", desc: "Nuevos lotes o reposiciones de fábrica." },
-            { id: "volumen", icon: "📦", title: "Ofertas por Volumen", desc: "Campañas de precios para distribuidores." },
-            { id: "tecnico", icon: "📄", title: "Boletín Técnico", desc: "Normativas y catálogos actualizados." }
-          ].map((item) => (
-            <div 
-              key={item.id}
-              onClick={() => seleccionarPlantilla(item.id)}
-              style={{ 
-                backgroundColor: tipoCampana === item.id ? "#141400" : "#111111", 
-                border: `1px solid ${tipoCampana === item.id ? "#DAA520" : "rgba(218, 165, 32, 0.2)"}`, 
-                borderRadius: "12px", 
-                padding: "20px", 
-                cursor: "pointer",
-                boxShadow: tipoCampana === item.id ? "0 4px 20px rgba(218, 165, 32, 0.15)" : "none",
-                transition: "all 0.3s ease"
-              }}
-            >
-              <h3 style={{ fontSize: "1.05rem", color: "#DAA520", marginBottom: "8px", fontWeight: "600" }}>{item.icon} {item.title}</h3>
-              <p style={{ fontSize: "0.8rem", color: "#888", margin: 0 }}>{item.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* ÁREA DE TRABAJO (FORMULARIO Y VISTA PREVIA) */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px" }}>
-          
-          {/* Columna Izquierda: Configuración */}
-          <div style={{ backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "12px", padding: "30px" }}>
-            <h3 style={{ fontSize: "1.1rem", textTransform: "uppercase", marginBottom: "25px", color: "#DAA520", borderLeft: "3px solid #DAA520", paddingLeft: "12px" }}>
-              Parámetros de Envío
-            </h3>
-
-            <form onSubmit={handleDespacharCampana}>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Segmento de Destino:</label>
-                <select value={segmento} onChange={(e) => setSegmento(e.target.value)} style={inputStyle}>
-                  <option value="todos">Todos los Clientes Registrados</option>
-                  <option value="ISP">ISPs (Proveedores de Internet)</option>
-                  <option value="MAYORISTA">Mayoristas y Distribuidores</option>
-                  <option value="INTEGRADOR">Integradores de Redes</option>
-                  <option value="individual">🎯 Envio Individual / Manual</option>
-                </select>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "25px", marginBottom: "40px" }}>
+              <div className="card-enterprise" style={{ padding: "30px" }}>
+                <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", letterSpacing: "1px", textTransform: "uppercase" }}>Campañas Activas</span>
+                <h2 style={{ fontSize: "2.2rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>{campañas.filter(c => c.estado === 'Activa').length}</h2>
               </div>
+              <div className="card-enterprise" style={{ padding: "30px" }}>
+                <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", letterSpacing: "1px", textTransform: "uppercase" }}>Presupuesto Global Asignado</span>
+                <h2 style={{ fontSize: "2.2rem", color: "#FFF", margin: "10px 0 0 0", fontWeight: "400" }}>${totalPresupuesto.toLocaleString()}</h2>
+              </div>
+              <div className="card-enterprise" style={{ padding: "30px" }}>
+                <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", letterSpacing: "1px", textTransform: "uppercase" }}>Leads en Pipeline</span>
+                <h2 style={{ fontSize: "2.2rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>{leads.length}</h2>
+              </div>
+            </div>
 
-              {segmento === "individual" && (
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Correos Destinos (Separados por coma):</label>
-                  <input 
-                    type="text" 
-                    value={correoIndividual} 
-                    onChange={(e) => setCorreoIndividual(e.target.value)} 
-                    placeholder="ej. director@igtel.com, compras@cliente.com" 
-                    style={inputStyle} 
+            <div className="card-enterprise" style={{ padding: "40px", marginBottom: "40px" }}>
+              <h3 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", letterSpacing: "1px", textTransform: "uppercase", marginTop: 0 }}>
+                Despliegue Rápido de Campaña Global
+              </h3>
+              <form onSubmit={handleCrearCampana} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "20px", alignItems: "end", marginTop: "20px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.75rem", color: "rgba(255,255,255,0.6)", marginBottom: "8px", textTransform: "uppercase" }}>Nombre de Campaña</label>
+                  <input
+                    type="text"
+                    placeholder="Ej: Expansión Asia-Panamá Hub"
+                    value={nuevaCampana.nombre}
+                    onChange={(e) => setNuevaCampana({ ...nuevaCampana, nombre: e.target.value })}
                   />
                 </div>
-              )}
-
-              <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", backgroundColor: "#0b0b0b", padding: "12px", borderRadius: "8px", border: "1px solid rgba(218, 165, 32, 0.4)" }}>
-                <span style={{ fontSize: "0.85rem", color: "#aaa" }}>Alcance Estimado:</span>
-                <span style={{ color: "#DAA520", fontWeight: "bold" }}>👥 {totalDestinatarios} Destinatario(s)</span>
-              </div>
-
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Asunto del Correo:</label>
-                <input type="text" value={asunto} onChange={(e) => setAsunto(e.target.value)} placeholder="Asunto..." style={inputStyle} />
-              </div>
-
-              <div style={{ marginBottom: "30px" }}>
-                <label style={{ display: "block", fontSize: "0.85rem", color: "#aaa", marginBottom: "8px" }}>Cuerpo del Mensaje:</label>
-                <textarea rows={6} value={mensaje} onChange={(e) => setMensaje(e.target.value)} placeholder="Contenido..." style={{ ...inputStyle, resize: "vertical" }} />
-              </div>
-
-              <button type="submit" disabled={cargando} style={buttonStyle}>
-                {cargando ? "Despachando..." : "🚀 DESPACHAR CAMPAÑA"}
-              </button>
-            </form>
-          </div>
-
-          {/* Columna Derecha: Vista Previa */}
-          <div style={{ backgroundColor: "#050505", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: "12px", padding: "30px", display: "flex", flexDirection: "column" }}>
-            <h3 style={{ fontSize: "1.1rem", textTransform: "uppercase", marginBottom: "25px", color: "#888", borderLeft: "3px solid #888", paddingLeft: "12px" }}>
-              Vista Previa en Vivo
-            </h3>
-            
-            <div style={{ backgroundColor: "#fff", color: "#000", flex: 1, borderRadius: "8px", padding: "30px", boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)", overflowY: "auto" }}>
-              <div style={{ borderBottom: "2px solid #000", paddingBottom: "15px", marginBottom: "20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: "900", letterSpacing: "-1px" }}>TRULINK FIBER</h2>
-                <span style={{ fontSize: "0.75rem", color: "#666", textTransform: "uppercase" }}>Comunicado Oficial</span>
-              </div>
-              
-              <div style={{ marginBottom: "20px" }}>
-                <strong style={{ fontSize: "0.9rem", color: "#444" }}>Asunto: </strong>
-                <span style={{ fontSize: "1rem", fontWeight: "bold" }}>{asunto || "Sin asunto definido..."}</span>
-              </div>
-
-              <div style={{ whiteSpace: "pre-wrap", fontSize: "0.95rem", lineHeight: "1.6", color: "#222" }}>
-                {mensaje || "El contenido del mensaje aparecerá aquí..."}
-              </div>
-
-              <div style={{ marginTop: "40px", paddingTop: "20px", borderTop: "1px solid #ddd", fontSize: "0.75rem", color: "#888", textAlign: "center" }}>
-                © 2026 Trulink Fiber LLC. Todos los derechos reservados.<br/>
-                Para darse de baja de estas notificaciones, contacte a su gerente de cuenta.
-              </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.75rem", color: "rgba(255,255,255,0.6)", marginBottom: "8px", textTransform: "uppercase" }}>Canal / Tipo</label>
+                  <select
+                    value={nuevaCampana.tipo}
+                    onChange={(e) => setNuevaCampana({ ...nuevaCampana, tipo: e.target.value })}
+                  >
+                    <option value="B2B Outbound">B2B Outbound</option>
+                    <option value="Email Automation">Email Automation (Brevo SMTP)</option>
+                    <option value="Global Ads">Global Ads</option>
+                    <option value="Partners Estratégicos">Partners Estratégicos</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.75rem", color: "rgba(255,255,255,0.6)", marginBottom: "8px", textTransform: "uppercase" }}>Presupuesto ($ USD)</label>
+                  <input
+                    type="number"
+                    value={nuevaCampana.presupuesto}
+                    onChange={(e) => setNuevaCampana({ ...nuevaCampana, presupuesto: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <button type="submit" className="gold-btn" style={{ height: "47px" }}>
+                  Desplegar
+                </button>
+              </form>
             </div>
           </div>
+        )}
 
-        </div>
+        {seccionActiva === "campañas" && (
+          <div className="card-enterprise" style={{ padding: "40px" }}>
+            <h2 style={{ color: "#DAA520", fontSize: "1.2rem", fontWeight: "500", letterSpacing: "1px", textTransform: "uppercase", marginTop: 0, marginBottom: "25px" }}>
+              Gestión de Campañas Publicitarias y B2B
+            </h2>
+            {campañas.length === 0 ? (
+              <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay campañas registradas actualmente en el clúster.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Campaña</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Presupuesto</th>
+                    <th>Gasto</th>
+                    <th>ROI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {campañas.map((c) => (
+                    <tr key={c.id}>
+                      <td style={{ color: "rgba(255,255,255,0.5)" }}>#{c.id}</td>
+                      <td style={{ textAlign: "left", fontWeight: "500" }}>{c.nombre}</td>
+                      <td>{c.tipo}</td>
+                      <td>
+                        <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "0.75rem", backgroundColor: "rgba(218, 165, 32, 0.15)", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.4)" }}>
+                          {c.estado}
+                        </span>
+                      </td>
+                      <td>${Number(c.presupuesto).toLocaleString()}</td>
+                      <td>${Number(c.gasto).toLocaleString()}</td>
+                      <td style={{ color: "#DAA520", fontWeight: "600" }}>{c.roi}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {seccionActiva === "leads" && (
+          <div className="card-enterprise" style={{ padding: "40px" }}>
+            <h2 style={{ color: "#DAA520", fontSize: "1.2rem", fontWeight: "500", letterSpacing: "1px", textTransform: "uppercase", marginTop: 0, marginBottom: "25px" }}>
+              Pipeline de Prospectos y Clientes Potenciales
+            </h2>
+            {leads.length === 0 ? (
+              <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay leads registrados en el sistema.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Contacto</th>
+                    <th>Empresa</th>
+                    <th>Email</th>
+                    <th>Teléfono Móvil</th>
+                    <th>Origen</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.map((l) => (
+                    <tr key={l.id}>
+                      <td style={{ textAlign: "left", fontWeight: "500" }}>{l.nombre_contacto}</td>
+                      <td style={{ textAlign: "left" }}>{l.empresa}</td>
+                      <td style={{ color: "rgba(255,255,255,0.7)" }}>{l.email}</td>
+                      <td>{l.telefono_celular}</td>
+                      <td>{l.origen}</td>
+                      <td>
+                        <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "0.75rem", backgroundColor: "rgba(255, 255, 255, 0.08)", color: "#FFF", border: "1px solid rgba(255, 255, 255, 0.2)" }}>
+                          {l.estado}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-const inputStyle = {
-  width: "100%", backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "8px", padding: "12px 16px", color: "#DAA520", outline: "none", fontSize: "0.9rem", boxSizing: "border-box" as const
-};
-
-const buttonStyle = {
-  backgroundColor: "#DAA520", color: "#000", border: "none", borderRadius: "8px", padding: "16px 28px", fontWeight: "700", cursor: "pointer", fontSize: "0.95rem", width: "100%", letterSpacing: "1px", boxShadow: "0 4px 15px rgba(218, 165, 32, 0.2)", transition: "all 0.2s ease"
-};
