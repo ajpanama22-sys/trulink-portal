@@ -214,17 +214,17 @@ export default function Sidebar({ currentActive }: SidebarProps) {
             })}
           </nav>
 
-          {/* Imagen biku.png ubicada justo debajo del bloque de Configuración / navegación */}
-          <div style={{ textAlign: "center", margin: "10px 0 20px 0", flexShrink: 0 }}>
+          {/* Imagen biku.png ampliada 3 veces (~220px) */}
+          <div style={{ textAlign: "center", margin: "15px 0 20px 0", flexShrink: 0 }}>
             <img 
               src="/images/biku.png" 
               alt="Biku" 
               style={{ 
-                width: "75px", 
+                width: "220px", 
                 height: "auto", 
-                borderRadius: "8px", 
+                borderRadius: "10px", 
                 border: "1px solid rgba(218, 165, 32, 0.4)",
-                boxShadow: "0 0 15px rgba(218, 165, 32, 0.25)",
+                boxShadow: "0 0 20px rgba(218, 165, 32, 0.3)",
                 objectFit: "contain"
               }} 
             />
