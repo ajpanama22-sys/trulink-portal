@@ -70,31 +70,10 @@ export default function Fabricacion() {
     fetchClientInfo();
   }, [router]);
 
-  useEffect(() => {
-    let inactivityTimer: NodeJS.Timeout;
-
-    const resetInactivityTimer = () => {
-      clearTimeout(inactivityTimer);
-      inactivityTimer = setTimeout(async () => {
-        await supabase.auth.signOut();
-        router.push("/portal-cliente");
-      }, 5 * 60 * 1000);
-    };
-
-    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
-    events.forEach((event) => {
-      window.addEventListener(event, resetInactivityTimer);
-    });
-
-    resetInactivityTimer();
-
-    return () => {
-      clearTimeout(inactivityTimer);
-      events.forEach((event) => {
-        window.removeEventListener(event, resetInactivityTimer);
-      });
-    };
-  }, [router]);
+  // NOTA: el cierre de sesión por inactividad ya no vive aquí — se
+  // centralizó en components/InactivityGuard.tsx, montado globalmente
+  // desde _app.tsx para todo el portal de clientes (antes solo aplicaba
+  // en esta página, y páginas como productos.tsx no lo tenían).
 
   const handleLogOut = async () => {
     await supabase.auth.signOut();
