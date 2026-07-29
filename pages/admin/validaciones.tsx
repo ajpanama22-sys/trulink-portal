@@ -64,12 +64,10 @@ export default function AdminValidaciones() {
       const pendientesLimpias = (data || []).filter(item => {
         const s = String(item.status || "").trim().toLowerCase();
         
-        // Si contiene la raíz de la palabra, LO SACAMOS ROTUNDAMENTE
         if (s.includes("aprob") || s.includes("rechaz")) {
           return false; 
         }
         
-        // Si no fue ni aprobado ni rechazado, validamos que sea lo que queremos dejar pasar
         return s === "" || s === "pendiente" || s === "pending" || s === "null" || s === "undefined";
       });
 
@@ -209,7 +207,7 @@ export default function AdminValidaciones() {
         return;
       }
 
-      // 2. Actualizar solicitud a 'aprobado'. Usamos .select() para confirmar que se haya actualizado en la BD.
+      // 2. Actualizar solicitud a 'aprobado'
       const { data: confirmData, error: updateError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -254,7 +252,7 @@ export default function AdminValidaciones() {
       // --- LÓGICA DE RECHAZO ---
       const motivoInterno = comentarioAdmin.trim() !== "" ? comentarioAdmin : "Sin comentario interno especificado.";
 
-      // 1. Actualizar solicitud a 'rechazado'. Usamos .select() para confirmar actualización.
+      // 1. Actualizar solicitud a 'rechazado'
       const { data: confirmReject, error: rejectError } = await supabase
         .from("solicitudes_acceso")
         .update({ 
@@ -292,7 +290,6 @@ export default function AdminValidaciones() {
       }
     }
 
-    // Remover el elemento del estado local visualmente de forma inmediata
     setDataList(prev => prev.filter(item => item.id !== id));
     setFilteredList(prev => prev.filter(item => item.id !== id));
     
