@@ -32,31 +32,23 @@ export default function Fabricacion() {
 
     const fetchClientInfo = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Consulta en la tabla 'clientes' filtrando por user_id
-        let { data, error } = await supabase
+      
+      if (user && user.email) {
+        // Consultar directamente a la tabla clientes usando el email del usuario autenticado
+        const { data, error } = await supabase
           .from('clientes')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('email', user.email.trim())
           .maybeSingle();
 
-        // Respaldo de búsqueda por email si no se encuentra por ID directo
-        if (!data && user.email) {
-          const { data: dataByEmail } = await supabase
-            .from('clientes')
-            .select('*')
-            .ilike('email', user.email.trim())
-            .maybeSingle();
-          data = dataByEmail;
-        }
-
         if (data) {
-          setNombreEmpresa(data.empresa || data.razon_social || '');
-          setRepresentante(data.nombre_representante || data.representante || '');
+          // Asignar mapeando correctamente a los campos reales de tu tabla de clientes
+          setNombreEmpresa(data.razon_social || '');
+          setRepresentante(data.nombre_representante || '');
           setMailCliente(data.email || user.email || '');
-          setTelefonoCliente(data.telefono_celular || data.telefono || '');
-        } else if (user) {
-          // Si no hay registro en la tabla clientes pero sí usuario autenticado, al menos rescatar el email
+          setTelefonoCliente(data.telefono_celular || data.telefono_oficina || '');
+        } else {
+          // Si no existe el registro en clientes pero hay sesión, guardamos al menos el email
           setMailCliente(user.email || '');
         }
       }

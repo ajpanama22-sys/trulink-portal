@@ -121,13 +121,12 @@ export default function Productos() {
   };
 
   const obtenerDatosClienteFresco = async () => {
-    let clienteMail = mailCliente;
-    let clienteEmpresa = nombreEmpresa;
-    let clienteRep = representante;
-    let clienteTelefono = telefonoCliente;
-    let clienteTipo = tipoCliente;
+    // 1. Obtener directamente el usuario autenticado actual de Supabase
+    const { data: { user } } = await supabase.auth.getUser();
+    let authEmail = user?.email || "";
 
-    if (!clienteMail || clienteMail === "No especificado" || clienteMail === "N/D") {
+    // 2. Si no hay email por getUser, buscar en localStorage/sessionStorage como respaldo
+    if (!authEmail) {
       const storedUser =
         sessionStorage.getItem("trulink_user") ||
         localStorage.getItem("trulink_user") ||
@@ -137,14 +136,44 @@ export default function Productos() {
       if (storedUser) {
         try {
           const parsed = JSON.parse(storedUser);
-          clienteMail = parsed.email || clienteMail;
-          clienteEmpresa = parsed.razon_social || parsed.empresa || parsed.nombre || clienteEmpresa;
-          clienteRep = parsed.representante || parsed.nombre_representante || parsed.contacto || parsed.nombre || clienteRep;
-          clienteTelefono = parsed.telefono_celular || parsed.telefono || parsed.telefono_movil || parsed.celular || clienteTelefono;
-          clienteTipo = parsed.tipo_cliente || parsed.rol || parsed.tipo || clienteTipo;
+          authEmail = parsed.email || "";
         } catch (e) {}
       }
     }
+
+    let clienteEmpresa = "Cliente General";
+    let clienteRep = "No especificado";
+    let clienteTelefono = "No especificado";
+    let clienteTipo = "A";
+    let clienteMail = authEmail || "No especificado";
+
+    // 3. Consultar la tabla 'clientes' usando el correo exacto
+    if (authEmail) {
+      const { data: clienteDB } = await supabase
+        .from("clientes")
+        .select("*")
+        .ilike("email", authEmail.trim())
+        .maybeSingle();
+
+      if (clienteDB) {
+        clienteEmpresa = clienteDB.razon_social || clienteDB.nombre || clienteEmpresa;
+        clienteRep = clienteDB.representante || clienteDB.nombre_representante || clienteDB.contacto || clienteDB.nombre || clienteRep;
+        clienteTelefono = clienteDB.telefono_celular || clienteDB.telefono || clienteDB.telefono_movil || clienteDB.celular || clienteTelefono;
+        clienteMail = clienteDB.email || clienteMail;
+        clienteTipo = clienteDB.tipo_cliente || clienteTipo;
+      } else {
+        clienteEmpresa = authEmail;
+      }
+    }
+
+    return {
+      empresa: clienteEmpresa,
+      representante: clienteRep,
+      email: clienteMail,
+      telefono_celular: clienteTelefono,
+      tipo: clienteTipo
+    };
+  };
 
     if ((!clienteMail || clienteMail === "No especificado" || clienteMail === "N/D") && supabase) {
       const { data: { session } } = await supabase.auth.getSession();
