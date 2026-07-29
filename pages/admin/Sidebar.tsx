@@ -20,7 +20,6 @@ interface MenuBlock {
 export default function Sidebar({ currentActive }: SidebarProps) {
   const router = useRouter();
 
-  // Módulos agrupados según el flujo operativo real del negocio
   const menuBlocks: MenuBlock[] = [
     {
       category: 'COMERCIAL',
@@ -68,13 +67,11 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     },
   ];
 
-  // Estado para controlar qué categorías están abiertas. 
-  // Por defecto, abrimos la categoría que contenga el ítem activo actual.
   const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>(() => {
     const initial: { [key: string]: boolean } = {};
     menuBlocks.forEach((block) => {
       const hasActiveItem = block.items.some((item) => item.key === currentActive);
-      initial[block.category] = hasActiveItem; // Abierto si contiene la ruta actual, cerrado si no.
+      initial[block.category] = hasActiveItem;
     });
     return initial;
   });
@@ -97,7 +94,6 @@ export default function Sidebar({ currentActive }: SidebarProps) {
 
   return (
     <>
-      {/* ESTILOS DE SCROLLBAR DORADO/NEGRO */}
       <style>{`
         .sidebar-scroll::-webkit-scrollbar {
           width: 5px;
@@ -118,27 +114,18 @@ export default function Sidebar({ currentActive }: SidebarProps) {
           scrollbar-color: rgba(218, 165, 32, 0.4) #000000;
         }
       `}</style>
-
-      <aside style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px", backgroundColor: "#000000", minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "space-between", boxSizing: "border-box" }}>
-        {/* SECCIÓN SUPERIOR CON SCROLL PERSONALIZADO */}
-        <div className="sidebar-scroll" style={{ display: "flex", flexDirection: "column", overflowY: "auto", maxHeight: "calc(100vh - 150px)", paddingRight: "6px" }}>
-          
-          {/* LOGO Y ENCABEZADO */}
-          <div style={{ textAlign: "center", marginBottom: "25px" }}>
+      <aside style={{ width: "280px", borderRight: "2px solid #DAA520", padding: "20px", backgroundColor: "#000000", height: "100vh", display: "flex", flexDirection: "column", boxSizing: "border-box", position: "sticky", top: 0, left: 0 }}>
+        <div className="sidebar-scroll" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflowY: "auto", paddingRight: "6px" }}>
+          <div style={{ textAlign: "center", marginBottom: "25px", flexShrink: 0 }}>
             <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "100px", marginBottom: "10px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.3))" }} />
             <h2 style={{ color: "#DAA520", fontSize: "1.1rem", letterSpacing: "1px", margin: 0 }}>ADMIN PANEL</h2>
           </div>
-
-          {/* NAVEGACIÓN AGRUPADA */}
-          <nav style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
+          <nav style={{ display: "flex", flexDirection: "column", gap: "15px", paddingBottom: "15px" }}>
             {menuBlocks.map((block) => {
               const isOpen = openCategories[block.category];
               const hasActiveChild = block.items.some((item) => item.key === currentActive);
-
               return (
                 <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  
-                  {/* TÍTULO DEL MÓDULO INTERACTIVO (CLICKEABLE) */}
                   <div
                     onClick={() => toggleCategory(block.category)}
                     style={{
@@ -176,8 +163,6 @@ export default function Sidebar({ currentActive }: SidebarProps) {
                       {isOpen ? '▲' : '▼'}
                     </span>
                   </div>
-
-                  {/* OPCIONES DEL BLOQUE (SE MUESTRAN SOLO SI ESTÁ ABIERTO) */}
                   {isOpen && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "8px", animation: "fadeIn 0.2s ease-in-out" }}>
                       {block.items.map((item) => {
@@ -229,9 +214,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
             })}
           </nav>
         </div>
-
-        {/* BOTONES FIJOS INFERIORES */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "15px", borderTop: "1px solid rgba(218, 165, 32, 0.2)" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px", paddingTop: "15px", borderTop: "1px solid rgba(218, 165, 32, 0.2)", flexShrink: 0 }}>
           <button
             onClick={() => router.push('/portal-cliente')}
             style={{
@@ -254,7 +237,6 @@ export default function Sidebar({ currentActive }: SidebarProps) {
           >
             ← Volver al Portal
           </button>
-
           <button
             onClick={handleCerrarSesion}
             style={{
