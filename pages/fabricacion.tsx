@@ -18,6 +18,24 @@ type Item = {
   cantidad: number;
   precioMetro: number;
   precioCarrete: number;
+  vano: number | null;          // 100 / 120 / 150 — solo ASU y ADSS
+  conMensajero: boolean;        // solo FTTX
+  configuracionCodigo: string;  // amarre con producto_configuraciones
+};
+
+/**
+ * Traduce lo que eligió el cliente al código de configuración que usa la
+ * planta. Es la pieza que permite que la orden de producción sepa qué
+ * receta aplicar y cuánta materia prima descontar.
+ *
+ *   FTTX sin mensajero -> FTTH-SM
+ *   FTTX con mensajero -> FTTH-CM
+ *   ASU vano 120       -> ASU-120
+ *   ADSS vano 150      -> ADSS-150
+ */
+const codigoConfiguracion = (tipo: string, vano: number | null, conMensajero: boolean): string => {
+  if (tipo === "FTTX") return conMensajero ? "FTTH-CM" : "FTTH-SM";
+  return `${tipo}-${vano || 100}`;
 };
 
 export default function Fabricacion() {
@@ -90,10 +108,43 @@ export default function Fabricacion() {
   // Precios base por metro para fabricación
   const precios: Record<string, number> = { ASU: 0.25, ADSS: 0.40, FTTX: 0.15 };
 
-  const agregarItem = (tipo: string, hilos: number, longitudKm: number, cantidad: number): void => {
-    const precioMetro = precios[tipo] || 0;
+  // ------------------------------------------------------------------
+  // RECARGOS POR CONFIGURACIÓN
+  // Están en CERO a propósito: hay que definirlos con costos reales
+  // antes de cobrarlos. Hoy un ADSS de vano 150 cuesta lo mismo que uno
+  // de 100, y un FTTX con mensajero lo mismo que sin él — aunque el de
+  // 150 lleva más aramida y el del mensajero agrega acero.
+  // Cuando tengas los costos, cambia estos números y listo.
+  // ------------------------------------------------------------------
+  const recargoVano: Record<number, number> = { 100: 0, 120: 0, 150: 0 };
+  const recargoMensajero = 0;
+
+  const agregarItem = (
+    tipo: string,
+    hilos: number,
+    longitudKm: number,
+    cantidad: number,
+    vano: number | null = null,
+    conMensajero: boolean = false
+  ): void => {
+    const base = precios[tipo] || 0;
+    const precioMetro =
+      base +
+      (vano ? (recargoVano[vano] || 0) : 0) +
+      (conMensajero ? recargoMensajero : 0);
     const precioCarrete = precioMetro * (longitudKm * 1000);
-    const nuevoItem: Item = { tipo, hilos, longitudKm, cantidad, precioMetro, precioCarrete };
+
+    const nuevoItem: Item = {
+      tipo,
+      hilos,
+      longitudKm,
+      cantidad,
+      precioMetro,
+      precioCarrete,
+      vano,
+      conMensajero,
+      configuracionCodigo: codigoConfiguracion(tipo, vano, conMensajero),
+    };
     setCotizacion([...cotizacion, nuevoItem]);
   };
 
@@ -110,13 +161,34 @@ export default function Fabricacion() {
     return hoy.toISOString().split('T')[0];
   };
 
+  /** Texto corto de la configuración, para mostrar y para el PDF. */
+  const detalleConfig = (item: Item): string => {
+    const partes: string[] = [`${item.longitudKm} km/carrete`];
+    if (item.vano) partes.push(`vano ${item.vano} m`);
+    if (item.conMensajero) partes.push("con mensajero");
+    return partes.join(" · ");
+  };
+
   const guardarCotizacionEnSupabase = async (pdfPublicUrl: string) => {
+    // Se guardan los campos ESTRUCTURADOS además de la descripción de
+    // texto: hilos, km del carrete, vano, mensajero y el código de
+    // configuración. Sin ellos el panel de manufactura no puede deducir
+    // la receta ni calcular el consumo de materia prima — quedaría
+    // adivinando a partir de una cadena de texto.
     const itemsFormateados = cotizacion.map(item => ({
       SKU: item.tipo,
-      descripcion: `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)`,
+      descripcion:
+        `Cable ${item.tipo} - ${item.hilos} hilos (${item.longitudKm}km)` +
+        (item.vano ? ` - vano ${item.vano}m` : "") +
+        (item.conMensajero ? " - con mensajero" : ""),
       cantidad: item.cantidad,
       precioUnitario: item.precioCarrete,
-      total: item.precioCarrete * item.cantidad
+      total: item.precioCarrete * item.cantidad,
+      hilos: item.hilos,
+      longitudKm: item.longitudKm,
+      vano: item.vano,
+      con_mensajero: item.conMensajero,
+      configuracion_codigo: item.configuracionCodigo,
     }));
 
     const { data: existente } = await supabase
@@ -193,8 +265,12 @@ export default function Fabricacion() {
     doc.text("Tel: +507 6640 3720", 14, 82);
     doc.text("www.trulinkfiber.com", 14, 88);
 
+    // La descripción del PDF ahora incluye vano y mensajero, para que el
+    // cliente vea exactamente qué configuración está cotizando.
     const rows = cotizacion.map(item => [
-      item.tipo,
+      item.tipo +
+        (item.vano ? `\nVano ${item.vano} m` : "") +
+        (item.conMensajero ? "\nCon mensajero" : ""),
       item.hilos.toString(),
       item.cantidad.toString(),
       `$${item.precioMetro.toFixed(2)}`,
@@ -304,6 +380,19 @@ export default function Fabricacion() {
     fontSize: "0.9rem",
     transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)"
+  };
+
+  const filaControl: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 10px"
+  };
+
+  const etiquetaControl: React.CSSProperties = {
+    color: "#CCCCCC",
+    fontSize: "0.9rem",
+    fontWeight: 500
   };
 
   return (
@@ -447,11 +536,12 @@ export default function Fabricacion() {
               <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)", marginBottom: "15px", backgroundColor: "#000" }}>
                 <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
-              <h3 style={{ color: "#DAA520", margin: "0 0 15px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>ASU</h3>
+              <h3 style={{ color: "#DAA520", margin: "0 0 6px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>ASU</h3>
+              <p style={{ color: "#777", fontSize: "0.72rem", margin: "0 0 15px 0" }}>Autosoportado con varillas FRP</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Hilos:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Hilos:</label>
                   <select id="asuHilos" style={{ ...controlStyle, width: "130px" }}>
                     <option value="6">6</option>
                     <option value="12">12</option>
@@ -460,15 +550,24 @@ export default function Fabricacion() {
                   </select>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Carrete:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Vano:</label>
+                  <select id="asuVano" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="100">100 m</option>
+                    <option value="120">120 m</option>
+                    <option value="150">150 m</option>
+                  </select>
+                </div>
+
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Carrete:</label>
                   <select id="asuCarrete" style={{ ...controlStyle, width: "130px" }}>
                     <option value="3">3 km</option>
                   </select>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Cantidad:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Cantidad:</label>
                   <input
                     id="asuCantidad"
                     type="number"
@@ -484,7 +583,8 @@ export default function Fabricacion() {
               const hilos = parseInt((document.getElementById("asuHilos") as HTMLSelectElement).value);
               const carrete = parseInt((document.getElementById("asuCarrete") as HTMLSelectElement).value);
               const cantidad = parseInt((document.getElementById("asuCantidad") as HTMLInputElement).value);
-              agregarItem("ASU", hilos, carrete, cantidad);
+              const vano = parseInt((document.getElementById("asuVano") as HTMLSelectElement)?.value || "100");
+              agregarItem("ASU", hilos, carrete, cantidad, vano, false);
             }} className="action-btn" style={{ width: "100%", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "0.9rem", letterSpacing: "0.5px" }}>
               Agregar a Cotización
             </button>
@@ -496,11 +596,12 @@ export default function Fabricacion() {
               <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)", marginBottom: "15px", backgroundColor: "#000" }}>
                 <img src="/images/ADSS.png" alt="Cable ADSS" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
-              <h3 style={{ color: "#DAA520", margin: "0 0 15px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>ADSS</h3>
+              <h3 style={{ color: "#DAA520", margin: "0 0 6px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>ADSS</h3>
+              <p style={{ color: "#777", fontSize: "0.72rem", margin: "0 0 15px 0" }}>Dieléctrico autosoportado con aramida</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Hilos:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Hilos:</label>
                   <select id="adssHilos" style={{ ...controlStyle, width: "130px" }}>
                     <option value="72">72</option>
                     <option value="96">96</option>
@@ -508,15 +609,24 @@ export default function Fabricacion() {
                   </select>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Carrete:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Vano:</label>
+                  <select id="adssVano" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="100">100 m</option>
+                    <option value="120">120 m</option>
+                    <option value="150">150 m</option>
+                  </select>
+                </div>
+
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Carrete:</label>
                   <select id="adssCarrete" style={{ ...controlStyle, width: "130px" }}>
                     <option value="3">3 km</option>
                   </select>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Cantidad:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Cantidad:</label>
                   <input
                     id="adssCantidad"
                     type="number"
@@ -532,7 +642,8 @@ export default function Fabricacion() {
               const hilos = parseInt((document.getElementById("adssHilos") as HTMLSelectElement)?.value || "0");
               const carrete = parseInt((document.getElementById("adssCarrete") as HTMLSelectElement)?.value || "0");
               const cantidad = parseInt((document.getElementById("adssCantidad") as HTMLInputElement)?.value || "0");
-              agregarItem("ADSS", hilos, carrete, cantidad);
+              const vano = parseInt((document.getElementById("adssVano") as HTMLSelectElement)?.value || "100");
+              agregarItem("ADSS", hilos, carrete, cantidad, vano, false);
             }} className="action-btn" style={{ width: "100%", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "0.9rem", letterSpacing: "0.5px" }}>
               Agregar a Cotización
             </button>
@@ -544,27 +655,36 @@ export default function Fabricacion() {
               <div style={{ overflow: "hidden", borderRadius: "12px", border: "1px solid rgba(218, 165, 32, 0.2)", marginBottom: "15px", backgroundColor: "#000" }}>
                 <img src="/images/FTTX.png" alt="Cable FTTX" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
-              <h3 style={{ color: "#DAA520", margin: "0 0 15px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>FTTX</h3>
+              <h3 style={{ color: "#DAA520", margin: "0 0 6px 0", fontSize: "1.3rem", fontWeight: "700", letterSpacing: "0.5px" }}>FTTX</h3>
+              <p style={{ color: "#777", fontSize: "0.72rem", margin: "0 0 15px 0" }}>Drop plano para acometidas</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Hilos:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Hilos:</label>
                   <select id="fttxHilos" style={{ ...controlStyle, width: "130px" }}>
                     <option value="1">1</option>
                     <option value="2">2</option>
                   </select>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Carrete:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Mensajero:</label>
+                  <select id="fttxMensajero" style={{ ...controlStyle, width: "130px" }}>
+                    <option value="no">Sin mensajero</option>
+                    <option value="si">Con mensajero</option>
+                  </select>
+                </div>
+
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Carrete:</label>
                   <select id="fttxCarrete" style={{ ...controlStyle, width: "130px" }}>
                     <option value="1">1 km</option>
                     <option value="2">2 km</option>
                   </select>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px" }}>
-                  <label style={{ color: "#CCCCCC", fontSize: "0.9rem", fontWeight: "500" }}>Cantidad:</label>
+                <div style={filaControl}>
+                  <label style={etiquetaControl}>Cantidad:</label>
                   <input
                     id="fttxCantidad"
                     type="number"
@@ -580,7 +700,8 @@ export default function Fabricacion() {
               const hilos = parseInt((document.getElementById("fttxHilos") as HTMLSelectElement)?.value || "0");
               const carrete = parseInt((document.getElementById("fttxCarrete") as HTMLSelectElement)?.value || "0");
               const cantidad = parseInt((document.getElementById("fttxCantidad") as HTMLInputElement)?.value || "0");
-              agregarItem("FTTX", hilos, carrete, cantidad);
+              const mensajero = (document.getElementById("fttxMensajero") as HTMLSelectElement)?.value === "si";
+              agregarItem("FTTX", hilos, carrete, cantidad, null, mensajero);
             }} className="action-btn" style={{ width: "100%", padding: "10px", borderRadius: "10px", cursor: "pointer", fontSize: "0.9rem", letterSpacing: "0.5px" }}>
               Agregar a Cotización
             </button>
@@ -625,7 +746,12 @@ export default function Fabricacion() {
               <tbody>
                 {cotizacion.map((item, index) => (
                   <tr key={index} style={{ backgroundColor: index % 2 === 0 ? "#080808" : "#0d0d0d", borderBottom: "1px solid rgba(255, 255, 255, 0.05)" }}>
-                    <td style={{ padding: "12px 15px", color: "#FFFFFF", fontWeight: "500" }}>{item.tipo}</td>
+                    <td style={{ padding: "12px 15px", color: "#FFFFFF", fontWeight: "500", textAlign: "left" }}>
+                      {item.tipo}
+                      <div style={{ fontSize: "0.72rem", color: "#888", marginTop: "3px" }}>
+                        {detalleConfig(item)}
+                      </div>
+                    </td>
                     <td style={{ padding: "12px 15px", color: "#CCCCCC" }}>{item.hilos}</td>
                     <td style={{ padding: "12px 15px", color: "#CCCCCC" }}>{item.cantidad}</td>
                     <td style={{ padding: "12px 15px", color: "#CCCCCC" }}>${item.precioMetro.toFixed(2)}</td>
