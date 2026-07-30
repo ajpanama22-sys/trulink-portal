@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
 /* ============================================================
@@ -146,6 +146,11 @@ const COLOR_AGING: Record<string, string> = {
 };
 
 export default function Proveedores() {
+  // Cliente singleton: es el que sí lleva la sesión autenticada.
+  // Usar la instancia suelta "supabase" hace que las tablas con RLS
+  // devuelvan cero filas y que los inserts respondan 401.
+  const supabase = getSupabase();
+
   const [tab, setTab] = useState<"directorio" | "ordenes" | "cxp" | "estado">("directorio");
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
