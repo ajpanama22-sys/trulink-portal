@@ -1,11 +1,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 type Prospecto = {
   id: number;
@@ -91,6 +87,11 @@ export default function CRMEpicoEnterprise() {
 
   const fetchCRMData = async () => {
     setLoading(true);
+    const supabase = getSupabase();
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     try {
       const { data: prosData, error: prosError } = await supabase
         .from("crm_prospectos")
@@ -120,6 +121,9 @@ export default function CRMEpicoEnterprise() {
     if (!nuevoProspecto.razon_social) return alert("Ingrese el nombre de la empresa.");
     if (!nuevoProspecto.email) return alert("Ingrese el email del contacto (obligatorio para poder convertirlo en cliente más adelante).");
 
+    const supabase = getSupabase();
+    if (!supabase) return alert("No se pudo conectar con la base de datos.");
+
     const { error } = await supabase.from("crm_prospectos").insert([{ ...nuevoProspecto, status: "prospecto", etapa_pipeline: "Prospecto" }]);
     if (error) {
       alert(`Error: ${error.message}`);
@@ -133,6 +137,9 @@ export default function CRMEpicoEnterprise() {
   const handleCrearOportunidad = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevaOportunidad.titulo) return alert("Ingrese el título de la oportunidad.");
+
+    const supabase = getSupabase();
+    if (!supabase) return alert("No se pudo conectar con la base de datos.");
 
     const { error } = await supabase.from("crm_opportunities").insert([
       { ...nuevaOportunidad, etapa: "Prospecto", probabilidad: 25 }
@@ -166,6 +173,12 @@ export default function CRMEpicoEnterprise() {
   const confirmarConversion = async () => {
     const prospecto = modalConversion.prospecto;
     if (!prospecto) return;
+
+    const supabase = getSupabase();
+    if (!supabase) {
+      alert("No se pudo conectar con la base de datos.");
+      return;
+    }
 
     setConvirtiendo(true);
 
