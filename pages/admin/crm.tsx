@@ -32,6 +32,25 @@ type Cotizacion = {
   descripcion: string;
 };
 
+type ClienteReal = {
+  id: string; // uuid
+  razon_social: string;
+  nombre_representante: string;
+  email: string;
+  telefono_celular: string;
+  price_list: string;
+  status: string;
+};
+
+type ActividadBitacora = {
+  id: number;
+  cliente_id: string;
+  tipo: string;
+  descripcion: string;
+  autor: string;
+  fecha_contacto: string;
+};
+
 /**
  * Determina la Lista de Precios (una sola letra, tal como se guarda en la
  * columna price_list de la tabla clientes) según el perfil B2B del cliente.
@@ -88,9 +107,31 @@ export default function CRMEpicoEnterprise() {
   const [porcentajeEspecial, setPorcentajeEspecial] = useState<number>(50);
   const [convirtiendo, setConvirtiendo] = useState<boolean>(false);
 
+  // --- Ficha Operativa (bitácora por cliente real) ---
+  const [clientesReales, setClientesReales] = useState<ClienteReal[]>([]);
+  const [clientesRealesCargados, setClientesRealesCargados] = useState<boolean>(false);
+  const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<string>("");
+  const [actividades, setActividades] = useState<ActividadBitacora[]>([]);
+  const [cargandoActividades, setCargandoActividades] = useState<boolean>(false);
+  const [nuevaActividad, setNuevaActividad] = useState({ tipo: "Nota", descripcion: "", autor: "" });
+
   useEffect(() => {
     fetchCRMData();
   }, []);
+
+  useEffect(() => {
+    if (pestanaActiva === "actividades" && !clientesRealesCargados) {
+      fetchClientesReales();
+    }
+  }, [pestanaActiva]);
+
+  useEffect(() => {
+    if (clienteSeleccionadoId) {
+      fetchActividades(clienteSeleccionadoId);
+    } else {
+      setActividades([]);
+    }
+  }, [clienteSeleccionadoId]);
 
   const fetchCRMData = async () => {
     setLoading(true);
@@ -120,6 +161,76 @@ export default function CRMEpicoEnterprise() {
       console.error("Error sincronizando clúster CRM:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  /**
+   * Carga la lista de clientes REALES (tabla clientes) para el selector
+   * de la Ficha Operativa. Se carga una sola vez, la primera vez que se
+   * abre este tab, para no pedirla de más si nunca se usa.
+   */
+  const fetchClientesReales = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("id, razon_social, nombre_representante, email, telefono_celular, price_list, status")
+      .order("razon_social", { ascending: true });
+
+    if (error) {
+      console.error("Error consultando clientes reales:", error.message);
+    } else {
+      setClientesReales(data || []);
+    }
+    setClientesRealesCargados(true);
+  };
+
+  /**
+   * Carga la bitácora de contacto de un cliente puntual, más reciente primero.
+   */
+  const fetchActividades = async (clienteId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    setCargandoActividades(true);
+    const { data, error } = await supabase
+      .from("crm_activities")
+      .select("*")
+      .eq("cliente_id", clienteId)
+      .order("fecha_contacto", { ascending: false });
+
+    if (error) {
+      console.error("Error consultando crm_activities (¿existe la tabla?):", error.message);
+      setActividades([]);
+    } else {
+      setActividades(data || []);
+    }
+    setCargandoActividades(false);
+  };
+
+  const handleCrearActividad = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clienteSeleccionadoId) return alert("Selecciona un cliente primero.");
+    if (!nuevaActividad.descripcion.trim()) return alert("Escribe una descripción para la entrada de la bitácora.");
+
+    const supabase = getSupabase();
+    if (!supabase) return alert("No se pudo conectar con la base de datos.");
+
+    const { error } = await supabase.from("crm_activities").insert([
+      {
+        cliente_id: clienteSeleccionadoId,
+        tipo: nuevaActividad.tipo,
+        descripcion: nuevaActividad.descripcion,
+        autor: nuevaActividad.autor || null,
+      },
+    ]);
+
+    if (error) {
+      alert("Error al registrar la actividad: " + error.message);
+    } else {
+      setNuevaActividad({ tipo: "Nota", descripcion: "", autor: nuevaActividad.autor });
+      fetchActividades(clienteSeleccionadoId);
     }
   };
 
@@ -647,16 +758,86 @@ export default function CRMEpicoEnterprise() {
 
           {/* SECCIÓN 3: FICHA OPERATIVA */}
           {pestanaActiva === "actividades" && (
-            <div className="card-enterprise" style={{ padding: "35px" }}>
-              <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
-                Ficha Única Operativa (Bitácora Comercial)
-              </h2>
-              <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.85rem", lineHeight: "1.6" }}>
-                Registro estricto asociado al <strong>nombre_representante</strong> y <strong>telefono_celular</strong> de cada cuenta. Control y auditoría en tiempo real para la gerencia.
-              </p>
-              <div style={{ marginTop: "30px", textAlign: "center", padding: "40px", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "10px" }}>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Seleccione un cliente para desplegar la ficha operativa individualizada. (Pendiente de conectar — sección decorativa por ahora)</span>
+            <div>
+              <div className="card-enterprise" style={{ padding: "35px", marginBottom: "30px" }}>
+                <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
+                  Ficha Única Operativa (Bitácora Comercial)
+                </h2>
+                <div style={{ maxWidth: "500px" }}>
+                  <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Seleccionar Cliente</label>
+                  <select value={clienteSeleccionadoId} onChange={(e) => setClienteSeleccionadoId(e.target.value)}>
+                    <option value="">— Elegí un cliente —</option>
+                    {clientesReales.map((c) => (
+                      <option key={c.id} value={c.id}>{c.razon_social || c.email}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
+
+              {clienteSeleccionadoId && (() => {
+                const clienteActivo = clientesReales.find((c) => c.id === clienteSeleccionadoId);
+                return (
+                  <>
+                    <div className="card-enterprise" style={{ padding: "30px", marginBottom: "30px" }}>
+                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "15px" }}>Datos de la Cuenta</h3>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "20px", fontSize: "0.85rem" }}>
+                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Representante</span><br /><strong style={{ color: "#FFF" }}>{clienteActivo?.nombre_representante || "—"}</strong></div>
+                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Teléfono</span><br /><strong style={{ color: "#FFF" }}>{clienteActivo?.telefono_celular || "—"}</strong></div>
+                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Email</span><br /><strong style={{ color: "#FFF" }}>{clienteActivo?.email || "—"}</strong></div>
+                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Lista de Precio</span><br /><strong style={{ color: "#DAA520" }}>{clienteActivo?.price_list || "—"}</strong></div>
+                      </div>
+                    </div>
+
+                    <div className="card-enterprise" style={{ padding: "35px", marginBottom: "30px" }}>
+                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Registrar Contacto</h3>
+                      <form onSubmit={handleCrearActividad} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr auto", gap: "15px", alignItems: "end" }}>
+                        <div>
+                          <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Tipo</label>
+                          <select value={nuevaActividad.tipo} onChange={(e) => setNuevaActividad({ ...nuevaActividad, tipo: e.target.value })}>
+                            <option value="Nota">Nota</option>
+                            <option value="Llamada">Llamada</option>
+                            <option value="Reunión">Reunión</option>
+                            <option value="Email">Email</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Registrado por</label>
+                          <input type="text" placeholder="Tu nombre" value={nuevaActividad.autor} onChange={(e) => setNuevaActividad({ ...nuevaActividad, autor: e.target.value })} />
+                        </div>
+                        <div>
+                          <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Descripción</label>
+                          <input type="text" placeholder="Ej: Cliente pidió actualizar su plan..." value={nuevaActividad.descripcion} onChange={(e) => setNuevaActividad({ ...nuevaActividad, descripcion: e.target.value })} />
+                        </div>
+                        <button type="submit" className="gold-btn" style={{ height: "45px" }}>Registrar</button>
+                      </form>
+                    </div>
+
+                    <div className="card-enterprise" style={{ padding: "35px" }}>
+                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Historial de Contacto</h3>
+                      {cargandoActividades ? (
+                        <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center" }}>Cargando...</p>
+                      ) : actividades.length === 0 ? (
+                        <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>Sin contactos registrados todavía para este cliente.</p>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                          {actividades.map((a) => (
+                            <div key={a.id} style={{ background: "#050505", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" }}>
+                              <div>
+                                <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "0.65rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)", marginRight: "10px" }}>{a.tipo}</span>
+                                <span style={{ color: "#FFF", fontSize: "0.85rem" }}>{a.descripcion}</span>
+                              </div>
+                              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem" }}>{new Date(a.fecha_contacto).toLocaleString()}</div>
+                                {a.autor && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>por {a.autor}</div>}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
