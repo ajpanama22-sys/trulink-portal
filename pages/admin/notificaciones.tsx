@@ -4,6 +4,8 @@ import Sidebar from "./Sidebar";
 export default function AdminNotificaciones() {
   const [mensaje, setMensaje] = useState("");
   const [destinatario, setDestinatario] = useState("todos");
+  const [enviarEmail, setEnviarEmail] = useState(true);
+  const [enviarSms, setEnviarSms] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [resultado, setResultado] = useState<string>("");
 
@@ -14,14 +16,23 @@ export default function AdminNotificaciones() {
       return;
     }
 
+    if (!enviarEmail && !enviarSms) {
+      alert("Selecciona al menos un canal: Email o SMS.");
+      return;
+    }
+
     setEnviando(true);
     setResultado("");
+
+    const canales: string[] = [];
+    if (enviarEmail) canales.push("email");
+    if (enviarSms) canales.push("sms");
 
     try {
       const res = await fetch("/api/notificar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ destinatario, mensaje }),
+        body: JSON.stringify({ destinatario, mensaje, canales }),
       });
 
       const data = await res.json();
@@ -33,10 +44,20 @@ export default function AdminNotificaciones() {
       if (data.total === 0) {
         setResultado(data.mensaje || "No se encontraron destinatarios para esa categoría.");
       } else {
-        setResultado(
-          `Enviado a ${data.enviados} de ${data.total} destinatario(s).` +
-          (data.fallidos > 0 ? ` ${data.fallidos} fallaron (revisa consola/logs).` : "")
-        );
+        const partes: string[] = [];
+        if (data.email) {
+          partes.push(
+            `Email: ${data.email.enviados} de ${data.total} enviados` +
+            (data.email.fallidos > 0 ? ` (${data.email.fallidos} fallaron)` : "")
+          );
+        }
+        if (data.sms) {
+          partes.push(
+            `SMS: ${data.sms.enviados} de ${data.total} enviados` +
+            (data.sms.fallidos > 0 ? ` (${data.sms.fallidos} fallaron)` : "")
+          );
+        }
+        setResultado(partes.join(" | "));
         setMensaje("");
       }
     } catch (err: any) {
@@ -45,6 +66,8 @@ export default function AdminNotificaciones() {
       setEnviando(false);
     }
   };
+
+  const canalTexto = [enviarEmail && "EMAIL", enviarSms && "SMS"].filter(Boolean).join(" + ") || "NINGUNO";
 
   return (
     <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
@@ -63,7 +86,7 @@ export default function AdminNotificaciones() {
             </p>
           </div>
           <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
-            CANAL ACTIVO: EMAIL
+            CANAL ACTIVO: {canalTexto}
           </div>
         </div>
 
@@ -89,6 +112,33 @@ export default function AdminNotificaciones() {
             </div>
 
             <div>
+              <label style={{ fontSize: "0.85rem", color: "#aaa", display: "block", marginBottom: "8px", letterSpacing: "0.5px" }}>Canal de envío:</label>
+              <div style={{ display: "flex", gap: "25px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "#DAA520", fontSize: "0.9rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={enviarEmail}
+                    onChange={(e) => setEnviarEmail(e.target.checked)}
+                    style={{ width: "16px", height: "16px", accentColor: "#DAA520" }}
+                  />
+                  Email
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: "#DAA520", fontSize: "0.9rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={enviarSms}
+                    onChange={(e) => setEnviarSms(e.target.checked)}
+                    style={{ width: "16px", height: "16px", accentColor: "#DAA520" }}
+                  />
+                  SMS
+                </label>
+              </div>
+              <p style={{ fontSize: "0.75rem", color: "#666", marginTop: "8px" }}>
+                Puedes marcar ambos. El sistema busca el email y/o el teléfono registrado de cada destinatario según lo que elijas.
+              </p>
+            </div>
+
+            <div>
               <label style={{ fontSize: "0.85rem", color: "#aaa", display: "block", marginBottom: "8px", letterSpacing: "0.5px" }}>Mensaje / Alerta:</label>
               <textarea
                 rows={6}
@@ -97,6 +147,11 @@ export default function AdminNotificaciones() {
                 onChange={(e) => setMensaje(e.target.value)}
                 style={{ ...inputStyle, resize: "vertical" }}
               />
+              {enviarSms && (
+                <p style={{ fontSize: "0.75rem", color: "#888", marginTop: "6px" }}>
+                  📱 Recuerda: los SMS son más efectivos si el mensaje es corto y directo.
+                </p>
+              )}
             </div>
 
             <button
@@ -120,7 +175,7 @@ export default function AdminNotificaciones() {
               onMouseOver={(e) => { if (!enviando) e.currentTarget.style.backgroundColor = "#e6b835"; }}
               onMouseOut={(e) => { if (!enviando) e.currentTarget.style.backgroundColor = "#DAA520"; }}
             >
-              {enviando ? "Enviando correos..." : "ENVIAR NOTIFICACIÓN"}
+              {enviando ? "Enviando..." : `ENVIAR NOTIFICACIÓN (${canalTexto})`}
             </button>
 
             {resultado && (
@@ -137,10 +192,10 @@ export default function AdminNotificaciones() {
           </form>
         </div>
 
-        {/* Aviso sobre canales aun no disponibles, para expectativa clara */}
+        {/* Aviso sobre canal aun no disponible, para expectativa clara */}
         <div style={{ maxWidth: "700px", marginTop: "20px", padding: "15px 20px", backgroundColor: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "10px" }}>
           <p style={{ fontSize: "0.8rem", color: "#888", margin: 0 }}>
-            📌 <strong style={{ color: "#DAA520" }}>SMS</strong> y <strong style={{ color: "#DAA520" }}>Push en la app móvil</strong> aún no están conectados — se activarán cuando se contrate un proveedor de SMS y se publique la aplicación.
+            📌 <strong style={{ color: "#DAA520" }}>Push en la app móvil</strong> aún no está conectado — se activará cuando se publique la aplicación.
           </p>
         </div>
 
