@@ -5,8 +5,9 @@ export default function AdminNotificaciones() {
   const [mensaje, setMensaje] = useState("");
   const [destinatario, setDestinatario] = useState("todos");
   const [enviando, setEnviando] = useState(false);
+  const [resultado, setResultado] = useState<string>("");
 
-  const enviarAlerta = (e: React.FormEvent) => {
+  const enviarAlerta = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mensaje.trim()) {
       alert("Por favor escribe el contenido de la notificación.");
@@ -14,11 +15,35 @@ export default function AdminNotificaciones() {
     }
 
     setEnviando(true);
-    setTimeout(() => {
-      alert(`Notificación enviada exitosamente a: ${destinatario.toUpperCase()}`);
-      setMensaje("");
+    setResultado("");
+
+    try {
+      const res = await fetch("/api/notificar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destinatario, mensaje }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Error al enviar la notificación");
+      }
+
+      if (data.total === 0) {
+        setResultado(data.mensaje || "No se encontraron destinatarios para esa categoría.");
+      } else {
+        setResultado(
+          `Enviado a ${data.enviados} de ${data.total} destinatario(s).` +
+          (data.fallidos > 0 ? ` ${data.fallidos} fallaron (revisa consola/logs).` : "")
+        );
+        setMensaje("");
+      }
+    } catch (err: any) {
+      setResultado("Error: " + err.message);
+    } finally {
       setEnviando(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -38,7 +63,7 @@ export default function AdminNotificaciones() {
             </p>
           </div>
           <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
-            CANAL ACTIVO
+            CANAL ACTIVO: EMAIL
           </div>
         </div>
 
@@ -57,7 +82,7 @@ export default function AdminNotificaciones() {
                 onChange={(e) => setDestinatario(e.target.value)}
                 style={inputStyle}
               >
-                <option value="todos" style={{ backgroundColor: "#111", color: "#DAA520" }}>Todos los Integradores / Clientes</option>
+                <option value="todos" style={{ backgroundColor: "#111", color: "#DAA520" }}>Todos los Integradores / Clientes (activos)</option>
                 <option value="equipo" style={{ backgroundColor: "#111", color: "#DAA520" }}>Equipo Administrativo y Planta</option>
                 <option value="pendientes" style={{ backgroundColor: "#111", color: "#DAA520" }}>Usuarios con Validaciones Pendientes</option>
               </select>
@@ -84,20 +109,39 @@ export default function AdminNotificaciones() {
                 borderRadius: "8px",
                 padding: "16px 28px",
                 fontWeight: "700",
-                cursor: "pointer",
+                cursor: enviando ? "wait" : "pointer",
                 fontSize: "0.95rem",
                 width: "100%",
                 letterSpacing: "1px",
                 boxShadow: "0 4px 15px rgba(218, 165, 32, 0.2)",
-                transition: "all 0.2s ease"
+                transition: "all 0.2s ease",
+                opacity: enviando ? 0.7 : 1
               }}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#e6b835"; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#DAA520"; }}
+              onMouseOver={(e) => { if (!enviando) e.currentTarget.style.backgroundColor = "#e6b835"; }}
+              onMouseOut={(e) => { if (!enviando) e.currentTarget.style.backgroundColor = "#DAA520"; }}
             >
-              {enviando ? "Transmitiendo Alerta..." : "ENVIAR NOTIFICACIÓN"}
+              {enviando ? "Enviando correos..." : "ENVIAR NOTIFICACIÓN"}
             </button>
 
+            {resultado && (
+              <p style={{
+                fontSize: "0.85rem",
+                color: resultado.startsWith("Error") ? "#e74c3c" : "#2ecc71",
+                textAlign: "center",
+                margin: 0
+              }}>
+                {resultado}
+              </p>
+            )}
+
           </form>
+        </div>
+
+        {/* Aviso sobre canales aun no disponibles, para expectativa clara */}
+        <div style={{ maxWidth: "700px", marginTop: "20px", padding: "15px 20px", backgroundColor: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "10px" }}>
+          <p style={{ fontSize: "0.8rem", color: "#888", margin: 0 }}>
+            📌 <strong style={{ color: "#DAA520" }}>SMS</strong> y <strong style={{ color: "#DAA520" }}>Push en la app móvil</strong> aún no están conectados — se activarán cuando se contrate un proveedor de SMS y se publique la aplicación.
+          </p>
         </div>
 
       </div>
