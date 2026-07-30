@@ -41,15 +41,24 @@ export default function PortalCliente() {
     let telefonoEncontrado = "";
     let emailEncontrado = emailSession || "";
 
+    // NOTA: se quitaron "phone" y "telefono" del select — esas columnas no
+    // existen en la tabla clientes (solo telefono_celular y
+    // telefono_oficina). Pedir una columna inexistente hace que Supabase
+    // rechace TODA la consulta con 400, por eso el celular siempre salía
+    // "No registrado" aunque sí estuviera guardado en la base de datos.
     if (idUsuario && tablaSesion) {
       const { data, error } = await supabase
         .from(tablaSesion)
-        .select("email, telefono_celular, telefono_oficina, phone, telefono")
+        .select("email, telefono_celular, telefono_oficina")
         .eq("id", idUsuario)
         .maybeSingle();
 
-      if (data && !error) {
-        telefonoEncontrado = data.telefono_celular || data.phone || data.telefono_oficina || data.telefono || "";
+      if (error) {
+        console.error(`Error consultando ${tablaSesion} por id:`, error);
+      }
+
+      if (data) {
+        telefonoEncontrado = data.telefono_celular || data.telefono_oficina || "";
         if (data.email) emailEncontrado = data.email;
       }
     }
@@ -58,12 +67,16 @@ export default function PortalCliente() {
       for (const t of tablasUnicas) {
         const { data, error } = await supabase
           .from(t)
-          .select("email, telefono_celular, telefono_oficina, phone, telefono")
-          .eq("email", emailSession)
+          .select("email, telefono_celular, telefono_oficina")
+          .ilike("email", emailSession)
           .maybeSingle();
 
-        if (data && !error) {
-          const tel = data.telefono_celular || data.phone || data.telefono_oficina || data.telefono;
+        if (error) {
+          console.error(`Error consultando ${t} por email:`, error);
+        }
+
+        if (data) {
+          const tel = data.telefono_celular || data.telefono_oficina;
           if (tel) {
             telefonoEncontrado = tel;
             if (data.email) emailEncontrado = data.email;
