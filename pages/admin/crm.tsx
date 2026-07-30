@@ -48,6 +48,32 @@ type ActividadBitacora = {
   fecha_contacto: string;
 };
 
+// --- Auditoría & Métricas ---
+// Métricas calculadas al vuelo desde las tablas ya existentes (no requieren
+// tabla nueva). La bitácora de auditoría sí necesita la tabla "audit_log"
+// (ver instrucciones SQL entregadas junto con este componente).
+
+type MetricasComerciales = {
+  prospectosTotalHistorico: number;
+  prospectosConvertidos: number;
+  oportunidadesGanadas: number;
+  oportunidadesPerdidas: number;
+  valorGanado: number;
+  cotizacionesTotal: number;
+  cotizacionesValorTotal: number;
+  cotizacionesAbonadoTotal: number;
+};
+
+type EntradaAuditoria = {
+  id: number;
+  accion: string;
+  entidad: string;
+  entidad_id: string | null;
+  detalle: string | null;
+  autor: string | null;
+  created_at: string;
+};
+
 /**
  * Determina la Lista de Precios (una sola letra, tal como se guarda en la
  * columna price_list de la tabla clientes) según el perfil B2B del cliente.
@@ -118,9 +144,21 @@ export default function CRMEpicoEnterprise() {
   const [modalCotizacionAbierto, setModalCotizacionAbierto] = useState(false);
   const [cargandoPdf, setCargandoPdf] = useState(false);
 
+  // --- Auditoría & Métricas ---
+  const [metricas, setMetricas] = useState<MetricasComerciales | null>(null);
+  const [bitacoraAuditoria, setBitacoraAuditoria] = useState<EntradaAuditoria[]>([]);
+  const [cargandoGobierno, setCargandoGobierno] = useState(false);
+  const [gobiernoCargado, setGobiernoCargado] = useState(false);
+
   useEffect(() => {
     fetchCRMData();
   }, []);
+
+  useEffect(() => {
+    if (pestanaActiva === "gobierno" && !gobiernoCargado) {
+      fetchMetricasYAuditoria();
+    }
+  }, [pestanaActiva]);
 
   useEffect(() => {
     if (pestanaActiva === "actividades" && !clientesRealesCargados) {
@@ -210,6 +248,90 @@ export default function CRMEpicoEnterprise() {
       setActividades(data || []);
     }
     setCargandoActividades(false);
+  };
+
+  /**
+   * Calcula las métricas comerciales (Win Rate, conversión de prospectos,
+   * estado de cobro de cotizaciones) directamente desde las tablas ya
+   * existentes: crm_prospectos, crm_opportunities y quotes. No requiere
+   * ninguna tabla nueva — solo consultas puntuales de conteo/suma.
+   * Además carga las últimas 20 entradas de la bitácora de auditoría
+   * (tabla "audit_log", ver instrucciones SQL aparte).
+   */
+  const fetchMetricasYAuditoria = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    setCargandoGobierno(true);
+    try {
+      const [
+        prospectosTotalRes,
+        prospectosConvertidosRes,
+        oppGanadasRes,
+        oppPerdidasRes,
+        quotesRes,
+        auditRes,
+      ] = await Promise.all([
+        supabase.from("crm_prospectos").select("id", { count: "exact", head: true }),
+        supabase.from("crm_prospectos").select("id", { count: "exact", head: true }).eq("status", "convertido"),
+        supabase.from("crm_opportunities").select("valor_estimado").eq("etapa", "Ganado"),
+        supabase.from("crm_opportunities").select("id", { count: "exact", head: true }).eq("etapa", "Perdido"),
+        supabase.from("quotes").select("total, monto_abono"),
+        supabase.from("audit_log").select("*").order("created_at", { ascending: false }).limit(20),
+      ]);
+
+      const valorGanado = (oppGanadasRes.data || []).reduce((acc: number, o: any) => acc + Number(o.valor_estimado || 0), 0);
+      const cotizacionesValorTotal = (quotesRes.data || []).reduce((acc: number, q: any) => acc + Number(q.total || 0), 0);
+      const cotizacionesAbonadoTotal = (quotesRes.data || []).reduce((acc: number, q: any) => acc + Number(q.monto_abono || 0), 0);
+
+      setMetricas({
+        prospectosTotalHistorico: prospectosTotalRes.count || 0,
+        prospectosConvertidos: prospectosConvertidosRes.count || 0,
+        oportunidadesGanadas: (oppGanadasRes.data || []).length,
+        oportunidadesPerdidas: oppPerdidasRes.count || 0,
+        valorGanado,
+        cotizacionesTotal: (quotesRes.data || []).length,
+        cotizacionesValorTotal,
+        cotizacionesAbonadoTotal,
+      });
+
+      if (auditRes.error) {
+        console.error("Error consultando audit_log (¿existe la tabla? revisa el SQL de configuración):", auditRes.error.message);
+        setBitacoraAuditoria([]);
+      } else {
+        setBitacoraAuditoria(auditRes.data || []);
+      }
+    } catch (err) {
+      console.error("Error calculando métricas comerciales:", err);
+    } finally {
+      setCargandoGobierno(false);
+      setGobiernoCargado(true);
+    }
+  };
+
+  /**
+   * Inserta una entrada en la bitácora de auditoría (tabla audit_log).
+   * Se llama "en segundo plano" desde las acciones clave del CRM
+   * (conversión de cliente, altas de oportunidad, cambios de etapa, etc.)
+   * y nunca bloquea ni interrumpe la acción principal si falla.
+   */
+  const registrarAuditoria = async (accion: string, entidad: string, entidadId: string | number | null, detalle: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from("audit_log").insert([
+        {
+          accion,
+          entidad,
+          entidad_id: entidadId != null ? String(entidadId) : null,
+          detalle,
+          autor: null,
+        },
+      ]);
+      if (error) console.error("No se pudo registrar en audit_log (¿existe la tabla?):", error.message);
+    } catch (err) {
+      console.error("Error registrando auditoría:", err);
+    }
   };
 
   const handleCrearActividad = async (e: React.FormEvent) => {
@@ -373,6 +495,7 @@ export default function CRMEpicoEnterprise() {
       alert(`Error: ${error.message}`);
     } else {
       setNuevoProspecto({ razon_social: "", email: "", telefono_celular: "", perfil_cliente: "ISP", industria: "Telecomunicaciones y Fibra Óptica", pais: "Panamá" });
+      registrarAuditoria("prospecto_creado", "prospecto", null, `Se registró el prospecto ${nuevoProspecto.razon_social}.`);
       fetchCRMData();
       alert("Prospecto registrado exitosamente.");
     }
@@ -392,6 +515,7 @@ export default function CRMEpicoEnterprise() {
       alert(`Error: ${error.message}`);
     } else {
       setNuevaOportunidad({ titulo: "", pipeline_tipo: "B2B Licitación", valor_estimado: 0, probabilidad: 25, vendedor_asignado: "Fred Jurado" });
+      registrarAuditoria("oportunidad_creada", "oportunidad", null, `Se abrió la oportunidad "${nuevaOportunidad.titulo}" por $${nuevaOportunidad.valor_estimado.toLocaleString()}.`);
       fetchCRMData();
       alert("Oportunidad añadida al Pipeline.");
     }
@@ -416,6 +540,14 @@ export default function CRMEpicoEnterprise() {
     }
 
     setOportunidades((prev) => prev.map((o) => (o.id === oportunidadId ? { ...o, etapa: nuevaEtapa } : o)));
+
+    const oportunidadAfectada = oportunidades.find((o) => o.id === oportunidadId);
+    registrarAuditoria(
+      "etapa_cambiada",
+      "oportunidad",
+      oportunidadId,
+      `"${oportunidadAfectada?.titulo || oportunidadId}" pasó a la etapa "${nuevaEtapa}".`
+    );
   };
 
   /**
@@ -554,6 +686,12 @@ export default function CRMEpicoEnterprise() {
     }
 
     setProspectos((prev) => prev.filter((p) => p.id !== prospecto.id));
+    registrarAuditoria(
+      "cliente_convertido",
+      "cliente",
+      clienteInsertado?.id || null,
+      `${prospecto.razon_social} fue activado como cliente real (Lista de Precio ${priceListVal}, forma de pago ${tipoPagoConversion}).`
+    );
     setConvirtiendo(false);
     cerrarModalConversion();
     alert(`${prospecto.razon_social} fue convertido a cliente real. Se envió el correo de activación.`);
@@ -1191,26 +1329,101 @@ export default function CRMEpicoEnterprise() {
             </div>
           )}
 
-          {/* SECCIÓN 5: AUDITORÍA & GOBERNANZA (decorativo, sin cambios) */}
+          {/* SECCIÓN 5: AUDITORÍA & MÉTRICAS (conectado a Supabase: crm_prospectos, crm_opportunities, quotes, audit_log) */}
           {pestanaActiva === "gobierno" && (
-            <div className="card-enterprise" style={{ padding: "35px" }}>
-              <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
-                Auditoría, Gobernanza y Métricas Comerciales
-              </h2>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginTop: "20px" }}>
-                <div style={{ background: "#050505", padding: "25px", borderRadius: "10px", border: "1px solid rgba(218,165,32,0.2)" }}>
-                  <h4 style={{ color: "#DAA520", margin: "0 0 10px 0", fontSize: "0.9rem", textTransform: "uppercase" }}>Control de Permisos RLS</h4>
-                  <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem", margin: 0, lineHeight: "1.5" }}>
-                    Aislamiento seguro por perfiles de cuenta (ISP, Mayorista, Integrador) y visibilidad gerencial global.
-                  </p>
+            <div>
+              {cargandoGobierno && !metricas ? (
+                <div className="card-enterprise" style={{ padding: "35px", textAlign: "center" }}>
+                  <p style={{ color: "rgba(255,255,255,0.5)" }}>Calculando métricas...</p>
                 </div>
-                <div style={{ background: "#050505", padding: "25px", borderRadius: "10px", border: "1px solid rgba(218,165,32,0.2)" }}>
-                  <h4 style={{ color: "#DAA520", margin: "0 0 10px 0", fontSize: "0.9rem", textTransform: "uppercase" }}>Métricas de Rendimiento (Win Rate)</h4>
-                  <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem", margin: 0, lineHeight: "1.5" }}>
-                    Monitoreo de tiempos de respuesta por tomador de decisiones y cumplimiento de cuotas comerciales.
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <>
+                  {/* Tarjetas de métricas de ventas */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "30px" }}>
+                    <div className="card-enterprise" style={{ padding: "25px" }}>
+                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Win Rate (Ganadas vs Cerradas)</span>
+                      <h2 style={{ fontSize: "1.9rem", color: "#2ecc71", margin: "10px 0 0 0", fontWeight: "400" }}>
+                        {metricas && (metricas.oportunidadesGanadas + metricas.oportunidadesPerdidas) > 0
+                          ? `${((metricas.oportunidadesGanadas / (metricas.oportunidadesGanadas + metricas.oportunidadesPerdidas)) * 100).toFixed(0)}%`
+                          : "N/D"}
+                      </h2>
+                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>
+                        {metricas?.oportunidadesGanadas || 0} ganadas / {metricas?.oportunidadesPerdidas || 0} perdidas
+                      </span>
+                    </div>
+                    <div className="card-enterprise" style={{ padding: "25px" }}>
+                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Valor Total Ganado</span>
+                      <h2 style={{ fontSize: "1.9rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>${(metricas?.valorGanado || 0).toLocaleString()}</h2>
+                    </div>
+                    <div className="card-enterprise" style={{ padding: "25px" }}>
+                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Conversión de Prospectos</span>
+                      <h2 style={{ fontSize: "1.9rem", color: "#FFF", margin: "10px 0 0 0", fontWeight: "400" }}>
+                        {metricas && metricas.prospectosTotalHistorico > 0
+                          ? `${((metricas.prospectosConvertidos / metricas.prospectosTotalHistorico) * 100).toFixed(0)}%`
+                          : "N/D"}
+                      </h2>
+                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>
+                        {metricas?.prospectosConvertidos || 0} de {metricas?.prospectosTotalHistorico || 0} prospectos
+                      </span>
+                    </div>
+                    <div className="card-enterprise" style={{ padding: "25px" }}>
+                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Cotizaciones — Cobrado / Total</span>
+                      <h2 style={{ fontSize: "1.6rem", color: "#FFF", margin: "10px 0 0 0", fontWeight: "400" }}>
+                        ${(metricas?.cotizacionesAbonadoTotal || 0).toLocaleString()} <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "1rem" }}>/ ${(metricas?.cotizacionesValorTotal || 0).toLocaleString()}</span>
+                      </h2>
+                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>{metricas?.cotizacionesTotal || 0} cotizaciones registradas</span>
+                    </div>
+                  </div>
+
+                  {/* Bitácora de auditoría */}
+                  <div className="card-enterprise" style={{ padding: "35px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                      <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", margin: 0 }}>
+                        Bitácora de Auditoría (Últimos 20 movimientos)
+                      </h2>
+                      <button onClick={fetchMetricasYAuditoria} className="custom-btn" style={{ padding: "8px 16px", fontSize: "0.7rem" }}>
+                        ↻ Actualizar
+                      </button>
+                    </div>
+
+                    {bitacoraAuditoria.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "20px" }}>
+                        <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", marginBottom: "8px" }}>
+                          Todavía no hay movimientos registrados en la bitácora de auditoría.
+                        </p>
+                        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.75rem" }}>
+                          Si esperabas ver datos aquí, revisa que la tabla <code>audit_log</code> exista en Supabase (ver instrucciones SQL entregadas).
+                        </p>
+                      </div>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        {bitacoraAuditoria.map((entrada) => (
+                          <div key={entrada.id} style={{ background: "#050505", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", padding: "13px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" }}>
+                            <div>
+                              <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "0.65rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)", marginRight: "10px", textTransform: "uppercase" }}>
+                                {entrada.entidad}
+                              </span>
+                              <span style={{ color: "#FFF", fontSize: "0.85rem" }}>{entrada.detalle || entrada.accion}</span>
+                            </div>
+                            <div style={{ textAlign: "right", flexShrink: 0 }}>
+                              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem" }}>{new Date(entrada.created_at).toLocaleString()}</div>
+                              {entrada.autor && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>por {entrada.autor}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Nota de gobernanza (informativa) */}
+                  <div className="card-enterprise" style={{ padding: "25px", marginTop: "30px" }}>
+                    <h4 style={{ color: "#DAA520", margin: "0 0 10px 0", fontSize: "0.9rem", textTransform: "uppercase" }}>Control de Permisos RLS</h4>
+                    <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem", margin: 0, lineHeight: "1.5" }}>
+                      Aislamiento seguro por perfiles de cuenta (ISP, Mayorista, Integrador) y visibilidad gerencial global.
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
