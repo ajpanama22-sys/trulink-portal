@@ -7,12 +7,16 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-type Cliente = {
+type Prospecto = {
   id: number;
-  nombre_empresa: string;
+  razon_social: string;
+  email: string;
+  telefono_celular: string;
   perfil_cliente: string;
   industria: string;
   pais: string;
+  status: string;
+  etapa_pipeline: string;
 };
 
 type Oportunidad = {
@@ -32,17 +36,54 @@ type Cotizacion = {
   descripcion: string;
 };
 
+/**
+ * Determina la Lista de Precios (una sola letra, tal como se guarda en la
+ * columna price_list de la tabla clientes) según el perfil B2B del cliente.
+ * Misma lógica que pages/admin/validaciones.tsx — se repite acá para que
+ * la conversión desde el CRM active al cliente exactamente igual.
+ * ISP -> A | MAYORISTA -> B | INTEGRADOR -> C | resto (Cliente Final) -> D
+ */
+const determinarPriceList = (perfil?: string): "A" | "B" | "C" | "D" => {
+  const p = (perfil || "").toUpperCase().trim();
+  switch (p) {
+    case "ISP":
+      return "A";
+    case "MAYORISTA":
+      return "B";
+    case "INTEGRADOR":
+      return "C";
+    case "CLIENTE FINAL":
+    default:
+      return "D";
+  }
+};
+
 export default function CRMEpicoEnterprise() {
   const router = useRouter();
   const [pestanaActiva, setPestanaActiva] = useState<"clientes" | "pipeline" | "actividades" | "cpq" | "gobierno">("clientes");
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [oportunidades, setOportunidades] = useState<Oportunidad[]>([]);
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Estados de formularios adaptados a los nuevos campos
-  const [nuevoCliente, setNuevoCliente] = useState({ nombre_empresa: "", perfil_cliente: "ISP", industria: "Telecomunicaciones y Fibra Óptica", pais: "Panamá" });
+  const [nuevoProspecto, setNuevoProspecto] = useState({
+    razon_social: "",
+    email: "",
+    telefono_celular: "",
+    perfil_cliente: "ISP",
+    industria: "Telecomunicaciones y Fibra Óptica",
+    pais: "Panamá",
+  });
   const [nuevaOportunidad, setNuevaOportunidad] = useState({ titulo: "", pipeline_tipo: "B2B Licitación", valor_estimado: 0, vendedor_asignado: "Fred Jurado" });
+
+  // --- Modal de conversión a cliente real ---
+  const [modalConversion, setModalConversion] = useState<{ isOpen: boolean; prospecto: Prospecto | null }>({
+    isOpen: false,
+    prospecto: null,
+  });
+  const [tipoPagoConversion, setTipoPagoConversion] = useState<string>("50%");
+  const [porcentajeEspecial, setPorcentajeEspecial] = useState<number>(50);
+  const [convirtiendo, setConvirtiendo] = useState<boolean>(false);
 
   useEffect(() => {
     fetchCRMData();
@@ -51,11 +92,20 @@ export default function CRMEpicoEnterprise() {
   const fetchCRMData = async () => {
     setLoading(true);
     try {
-      const { data: cliData } = await supabase.from("clientes").select("*").order("id", { ascending: false });
-      const { data: oppData } = await supabase.from("crm_opportunities").select("*").order("id", { ascending: false });
-      const { data: quoteData } = await supabase.from("quotes").select("*").order("id", { ascending: false });
+      const { data: prosData, error: prosError } = await supabase
+        .from("crm_prospectos")
+        .select("*")
+        .eq("status", "prospecto")
+        .order("id", { ascending: false });
+      if (prosError) console.error("Error consultando crm_prospectos:", prosError.message);
 
-      if (cliData) setClientes(cliData);
+      const { data: oppData, error: oppError } = await supabase.from("crm_opportunities").select("*").order("id", { ascending: false });
+      if (oppError) console.error("Error consultando crm_opportunities (¿existe la tabla?):", oppError.message);
+
+      const { data: quoteData, error: quoteError } = await supabase.from("quotes").select("*").order("id", { ascending: false });
+      if (quoteError) console.error("Error consultando quotes:", quoteError.message);
+
+      if (prosData) setProspectos(prosData);
       if (oppData) setOportunidades(oppData);
       if (quoteData) setCotizaciones(quoteData);
     } catch (error) {
@@ -65,17 +115,18 @@ export default function CRMEpicoEnterprise() {
     }
   };
 
-  const handleCrearCliente = async (e: React.FormEvent) => {
+  const handleCrearProspecto = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoCliente.nombre_empresa) return alert("Ingrese el nombre de la empresa.");
+    if (!nuevoProspecto.razon_social) return alert("Ingrese el nombre de la empresa.");
+    if (!nuevoProspecto.email) return alert("Ingrese el email del contacto (obligatorio para poder convertirlo en cliente más adelante).");
 
-    const { error } = await supabase.from("clientes").insert([nuevoCliente]);
+    const { error } = await supabase.from("crm_prospectos").insert([{ ...nuevoProspecto, status: "prospecto", etapa_pipeline: "Prospecto" }]);
     if (error) {
       alert(`Error: ${error.message}`);
     } else {
-      setNuevoCliente({ nombre_empresa: "", perfil_cliente: "ISP", industria: "Telecomunicaciones y Fibra Óptica", pais: "Panamá" });
+      setNuevoProspecto({ razon_social: "", email: "", telefono_celular: "", perfil_cliente: "ISP", industria: "Telecomunicaciones y Fibra Óptica", pais: "Panamá" });
       fetchCRMData();
-      alert("Cliente registrado exitosamente.");
+      alert("Prospecto registrado exitosamente.");
     }
   };
 
@@ -95,12 +146,124 @@ export default function CRMEpicoEnterprise() {
     }
   };
 
+  const abrirModalConversion = (prospecto: Prospecto) => {
+    setModalConversion({ isOpen: true, prospecto });
+    setTipoPagoConversion("50%");
+    setPorcentajeEspecial(50);
+  };
+
+  const cerrarModalConversion = () => {
+    setModalConversion({ isOpen: false, prospecto: null });
+  };
+
+  /**
+   * Convierte un prospecto del CRM en un cliente real, siguiendo EXACTAMENTE
+   * la misma lógica que el botón "ACTIVAR" en pages/admin/validaciones.tsx:
+   * calcula price_list según el perfil, genera un password_token, hace upsert
+   * en "clientes" con status "pendiente_password", y dispara el email de
+   * activación con el link a crear-password.tsx.
+   */
+  const confirmarConversion = async () => {
+    const prospecto = modalConversion.prospecto;
+    if (!prospecto) return;
+
+    setConvirtiendo(true);
+
+    let porcentajeInicialReal = 50;
+    let porcentajeSaldoReal = 50;
+    let descripcionFormaPago = "";
+
+    if (tipoPagoConversion === "50%") {
+      porcentajeInicialReal = 50;
+      porcentajeSaldoReal = 50;
+      descripcionFormaPago = "50% a la orden de compra / aceptación de cotización y el 50% restante exactos 3 días antes de la fecha estimada de despacho.";
+    } else if (tipoPagoConversion === "100%") {
+      porcentajeInicialReal = 100;
+      porcentajeSaldoReal = 0;
+      descripcionFormaPago = "100% de pago anticipado a la aceptación de la cotización o emisión de orden de compra (Sin saldo pendiente).";
+    } else {
+      porcentajeInicialReal = porcentajeEspecial;
+      porcentajeSaldoReal = 100 - porcentajeEspecial;
+      descripcionFormaPago = `Especial: ${porcentajeInicialReal}% a la aceptación de cotización / orden de compra y el diferencial de saldo de ${porcentajeSaldoReal}% exigible obligatoriamente 3 días antes de la fecha estimada de despacho.`;
+    }
+
+    const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const priceListVal = determinarPriceList(prospecto.perfil_cliente);
+
+    // 1. Guardar en la tabla CLIENTES real (mismo patrón que validaciones.tsx)
+    const { data: clienteInsertado, error: clienteError } = await supabase
+      .from("clientes")
+      .upsert(
+        {
+          razon_social: prospecto.razon_social,
+          email: prospecto.email,
+          tipo_cliente: prospecto.perfil_cliente || "Integrador",
+          price_list: priceListVal,
+          status: "pendiente_password",
+          password_token: passwordToken,
+          forma_pago: tipoPagoConversion,
+          porcentaje_pago: porcentajeInicialReal,
+          pais: prospecto.pais || null,
+          telefono_celular: prospecto.telefono_celular || null,
+          perfil_cliente: prospecto.perfil_cliente || null,
+          industria: prospecto.industria || null,
+        },
+        { onConflict: "email" }
+      )
+      .select()
+      .single();
+
+    if (clienteError) {
+      alert("Error al convertir a cliente: " + clienteError.message);
+      setConvirtiendo(false);
+      return;
+    }
+
+    // 2. Enviar correo de activación (mismo endpoint que validaciones.tsx)
+    try {
+      await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "ACTIVACION",
+          email: prospecto.email,
+          razon_social: prospecto.razon_social,
+          link: `https://portal.trulinkfiber.org/auth/crear-password?token=${passwordToken}`,
+          forma_pago_texto: descripcionFormaPago,
+          porcentaje_inicial: porcentajeInicialReal,
+          porcentaje_saldo: porcentajeSaldoReal,
+        }),
+      });
+    } catch (err: any) {
+      console.error("Error enviando correo de activación:", err.message);
+    }
+
+    // 3. Marcar el prospecto como convertido (no se borra, queda de historial)
+    const { error: updateProspectoError } = await supabase
+      .from("crm_prospectos")
+      .update({
+        status: "convertido",
+        cliente_id_convertido: clienteInsertado?.id || null,
+        fecha_conversion: new Date().toISOString(),
+      })
+      .eq("id", prospecto.id);
+
+    if (updateProspectoError) {
+      console.error("El cliente se creó, pero no se pudo marcar el prospecto como convertido:", updateProspectoError.message);
+    }
+
+    setProspectos((prev) => prev.filter((p) => p.id !== prospecto.id));
+    setConvirtiendo(false);
+    cerrarModalConversion();
+    alert(`${prospecto.razon_social} fue convertido a cliente real. Se envió el correo de activación.`);
+  };
+
   const forecastTotal = oportunidades.reduce((acc, o) => acc + (Number(o.valor_estimado) * (Number(o.probabilidad) / 100)), 0);
   const pipelineValorTotal = oportunidades.reduce((acc, o) => acc + Number(o.valor_estimado), 0);
 
   return (
     <div style={{ display: "flex", backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", fontFamily: "sans-serif", boxSizing: "border-box" }}>
-      {/* SIDEBAR FIJO */}
+      {/* SIDEBAR FIJO — ya incluye "Volver al Portal" y "Cerrar Sesión" */}
       <Sidebar currentActive="crm" />
 
       {/* CONTENIDO PRINCIPAL */}
@@ -157,17 +320,29 @@ export default function CRMEpicoEnterprise() {
             background-color: #f1c40f;
             box-shadow: 0 0 25px rgba(218, 165, 32, 0.6);
           }
+          .convertir-btn {
+            background-color: transparent;
+            color: #2ecc71;
+            border: 1px solid rgba(46, 204, 113, 0.5);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+          }
+          .convertir-btn:hover {
+            background-color: rgba(46, 204, 113, 0.15);
+          }
           table { width: 100%; border-collapse: collapse; margin-top: 15px; }
           th, td { border: 1px solid rgba(218, 165, 32, 0.25); padding: 14px; text-align: center; color: #FFF; font-size: 0.9rem; }
           th { background-color: #0a0a0a; color: #DAA520; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1.5px; }
           input, select { background-color: #050505; color: #DAA520; border: 1px solid rgba(218, 165, 32, 0.4); padding: 12px; border-radius: 8px; outline: none; width: 100%; font-size: 0.9rem; }
         `}</style>
 
-        {/* Navegación Superior */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "40px", maxWidth: "1350px", margin: "0 auto 40px auto" }}>
-          <button onClick={() => router.push("/portal-cliente")} className="custom-btn">
-            ← Volver al Portal Principal
-          </button>
+        {/* Navegación Superior — pestañas únicamente, sin botón duplicado de "Volver" */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "40px", maxWidth: "1350px", margin: "0 auto 40px auto" }}>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
             <button onClick={() => setPestanaActiva("clientes")} className={`custom-btn ${pestanaActiva === "clientes" ? "active" : ""}`}>
               🏢 Clientes & Cuentas
@@ -197,21 +372,29 @@ export default function CRMEpicoEnterprise() {
         </div>
 
         <div style={{ maxWidth: "1350px", margin: "0 auto" }}>
-          {/* SECCIÓN 1: CLIENTES Y PERFILES */}
+          {/* SECCIÓN 1: PROSPECTOS (antes "clientes", ahora tabla separada crm_prospectos) */}
           {pestanaActiva === "clientes" && (
             <div>
               <div className="card-enterprise" style={{ padding: "35px", marginBottom: "40px" }}>
                 <h3 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0 }}>
-                  Registro de Cuenta y Perfil Comercial
+                  Registro de Prospecto Comercial
                 </h3>
-                <form onSubmit={handleCrearCliente} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr auto", gap: "15px", alignItems: "end", marginTop: "20px" }}>
+                <form onSubmit={handleCrearProspecto} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "15px", alignItems: "end", marginTop: "20px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Empresa / Cliente</label>
-                    <input type="text" placeholder="Ej: IGTEL Honduras" value={nuevoCliente.nombre_empresa} onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre_empresa: e.target.value })} />
+                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Empresa / Prospecto</label>
+                    <input type="text" placeholder="Ej: IGTEL Honduras" value={nuevoProspecto.razon_social} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, razon_social: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Email de Contacto</label>
+                    <input type="email" placeholder="contacto@empresa.com" value={nuevoProspecto.email} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, email: e.target.value })} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Teléfono Celular</label>
+                    <input type="text" placeholder="Ej: 66403720" value={nuevoProspecto.telefono_celular} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, telefono_celular: e.target.value })} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Perfil de Cliente</label>
-                    <select value={nuevoCliente.perfil_cliente} onChange={(e) => setNuevoCliente({ ...nuevoCliente, perfil_cliente: e.target.value })}>
+                    <select value={nuevoProspecto.perfil_cliente} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, perfil_cliente: e.target.value })}>
                       <option value="ISP">ISP</option>
                       <option value="MAYORISTA">MAYORISTA</option>
                       <option value="INTEGRADOR">INTEGRADOR</option>
@@ -220,41 +403,53 @@ export default function CRMEpicoEnterprise() {
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Industria</label>
-                    <input type="text" value={nuevoCliente.industria} onChange={(e) => setNuevoCliente({ ...nuevoCliente, industria: e.target.value })} />
+                    <input type="text" value={nuevoProspecto.industria} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, industria: e.target.value })} />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>País / Región</label>
-                    <input type="text" value={nuevoCliente.pais} onChange={(e) => setNuevoCliente({ ...nuevoCliente, pais: e.target.value })} />
+                    <input type="text" value={nuevoProspecto.pais} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, pais: e.target.value })} />
                   </div>
-                  <button type="submit" className="gold-btn" style={{ height: "45px" }}>Guardar</button>
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <button type="submit" className="gold-btn" style={{ height: "45px", width: "100%" }}>Guardar Prospecto</button>
+                  </div>
                 </form>
               </div>
 
               <div className="card-enterprise" style={{ padding: "35px" }}>
                 <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
-                  Directorio Global de Clientes y Perfiles
+                  Directorio de Prospectos (Pendientes de Cerrar Venta)
                 </h2>
-                {clientes.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay clientes registrados en el motor.</p>
+                {loading ? (
+                  <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center" }}>Cargando...</p>
+                ) : prospectos.length === 0 ? (
+                  <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay prospectos registrados.</p>
                 ) : (
                   <table>
                     <thead>
                       <tr>
                         <th>ID</th>
                         <th>Empresa</th>
-                        <th>Perfil del Cliente</th>
+                        <th>Email</th>
+                        <th>Perfil</th>
                         <th>Industria</th>
                         <th>País</th>
+                        <th>Acción</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {clientes.map((c) => (
-                        <tr key={c.id}>
-                          <td style={{ color: "rgba(255,255,255,0.5)" }}>#{c.id}</td>
-                          <td style={{ textAlign: "left", fontWeight: "600" }}>{c.nombre_empresa}</td>
-                          <td><span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.7rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)" }}>{c.perfil_cliente}</span></td>
-                          <td>{c.industria}</td>
-                          <td>{c.pais}</td>
+                      {prospectos.map((p) => (
+                        <tr key={p.id}>
+                          <td style={{ color: "rgba(255,255,255,0.5)" }}>#{p.id}</td>
+                          <td style={{ textAlign: "left", fontWeight: "600" }}>{p.razon_social}</td>
+                          <td style={{ fontSize: "0.8rem" }}>{p.email}</td>
+                          <td><span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.7rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)" }}>{p.perfil_cliente}</span></td>
+                          <td>{p.industria}</td>
+                          <td>{p.pais}</td>
+                          <td>
+                            <button className="convertir-btn" onClick={() => abrirModalConversion(p)}>
+                              ✓ Convertir a Cliente
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -264,7 +459,7 @@ export default function CRMEpicoEnterprise() {
             </div>
           )}
 
-          {/* SECCIÓN 2: PIPELINE & FORECASTING */}
+          {/* SECCIÓN 2: PIPELINE & FORECASTING (sin cambios de lógica) */}
           {pestanaActiva === "pipeline" && (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "25px", marginBottom: "40px" }}>
@@ -315,7 +510,7 @@ export default function CRMEpicoEnterprise() {
                   Seguimiento de Embudos de Venta
                 </h2>
                 {oportunidades.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay oportunidades en el pipeline.</p>
+                  <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay oportunidades en el pipeline (o falta crear la tabla crm_opportunities — revisa la consola).</p>
                 ) : (
                   <table>
                     <thead>
@@ -356,7 +551,7 @@ export default function CRMEpicoEnterprise() {
                 Registro estricto asociado al <strong>nombre_representante</strong> y <strong>telefono_celular</strong> de cada cuenta. Control y auditoría en tiempo real para la gerencia.
               </p>
               <div style={{ marginTop: "30px", textAlign: "center", padding: "40px", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "10px" }}>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Seleccione un cliente para desplegar la ficha operativa individualizada.</span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Seleccione un cliente para desplegar la ficha operativa individualizada. (Pendiente de conectar — sección decorativa por ahora)</span>
               </div>
             </div>
           )}
@@ -394,7 +589,7 @@ export default function CRMEpicoEnterprise() {
             </div>
           )}
 
-          {/* SECCIÓN 5: AUDITORÍA & GOBERNANZA */}
+          {/* SECCIÓN 5: AUDITORÍA & GOBERNANZA (decorativo, sin cambios) */}
           {pestanaActiva === "gobierno" && (
             <div className="card-enterprise" style={{ padding: "35px" }}>
               <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
@@ -418,6 +613,61 @@ export default function CRMEpicoEnterprise() {
           )}
         </div>
       </main>
+
+      {/* MODAL DE CONVERSIÓN A CLIENTE REAL */}
+      {modalConversion.isOpen && modalConversion.prospecto && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#111111", border: "1px solid rgba(46, 204, 113, 0.5)", borderRadius: "12px", padding: "30px", width: "100%", maxWidth: "500px", boxShadow: "0 10px 40px rgba(0,0,0,0.8)" }}>
+            <h2 style={{ color: "#2ecc71", marginTop: 0, fontSize: "1.2rem", letterSpacing: "1px" }}>
+              CONVERTIR A CLIENTE REAL
+            </h2>
+            <p style={{ fontSize: "0.9rem", color: "#CCC", marginBottom: "20px" }}>
+              Esto va a crear a <strong style={{ color: "#DAA520" }}>{modalConversion.prospecto.razon_social}</strong> como cliente activo en el portal y le va a enviar el correo para crear su contraseña. Definí la forma de pago acordada:
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "15px" }}>
+              <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>FORMA DE PAGO:</label>
+              <select value={tipoPagoConversion} onChange={(e) => setTipoPagoConversion(e.target.value)} style={{ background: "#1a1a1a", color: "#E0E0E0", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "6px", padding: "10px" }}>
+                <option value="50%">50% Anticipo / 50% antes despacho (3 días antes)</option>
+                <option value="100%">100% a la Orden de Compra</option>
+                <option value="ESPECIAL">ESPECIAL (Negociación Interna)</option>
+              </select>
+            </div>
+
+            {tipoPagoConversion === "ESPECIAL" && (
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(218, 165, 32, 0.05)", padding: "10px", borderRadius: "6px", border: "1px dashed rgba(218, 165, 32, 0.4)", marginBottom: "15px" }}>
+                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>% A LA ORDEN:</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={porcentajeEspecial}
+                  onChange={(e) => setPorcentajeEspecial(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                  style={{ background: "#000", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "4px", padding: "6px 10px", width: "80px", textAlign: "center", fontWeight: "700" }}
+                />
+                <span style={{ fontSize: "0.8rem", color: "#AAA" }}>Saldo: <strong style={{ color: "#2ecc71" }}>{100 - porcentajeEspecial}%</strong></span>
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
+              <button
+                onClick={cerrarModalConversion}
+                disabled={convirtiendo}
+                style={{ padding: "11px 22px", cursor: "pointer", borderRadius: "6px", fontWeight: 600, fontSize: "0.8rem", background: "transparent", color: "#AAA", border: "1px solid #555" }}
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={confirmarConversion}
+                disabled={convirtiendo}
+                style={{ padding: "11px 22px", cursor: "pointer", borderRadius: "6px", fontWeight: 600, fontSize: "0.8rem", background: "rgba(46, 204, 113, 0.2)", color: "#2ecc71", border: "1px solid #2ecc71", opacity: convirtiendo ? 0.5 : 1 }}
+              >
+                {convirtiendo ? "CONVIRTIENDO..." : "CONFIRMAR CONVERSIÓN"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
