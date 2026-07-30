@@ -55,19 +55,11 @@ const determinarPriceList = (perfil?: string): "A" | "B" | "C" | "D" => {
 };
 
 /**
- * Mapa fijo de etapa del pipeline -> probabilidad de cierre.
- * Al cambiar la etapa de una oportunidad, la probabilidad se actualiza
- * automáticamente según este mapa (no se edita a mano por separado).
+ * Lista de etapas del pipeline. La etapa es solo una categoría visual del
+ * proceso de venta; NO determina la probabilidad — esa la define el
+ * vendedor a mano, según su lectura real de la negociación.
  */
 const ETAPAS_PIPELINE = ["Prospecto", "Calificado", "Propuesta", "Negociación", "Ganado", "Perdido"] as const;
-const PROBABILIDAD_POR_ETAPA: Record<string, number> = {
-  Prospecto: 25,
-  Calificado: 50,
-  Propuesta: 75,
-  "Negociación": 90,
-  Ganado: 100,
-  Perdido: 0,
-};
 
 export default function CRMEpicoEnterprise() {
   const router = useRouter();
@@ -85,7 +77,7 @@ export default function CRMEpicoEnterprise() {
     industria: "Telecomunicaciones y Fibra Óptica",
     pais: "Panamá",
   });
-  const [nuevaOportunidad, setNuevaOportunidad] = useState({ titulo: "", pipeline_tipo: "B2B Licitación", valor_estimado: 0, vendedor_asignado: "Fred Jurado" });
+  const [nuevaOportunidad, setNuevaOportunidad] = useState({ titulo: "", pipeline_tipo: "B2B Licitación", valor_estimado: 0, probabilidad: 25, vendedor_asignado: "Fred Jurado" });
 
   // --- Modal de conversión a cliente real ---
   const [modalConversion, setModalConversion] = useState<{ isOpen: boolean; prospecto: Prospecto | null }>({
@@ -157,30 +149,28 @@ export default function CRMEpicoEnterprise() {
     if (!supabase) return alert("No se pudo conectar con la base de datos.");
 
     const { error } = await supabase.from("crm_opportunities").insert([
-      { ...nuevaOportunidad, etapa: "Prospecto", probabilidad: 25 }
+      { ...nuevaOportunidad, etapa: "Prospecto" }
     ]);
     if (error) {
       alert(`Error: ${error.message}`);
     } else {
-      setNuevaOportunidad({ titulo: "", pipeline_tipo: "B2B Licitación", valor_estimado: 0, vendedor_asignado: "Fred Jurado" });
+      setNuevaOportunidad({ titulo: "", pipeline_tipo: "B2B Licitación", valor_estimado: 0, probabilidad: 25, vendedor_asignado: "Fred Jurado" });
       fetchCRMData();
       alert("Oportunidad añadida al Pipeline.");
     }
   };
 
   /**
-   * Cambia la etapa de una oportunidad y actualiza su probabilidad
-   * automáticamente según ETAPAS_PIPELINE / PROBABILIDAD_POR_ETAPA.
+   * Cambia solo la etapa de una oportunidad (categoría del proceso de
+   * venta). No toca la probabilidad — esa se edita por separado.
    */
   const handleCambiarEtapa = async (oportunidadId: number, nuevaEtapa: string) => {
     const supabase = getSupabase();
     if (!supabase) return alert("No se pudo conectar con la base de datos.");
 
-    const nuevaProbabilidad = PROBABILIDAD_POR_ETAPA[nuevaEtapa] ?? 25;
-
     const { error } = await supabase
       .from("crm_opportunities")
-      .update({ etapa: nuevaEtapa, probabilidad: nuevaProbabilidad })
+      .update({ etapa: nuevaEtapa })
       .eq("id", oportunidadId);
 
     if (error) {
@@ -188,9 +178,30 @@ export default function CRMEpicoEnterprise() {
       return;
     }
 
-    setOportunidades((prev) =>
-      prev.map((o) => (o.id === oportunidadId ? { ...o, etapa: nuevaEtapa, probabilidad: nuevaProbabilidad } : o))
-    );
+    setOportunidades((prev) => prev.map((o) => (o.id === oportunidadId ? { ...o, etapa: nuevaEtapa } : o)));
+  };
+
+  /**
+   * Actualiza la probabilidad de cierre de una oportunidad, según el
+   * criterio real del vendedor (no un valor calculado automáticamente).
+   */
+  const handleCambiarProbabilidad = async (oportunidadId: number, nuevaProbabilidad: number) => {
+    const supabase = getSupabase();
+    if (!supabase) return alert("No se pudo conectar con la base de datos.");
+
+    const probabilidadValida = Math.max(0, Math.min(100, nuevaProbabilidad));
+
+    const { error } = await supabase
+      .from("crm_opportunities")
+      .update({ probabilidad: probabilidadValida })
+      .eq("id", oportunidadId);
+
+    if (error) {
+      alert("Error al actualizar la probabilidad: " + error.message);
+      return;
+    }
+
+    setOportunidades((prev) => prev.map((o) => (o.id === oportunidadId ? { ...o, probabilidad: probabilidadValida } : o)));
   };
 
   const abrirModalConversion = (prospecto: Prospecto) => {
@@ -539,7 +550,7 @@ export default function CRMEpicoEnterprise() {
                 <h3 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0 }}>
                   Apertura de Oportunidad Comercial (SFA)
                 </h3>
-                <form onSubmit={handleCrearOportunidad} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: "15px", alignItems: "end", marginTop: "20px" }}>
+                <form onSubmit={handleCrearOportunidad} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto", gap: "15px", alignItems: "end", marginTop: "20px" }}>
                   <div>
                     <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Título de Oportunidad / Licitación</label>
                     <input type="text" placeholder="Ej: Contrato Anual Hub Panamá" value={nuevaOportunidad.titulo} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, titulo: e.target.value })} />
@@ -554,6 +565,16 @@ export default function CRMEpicoEnterprise() {
                   <div>
                     <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Valor Estimado ($ USD)</label>
                     <input type="number" value={nuevaOportunidad.valor_estimado} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, valor_estimado: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Probabilidad Inicial (%)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={nuevaOportunidad.probabilidad}
+                      onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, probabilidad: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                    />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Ejecutivo Asignado</label>
@@ -598,7 +619,22 @@ export default function CRMEpicoEnterprise() {
                             </select>
                           </td>
                           <td style={{ color: "#DAA520", fontWeight: "600" }}>${Number(o.valor_estimado).toLocaleString()}</td>
-                          <td>{o.probabilidad}%</td>
+                          <td>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                              <input
+                                type="number"
+                                min={0}
+                                max={100}
+                                defaultValue={o.probabilidad}
+                                onBlur={(e) => {
+                                  const nuevoValor = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                  if (nuevoValor !== o.probabilidad) handleCambiarProbabilidad(o.id, nuevoValor);
+                                }}
+                                style={{ width: "60px", padding: "6px", textAlign: "center", fontSize: "0.85rem" }}
+                              />
+                              <span>%</span>
+                            </div>
+                          </td>
                           <td>{o.vendedor_asignado}</td>
                         </tr>
                       ))}
