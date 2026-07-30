@@ -54,6 +54,21 @@ const determinarPriceList = (perfil?: string): "A" | "B" | "C" | "D" => {
   }
 };
 
+/**
+ * Mapa fijo de etapa del pipeline -> probabilidad de cierre.
+ * Al cambiar la etapa de una oportunidad, la probabilidad se actualiza
+ * automáticamente según este mapa (no se edita a mano por separado).
+ */
+const ETAPAS_PIPELINE = ["Prospecto", "Calificado", "Propuesta", "Negociación", "Ganado", "Perdido"] as const;
+const PROBABILIDAD_POR_ETAPA: Record<string, number> = {
+  Prospecto: 25,
+  Calificado: 50,
+  Propuesta: 75,
+  "Negociación": 90,
+  Ganado: 100,
+  Perdido: 0,
+};
+
 export default function CRMEpicoEnterprise() {
   const router = useRouter();
   const [pestanaActiva, setPestanaActiva] = useState<"clientes" | "pipeline" | "actividades" | "cpq" | "gobierno">("clientes");
@@ -151,6 +166,31 @@ export default function CRMEpicoEnterprise() {
       fetchCRMData();
       alert("Oportunidad añadida al Pipeline.");
     }
+  };
+
+  /**
+   * Cambia la etapa de una oportunidad y actualiza su probabilidad
+   * automáticamente según ETAPAS_PIPELINE / PROBABILIDAD_POR_ETAPA.
+   */
+  const handleCambiarEtapa = async (oportunidadId: number, nuevaEtapa: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return alert("No se pudo conectar con la base de datos.");
+
+    const nuevaProbabilidad = PROBABILIDAD_POR_ETAPA[nuevaEtapa] ?? 25;
+
+    const { error } = await supabase
+      .from("crm_opportunities")
+      .update({ etapa: nuevaEtapa, probabilidad: nuevaProbabilidad })
+      .eq("id", oportunidadId);
+
+    if (error) {
+      alert("Error al actualizar la etapa: " + error.message);
+      return;
+    }
+
+    setOportunidades((prev) =>
+      prev.map((o) => (o.id === oportunidadId ? { ...o, etapa: nuevaEtapa, probabilidad: nuevaProbabilidad } : o))
+    );
   };
 
   const abrirModalConversion = (prospecto: Prospecto) => {
@@ -271,8 +311,13 @@ export default function CRMEpicoEnterprise() {
     alert(`${prospecto.razon_social} fue convertido a cliente real. Se envió el correo de activación.`);
   };
 
-  const forecastTotal = oportunidades.reduce((acc, o) => acc + (Number(o.valor_estimado) * (Number(o.probabilidad) / 100)), 0);
-  const pipelineValorTotal = oportunidades.reduce((acc, o) => acc + Number(o.valor_estimado), 0);
+  // Solo las oportunidades realmente abiertas cuentan para las métricas de
+  // arriba — "Ganado" y "Perdido" ya se cerraron, así que no deben inflar
+  // el pipeline ni el forecast. La tabla de abajo sigue mostrando todas,
+  // para conservar el historial completo.
+  const oportunidadesAbiertas = oportunidades.filter((o) => o.etapa !== "Ganado" && o.etapa !== "Perdido");
+  const forecastTotal = oportunidadesAbiertas.reduce((acc, o) => acc + (Number(o.valor_estimado) * (Number(o.probabilidad) / 100)), 0);
+  const pipelineValorTotal = oportunidadesAbiertas.reduce((acc, o) => acc + Number(o.valor_estimado), 0);
 
   return (
     <div style={{ display: "flex", backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", fontFamily: "sans-serif", boxSizing: "border-box" }}>
@@ -486,7 +531,7 @@ export default function CRMEpicoEnterprise() {
                 </div>
                 <div className="card-enterprise" style={{ padding: "30px" }}>
                   <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Oportunidades Abiertas</span>
-                  <h2 style={{ fontSize: "2.2rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>{oportunidades.length}</h2>
+                  <h2 style={{ fontSize: "2.2rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>{oportunidadesAbiertas.length}</h2>
                 </div>
               </div>
 
@@ -541,7 +586,17 @@ export default function CRMEpicoEnterprise() {
                         <tr key={o.id}>
                           <td style={{ textAlign: "left", fontWeight: "600" }}>{o.titulo}</td>
                           <td>{o.pipeline_tipo}</td>
-                          <td><span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.7rem", background: "rgba(255,255,255,0.08)", color: "#FFF", border: "1px solid rgba(255,255,255,0.2)" }}>{o.etapa}</span></td>
+                          <td>
+                            <select
+                              value={o.etapa}
+                              onChange={(e) => handleCambiarEtapa(o.id, e.target.value)}
+                              style={{ width: "auto", padding: "6px 10px", fontSize: "0.75rem" }}
+                            >
+                              {ETAPAS_PIPELINE.map((etapa) => (
+                                <option key={etapa} value={etapa}>{etapa}</option>
+                              ))}
+                            </select>
+                          </td>
                           <td style={{ color: "#DAA520", fontWeight: "600" }}>${Number(o.valor_estimado).toLocaleString()}</td>
                           <td>{o.probabilidad}%</td>
                           <td>{o.vendedor_asignado}</td>
