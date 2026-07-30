@@ -25,12 +25,9 @@ type Oportunidad = {
   vendedor_asignado: string;
 };
 
-type Cotizacion = {
-  id: number;
-  total: number;
-  estado: string;
-  descripcion: string;
-};
+// Las cotizaciones (tabla "quotes") tienen campos muy variables según cómo
+// se generaron — igual que en pages/admin/cotizaciones.tsx, se maneja como
+// "any" y se resuelven los campos reales al mostrar, en vez de un tipo fijo.
 
 type ClienteReal = {
   id: string; // uuid
@@ -85,7 +82,7 @@ export default function CRMEpicoEnterprise() {
   const [pestanaActiva, setPestanaActiva] = useState<"clientes" | "pipeline" | "actividades" | "cpq" | "gobierno">("clientes");
   const [prospectos, setProspectos] = useState<Prospecto[]>([]);
   const [oportunidades, setOportunidades] = useState<Oportunidad[]>([]);
-  const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
+  const [cotizaciones, setCotizaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const [nuevoProspecto, setNuevoProspecto] = useState({
@@ -114,6 +111,12 @@ export default function CRMEpicoEnterprise() {
   const [actividades, setActividades] = useState<ActividadBitacora[]>([]);
   const [cargandoActividades, setCargandoActividades] = useState<boolean>(false);
   const [nuevaActividad, setNuevaActividad] = useState({ tipo: "Nota", descripcion: "", autor: "" });
+
+  // --- CPQ & Cotizaciones (portado de pages/admin/cotizaciones.tsx) ---
+  const [busquedaCotizaciones, setBusquedaCotizaciones] = useState("");
+  const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState<any>(null);
+  const [modalCotizacionAbierto, setModalCotizacionAbierto] = useState(false);
+  const [cargandoPdf, setCargandoPdf] = useState(false);
 
   useEffect(() => {
     fetchCRMData();
@@ -151,7 +154,7 @@ export default function CRMEpicoEnterprise() {
       const { data: oppData, error: oppError } = await supabase.from("crm_opportunities").select("*").order("id", { ascending: false });
       if (oppError) console.error("Error consultando crm_opportunities (¿existe la tabla?):", oppError.message);
 
-      const { data: quoteData, error: quoteError } = await supabase.from("quotes").select("*").order("id", { ascending: false });
+      const { data: quoteData, error: quoteError } = await supabase.from("quotes").select("*").order("created_at", { ascending: false });
       if (quoteError) console.error("Error consultando quotes:", quoteError.message);
 
       if (prosData) setProspectos(prosData);
@@ -232,6 +235,129 @@ export default function CRMEpicoEnterprise() {
       setNuevaActividad({ tipo: "Nota", descripcion: "", autor: nuevaActividad.autor });
       fetchActividades(clienteSeleccionadoId);
     }
+  };
+
+  // Función de seguridad para evitar errores con JSON (items/productos/details)
+  const parseJSON = (value: any) => {
+    if (!value) return {};
+    if (typeof value === "object") return value;
+    try {
+      return JSON.parse(value);
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const resolverDatosCliente = (item: any) => {
+    const empresa = item.razon_social || item.empresa || item.nombre_empresa || item.company || "Sin especificar";
+    const representante = item.nombre_representante || item.representante || item.contacto || item.nombre_contacto || "N/D";
+    const email = item.email || item.correo || "N/D";
+    const telefono = item.telefono_celular || item.telefono_oficina || item.telefono || item.celular || "N/D";
+    return { empresa, representante, email, telefono };
+  };
+
+  /**
+   * Genera el texto descriptivo de la forma de pago acordada con el cliente.
+   * Misma lógica que ya se usa en validaciones.tsx y en la conversión del CRM,
+   * centralizada acá para reusarla también al mostrar el detalle de una cotización.
+   */
+  const descripcionFormaPago = (formaPago?: string | null, porcentajePago?: number | null): string => {
+    if (!formaPago) return "No definida para este cliente.";
+    if (formaPago === "50%") {
+      return "50% a la orden de compra / aceptación de cotización y el 50% restante exactos 3 días antes de la fecha estimada de despacho.";
+    }
+    if (formaPago === "100%") {
+      return "100% de pago anticipado a la aceptación de la cotización o emisión de orden de compra (Sin saldo pendiente).";
+    }
+    const inicial = porcentajePago ?? 50;
+    const saldo = 100 - inicial;
+    return `Especial: ${inicial}% a la aceptación de cotización / orden de compra y el diferencial de saldo de ${saldo}% exigible obligatoriamente 3 días antes de la fecha estimada de despacho.`;
+  };
+
+  const abrirDetalleCotizacion = async (item: any) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+
+    const { empresa, representante, email, telefono } = resolverDatosCliente(item);
+    const itemEnriquecido = {
+      ...item,
+      empresaResuelto: empresa,
+      representanteResuelto: representante,
+      emailResuelto: email,
+      telefonoResuelto: telefono,
+    };
+
+    setCotizacionSeleccionada(itemEnriquecido);
+    setModalCotizacionAbierto(true);
+    setCargandoPdf(false);
+
+    // Buscar la forma de pago acordada con el cliente real (cruzando por
+    // cliente_id si la cotización lo tiene, o por email como respaldo).
+    try {
+      let clienteInfo: { forma_pago: string | null; porcentaje_pago: number | null } | null = null;
+
+      if (item.cliente_id) {
+        const { data } = await supabase
+          .from("clientes")
+          .select("forma_pago, porcentaje_pago")
+          .eq("id", item.cliente_id)
+          .maybeSingle();
+        clienteInfo = data;
+      } else if (email && email !== "N/D") {
+        const { data } = await supabase
+          .from("clientes")
+          .select("forma_pago, porcentaje_pago")
+          .ilike("email", email)
+          .maybeSingle();
+        clienteInfo = data;
+      }
+
+      setCotizacionSeleccionada((prev: any) => ({
+        ...prev,
+        formaPagoCliente: clienteInfo?.forma_pago || null,
+        porcentajePagoCliente: clienteInfo?.porcentaje_pago ?? null,
+      }));
+    } catch (err) {
+      console.error("Error consultando forma de pago del cliente:", err);
+    }
+
+    if (item.pdf_url && !item.pdf_url.startsWith("http")) {
+      setCargandoPdf(true);
+      try {
+        const { data } = supabase.storage.from("documentos").getPublicUrl(item.pdf_url);
+        if (data?.publicUrl) {
+          setCotizacionSeleccionada((prev: any) => ({ ...prev, pdf_url_final: data.publicUrl }));
+        }
+      } catch (err) {
+        console.error("Error al obtener URL del bucket documentos:", err);
+      } finally {
+        setCargandoPdf(false);
+      }
+    } else if (item.pdf_url) {
+      setCotizacionSeleccionada((prev: any) => ({ ...prev, pdf_url_final: item.pdf_url }));
+    } else if (item.referencia) {
+      setCargandoPdf(true);
+      try {
+        const possiblePaths = [`${item.referencia}.pdf`, `${item.referencia.toLowerCase()}.pdf`];
+        for (const path of possiblePaths) {
+          const { data } = supabase.storage.from("documentos").getPublicUrl(path);
+          if (data?.publicUrl) {
+            setCotizacionSeleccionada((prev: any) => ({ ...prev, pdf_url_final: data.publicUrl }));
+            break;
+          }
+        }
+      } catch (err) {
+        console.error("Error buscando archivo por referencia:", err);
+      } finally {
+        setCargandoPdf(false);
+      }
+    }
+  };
+
+  const cerrarDetalleCotizacion = () => {
+    setCotizacionSeleccionada(null);
+    setModalCotizacionAbierto(false);
+    setCargandoPdf(false);
   };
 
   const handleCrearProspecto = async (e: React.FormEvent) => {
@@ -440,6 +566,22 @@ export default function CRMEpicoEnterprise() {
   const oportunidadesAbiertas = oportunidades.filter((o) => o.etapa !== "Ganado" && o.etapa !== "Perdido");
   const forecastTotal = oportunidadesAbiertas.reduce((acc, o) => acc + (Number(o.valor_estimado) * (Number(o.probabilidad) / 100)), 0);
   const pipelineValorTotal = oportunidadesAbiertas.reduce((acc, o) => acc + Number(o.valor_estimado), 0);
+
+  const cotizacionesFiltradas = cotizaciones.filter((item) => {
+    const { empresa, representante, email, telefono } = resolverDatosCliente(item);
+    const referencia = item.referencia || `QT-${item.id}`;
+    const tipo = item.type || item.tipo || item.tipo_solicitud || "";
+    const termino = busquedaCotizaciones.toLowerCase();
+    return (
+      referencia.toLowerCase().includes(termino) ||
+      empresa.toLowerCase().includes(termino) ||
+      representante.toLowerCase().includes(termino) ||
+      email.toLowerCase().includes(termino) ||
+      telefono.toLowerCase().includes(termino) ||
+      tipo.toLowerCase().includes(termino) ||
+      item.id?.toString().includes(termino)
+    );
+  });
 
   return (
     <div style={{ display: "flex", backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", fontFamily: "sans-serif", boxSizing: "border-box" }}>
@@ -841,36 +983,211 @@ export default function CRMEpicoEnterprise() {
             </div>
           )}
 
-          {/* SECCIÓN 4: CPQ & COTIZACIONES */}
+          {/* SECCIÓN 4: CPQ & COTIZACIONES (portado de pages/admin/cotizaciones.tsx) */}
           {pestanaActiva === "cpq" && (
             <div className="card-enterprise" style={{ padding: "35px" }}>
-              <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
-                Motor CPQ & Tabla `quotes`
-              </h2>
-              {cotizaciones.length === 0 ? (
-                <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay cotizaciones registradas en la tabla <code>quotes</code>.</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", margin: 0 }}>
+                  Control de Cotizaciones (Tabla `quotes`)
+                </h2>
+                <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "8px 16px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.8rem" }}>
+                  TOTAL: {cotizacionesFiltradas.length}
+                </div>
+              </div>
+
+              <input
+                type="text"
+                placeholder="Filtrar por referencia (QT-XXXX), tipo, razón social, representante, email o teléfono..."
+                value={busquedaCotizaciones}
+                onChange={(e) => setBusquedaCotizaciones(e.target.value)}
+                style={{ maxWidth: "550px", marginBottom: "20px" }}
+              />
+
+              {cotizacionesFiltradas.length === 0 ? (
+                <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No se encontraron cotizaciones registradas.</p>
               ) : (
                 <table>
                   <thead>
                     <tr>
-                      <th>ID Cotización</th>
-                      <th>Estado</th>
-                      <th>Descripción / Contrato</th>
-                      <th>Total ($ USD)</th>
+                      <th>Referencia / Fecha</th>
+                      <th>Cliente / Razón Social</th>
+                      <th>Contacto (Email / Tel)</th>
+                      <th>Tipo</th>
+                      <th>Total</th>
+                      <th>Acción</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {cotizaciones.map((q) => (
-                      <tr key={q.id}>
-                        <td style={{ color: "rgba(255,255,255,0.5)" }}>#{q.id}</td>
-                        <td><span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.7rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)" }}>{q.estado}</span></td>
-                        <td style={{ textAlign: "left" }}>{q.descripcion || "Propuesta Comercial Enterprise"}</td>
-                        <td style={{ color: "#DAA520", fontWeight: "600" }}>${Number(q.total).toLocaleString()}</td>
-                      </tr>
-                    ))}
+                    {cotizacionesFiltradas.map((item: any) => {
+                      const fechaFormateada = item.created_at ? new Date(item.created_at).toLocaleDateString() : "N/D";
+                      const totalVal = Number(item.total || 0).toFixed(2);
+                      const referenciaStr = item.referencia || `QT-${item.id}`;
+                      const tipoStr = item.tipo_solicitud || item.type || item.tipo || "N/D";
+                      const { empresa, representante, email, telefono } = resolverDatosCliente(item);
+
+                      return (
+                        <tr key={item.id}>
+                          <td style={{ textAlign: "left" }}>
+                            <span style={{ color: "#DAA520", fontWeight: "600" }}>{referenciaStr}</span>
+                            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>{fechaFormateada}</div>
+                          </td>
+                          <td style={{ textAlign: "left" }}>
+                            {empresa}
+                            {representante !== "N/D" && representante && (
+                              <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>Atn: {representante}</div>
+                            )}
+                          </td>
+                          <td style={{ textAlign: "left", fontSize: "0.85rem" }}>
+                            <div style={{ color: "#DAA520" }}>{email}</div>
+                            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>{telefono}</div>
+                          </td>
+                          <td>
+                            <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "0.7rem", border: "1px solid rgba(218,165,32,0.3)", background: "rgba(218,165,32,0.08)", color: "#DAA520", fontWeight: "600" }}>
+                              {tipoStr}
+                            </span>
+                          </td>
+                          <td style={{ color: "#DAA520", fontWeight: "600" }}>${totalVal}</td>
+                          <td>
+                            <button className="convertir-btn" onClick={() => abrirDetalleCotizacion(item)}>
+                              Ver Detalle
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
+            </div>
+          )}
+
+          {/* MODAL DE DETALLE DE COTIZACIÓN */}
+          {modalCotizacionAbierto && cotizacionSeleccionada && (
+            <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
+              <div style={{ background: "#111111", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "12px", padding: "30px", width: "90%", maxWidth: "700px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.8)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "12px", marginBottom: "20px" }}>
+                  <h2 style={{ fontSize: "1.2rem", color: "#DAA520", letterSpacing: "1px", margin: 0 }}>
+                    DETALLE: {cotizacionSeleccionada.referencia || `QT-${cotizacionSeleccionada.id}`}
+                  </h2>
+                  <button onClick={cerrarDetalleCotizacion} style={{ background: "transparent", border: "none", color: "#DAA520", fontSize: "1.2rem", cursor: "pointer", fontWeight: "bold" }}>✕</button>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px", fontSize: "0.9rem" }}>
+                  <div>
+                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Empresa / Razón Social:</p>
+                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.empresaResuelto}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Representante / Atención:</p>
+                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.representanteResuelto}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Correo Electrónico:</p>
+                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.emailResuelto}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Teléfono:</p>
+                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.telefonoResuelto}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Tipo de Solicitud:</p>
+                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.tipo_solicitud || cotizacionSeleccionada.type || cotizacionSeleccionada.tipo || "N/D"}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Fecha de Emisión:</p>
+                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.created_at ? new Date(cotizacionSeleccionada.created_at).toLocaleString() : "N/D"}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Estado:</p>
+                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.status || "pendiente"}</p>
+                  </div>
+                </div>
+
+                {/* ESTADO DE PAGO — forma de pago acordada con el cliente + saldo pendiente */}
+                <div style={{ marginBottom: "20px", background: "rgba(218, 165, 32, 0.05)", border: "1px dashed rgba(218, 165, 32, 0.3)", borderRadius: "8px", padding: "15px 20px" }}>
+                  <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "6px" }}>Estado de Pago</p>
+                  <p style={{ color: "#fff", fontSize: "0.85rem", margin: "0 0 10px 0", lineHeight: "1.5" }}>
+                    <strong style={{ color: "#DAA520" }}>Forma de pago acordada: </strong>
+                    {descripcionFormaPago(cotizacionSeleccionada.formaPagoCliente, cotizacionSeleccionada.porcentajePagoCliente)}
+                  </p>
+                  {(() => {
+                    const total = Number(cotizacionSeleccionada.total || 0);
+                    const abonado = Number(cotizacionSeleccionada.monto_abono || 0);
+                    const falta = Math.max(0, total - abonado);
+                    return (
+                      <div style={{ display: "flex", gap: "25px", fontSize: "0.85rem" }}>
+                        <span>Abonado: <strong style={{ color: "#2ecc71" }}>${abonado.toFixed(2)}</strong></span>
+                        <span>Total: <strong style={{ color: "#fff" }}>${total.toFixed(2)}</strong></span>
+                        <span>Falta: <strong style={{ color: falta > 0 ? "#e74c3c" : "#2ecc71" }}>${falta.toFixed(2)}</strong></span>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                <div style={{ marginBottom: "20px" }}>
+                  <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "8px" }}>Ítems / Contenido de la Cotización:</p>
+                  <div style={{ backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px", maxHeight: "180px", overflowY: "auto" }}>
+                    {(() => {
+                      const itemsList = parseJSON(cotizacionSeleccionada.items) || parseJSON(cotizacionSeleccionada.productos) || parseJSON(cotizacionSeleccionada.details);
+                      if (Array.isArray(itemsList) && itemsList.length > 0) {
+                        return (
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
+                            <thead>
+                              <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#141414" }}>
+                                <th style={{ padding: "10px 14px" }}>SKU / Ref</th>
+                                <th style={{ padding: "10px 14px" }}>Descripción</th>
+                                <th style={{ padding: "10px 14px", textAlign: "center" }}>Cant.</th>
+                                <th style={{ padding: "10px 14px", textAlign: "right" }}>Total</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {itemsList.map((prod: any, idx: number) => (
+                                <tr key={idx} style={{ borderBottom: "1px solid #161616" }}>
+                                  <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.SKU || prod.sku || prod.codigo || "N/D"}</td>
+                                  <td style={{ padding: "10px 14px", color: "#fff" }}>{prod.Descripción || prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
+                                  <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
+                                  <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>
+                                    ${Number(prod.total || (Number(prod.precioUnitario || prod.precio || 0) * Number(prod.cantidad || 1)) || prod.subtotal || 0).toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        );
+                      } else if (typeof itemsList === "object" && itemsList !== null && Object.keys(itemsList).length > 0) {
+                        return (
+                          <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
+                            <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU / Ref:</strong> {itemsList.SKU || itemsList.sku || "N/D"}</p>
+                            <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.Descripción || itemsList.descripcion || itemsList.description || itemsList.nombre || "N/D"}</p>
+                            <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || itemsList.precioUnitario || itemsList.precio || 0).toFixed(2)}</p>
+                          </div>
+                        );
+                      } else {
+                        return <p style={{ color: "#666", fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados en esta cotización.</p>;
+                      }
+                    })()}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(218, 165, 32, 0.3)", paddingTop: "15px" }}>
+                  <div>
+                    <span style={{ fontSize: "0.85rem", color: "#888" }}>Total General: </span>
+                    <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#fff" }}>${Number(cotizacionSeleccionada.total || 0).toFixed(2)}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                    {cargandoPdf ? (
+                      <span style={{ fontSize: "0.8rem", color: "#DAA520", fontStyle: "italic" }}>Buscando documento...</span>
+                    ) : cotizacionSeleccionada.pdf_url_final ? (
+                      <a href={cotizacionSeleccionada.pdf_url_final} target="_blank" rel="noopener noreferrer" className="gold-btn" style={{ textDecoration: "none", display: "inline-block" }}>
+                        VER DOCUMENTO QT (PDF)
+                      </a>
+                    ) : (
+                      <span style={{ fontSize: "0.8rem", color: "#666" }}>Archivo no encontrado en bucket</span>
+                    )}
+                    <button onClick={cerrarDetalleCotizacion} className="custom-btn">CERRAR</button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
