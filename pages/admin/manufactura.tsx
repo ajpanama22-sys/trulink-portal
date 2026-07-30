@@ -157,12 +157,14 @@ export default function ManufacturaDashboard() {
         return t.includes("fabric");
       });
 
+      const listaConfigs = cRes.data || [];
+
       setQuotes(soloFabrica);
-      setConfigs(cRes.data || []);
+      setConfigs(listaConfigs);
       setInsumos(mRes.data || []);
       setRecetas(rRes.data || []);
       setOrdenes(oRes.data || []);
-      if (!configReceta && (cRes.data || []).length > 0) setConfigReceta(String(cRes.data[0].id));
+      if (!configReceta && listaConfigs.length > 0) setConfigReceta(String(listaConfigs[0].id));
     } catch (err) {
       console.error("Error cargando manufactura:", err);
     } finally {
@@ -316,7 +318,7 @@ export default function ManufacturaDashboard() {
       if (error) throw error;
 
       const cfg = configs.find((c) => String(c.id) === String(formOP.configuracion_id));
-      auditar("op_creada", "orden_produccion", data.id,
+      auditar("op_creada", "orden_produccion", data?.id ?? null,
         `${numero}: ${formOP.carretes} carrete(s) de ${cfg?.nombre} = ${num(kmDeFormOP)} km.`);
 
       setModalOP({ open: false, quote: null });
