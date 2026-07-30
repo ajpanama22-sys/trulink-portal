@@ -158,7 +158,7 @@ export default function Login() {
         email: colaboradorData.email,
         nombre: colaboradorData.nombre || "Colaborador",
         empresa: "Trulink Fiber LLC",
-        rol: colaboradorData.cargo || "Colaborador",
+        rol: colaboradorData.rol || "Colaborador",
         tipo: "colaborador",
         tipo_registro: "Equipo Interno",
         perfil_cliente: "Colaborador",

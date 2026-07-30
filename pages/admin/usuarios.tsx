@@ -86,6 +86,9 @@ export default function AdminUsuarios() {
       return;
     }
 
+    // auth_id vincula esta fila con el usuario real de Supabase Auth
+    // (columna agregada vía SQL: ALTER TABLE colaboradores ADD COLUMN
+    // auth_id uuid REFERENCES auth.users(id)).
     const { error: dbError } = await supabase
       .from("colaboradores")
       .insert([
