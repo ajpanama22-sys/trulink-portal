@@ -1,621 +1,592 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { getSupabase } from "../../lib/supabaseClient";
 
-interface ItemMateriaPrima {
+/* ============================================================
+   MATERIA PRIMA — TRULINK FIBER LLC
+   ------------------------------------------------------------
+   Reescrito contra la base de datos. La versión anterior tenía
+   el inventario escrito a mano dentro del código, así que cada
+   compra y cada ajuste desaparecía al recargar la página.
+
+   Ahora lee de materia_prima y de materia_prima_bom, y todo
+   movimiento queda registrado en movimientos_inventario.
+
+   El stock sube con las recepciones de compra (módulo
+   Proveedores) y baja al cerrar producción (módulo Manufactura).
+   Este módulo solo ajusta y da de alta insumos.
+   ============================================================ */
+
+type Insumo = {
+  id: number;
   codigo: string;
   nombre: string;
-  especificacion: string;
+  especificacion: string | null;
+  categoria: string | null;
   unidad: string;
-  stockActual: number;
-  categoria: string;
-}
+  stock_actual: number;
+  stock_minimo: number | null;
+  costo_promedio: number | null;
+  activo: boolean;
+};
 
-interface CompraMateriaPrima {
-  id: string;
-  fecha: string;
-  codigoInsumo: string;
-  nombreInsumo: string;
-  cantidadComprada: number;
-  unidad: string;
-  proveedor: string;
-  numeroFactura: string;
-  costoTotal: number;
-  estadoPago: "PENDIENTE" | "PAGADO";
-}
+type Bom = { materia_prima_id: number; tipo_cable: string };
 
-interface AjusteInventario {
-  id: string;
-  fecha: string;
-  codigoInsumo: string;
-  nombreInsumo: string;
-  cantidadAnterior: number;
-  cantidadNueva: number;
-  diferencia: number;
-  motivo: string;
-}
+type Movimiento = {
+  id: number;
+  tipo: string;
+  origen: string;
+  descripcion: string | null;
+  cantidad_anterior: number | null;
+  cantidad: number;
+  cantidad_nueva: number | null;
+  unidad: string | null;
+  motivo: string | null;
+  autor: string | null;
+  created_at: string;
+};
+
+const TIPOS_CABLE = ["FTTH", "ASU", "ADSS"] as const;
+
+const CATEGORIAS = [
+  "Fibras Ópticas",
+  "Refuerzos Dieléctricos",
+  "Resinas de Extrusión",
+  "Compuestos Hidrófugos",
+  "Elementos Auxiliares",
+  "Elementos de Soporte",
+];
+
+const num = (n: any, dec = 2) =>
+  Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: dec });
 
 export default function MateriaPrima() {
-  const [tipoCableFiltro, setTipoCableFiltro] = useState<"TODOS" | "FTTH" | "ASU" | "ADSS">("TODOS");
+  const supabase = getSupabase();
 
-  // Estados principales de inventario estructurados
-  const [insumosMateriaPrima, setInsumosMateriaPrima] = useState<Record<string, ItemMateriaPrima[]>>({
-    FTTH: [
-      { codigo: "MP-FO-01", nombre: "Fibras Ópticas Coloreadas G.657.A1/A2", especificacion: "2 hilos coloreados (UV-cured)", unidad: "km", stockActual: 1500, categoria: "Fibras Ópticas" },
-      { codigo: "MP-FRP-01", nombre: "Refuerzo Lateral Dieléctrico FRP (Delgado)", especificacion: "2 varillas de FRP (0.45 mm - 1.0 mm)", unidad: "km", stockActual: 3200, categoria: "Refuerzos Dieléctricos" },
-      { codigo: "MP-RES-01", nombre: "Cubierta Exterior LSZH / PE UV", especificacion: "Compuesto termoplástico retardo de llama / UV", unidad: "kg", stockActual: 4500, categoria: "Resinas de Extrusión" },
-      { codigo: "MP-RIP-01", nombre: "Hilo de Desgarre (Ripcord)", especificacion: "Hilo sintético de alta resistencia a la tracción", unidad: "km", stockActual: 2100, categoria: "Elementos Auxiliares" }
-    ],
-    ASU: [
-      { codigo: "MP-FO-02", nombre: "Fibras Ópticas Coloreadas G.652.D", especificacion: "Hilos de fibra coloreada estándar", unidad: "km", stockActual: 2800, categoria: "Fibras Ópticas" },
-      { codigo: "MP-PBT-01", nombre: "Tubo Holgado (Loose Tube PBT)", especificacion: "Polibutileno Tereftalato para extrusión de tubo", unidad: "kg", stockActual: 1800, categoria: "Resinas de Extrusión" },
-      { codigo: "MP-GEL-01", nombre: "Gel de Relleno Hidrófugo (Tube Gel)", especificacion: "Gel tixotrópico de inyección para tubos", unidad: "kg", stockActual: 950, categoria: "Compuestos Hidrófugos" },
-      { codigo: "MP-FRP-02", nombre: "Varillas de Refuerzo FRP (Gruesas)", especificacion: "2 varillas laterales gruesas de FRP (1.5 - 2.5 mm)", unidad: "km", stockActual: 1900, categoria: "Refuerzos Dieléctricos" },
-      { codigo: "MP-BLO-01", nombre: "Cinta/Hilos Hinchables (Water-blocking)", especificacion: "Material superabsorbente (SAP) autosellante", unidad: "km", stockActual: 1200, categoria: "Compuestos Hidrófugos" },
-      { codigo: "MP-RES-02", nombre: "Cubierta Exterior HDPE / MDPE UV", especificacion: "Polietileno de alta/media densidad baja fricción", unidad: "kg", stockActual: 6200, categoria: "Resinas de Extrusión" },
-      { codigo: "MP-RIP-01", nombre: "Hilo de Desgarre (Ripcord)", especificacion: "Hilo sintético de alta resistencia a la tracción", unidad: "km", stockActual: 2100, categoria: "Elementos Auxiliares" }
-    ],
-    ADSS: [
-      { codigo: "MP-FO-02", nombre: "Fibras Ópticas Coloreadas G.652.D", especificacion: "Hilos de fibra coloreada distribuidos por tubos", unidad: "km", stockActual: 2800, categoria: "Fibras Ópticas" },
-      { codigo: "MP-CSM-01", nombre: "Núcleo Central de Refuerzo (CSM FRP)", especificacion: "Varilla central de FRP para trenzado de tubos", unidad: "km", stockActual: 850, categoria: "Refuerzos Dieléctricos" },
-      { codigo: "MP-PBT-01", nombre: "Tubos Holgados PBT y Fillers", especificacion: "PBT para tubos con fibras y tubos ciegos de relleno", unidad: "kg", stockActual: 1800, categoria: "Resinas de Extrusión" },
-      { codigo: "MP-GEL-01", nombre: "Compuestos de Bloqueo Hidrófugo (Gel/Cinta)", especificacion: "Gel tixotrópico y cinta hinchable alrededor del núcleo", unidad: "kg", stockActual: 950, categoria: "Compuestos Hidrófugos" },
-      { codigo: "MP-RES-03", nombre: "Cubierta Interna MDPE / HDPE", especificacion: "Chaqueta interna para configuración doble cubierta", unidad: "kg", stockActual: 3400, categoria: "Resinas de Extrusión" },
-      { codigo: "MP-ARAM-01", nombre: "Hilados de Aramida (Kevlar) / Glass Yarns", especificacion: "Hilados de tracción y span para resistencia de vano", unidad: "km", stockActual: 1400, categoria: "Refuerzos Dieléctricos" },
-      { codigo: "MP-RES-04", nombre: "Cubierta Exterior HDPE UV / AT (Anti-Tracking)", especificacion: "HDPE resistente a UV o chaqueta AT para alto voltaje", unidad: "kg", stockActual: 5100, categoria: "Resinas de Extrusión" },
-      { codigo: "MP-RIP-01", nombre: "Hilo de Desgarre (Ripcord)", especificacion: "Hilo sintético para fácil apertura de cubierta", unidad: "km", stockActual: 2100, categoria: "Elementos Auxiliares" }
-    ]
+  const [insumos, setInsumos] = useState<Insumo[]>([]);
+  const [bom, setBom] = useState<Bom[]>([]);
+  const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
+  const [cargando, setCargando] = useState(true);
+
+  const [filtroCable, setFiltroCable] = useState<"TODOS" | "FTTH" | "ASU" | "ADSS">("TODOS");
+  const [buscar, setBuscar] = useState("");
+
+  // --- Modal: nuevo insumo ---
+  const [modalNuevo, setModalNuevo] = useState(false);
+  const [formNuevo, setFormNuevo] = useState<any>({
+    codigo: "", nombre: "", especificacion: "", categoria: CATEGORIAS[0],
+    unidad: "kg", stock_actual: 0, stock_minimo: 0, cables: ["FTTH"],
   });
 
-  // Historiales para enlaces de pagos y auditoría
-  const [historialCompras, setHistorialCompras] = useState<CompraMateriaPrima[]>([
-    { id: "OC-501", fecha: "2026-07-20", codigoInsumo: "MP-FO-01", nombreInsumo: "Fibras Ópticas Coloreadas G.657.A1/A2", cantidadComprada: 500, unidad: "km", proveedor: "NH Link Corp", numeroFactura: "FAC-9921", costoTotal: 12500, estadoPago: "PAGADO" },
-    { id: "OC-502", fecha: "2026-07-25", codigoInsumo: "MP-RES-01", nombreInsumo: "Cubierta Exterior LSZH / PE UV", cantidadComprada: 1000, unidad: "kg", proveedor: "Asia Fiber Tech", numeroFactura: "FAC-8812", costoTotal: 4800, estadoPago: "PENDIENTE" }
-  ]);
+  // --- Modal: ajuste ---
+  const [modalAjuste, setModalAjuste] = useState<{ open: boolean; insumo: Insumo | null }>({ open: false, insumo: null });
+  const [formAjuste, setFormAjuste] = useState({ cantidad: 0, motivo: "", autor: "" });
 
-  const [historialAjustes, setHistorialAjustes] = useState<AjusteInventario[]>([]);
+  // --- Modal: bitácora ---
+  const [modalBitacora, setModalBitacora] = useState(false);
 
-  // Estados de Modales
-  const [modalCompraOpen, setModalCompraOpen] = useState(false);
-  const [modalNuevoItemOpen, setModalNuevoItemOpen] = useState(false);
-  const [modalAjusteOpen, setModalAjusteOpen] = useState(false);
-  const [modalPagosOpen, setModalPagosOpen] = useState(false);
-  const [modalBitacoraOpen, setModalBitacoraOpen] = useState(false);
+  useEffect(() => { cargar(); }, []);
 
-  // Formulario: Registrar Compra
-  const [formCompra, setFormCompra] = useState({
-    codigoInsumo: "MP-FO-01",
-    cantidadComprada: 100,
-    proveedor: "",
-    numeroFactura: "",
-    costoTotal: 0,
-    estadoPago: "PENDIENTE" as "PENDIENTE" | "PAGADO"
+  const cargar = async () => {
+    if (!supabase) { setCargando(false); return; }
+    setCargando(true);
+    try {
+      const [iRes, bRes, mRes] = await Promise.all([
+        supabase.from("materia_prima").select("*").order("codigo"),
+        supabase.from("materia_prima_bom").select("materia_prima_id, tipo_cable"),
+        supabase.from("movimientos_inventario").select("*")
+          .eq("destino", "materia_prima").order("created_at", { ascending: false }).limit(60),
+      ]);
+
+      if (iRes.error) console.error("materia_prima (¿corriste el SQL?):", iRes.error.message);
+      setInsumos(iRes.data || []);
+      setBom(bRes.data || []);
+      setMovimientos(mRes.data || []);
+    } catch (err) {
+      console.error("Error cargando materia prima:", err);
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  const auditar = async (accion: string, id: any, detalle: string, autor?: string) => {
+    if (!supabase) return;
+    try {
+      await supabase.from("audit_log").insert([{
+        accion, entidad: "materia_prima",
+        entidad_id: id != null ? String(id) : null, detalle, autor: autor || null,
+      }]);
+    } catch { /* no frena la operación */ }
+  };
+
+  /* ========================================================
+     ALTA DE INSUMO
+     ======================================================== */
+
+  const crearInsumo = async () => {
+    if (!supabase) return;
+    if (!formNuevo.codigo.trim() || !formNuevo.nombre.trim()) {
+      return alert("El código y el nombre son obligatorios.");
+    }
+
+    try {
+      const { data, error } = await supabase.from("materia_prima").insert([{
+        codigo: formNuevo.codigo.trim().toUpperCase(),
+        nombre: formNuevo.nombre.trim(),
+        especificacion: formNuevo.especificacion || null,
+        categoria: formNuevo.categoria,
+        unidad: formNuevo.unidad,
+        stock_actual: Number(formNuevo.stock_actual) || 0,
+        stock_minimo: Number(formNuevo.stock_minimo) || 0,
+        activo: true,
+      }]).select().single();
+
+      if (error) throw error;
+
+      // Asociación a los tipos de cable donde se usa
+      if (formNuevo.cables.length > 0 && data?.id) {
+        await supabase.from("materia_prima_bom").insert(
+          formNuevo.cables.map((t: string) => ({ materia_prima_id: data.id, tipo_cable: t }))
+        );
+      }
+
+      // Si nace con existencia, queda el movimiento de apertura
+      if (Number(formNuevo.stock_actual) > 0 && data?.id) {
+        await supabase.from("movimientos_inventario").insert([{
+          tipo: "entrada", origen: "ajuste", destino: "materia_prima",
+          materia_prima_id: data.id, descripcion: `${data.codigo} — ${data.nombre}`,
+          cantidad_anterior: 0, cantidad: Number(formNuevo.stock_actual),
+          cantidad_nueva: Number(formNuevo.stock_actual), unidad: formNuevo.unidad,
+          motivo: "Existencia inicial al dar de alta el insumo",
+        }]);
+      }
+
+      auditar("insumo_creado", data?.id, `Alta de insumo ${data?.codigo} — ${data?.nombre}.`);
+      setModalNuevo(false);
+      setFormNuevo({ codigo: "", nombre: "", especificacion: "", categoria: CATEGORIAS[0], unidad: "kg", stock_actual: 0, stock_minimo: 0, cables: ["FTTH"] });
+      cargar();
+    } catch (err: any) {
+      alert("Error al crear el insumo: " + (err.message || err));
+    }
+  };
+
+  /* ========================================================
+     AJUSTE DE EXISTENCIA
+     ======================================================== */
+
+  const abrirAjuste = (i: Insumo) => {
+    setModalAjuste({ open: true, insumo: i });
+    setFormAjuste({ cantidad: Number(i.stock_actual), motivo: "", autor: "" });
+  };
+
+  /**
+   * Ajuste por conteo físico. No suma ni resta: se pone la
+   * cantidad real y el sistema calcula la diferencia, dejando
+   * el movimiento registrado con su motivo.
+   */
+  const guardarAjuste = async () => {
+    const i = modalAjuste.insumo;
+    if (!i || !supabase) return;
+    if (!formAjuste.motivo.trim()) return alert("Escribe el motivo del ajuste (conteo, merma, auditoría...).");
+
+    const antes = Number(i.stock_actual);
+    const despues = Number(formAjuste.cantidad) || 0;
+    const diferencia = despues - antes;
+
+    if (diferencia === 0) return alert("La cantidad no cambió.");
+
+    try {
+      const { error } = await supabase.from("materia_prima")
+        .update({ stock_actual: despues }).eq("id", i.id);
+      if (error) throw error;
+
+      await supabase.from("movimientos_inventario").insert([{
+        tipo: "ajuste", origen: "ajuste", destino: "materia_prima",
+        materia_prima_id: i.id, descripcion: `${i.codigo} — ${i.nombre}`,
+        cantidad_anterior: antes, cantidad: Math.abs(diferencia), cantidad_nueva: despues,
+        unidad: i.unidad, motivo: formAjuste.motivo, autor: formAjuste.autor || null,
+      }]);
+
+      auditar("stock_ajustado", i.id,
+        `${i.codigo}: ${num(antes)} -> ${num(despues)} ${i.unidad} (${diferencia > 0 ? "+" : ""}${num(diferencia)}). Motivo: ${formAjuste.motivo}.`,
+        formAjuste.autor);
+
+      setModalAjuste({ open: false, insumo: null });
+      cargar();
+    } catch (err: any) {
+      alert("Error al ajustar: " + (err.message || err));
+    }
+  };
+
+  const cambiarMinimo = async (i: Insumo, valor: number) => {
+    if (!supabase) return;
+    const { error } = await supabase.from("materia_prima")
+      .update({ stock_minimo: valor }).eq("id", i.id);
+    if (error) return alert("Error: " + error.message);
+    setInsumos((prev) => prev.map((x) => (x.id === i.id ? { ...x, stock_minimo: valor } : x)));
+  };
+
+  /* ========================================================
+     DERIVADOS
+     ======================================================== */
+
+  const idsPorCable = useMemo(() => {
+    const m: Record<string, Set<number>> = { FTTH: new Set(), ASU: new Set(), ADSS: new Set() };
+    bom.forEach((b) => { if (m[b.tipo_cable]) m[b.tipo_cable].add(b.materia_prima_id); });
+    return m;
+  }, [bom]);
+
+  const cablesDeInsumo = (id: number) =>
+    TIPOS_CABLE.filter((t) => idsPorCable[t]?.has(id));
+
+  const filtrados = insumos.filter((i) => {
+    if (!i.activo) return false;
+    if (filtroCable !== "TODOS" && !idsPorCable[filtroCable]?.has(i.id)) return false;
+    const q = buscar.toLowerCase().trim();
+    if (!q) return true;
+    return [i.codigo, i.nombre, i.especificacion, i.categoria]
+      .filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
   });
 
-  // Formulario: Nuevo Ítem
-  const [formNuevoItem, setFormNuevoItem] = useState({
-    codigo: "",
-    nombre: "",
-    especificacion: "",
-    unidad: "km",
-    stockActual: 0,
-    categoria: "Fibras Ópticas",
-    asignarCable: ["FTTH"] as string[]
-  });
+  const bajoMinimo = insumos.filter((i) => Number(i.stock_minimo || 0) > 0 && Number(i.stock_actual) < Number(i.stock_minimo));
+  const sinStock = insumos.filter((i) => Number(i.stock_actual) <= 0);
 
-  // Formulario: Ajuste de Inventario
-  const [itemSeleccionado, setItemSeleccionado] = useState<ItemMateriaPrima | null>(null);
-  const [cantidadAjuste, setCantidadAjuste] = useState<number>(0);
-  const [motivoAjuste, setMotivoAjuste] = useState<string>("");
-
-  // Obtener lista consolidada de insumos únicos
-  const obtenerInsumosUnicos = () => {
-    const mapaUnico = new Map<string, ItemMateriaPrima>();
-    Object.values(insumosMateriaPrima).flat().forEach(item => {
-      mapaUnico.set(item.codigo, item);
-    });
-    return Array.from(mapaUnico.values());
-  };
-
-  const obtenerInsumosFiltrados = () => {
-    if (tipoCableFiltro === "FTTH") return insumosMateriaPrima.FTTH;
-    if (tipoCableFiltro === "ASU") return insumosMateriaPrima.ASU;
-    if (tipoCableFiltro === "ADSS") return insumosMateriaPrima.ADSS;
-    return obtenerInsumosUnicos();
-  };
-
-  // Manejador para Registrar Compra y actualizar stock automáticamente
-  const handleRegistrarCompra = (e: React.FormEvent) => {
-    e.preventDefault();
-    const insumosUnicos = obtenerInsumosUnicos();
-    const itemEncontrado = insumosUnicos.find(i => i.codigo === formCompra.codigoInsumo);
-    if (!itemEncontrado) return;
-
-    const nuevaCompra: CompraMateriaPrima = {
-      id: `OC-${Math.floor(100 + Math.random() * 900)}`,
-      fecha: new Date().toISOString().split("T")[0],
-      codigoInsumo: itemEncontrado.codigo,
-      nombreInsumo: itemEncontrado.nombre,
-      cantidadComprada: Number(formCompra.cantidadComprada),
-      unidad: itemEncontrado.unidad,
-      proveedor: formCompra.proveedor || "Proveedor General",
-      numeroFactura: formCompra.numeroFactura || "S/N",
-      costoTotal: Number(formCompra.costoTotal),
-      estadoPago: formCompra.estadoPago
-    };
-
-    setHistorialCompras([nuevaCompra, ...historialCompras]);
-
-    // Actualizar stock en todas las categorías donde aplique el insumo
-    setInsumosMateriaPrima(prev => {
-      const updated = { ...prev };
-      Object.keys(updated).forEach(cat => {
-        updated[cat] = updated[cat].map(item => {
-          if (item.codigo === formCompra.codigoInsumo) {
-            return { ...item, stockActual: item.stockActual + Number(formCompra.cantidadComprada) };
-          }
-          return item;
-        });
-      });
-      return updated;
-    });
-
-    setModalCompraOpen(false);
-    setFormCompra({ codigoInsumo: "MP-FO-01", cantidadComprada: 100, proveedor: "", numeroFactura: "", costoTotal: 0, estadoPago: "PENDIENTE" });
-  };
-
-  // Manejador para Crear Nuevo Ítem
-  const handleCrearItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formNuevoItem.codigo || !formNuevoItem.nombre) return;
-
-    const nuevoItem: ItemMateriaPrima = {
-      codigo: formNuevoItem.codigo.toUpperCase(),
-      nombre: formNuevoItem.nombre,
-      especificacion: formNuevoItem.especificacion,
-      unidad: formNuevoItem.unidad,
-      stockActual: Number(formNuevoItem.stockActual),
-      categoria: formNuevoItem.categoria
-    };
-
-    setInsumosMateriaPrima(prev => {
-      const updated = { ...prev };
-      formNuevoItem.asignarCable.forEach(tipo => {
-        if (updated[tipo]) {
-          updated[tipo] = [...updated[tipo], nuevoItem];
-        }
-      });
-      return updated;
-    });
-
-    setModalNuevoItemOpen(false);
-    setFormNuevoItem({ codigo: "", nombre: "", especificacion: "", unidad: "km", stockActual: 0, categoria: "Fibras Ópticas", asignarCable: ["FTTH"] });
-  };
-
-  // Manejador para Ajuste Manual de Cantidades
-  const handleGuardarAjuste = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!itemSeleccionado) return;
-
-    const stockAnterior = itemSeleccionado.stockActual;
-    const nuevaCantidad = Number(cantidadAjuste);
-    const diferencia = nuevaCantidad - stockAnterior;
-
-    const nuevoRegistroAjuste: AjusteInventario = {
-      id: `AJ-${Math.floor(100 + Math.random() * 900)}`,
-      fecha: new Date().toISOString().split("T")[0],
-      codigoInsumo: itemSeleccionado.codigo,
-      nombreInsumo: itemSeleccionado.nombre,
-      cantidadAnterior: stockAnterior,
-      cantidadNueva: nuevaCantidad,
-      diferencia: diferencia,
-      motivo: motivoAjuste || "Ajuste manual de inventario"
-    };
-
-    setHistorialAjustes([nuevoRegistroAjuste, ...historialAjustes]);
-
-    setInsumosMateriaPrima(prev => {
-      const updated = { ...prev };
-      Object.keys(updated).forEach(cat => {
-        updated[cat] = updated[cat].map(item => {
-          if (item.codigo === itemSeleccionado.codigo) {
-            return { ...item, stockActual: nuevaCantidad };
-          }
-          return item;
-        });
-      });
-      return updated;
-    });
-
-    setModalAjusteOpen(false);
-    setItemSeleccionado(null);
-    setCantidadAjuste(0);
-    setMotivoAjuste("");
-  };
+  /* ========================================================
+     RENDER
+     ======================================================== */
 
   return (
     <div style={cardBox}>
-      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <style jsx global>{`
+        .mp-in { width:100%; background:#050505; color:#DAA520; border:1px solid rgba(218,165,32,0.4);
+                 padding:9px 11px; border-radius:6px; outline:none; font-size:0.82rem;
+                 box-sizing:border-box; font-family:inherit; }
+        .mp-lb { display:block; font-size:0.66rem; color:rgba(255,255,255,0.55); margin-bottom:5px;
+                 text-transform:uppercase; letter-spacing:0.5px; }
+        .mp-ov { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center;
+                 justify-content:center; z-index:1000; padding:20px; }
+        .mp-md { background:#111; border:1px solid rgba(218,165,32,0.5); border-radius:12px; padding:26px;
+                 width:100%; max-height:90vh; overflow-y:auto; }
+        .mp-chip { padding:2px 8px; border-radius:10px; font-size:0.64rem; font-weight:600; }
+      `}</style>
+
+      <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "15px" }}>
         <div>
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", textTransform: "uppercase" }}>
-            CONTROL DE BODEGA DE MATERIA PRIMA POR TIPO DE CABLE
+          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", textTransform: "uppercase", margin: "0 0 6px 0" }}>
+            Bodega de Materia Prima
           </h2>
-          <p style={{ color: "#aaa", fontSize: "0.8rem" }}>
-            Estructura de insumos (BOM), existencias, compras vinculadas a pagos y ajustes de planta.
+          <p style={{ color: "#888", fontSize: "0.78rem", margin: 0, lineHeight: 1.5 }}>
+            Existencias reales. Suben con las recepciones de compra en Proveedores,
+            y bajan al cerrar producción en Manufactura.
           </p>
         </div>
-        {/* BOTONERA DE ACCIONES PRINCIPALES */}
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button onClick={() => setModalCompraOpen(true)} style={actionBtn("#DAA520", "#000")}>
-            + Registrar Compra
+          <button onClick={() => setModalNuevo(true)} style={btn("#DAA520", "#000")}>+ Nuevo Insumo</button>
+          <button onClick={() => setModalBitacora(true)} style={btn("transparent", "#3498db")}>
+            Bitácora de Movimientos
           </button>
-          <button onClick={() => setModalNuevoItemOpen(true)} style={actionBtn("transparent", "#DAA520")}>
-            + Nuevo Insumo
-          </button>
-          <button onClick={() => setModalPagosOpen(true)} style={actionBtn("transparent", "#2ecc71")}>
-            Pagos a Proveedores ({historialCompras.filter(c => c.estadoPago === "PENDIENTE").length} Pend.)
-          </button>
-          <button onClick={() => setModalBitacoraOpen(true)} style={actionBtn("transparent", "#3498db")}>
-            Bitácora de Ajustes
-          </button>
+          <button onClick={cargar} style={btn("transparent", "#DAA520")}>↻ Actualizar</button>
         </div>
       </div>
 
-      {/* FILTROS POR TIPO DE CABLE */}
-      <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
-        <button onClick={() => setTipoCableFiltro("TODOS")} style={tabBtn(tipoCableFiltro === "TODOS")}>TODAS LAS MATERIAS PRIMAS</button>
-        <button onClick={() => setTipoCableFiltro("FTTH")} style={tabBtn(tipoCableFiltro === "FTTH")}>FTTH / FTTX DROP (2 HILOS PLANO)</button>
-        <button onClick={() => setTipoCableFiltro("ASU")} style={tabBtn(tipoCableFiltro === "ASU")}>ASU AUTOSOPORTADO (MONOTUBO)</button>
-        <button onClick={() => setTipoCableFiltro("ADSS")} style={tabBtn(tipoCableFiltro === "ADSS")}>ADSS DIELÉCTRICO (MULTITUBO)</button>
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "14px", marginBottom: "20px" }}>
+        <div style={kpi}>
+          <span className="mp-lb">Insumos Activos</span>
+          <h3 style={{ color: "#DAA520", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{insumos.filter((i) => i.activo).length}</h3>
+        </div>
+        <div style={kpi}>
+          <span className="mp-lb">Bajo Mínimo</span>
+          <h3 style={{ color: bajoMinimo.length > 0 ? "#e67e22" : "#2ecc71", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{bajoMinimo.length}</h3>
+        </div>
+        <div style={kpi}>
+          <span className="mp-lb">Sin Existencia</span>
+          <h3 style={{ color: sinStock.length > 0 ? "#e74c3c" : "#2ecc71", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{sinStock.length}</h3>
+        </div>
+        <div style={kpi}>
+          <span className="mp-lb">Movimientos Recientes</span>
+          <h3 style={{ color: "#DAA520", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{movimientos.length}</h3>
+        </div>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.85rem" }}>
-        <thead>
-          <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.4)", backgroundColor: "#000", color: "#DAA520" }}>
-            <th style={thStyle}>CÓDIGO</th>
-            <th style={thStyle}>MATERIAL / INSUMO</th>
-            <th style={thStyle}>CATEGORÍA</th>
-            <th style={thStyle}>ESPECIFICACIÓN TÉCNICA</th>
-            <th style={thStyle}>CANTIDAD EN INVENTARIO</th>
-            <th style={thStyle}>UNIDAD</th>
-            <th style={thStyle}>ACCIONES / AJUSTE</th>
-          </tr>
-        </thead>
-        <tbody>
-          {obtenerInsumosFiltrados().map((item, idx) => (
-            <tr key={idx} style={{ borderBottom: "1px solid #111" }}>
-              <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "bold" }}>{item.codigo}</td>
-              <td style={tdStyle}>{item.nombre}</td>
-              <td style={tdStyle}>{item.categoria}</td>
-              <td style={tdStyle}>{item.especificacion}</td>
-              <td style={{ ...tdStyle, color: "#2ecc71", fontWeight: "bold", fontSize: "0.95rem" }}>
-                {item.stockActual.toLocaleString()}
-              </td>
-              <td style={tdStyle}>{item.unidad}</td>
-              <td style={tdStyle}>
-                <button 
-                  onClick={() => {
-                    setItemSeleccionado(item);
-                    setCantidadAjuste(item.stockActual);
-                    setModalAjusteOpen(true);
-                  }}
-                  style={adjustBtnStyle}
-                  title="Ajustar cantidad en inventario"
-                >
-                  ⚙️ Ajustar Stock
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Filtros */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "18px", flexWrap: "wrap", alignItems: "center" }}>
+        {(["TODOS", ...TIPOS_CABLE] as const).map((t) => (
+          <button key={t} onClick={() => setFiltroCable(t as any)} style={tab(filtroCable === t)}>
+            {t === "TODOS" ? "TODAS LAS MATERIAS PRIMAS" : t}
+          </button>
+        ))}
+        <input className="mp-in" style={{ width: "250px", marginLeft: "auto" }}
+          placeholder="Buscar código, nombre o categoría..."
+          value={buscar} onChange={(e) => setBuscar(e.target.value)} />
+      </div>
 
-      {/* MODAL 1: REGISTRAR COMPRA Y ENLACE A PAGOS */}
-      {modalCompraOpen && (
-        <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px" }}>Registrar Compra de Materia Prima</h3>
-            <form onSubmit={handleRegistrarCompra}>
-              <div style={formGroup}>
-                <label style={labelStyle}>Seleccionar Insumo:</label>
-                <select 
-                  value={formCompra.codigoInsumo} 
-                  onChange={e => setFormCompra({ ...formCompra, codigoInsumo: e.target.value })}
-                  style={inputStyle}
-                >
-                  {obtenerInsumosUnicos().map(i => (
-                    <option key={i.codigo} value={i.codigo}>{i.codigo} - {i.nombre}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Cantidad Comprada:</label>
-                <input 
-                  type="number" 
-                  value={formCompra.cantidadComprada} 
-                  onChange={e => setFormCompra({ ...formCompra, cantidadComprada: Number(e.target.value) })}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Proveedor:</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. NH Link Corp" 
-                  value={formCompra.proveedor} 
-                  onChange={e => setFormCompra({ ...formCompra, proveedor: e.target.value })}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>N° de Factura / Orden:</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. FAC-1024" 
-                  value={formCompra.numeroFactura} 
-                  onChange={e => setFormCompra({ ...formCompra, numeroFactura: e.target.value })}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Costo Total ($):</label>
-                <input 
-                  type="number" 
-                  value={formCompra.costoTotal} 
-                  onChange={e => setFormCompra({ ...formCompra, costoTotal: Number(e.target.value) })}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Estado del Pago (Módulo Proveedores):</label>
-                <select 
-                  value={formCompra.estadoPago} 
-                  onChange={e => setFormCompra({ ...formCompra, estadoPago: e.target.value as "PENDIENTE" | "PAGADO" })}
-                  style={inputStyle}
-                >
-                  <option value="PENDIENTE">PENDIENTE DE PAGO</option>
-                  <option value="PAGADO">PAGADO</option>
-                </select>
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-                <button type="button" onClick={() => setModalCompraOpen(false)} style={cancelBtnStyle}>Cancelar</button>
-                <button type="submit" style={submitBtnStyle}>Guardar y Sumar al Stock</button>
-              </div>
-            </form>
-          </div>
+      {cargando ? (
+        <p style={{ color: "#888", textAlign: "center", padding: "40px" }}>Cargando existencias...</p>
+      ) : filtrados.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "40px" }}>
+          <p style={{ color: "#888", marginBottom: "6px" }}>No hay insumos que coincidan.</p>
+          <p style={{ color: "#555", fontSize: "0.78rem" }}>
+            Si esperabas ver el catálogo, revisa que hayas corrido el SQL de abastecimiento.
+          </p>
         </div>
-      )}
-
-      {/* MODAL 2: CREAR NUEVO ÍTEM DE MATERIA PRIMA */}
-      {modalNuevoItemOpen && (
-        <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px" }}>Crear Nuevo Ítem de Materia Prima</h3>
-            <form onSubmit={handleCrearItem}>
-              <div style={formGroup}>
-                <label style={labelStyle}>Código (Ej. MP-FO-03):</label>
-                <input 
-                  type="text" 
-                  value={formNuevoItem.codigo} 
-                  onChange={e => setFormNuevoItem({ ...formNuevoItem, codigo: e.target.value })}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Nombre del Material:</label>
-                <input 
-                  type="text" 
-                  value={formNuevoItem.nombre} 
-                  onChange={e => setFormNuevoItem({ ...formNuevoItem, nombre: e.target.value })}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Categoría:</label>
-                <select 
-                  value={formNuevoItem.categoria} 
-                  onChange={e => setFormNuevoItem({ ...formNuevoItem, categoria: e.target.value })}
-                  style={inputStyle}
-                >
-                  <option value="Fibras Ópticas">Fibras Ópticas</option>
-                  <option value="Refuerzos Dieléctricos">Refuerzos Dieléctricos</option>
-                  <option value="Resinas de Extrusión">Resinas de Extrusión</option>
-                  <option value="Compuestos Hidrófugos">Compuestos Hidrófugos</option>
-                  <option value="Elementos Auxiliares">Elementos Auxiliares</option>
-                </select>
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Especificación Técnica:</label>
-                <input 
-                  type="text" 
-                  value={formNuevoItem.especificacion} 
-                  onChange={e => setFormNuevoItem({ ...formNuevoItem, especificacion: e.target.value })}
-                  style={inputStyle}
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Unidad:</label>
-                <select 
-                  value={formNuevoItem.unidad} 
-                  onChange={e => setFormNuevoItem({ ...formNuevoItem, unidad: e.target.value })}
-                  style={inputStyle}
-                >
-                  <option value="km">km</option>
-                  <option value="kg">kg</option>
-                  <option value="m">m</option>
-                  <option value="litros">litros</option>
-                </select>
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Stock Inicial:</label>
-                <input 
-                  type="number" 
-                  value={formNuevoItem.stockActual} 
-                  onChange={e => setFormNuevoItem({ ...formNuevoItem, stockActual: Number(e.target.value) })}
-                  style={inputStyle}
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Asociar a Tipos de Cable (BOM):</label>
-                <div style={{ display: "flex", gap: "15px", color: "#fff", fontSize: "0.8rem", marginTop: "5px" }}>
-                  {["FTTH", "ASU", "ADSS"].map(tipo => (
-                    <label key={tipo}>
-                      <input 
-                        type="checkbox" 
-                        checked={formNuevoItem.asignarCable.includes(tipo)}
-                        onChange={e => {
-                          const list = e.target.checked 
-                            ? [...formNuevoItem.asignarCable, tipo]
-                            : formNuevoItem.asignarCable.filter(t => t !== tipo);
-                          setFormNuevoItem({ ...formNuevoItem, asignarCable: list });
-                        }}
-                      /> {tipo}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-                <button type="button" onClick={() => setModalNuevoItemOpen(false)} style={cancelBtnStyle}>Cancelar</button>
-                <button type="submit" style={submitBtnStyle}>Crear Insumo</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: AJUSTE MANUAL DE CANTIDADES */}
-      {modalAjusteOpen && itemSeleccionado && (
-        <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px" }}>Ajustar Stock: {itemSeleccionado.codigo}</h3>
-            <p style={{ color: "#aaa", fontSize: "0.8rem", marginBottom: "15px" }}>
-              Material: {itemSeleccionado.nombre} <br />
-              Stock Actual en Sistema: <strong style={{ color: "#2ecc71" }}>{itemSeleccionado.stockActual} {itemSeleccionado.unidad}</strong>
-            </p>
-            <form onSubmit={handleGuardarAjuste}>
-              <div style={formGroup}>
-                <label style={labelStyle}>Nueva Cantidad Física:</label>
-                <input 
-                  type="number" 
-                  value={cantidadAjuste} 
-                  onChange={e => setCantidadAjuste(Number(e.target.value))}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={formGroup}>
-                <label style={labelStyle}>Motivo del Ajuste (Merma, Auditoría, Conteo):</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. Conteo físico trimestral / Merma de extrusión" 
-                  value={motivoAjuste} 
-                  onChange={e => setMotivoAjuste(e.target.value)}
-                  style={inputStyle}
-                  required
-                />
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-                <button type="button" onClick={() => setModalAjusteOpen(false)} style={cancelBtnStyle}>Cancelar</button>
-                <button type="submit" style={submitBtnStyle}>Aplicar Ajuste</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: CONTROL DE PAGOS A PROVEEDORES */}
-      {modalPagosOpen && (
-        <div style={modalOverlay}>
-          <div style={{ ...modalContent, width: "700px", maxWidth: "90%" }}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px" }}>Módulo de Pagos a Proveedores (Compras de Materia Prima)</h3>
-            <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.8rem", marginBottom: "20px" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.4)", color: "#DAA520" }}>
-                  <th style={thStyle}>OC / Factura</th>
-                  <th style={thStyle}>Fecha</th>
-                  <th style={thStyle}>Proveedor</th>
-                  <th style={thStyle}>Insumo</th>
-                  <th style={thStyle}>Total ($)</th>
-                  <th style={thStyle}>Estado</th>
-                  <th style={thStyle}>Acción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historialCompras.map((compra, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #222" }}>
-                    <td style={tdStyle}>{compra.id} ({compra.numeroFactura})</td>
-                    <td style={tdStyle}>{compra.fecha}</td>
-                    <td style={tdStyle}>{compra.proveedor}</td>
-                    <td style={tdStyle}>{compra.nombreInsumo}</td>
-                    <td style={tdStyle}>${compra.costoTotal.toLocaleString()}</td>
-                    <td style={{ ...tdStyle, color: compra.estadoPago === "PAGADO" ? "#2ecc71" : "#e74c3c", fontWeight: "bold" }}>
-                      {compra.estadoPago}
-                    </td>
-                    <td style={tdStyle}>
-                      {compra.estadoPago === "PENDIENTE" && (
-                        <button 
-                          onClick={() => {
-                            setHistorialCompras(historialCompras.map(c => c.id === compra.id ? { ...c, estadoPago: "PAGADO" } : c));
-                          }}
-                          style={{ backgroundColor: "#2ecc71", color: "#000", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", fontSize: "0.7rem", fontWeight: "bold" }}
-                        >
-                          Marcar Pagado
-                        </button>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.83rem" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid rgba(218,165,32,0.4)", backgroundColor: "#000", color: "#DAA520" }}>
+                <th style={th}>Código</th>
+                <th style={th}>Material / Insumo</th>
+                <th style={th}>Categoría</th>
+                <th style={th}>Usado en</th>
+                <th style={{ ...th, textAlign: "right" }}>Existencia</th>
+                <th style={{ ...th, textAlign: "right" }}>Mínimo</th>
+                <th style={th}>Estado</th>
+                <th style={{ ...th, textAlign: "right" }}>Acción</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtrados.map((i) => {
+                const min = Number(i.stock_minimo || 0);
+                const stock = Number(i.stock_actual);
+                const enCero = stock <= 0;
+                const bajo = min > 0 && stock < min;
+                const cables = cablesDeInsumo(i.id);
+                return (
+                  <tr key={i.id} style={{ borderBottom: "1px solid #111" }}>
+                    <td style={{ ...td, color: "#DAA520", fontWeight: 700 }}>{i.codigo}</td>
+                    <td style={td}>
+                      {i.nombre}
+                      {i.especificacion && (
+                        <div style={{ fontSize: "0.7rem", color: "#777", marginTop: "2px" }}>{i.especificacion}</div>
                       )}
                     </td>
+                    <td style={{ ...td, fontSize: "0.75rem", color: "#aaa" }}>{i.categoria || "—"}</td>
+                    <td style={td}>
+                      <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                        {cables.length === 0 ? (
+                          <span style={{ color: "#666", fontSize: "0.7rem" }}>—</span>
+                        ) : cables.map((c) => (
+                          <span key={c} className="mp-chip" style={{ background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)" }}>{c}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={{ ...td, textAlign: "right", fontWeight: 700, fontSize: "0.95rem",
+                      color: enCero ? "#e74c3c" : bajo ? "#e67e22" : "#2ecc71" }}>
+                      {num(stock, 3)} <span style={{ fontSize: "0.72rem", color: "#888", fontWeight: 400 }}>{i.unidad}</span>
+                    </td>
+                    <td style={{ ...td, textAlign: "right" }}>
+                      <input className="mp-in" type="number" min={0} defaultValue={min}
+                        style={{ width: "90px", textAlign: "right", padding: "5px 8px", fontSize: "0.78rem" }}
+                        onBlur={(e) => {
+                          const v = Number(e.target.value) || 0;
+                          if (v !== min) cambiarMinimo(i, v);
+                        }} />
+                    </td>
+                    <td style={td}>
+                      {enCero ? (
+                        <span className="mp-chip" style={{ background: "rgba(231,76,60,0.15)", color: "#e74c3c", border: "1px solid rgba(231,76,60,0.35)" }}>Sin stock</span>
+                      ) : bajo ? (
+                        <span className="mp-chip" style={{ background: "rgba(230,126,34,0.15)", color: "#e67e22", border: "1px solid rgba(230,126,34,0.35)" }}>Bajo mínimo</span>
+                      ) : (
+                        <span className="mp-chip" style={{ background: "rgba(46,204,113,0.15)", color: "#2ecc71", border: "1px solid rgba(46,204,113,0.35)" }}>Disponible</span>
+                      )}
+                    </td>
+                    <td style={{ ...td, textAlign: "right" }}>
+                      <button onClick={() => abrirAjuste(i)} style={btnMini}>⚙️ Ajustar</button>
+                    </td>
                   </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <p style={{ color: "#666", fontSize: "0.73rem", marginTop: "18px", lineHeight: 1.6 }}>
+        📌 Para <strong style={{ color: "#DAA520" }}>ingresar mercancía comprada</strong>, usa Proveedores → Órdenes de
+        Compra → Recibir. Eso genera la cuenta por pagar además de sumar el stock.
+        El ajuste de esta pantalla es solo para conteos físicos, mermas y correcciones.
+      </p>
+
+      {/* ============ MODAL: NUEVO INSUMO ============ */}
+      {modalNuevo && (
+        <div className="mp-ov">
+          <div className="mp-md" style={{ maxWidth: "620px" }}>
+            <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>Nuevo Insumo</h3>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px", marginBottom: "12px" }}>
+              <div><label className="mp-lb">Código *</label>
+                <input className="mp-in" placeholder="MP-XXX-01" value={formNuevo.codigo}
+                  onChange={(e) => setFormNuevo({ ...formNuevo, codigo: e.target.value })} /></div>
+              <div><label className="mp-lb">Nombre del material *</label>
+                <input className="mp-in" value={formNuevo.nombre}
+                  onChange={(e) => setFormNuevo({ ...formNuevo, nombre: e.target.value })} /></div>
+            </div>
+
+            <div style={{ marginBottom: "12px" }}>
+              <label className="mp-lb">Especificación técnica</label>
+              <input className="mp-in" value={formNuevo.especificacion}
+                onChange={(e) => setFormNuevo({ ...formNuevo, especificacion: e.target.value })} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+              <div><label className="mp-lb">Categoría</label>
+                <select className="mp-in" value={formNuevo.categoria}
+                  onChange={(e) => setFormNuevo({ ...formNuevo, categoria: e.target.value })}>
+                  {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select></div>
+              <div><label className="mp-lb">Unidad</label>
+                <select className="mp-in" value={formNuevo.unidad}
+                  onChange={(e) => setFormNuevo({ ...formNuevo, unidad: e.target.value })}>
+                  <option value="kg">kg</option><option value="km">km</option>
+                  <option value="m">m</option><option value="litros">litros</option>
+                  <option value="und">und</option>
+                </select></div>
+              <div><label className="mp-lb">Stock inicial</label>
+                <input className="mp-in" type="number" min={0} value={formNuevo.stock_actual}
+                  onChange={(e) => setFormNuevo({ ...formNuevo, stock_actual: e.target.value })} /></div>
+              <div><label className="mp-lb">Stock mínimo</label>
+                <input className="mp-in" type="number" min={0} value={formNuevo.stock_minimo}
+                  onChange={(e) => setFormNuevo({ ...formNuevo, stock_minimo: e.target.value })} /></div>
+            </div>
+
+            <div style={{ marginBottom: "20px" }}>
+              <label className="mp-lb">¿En qué cables se usa?</label>
+              <div style={{ display: "flex", gap: "18px", marginTop: "6px" }}>
+                {TIPOS_CABLE.map((t) => (
+                  <label key={t} style={{ display: "flex", alignItems: "center", gap: "7px", cursor: "pointer",
+                    color: formNuevo.cables.includes(t) ? "#DAA520" : "#888", fontSize: "0.82rem" }}>
+                    <input type="checkbox" checked={formNuevo.cables.includes(t)}
+                      style={{ width: "15px", height: "15px", accentColor: "#DAA520" }}
+                      onChange={(e) => {
+                        const l = e.target.checked
+                          ? [...formNuevo.cables, t]
+                          : formNuevo.cables.filter((x: string) => x !== t);
+                        setFormNuevo({ ...formNuevo, cables: l });
+                      }} />
+                    {t}
+                  </label>
                 ))}
-              </tbody>
-            </table>
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => setModalPagosOpen(false)} style={cancelBtnStyle}>Cerrar</button>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+              <button onClick={() => setModalNuevo(false)} style={btnCancel}>Cancelar</button>
+              <button onClick={crearInsumo} style={btn("#DAA520", "#000")}>Crear Insumo</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL 5: BITÁCORA DE AJUSTES */}
-      {modalBitacoraOpen && (
-        <div style={modalOverlay}>
-          <div style={{ ...modalContent, width: "700px", maxWidth: "90%" }}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px" }}>Bitácora de Ajustes de Materia Prima</h3>
-            {historialAjustes.length === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "0.85rem", padding: "10px 0" }}>No se han registrado ajustes manuales en esta sesión.</p>
+      {/* ============ MODAL: AJUSTE ============ */}
+      {modalAjuste.open && modalAjuste.insumo && (() => {
+        const i = modalAjuste.insumo!;
+        const dif = (Number(formAjuste.cantidad) || 0) - Number(i.stock_actual);
+        return (
+          <div className="mp-ov">
+            <div className="mp-md" style={{ maxWidth: "460px" }}>
+              <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.05rem", textTransform: "uppercase" }}>
+                Ajustar Existencia
+              </h3>
+              <p style={{ color: "#bbb", fontSize: "0.85rem", marginBottom: "16px" }}>
+                <strong style={{ color: "#DAA520" }}>{i.codigo}</strong> — {i.nombre}<br />
+                <span style={{ fontSize: "0.8rem", color: "#888" }}>
+                  En sistema: <strong style={{ color: "#2ecc71" }}>{num(i.stock_actual, 3)} {i.unidad}</strong>
+                </span>
+              </p>
+
+              <div style={{ marginBottom: "12px" }}>
+                <label className="mp-lb">Cantidad física real ({i.unidad})</label>
+                <input className="mp-in" type="number" min={0} step="0.001" value={formAjuste.cantidad}
+                  onChange={(e) => setFormAjuste({ ...formAjuste, cantidad: Number(e.target.value) || 0 })} />
+              </div>
+              <div style={{ marginBottom: "12px" }}>
+                <label className="mp-lb">Motivo *</label>
+                <input className="mp-in" placeholder="Conteo trimestral, merma de extrusión..."
+                  value={formAjuste.motivo} onChange={(e) => setFormAjuste({ ...formAjuste, motivo: e.target.value })} />
+              </div>
+              <div style={{ marginBottom: "16px" }}>
+                <label className="mp-lb">Registrado por</label>
+                <input className="mp-in" placeholder="Tu nombre" value={formAjuste.autor}
+                  onChange={(e) => setFormAjuste({ ...formAjuste, autor: e.target.value })} />
+              </div>
+
+              <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)",
+                borderRadius: "8px", padding: "13px 16px", marginBottom: "18px", fontSize: "0.83rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "#888" }}>Diferencia a registrar</span>
+                  <strong style={{ color: dif > 0 ? "#2ecc71" : dif < 0 ? "#e74c3c" : "#888" }}>
+                    {dif > 0 ? "+" : ""}{num(dif, 3)} {i.unidad}
+                  </strong>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button onClick={() => setModalAjuste({ open: false, insumo: null })} style={btnCancel}>Cancelar</button>
+                <button onClick={guardarAjuste} style={btn("#DAA520", "#000")}>Aplicar Ajuste</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ============ MODAL: BITÁCORA ============ */}
+      {modalBitacora && (
+        <div className="mp-ov">
+          <div className="mp-md" style={{ maxWidth: "900px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ color: "#DAA520", margin: 0, fontSize: "1.05rem", textTransform: "uppercase" }}>
+                Bitácora de Movimientos
+              </h3>
+              <button onClick={() => setModalBitacora(false)} style={btnCancel}>Cerrar</button>
+            </div>
+
+            {movimientos.length === 0 ? (
+              <p style={{ color: "#888", textAlign: "center", padding: "30px" }}>
+                Todavía no hay movimientos registrados.
+              </p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.8rem", marginBottom: "20px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.78rem" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.4)", color: "#DAA520" }}>
-                    <th style={thStyle}>Fecha</th>
-                    <th style={thStyle}>Código / Insumo</th>
-                    <th style={thStyle}>Anterior</th>
-                    <th style={thStyle}>Nuevo</th>
-                    <th style={thStyle}>Diferencia</th>
-                    <th style={thStyle}>Motivo</th>
+                  <tr style={{ borderBottom: "1px solid rgba(218,165,32,0.4)", color: "#DAA520" }}>
+                    <th style={th}>Fecha</th><th style={th}>Tipo</th><th style={th}>Insumo</th>
+                    <th style={{ ...th, textAlign: "right" }}>Antes</th>
+                    <th style={{ ...th, textAlign: "right" }}>Cantidad</th>
+                    <th style={{ ...th, textAlign: "right" }}>Después</th>
+                    <th style={th}>Motivo</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {historialAjustes.map((aj, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #222" }}>
-                      <td style={tdStyle}>{aj.fecha}</td>
-                      <td style={tdStyle}>{aj.codigoInsumo}</td>
-                      <td style={tdStyle}>{aj.cantidadAnterior}</td>
-                      <td style={tdStyle}>{aj.cantidadNueva}</td>
-                      <td style={{ ...tdStyle, color: aj.diferencia >= 0 ? "#2ecc71" : "#e74c3c", fontWeight: "bold" }}>
-                        {aj.diferencia > 0 ? `+${aj.diferencia}` : aj.diferencia}
-                      </td>
-                      <td style={tdStyle}>{aj.motivo}</td>
-                    </tr>
-                  ))}
+                  {movimientos.map((m) => {
+                    const entrada = m.tipo === "entrada";
+                    const color = entrada ? "#2ecc71" : m.tipo === "salida" ? "#e74c3c" : "#f1c40f";
+                    return (
+                      <tr key={m.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                        <td style={{ ...td, color: "#aaa", fontSize: "0.72rem" }}>
+                          {new Date(m.created_at).toLocaleString()}
+                        </td>
+                        <td style={td}>
+                          <span className="mp-chip" style={{ background: `${color}22`, color, border: `1px solid ${color}55` }}>
+                            {m.tipo}
+                          </span>
+                          <div style={{ fontSize: "0.66rem", color: "#777", marginTop: "2px" }}>{m.origen}</div>
+                        </td>
+                        <td style={{ ...td, fontSize: "0.76rem" }}>{m.descripcion || "—"}</td>
+                        <td style={{ ...td, textAlign: "right", color: "#888" }}>{num(m.cantidad_anterior, 2)}</td>
+                        <td style={{ ...td, textAlign: "right", color, fontWeight: 700 }}>
+                          {entrada ? "+" : m.tipo === "salida" ? "−" : "±"}{num(m.cantidad, 2)} {m.unidad}
+                        </td>
+                        <td style={{ ...td, textAlign: "right", fontWeight: 600 }}>{num(m.cantidad_nueva, 2)}</td>
+                        <td style={{ ...td, fontSize: "0.72rem", color: "#999" }}>
+                          {m.motivo || "—"}
+                          {m.autor && <div style={{ fontSize: "0.66rem", color: "#666" }}>por {m.autor}</div>}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => setModalBitacoraOpen(false)} style={cancelBtnStyle}>Cerrar</button>
-            </div>
           </div>
         </div>
       )}
@@ -623,91 +594,34 @@ export default function MateriaPrima() {
   );
 }
 
-const cardBox: React.CSSProperties = { backgroundColor: "#080808", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "8px", padding: "20px" };
-const thStyle: React.CSSProperties = { padding: "10px", fontSize: "0.75rem", textTransform: "uppercase", textAlign: "left" };
-const tdStyle: React.CSSProperties = { padding: "10px", textAlign: "left" };
-const tabBtn = (isActive: boolean): React.CSSProperties => ({
-  backgroundColor: isActive ? "#DAA520" : "transparent",
-  color: isActive ? "#000" : "#DAA520",
-  border: "1px solid #DAA520",
-  borderRadius: "4px",
-  padding: "8px 14px",
-  fontWeight: "bold",
-  fontSize: "0.75rem",
-  cursor: "pointer"
+const cardBox: React.CSSProperties = {
+  backgroundColor: "#080808", border: "1px solid rgba(218,165,32,0.3)",
+  borderRadius: "8px", padding: "22px",
+};
+const kpi: React.CSSProperties = {
+  background: "#0d0d0d", border: "1px solid rgba(218,165,32,0.25)",
+  borderRadius: "8px", padding: "14px 16px",
+};
+const th: React.CSSProperties = {
+  padding: "10px", fontSize: "0.68rem", textTransform: "uppercase",
+  textAlign: "left", letterSpacing: "0.8px",
+};
+const td: React.CSSProperties = { padding: "10px", textAlign: "left" };
+const tab = (on: boolean): React.CSSProperties => ({
+  backgroundColor: on ? "#DAA520" : "transparent", color: on ? "#000" : "#DAA520",
+  border: "1px solid #DAA520", borderRadius: "4px", padding: "8px 14px",
+  fontWeight: "bold", fontSize: "0.72rem", cursor: "pointer",
 });
-const actionBtn = (bg: string, color: string): React.CSSProperties => ({
-  backgroundColor: bg,
-  color: color,
-  border: "1px solid #DAA520",
-  borderRadius: "4px",
-  padding: "8px 12px",
-  fontWeight: "bold",
-  fontSize: "0.75rem",
-  cursor: "pointer"
+const btn = (bg: string, color: string): React.CSSProperties => ({
+  backgroundColor: bg, color, border: "1px solid #DAA520", borderRadius: "5px",
+  padding: "9px 15px", fontWeight: "bold", fontSize: "0.75rem", cursor: "pointer",
 });
-const adjustBtnStyle: React.CSSProperties = {
-  backgroundColor: "transparent",
-  color: "#DAA520",
-  border: "1px solid rgba(218, 165, 32, 0.5)",
-  borderRadius: "4px",
-  padding: "4px 8px",
-  fontSize: "0.75rem",
-  cursor: "pointer"
+const btnMini: React.CSSProperties = {
+  backgroundColor: "transparent", color: "#DAA520",
+  border: "1px solid rgba(218,165,32,0.5)", borderRadius: "5px",
+  padding: "5px 10px", fontSize: "0.72rem", cursor: "pointer", whiteSpace: "nowrap",
 };
-const modalOverlay: React.CSSProperties = {
-  position: "fixed",
-  top: 0, left: 0, right: 0, bottom: 0,
-  backgroundColor: "rgba(0,0,0,0.8)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 1000
-};
-const modalContent: React.CSSProperties = {
-  backgroundColor: "#121212",
-  border: "1px solid #DAA520",
-  borderRadius: "8px",
-  padding: "25px",
-  width: "450px",
-  maxWidth: "90%",
-  boxShadow: "0 4px 20px rgba(218, 165, 32, 0.2)"
-};
-const formGroup: React.CSSProperties = {
-  marginBottom: "15px",
-  display: "flex",
-  flexDirection: "column" as const
-};
-const labelStyle: React.CSSProperties = {
-  color: "#DAA520",
-  fontSize: "0.75rem",
-  marginBottom: "5px",
-  textTransform: "uppercase" as const
-};
-const inputStyle: React.CSSProperties = {
-  backgroundColor: "#000",
-  border: "1px solid #333",
-  borderRadius: "4px",
-  color: "#fff",
-  padding: "8px",
-  fontSize: "0.85rem"
-};
-const cancelBtnStyle: React.CSSProperties = {
-  backgroundColor: "transparent",
-  color: "#aaa",
-  border: "1px solid #555",
-  borderRadius: "4px",
-  padding: "8px 14px",
-  cursor: "pointer",
-  fontSize: "0.8rem"
-};
-const submitBtnStyle: React.CSSProperties = {
-  backgroundColor: "#DAA520",
-  color: "#000",
-  border: "none",
-  borderRadius: "4px",
-  padding: "8px 14px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  fontSize: "0.8rem"
+const btnCancel: React.CSSProperties = {
+  backgroundColor: "transparent", color: "#aaa", border: "1px solid #444",
+  borderRadius: "5px", padding: "9px 16px", cursor: "pointer", fontSize: "0.78rem",
 };
