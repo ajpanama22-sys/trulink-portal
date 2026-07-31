@@ -19,7 +19,7 @@ type Periodo = {
   total_bruto: number;
   total_deducciones: number;
   total_neto: number;
-  asiento_contable_id: string | null;
+  cuenta_por_pagar_id: number | null;
 };
 
 export default function PlanillaPeriodosPage() {
@@ -118,10 +118,22 @@ export default function PlanillaPeriodosPage() {
   }
 
   async function generarAsiento(id: string) {
-    if (!supabase) return;
-    const { error } = await supabase.rpc("planilla_generar_asiento", { p_periodo_id: id });
-    if (error) setError(error.message);
-    else await cargarPeriodos();
+    setError(null);
+    try {
+      const res = await fetch("/api/planilla/generar-egreso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ periodo_id: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Error al generar el egreso");
+        return;
+      }
+      await cargarPeriodos();
+    } catch (e: any) {
+      setError(e.message ?? "Error al generar el egreso");
+    }
   }
 
   async function aprobarPeriodo(id: string) {
@@ -189,7 +201,7 @@ export default function PlanillaPeriodosPage() {
               <th>Bruto</th>
               <th>Deducciones</th>
               <th>Neto</th>
-              <th>Asiento</th>
+              <th>Egreso (CxP)</th>
               <th></th>
             </tr>
           </thead>
@@ -204,7 +216,7 @@ export default function PlanillaPeriodosPage() {
                 <td>{Number(p.total_bruto).toFixed(2)}</td>
                 <td>{Number(p.total_deducciones).toFixed(2)}</td>
                 <td>{Number(p.total_neto).toFixed(2)}</td>
-                <td>{p.asiento_contable_id ? "✔" : "—"}</td>
+                <td>{p.cuenta_por_pagar_id ? `✔ #${p.cuenta_por_pagar_id}` : "—"}</td>
                 <td>
                   {p.estado === "borrador" && (
                     <>
@@ -215,7 +227,9 @@ export default function PlanillaPeriodosPage() {
                   {(p.estado === "aprobado" || p.estado === "pagado") && (
                     <>
                       <button onClick={() => generarComprobantes(p.id)}>Comprobantes</button>{" "}
-                      <button onClick={() => generarAsiento(p.id)}>Generar asiento</button>
+                      {!p.cuenta_por_pagar_id && (
+                        <button onClick={() => generarAsiento(p.id)}>Generar asiento</button>
+                      )}
                     </>
                   )}
                 </td>
