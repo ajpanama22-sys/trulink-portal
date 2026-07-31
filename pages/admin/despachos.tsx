@@ -35,6 +35,7 @@ type Quote = {
   email: string | null;
   status: string | null;
   type: string | null;
+  tipo?: string | null;        // alias antiguo, algunas cotizaciones viejas lo usan
   total: number;
   items: any;
   created_at: string | null;
