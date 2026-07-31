@@ -23,10 +23,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(405).end(`Método ${req.method} no permitido`);
   }
 
-  const { amount } = req.body;
+  const { orderId, amount } = req.body;
 
-  if (!amount) {
-    return res.status(400).json({ error: 'Falta el monto total de la orden' });
+  if (!amount || !orderId) {
+    return res.status(400).json({ error: 'Falta el monto o el identificador de la orden' });
   }
 
   const request = new checkoutNodeJSSDK.orders.OrdersCreateRequest();
@@ -35,25 +35,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     intent: 'CAPTURE',
     purchase_units: [
       {
+        reference_id: orderId,
         amount: {
           currency_code: 'USD',
           value: amount.toString(),
         },
       },
     ],
+    application_context: {
+      return_url: `${req.headers.origin}/api/paypal-capture?order_id=${orderId}`,
+      cancel_url: `${req.headers.origin}/checkout?id=${orderId}`,
+      shipping_preference: 'NO_SHIPPING',
+      user_action: 'PAY_NOW',
+    },
   });
 
   try {
     const client = clientePayPal();
     const response = await client.execute(request);
-    
+
     const approvalUrl = response.result.links.find(
       (link: any) => link.rel === 'approve'
     )?.href;
 
     return res.status(200).json({
       id: response.result.id,
-      approvalUrl,
+      url: approvalUrl,
     });
   } catch (err: any) {
     console.error('Error al crear orden de PayPal:', err);

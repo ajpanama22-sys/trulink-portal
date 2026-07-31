@@ -23,24 +23,42 @@ export default function PagoExitoso() {
         try {
           const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
           const newStatus = isTransferencia ? 'en_verificacion' : 'pagado';
-          
-          await supabase
-            .from('quotes')
-            .update({ status: newStatus })
-            .eq('id', singleOrderId);
-          
-          const { data, error } = await supabase
-            .from('quotes')
-            .select('*')
-            .eq('id', singleOrderId)
-            .single();
-            
+
+          // Buscamos la cotización aceptando tanto el UUID real (id) como
+          // la referencia (QT-XXXXXX / ESP-XXXXXX), igual que checkout.tsx.
+          // Antes esto buscaba solo por "id" y como Stripe/PayPal reciben
+          // la referencia, nunca encontraba la fila -> caía en datos vacíos
+          // y el correo se enviaba al fallback en vez de al cliente real.
+          let query = supabase.from('quotes').select('*');
+          if (typeof singleOrderId === 'string' && isNaN(Number(singleOrderId))) {
+            query = query.eq('referencia', singleOrderId);
+          } else {
+            query = query.or(`id.eq.${singleOrderId},referencia.eq.${singleOrderId}`);
+          }
+
+          const { data, error } = await query.maybeSingle();
+
           if (error) {
             console.error("Error al obtener la orden de Supabase:", error);
           }
 
           const activeData = data || {};
           setOrderInfo(activeData);
+
+          // Actualizamos el status usando el id real (UUID) de la fila
+          // encontrada, no el valor crudo de la URL.
+          if (activeData.id) {
+            const { error: updateError } = await supabase
+              .from('quotes')
+              .update({ status: newStatus })
+              .eq('id', activeData.id);
+
+            if (updateError) {
+              console.error("Error al actualizar status de la orden:", updateError);
+            }
+          } else {
+            console.warn("No se encontró ninguna cotización con el identificador:", singleOrderId);
+          }
 
           const dbTotal = Number(activeData.total || activeData.monto || activeData.subtotal || 0);
           const currentTotal = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
@@ -51,7 +69,7 @@ export default function PagoExitoso() {
 
           if (!emailSentRef.current) {
             emailSentRef.current = true;
-            
+
             const clientEmail = activeData.client_email || activeData.email || activeData.correo || "ajpanama22@gmail.com";
             const clientName = activeData.client_name || activeData.representante || activeData.nombre || "Alfredo Abdel Jurado Madrigal";
 
@@ -75,7 +93,8 @@ export default function PagoExitoso() {
                     </div>
                     <p style="color:#bbb; font-size:13px;">Atentamente,<br/>Departamento de Administración y Operaciones<br/>Trulink Fiber LLC</p>
                   </div>
-                `
+                `,
+                pdfUrl: activeData.pdf_url || null,
               })
             });
 

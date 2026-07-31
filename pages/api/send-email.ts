@@ -27,7 +27,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     porcentaje_saldo, 
     to, 
     subject, 
-    htmlContent 
+    htmlContent,
+    pdfUrl
   } = req.body;
 
   let destinatario = '';
@@ -99,11 +100,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   try {
+    const attachments: any[] = [];
+    if (pdfUrl) {
+      try {
+        const pdfRes = await fetch(pdfUrl);
+        const pdfArrayBuffer = await pdfRes.arrayBuffer();
+        const pdfBuffer = Buffer.from(pdfArrayBuffer);
+        attachments.push({ filename: 'Factura_TrulinkFiber.pdf', content: pdfBuffer });
+      } catch (pdfErr) {
+        console.error('No se pudo descargar el PDF para adjuntar:', pdfErr);
+      }
+    }
+
     const info = await transporter.sendMail({
       from: `"Trulink Fiber LLC" <${process.env.SMTP_FROM || 'fred.jurado@trulinkfiber.com'}>`,
       to: destinatario,
       subject: asunto,
       html: contenidoHtml,
+      attachments,
     });
 
     console.log("Correo enviado con éxito vía Brevo:", info.messageId);
