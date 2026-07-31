@@ -1,16 +1,26 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import checkoutNodeJSSDK from '@paypal/checkout-server-sdk';
 
+// IMPORTANTE: las variables en Vercel se llaman PAYPAL_CLIENT_ID y
+// PAYPAL_CLIENT_SECRET (sin el prefijo NEXT_PUBLIC_). El código anterior
+// leía NEXT_PUBLIC_PAYPAL_CLIENT_ID, que no existe como variable en el
+// proyecto, así que el Client ID enviado a PayPal siempre estaba vacío y
+// PayPal respondía "invalid_client". Como esta función corre en el
+// servidor (API route), no necesita el prefijo NEXT_PUBLIC_ de todos
+// modos: ese prefijo solo es necesario para variables usadas en el
+// navegador.
+//
+// El ambiente (Sandbox vs Live) se controla con PAYPAL_MODE, no con
+// NODE_ENV, porque en Vercel NODE_ENV siempre es "production" en el sitio
+// en vivo aunque estés usando credenciales de Sandbox.
 function ambientePayPal() {
-  return process.env.NODE_ENV === 'production'
-    ? new checkoutNodeJSSDK.core.LiveEnvironment(
-        process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
-        process.env.PAYPAL_CLIENT_SECRET || ''
-      )
-    : new checkoutNodeJSSDK.core.SandboxEnvironment(
-        process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
-        process.env.PAYPAL_CLIENT_SECRET || ''
-      );
+  const modo = (process.env.PAYPAL_MODE || 'sandbox').toLowerCase();
+  const clientId = process.env.PAYPAL_CLIENT_ID || '';
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET || '';
+
+  return modo === 'live'
+    ? new checkoutNodeJSSDK.core.LiveEnvironment(clientId, clientSecret)
+    : new checkoutNodeJSSDK.core.SandboxEnvironment(clientId, clientSecret);
 }
 
 function clientePayPal() {

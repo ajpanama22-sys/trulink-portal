@@ -1,16 +1,17 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import checkoutNodeJSSDK from '@paypal/checkout-server-sdk';
 
+// Mismo criterio que create-paypal-order.ts: usamos PAYPAL_CLIENT_ID y
+// PAYPAL_CLIENT_SECRET (los nombres reales configurados en Vercel), y el
+// ambiente se decide con PAYPAL_MODE, nunca con NODE_ENV.
 function ambientePayPal() {
-  return process.env.NODE_ENV === 'production'
-    ? new checkoutNodeJSSDK.core.LiveEnvironment(
-        process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
-        process.env.PAYPAL_CLIENT_SECRET || ''
-      )
-    : new checkoutNodeJSSDK.core.SandboxEnvironment(
-        process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
-        process.env.PAYPAL_CLIENT_SECRET || ''
-      );
+  const modo = (process.env.PAYPAL_MODE || 'sandbox').toLowerCase();
+  const clientId = process.env.PAYPAL_CLIENT_ID || '';
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET || '';
+
+  return modo === 'live'
+    ? new checkoutNodeJSSDK.core.LiveEnvironment(clientId, clientSecret)
+    : new checkoutNodeJSSDK.core.SandboxEnvironment(clientId, clientSecret);
 }
 
 function clientePayPal() {
