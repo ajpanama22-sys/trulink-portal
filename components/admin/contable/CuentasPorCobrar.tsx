@@ -126,9 +126,25 @@ export default function CuentasPorCobrar() {
         (c) => String(c.email || "").toLowerCase() === String(q.email || "").toLowerCase()
       );
 
-      const dias = Number(cli?.dias_credito || 0);
-      const venc = new Date();
-      venc.setDate(venc.getDate() + dias);
+      // El vencimiento se ancla a la fecha de despacho, no a días corridos.
+      // Tus condiciones son por hitos, no net-30:
+      //   100%     -> exigible a la aceptación (hoy)
+      //   50%/ESP  -> el saldo vence 3 días antes del despacho estimado
+      // Si la cotización no trae fecha estimada, se usa un plazo prudencial
+      // de 15 días para no dejar la factura sin vencimiento.
+      const forma = String(cli?.forma_pago || "").trim();
+      let venc = new Date();
+
+      if (forma === "100%") {
+        // Pago anticipado completo: vence de inmediato
+      } else if (q.fecha_estimada_entrega) {
+        venc = new Date(q.fecha_estimada_entrega);
+        venc.setDate(venc.getDate() - 3);
+        // Si la entrega ya pasó o está a menos de 3 días, vence hoy
+        if (venc.getTime() < Date.now()) venc = new Date();
+      } else {
+        venc.setDate(venc.getDate() + 15);
+      }
 
       const total = Number(q.total || 0);
       const abono = Number(q.monto_abono || 0);
@@ -148,7 +164,9 @@ export default function CuentasPorCobrar() {
         estado: saldo <= 0.009 ? "Cobrada" : abono > 0 ? "Parcial" : "Pendiente",
         forma_pago: cli?.forma_pago || null,
         porcentaje_inicial: cli?.porcentaje_pago ?? null,
-        notas: `Generada desde la cotización ${q.referencia}`,
+        notas: q.fecha_estimada_entrega
+          ? `Generada desde ${q.referencia}. Vence 3 días antes del despacho estimado (${new Date(q.fecha_estimada_entrega).toLocaleDateString()}).`
+          : `Generada desde ${q.referencia}. Sin fecha de despacho: se aplicó plazo de 15 días.`,
       }]).select().single();
 
       if (error) throw error;
@@ -172,7 +190,7 @@ export default function CuentasPorCobrar() {
       } catch { /* no frena */ }
 
       cargar();
-      alert(`Cuenta creada. Saldo ${fmt(saldo)}, vence en ${dias} días.`);
+      alert(`Cuenta creada. Saldo ${fmt(saldo)}, vence el ${venc.toLocaleDateString()}.`);
     } catch (err: any) {
       alert("Error al generar la cuenta: " + (err.message || err));
     } finally {
@@ -466,8 +484,8 @@ export default function CuentasPorCobrar() {
             Cotizaciones Aprobadas sin Facturar
           </h3>
           <p style={{ color: "#777", fontSize: "0.76rem", margin: "0 0 16px 0" }}>
-            Al generar la cuenta se toman los días de crédito del cliente para calcular el vencimiento.
-            Si la cotización ya traía un abono, se arrastra como primer cobro.
+            El vencimiento se calcula 3 días antes del despacho estimado, según tus condiciones comerciales.
+            Si la forma de pago es 100%, vence de inmediato. Si la cotización ya traía un abono, se arrastra como primer cobro.
           </p>
 
           <div style={{ overflowX: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px" }}>
@@ -477,6 +495,7 @@ export default function CuentasPorCobrar() {
                   <th style={th}>Referencia</th>
                   <th style={th}>Cliente</th>
                   <th style={th}>Aprobación</th>
+                  <th style={th}>Despacho Est.</th>
                   <th style={{ ...th, textAlign: "right" }}>Total</th>
                   <th style={{ ...th, textAlign: "right" }}>Abonado</th>
                   <th style={{ ...th, textAlign: "right" }}>Acción</th>
@@ -484,7 +503,7 @@ export default function CuentasPorCobrar() {
               </thead>
               <tbody>
                 {porFacturar.length === 0 ? (
-                  <tr><td colSpan={6} style={{ padding: "30px", textAlign: "center", color: "#777" }}>
+                  <tr><td colSpan={7} style={{ padding: "30px", textAlign: "center", color: "#777" }}>
                     No hay cotizaciones aprobadas pendientes de facturar.
                   </td></tr>
                 ) : (
@@ -504,6 +523,11 @@ export default function CuentasPorCobrar() {
                           {q.referencia_aprobacion && (
                             <div style={{ fontSize: "0.66rem", color: "#666", marginTop: "3px" }}>{q.referencia_aprobacion}</div>
                           )}
+                        </td>
+                        <td style={{ ...td, fontSize: "0.75rem", color: q.fecha_estimada_entrega ? "#aaa" : "#e67e22" }}>
+                          {q.fecha_estimada_entrega
+                            ? new Date(q.fecha_estimada_entrega).toLocaleDateString()
+                            : "sin fecha"}
                         </td>
                         <td style={{ ...td, textAlign: "right", fontWeight: 600 }}>{fmt(q.total)}</td>
                         <td style={{ ...td, textAlign: "right", color: abono > 0 ? "#2ecc71" : "#666" }}>
