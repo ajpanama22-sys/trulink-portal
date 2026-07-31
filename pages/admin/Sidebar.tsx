@@ -25,7 +25,6 @@ export default function Sidebar({ currentActive }: SidebarProps) {
       category: 'COMERCIAL',
       items: [
         { key: 'validaciones', label: 'Validaciones', path: '/admin/validaciones' },
-        { key: 'cotizaciones', label: 'Cotizaciones', path: '/admin/cotizaciones' },
         { key: 'crm', label: 'CRM & Oportunidades', path: '/admin/crm' },
         { key: 'marketing', label: 'Marketing', path: '/admin/marketing' },
       ],
@@ -43,6 +42,9 @@ export default function Sidebar({ currentActive }: SidebarProps) {
       category: 'FINANZAS',
       items: [
         { key: 'modulo-contable', label: 'Módulo Contable', path: '/admin/ModuloContable' },
+        { key: 'planilla', label: 'Planilla', path: '/admin/planilla' },
+        { key: 'planilla-empleados', label: 'Planilla — Empleados', path: '/admin/planilla-empleados' },
+        { key: 'planilla-dispersion', label: 'Planilla — Dispersión', path: '/admin/planilla-dispersion' },
       ],
     },
     {
@@ -62,7 +64,6 @@ export default function Sidebar({ currentActive }: SidebarProps) {
       category: 'CONFIGURACIÓN',
       items: [
         { key: 'usuarios', label: 'Usuarios', path: '/admin/usuarios' },
-        { key: 'notificaciones', label: 'Notificaciones', path: '/admin/notificaciones' },
       ],
     },
   ];
