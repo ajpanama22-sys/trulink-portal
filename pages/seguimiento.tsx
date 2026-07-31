@@ -72,6 +72,7 @@ export default function SeguimientoPedidos() {
   const [loading, setLoading] = useState(true);
   const [mensaje, setMensaje] = useState("");
   const [emailCliente, setEmailCliente] = useState("");
+  const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => { cargar(); }, []);
 
@@ -177,6 +178,19 @@ export default function SeguimientoPedidos() {
     return i >= 0 ? i : -1;
   };
 
+  /**
+   * Filtra los pedidos por referencia (o por número de pedido si la
+   * referencia viene vacía). Búsqueda insensible a mayúsculas/acentos
+   * simples, por coincidencia parcial.
+   */
+  const pedidosFiltrados = pedidos.filter((p) => {
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return true;
+    const ref = (p.referencia || "").toLowerCase();
+    const idStr = String(p.id || "").toLowerCase();
+    return ref.includes(q) || idStr.includes(q);
+  });
+
   /* ========================================================
      RENDER
      ======================================================== */
@@ -194,6 +208,15 @@ export default function SeguimientoPedidos() {
         .sg-card:hover { border-color:#DAA520; box-shadow:0 0 20px rgba(218,165,32,0.12); }
         .sg-punto { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
         .sg-linea { flex:1; height:2px; }
+        .sg-buscador { width:100%; box-sizing:border-box; background:#0a0a0a; color:#fff;
+                       border:1px solid rgba(218,165,32,0.35); border-radius:10px;
+                       padding:12px 16px; font-size:0.9rem; font-family:'Inter', sans-serif;
+                       outline:none; transition:border-color .3s ease; }
+        .sg-buscador:focus { border-color:#DAA520; }
+        .sg-buscador::placeholder { color:#666; }
+        .sg-limpiar { background:transparent; color:#888; border:1px solid #333; border-radius:8px;
+                      padding:12px 16px; cursor:pointer; font-size:0.82rem; white-space:nowrap; }
+        .sg-limpiar:hover { color:#DAA520; border-color:#DAA520; }
       `}</style>
 
       <div style={{ maxWidth: "860px", margin: "0 auto" }}>
@@ -211,6 +234,23 @@ export default function SeguimientoPedidos() {
           </p>
         </div>
 
+        {!loading && !mensaje && pedidos.length > 0 && (
+          <div style={{ display: "flex", gap: "10px", marginBottom: "26px" }}>
+            <input
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por referencia o número de pedido..."
+              className="sg-buscador"
+            />
+            {busqueda && (
+              <button onClick={() => setBusqueda("")} className="sg-limpiar">
+                Limpiar
+              </button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <p style={{ textAlign: "center", color: "#DAA520" }}>Cargando seguimiento...</p>
         ) : mensaje ? (
@@ -227,9 +267,18 @@ export default function SeguimientoPedidos() {
               Cuando solicites una cotización, aparecerá aquí con su avance.
             </p>
           </div>
+        ) : pedidosFiltrados.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "50px 40px", border: "1px dashed #333", borderRadius: "12px" }}>
+            <p style={{ color: "#888", fontSize: "1rem", margin: "0 0 8px 0" }}>
+              No se encontraron pedidos que coincidan con "{busqueda}".
+            </p>
+            <button onClick={() => setBusqueda("")} className="sg-volver" style={{ marginTop: "10px" }}>
+              Ver todos los pedidos
+            </button>
+          </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-            {pedidos.map((p) => {
+            {pedidosFiltrados.map((p) => {
               const { etapa, detalle } = etapaDe(p);
               const idx = indiceEtapa(etapa);
               const color = COLOR_ETAPA[etapa] || "#DAA520";
@@ -321,6 +370,9 @@ export default function SeguimientoPedidos() {
         {emailCliente && !loading && (
           <p style={{ textAlign: "center", color: "#444", fontSize: "0.72rem", marginTop: "35px" }}>
             Mostrando pedidos de {emailCliente}
+            {busqueda && pedidosFiltrados.length !== pedidos.length
+              ? ` · ${pedidosFiltrados.length} de ${pedidos.length} resultados`
+              : ""}
           </p>
         )}
       </div>
