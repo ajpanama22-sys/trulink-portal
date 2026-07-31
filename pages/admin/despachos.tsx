@@ -69,6 +69,16 @@ type OrdenProduccion = {
   sku_destino: string | null;
 };
 
+type LineaProduccion = {
+  id: number;
+  orden_produccion_id: number;
+  posicion: number;
+  configuracion_id: number | null;
+  descripcion: string | null;
+  carretes: number;
+  sku_destino: string | null;
+};
+
 type LineaDespacho = {
   sku: string;
   descripcion: string;
@@ -106,6 +116,7 @@ export default function DespachosDashboard() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [cuentas, setCuentas] = useState<CuentaCobrar[]>([]);
   const [ordenes, setOrdenes] = useState<OrdenProduccion[]>([]);
+  const [lineasProd, setLineasProd] = useState<LineaProduccion[]>([]);
   const [cargando, setCargando] = useState(true);
 
   const [pestana, setPestana] = useState<"fabrica" | "producto">("fabrica");
@@ -128,10 +139,11 @@ export default function DespachosDashboard() {
     if (!supabase) { setCargando(false); return; }
     setCargando(true);
     try {
-      const [qRes, cRes, oRes] = await Promise.all([
+      const [qRes, cRes, oRes, lRes] = await Promise.all([
         supabase.from("quotes").select("*").order("created_at", { ascending: false }),
         supabase.from("cuentas_por_cobrar").select("id, quote_id, quote_referencia, monto_total, saldo_pendiente, estado"),
         supabase.from("ordenes_produccion").select("id, numero, quote_id, estado, carretes, sku_destino"),
+        supabase.from("orden_produccion_lineas").select("id, orden_produccion_id, posicion, configuracion_id, descripcion, carretes, sku_destino"),
       ]);
       if (qRes.error) console.error("quotes:", qRes.error.message);
       if (cRes.error) console.error("cuentas_por_cobrar (¿corriste el SQL?):", cRes.error.message);
@@ -140,6 +152,7 @@ export default function DespachosDashboard() {
       setQuotes(qRes.data || []);
       setCuentas(cRes.data || []);
       setOrdenes(oRes.data || []);
+      setLineasProd(lRes.data || []);
     } catch (err) {
       console.error("Error cargando despachos:", err);
     } finally {
@@ -336,27 +349,34 @@ export default function DespachosDashboard() {
             autor: form.encargado || null,
           }]);
         }
-      } else if (prod?.sku_destino) {
-        // Lo fabricado entró a cablesdb al cerrar la producción.
-        // Al despacharlo, sale.
-        const { data: p } = await supabase
-          .from("cablesdb").select("id, cantidad")
-          .or(`SKU.eq.${prod.sku_destino},sku.eq.${prod.sku_destino}`).maybeSingle();
+      } else if (prod) {
+        // Una orden puede haber producido varios cables distintos. Sale de
+        // bodega cada uno con SUS carretes, no el total en el primer SKU.
+        const renglones = lineasProd.filter((l) => l.orden_produccion_id === prod.id);
+        const aDespachar = renglones.length > 0
+          ? renglones.map((l) => ({ sku: l.sku_destino, carretes: l.carretes, desc: l.descripcion }))
+          : [{ sku: prod.sku_destino, carretes: prod.carretes, desc: null }];
 
-        if (p) {
+        for (const item of aDespachar) {
+          if (!item.sku) continue;
+
+          const { data: p } = await supabase
+            .from("cablesdb").select("id, cantidad")
+            .or(`SKU.eq.${item.sku},sku.eq.${item.sku}`).maybeSingle();
+
+          if (!p) { errores.push(`SKU ${item.sku}: no existe en cablesdb`); continue; }
+
           const antes = Number(p.cantidad || 0);
-          const despues = antes - Number(prod.carretes || 0);
+          const despues = antes - Number(item.carretes || 0);
           await supabase.from("cablesdb").update({ cantidad: despues }).eq("id", p.id);
           await supabase.from("movimientos_inventario").insert([{
             tipo: "salida", origen: "venta", referencia_id: String(q.id),
-            destino: "bodega", tabla_bodega: "cablesdb", sku_bodega: prod.sku_destino,
-            descripcion: `Cable fabricado — orden ${prod.numero}`,
-            cantidad_anterior: antes, cantidad: Number(prod.carretes || 0), cantidad_nueva: despues,
+            destino: "bodega", tabla_bodega: "cablesdb", sku_bodega: item.sku,
+            descripcion: `Cable fabricado — orden ${prod.numero}${item.desc ? ` · ${item.desc}` : ""}`,
+            cantidad_anterior: antes, cantidad: Number(item.carretes || 0), cantidad_nueva: despues,
             unidad: "carrete", motivo: `Despacho EXW ${q.referencia}`,
             autor: form.encargado || null,
           }]);
-        } else {
-          errores.push(`SKU ${prod.sku_destino}: no existe en cablesdb`);
         }
       }
 
@@ -805,9 +825,14 @@ export default function DespachosDashboard() {
                 <ul style={{ color: "#ccc", fontSize: "0.76rem", margin: 0, paddingLeft: "18px", lineHeight: 1.7 }}>
                   {pestana === "producto"
                     ? <li>Se descuenta el stock de cada SKU en su catálogo</li>
-                    : prod?.sku_destino
-                      ? <li>Salen {prod.carretes} carrete(s) del SKU <strong style={{ color: "#DAA520" }}>{prod.sku_destino}</strong></li>
-                      : <li style={{ color: "#e67e22" }}>Sin SKU de producción: no se descuenta inventario</li>}
+                    : (() => {
+                        if (!prod) return <li style={{ color: "#e67e22" }}>Sin orden de producción: no se descuenta inventario</li>;
+                        const rs = lineasProd.filter((l) => l.orden_produccion_id === prod.id);
+                        const items = rs.length > 0 ? rs : [{ sku_destino: prod.sku_destino, carretes: prod.carretes } as any];
+                        const conSku = items.filter((i: any) => i.sku_destino);
+                        if (conSku.length === 0) return <li style={{ color: "#e67e22" }}>Sin SKU de producción: no se descuenta inventario</li>;
+                        return <li>Salen de bodega: {conSku.map((i: any) => `${i.carretes} de ${i.sku_destino}`).join(", ")}</li>;
+                      })()}
                   <li>Queda el movimiento registrado para auditoría</li>
                   <li>La cotización pasa a estado despachado_exw</li>
                   <li>Se congela el saldo del cliente al momento del despacho</li>

@@ -50,6 +50,19 @@ type Receta = {
   notas: string | null;
 };
 
+type LineaOrden = {
+  id: number;
+  orden_produccion_id: number;
+  posicion: number;
+  configuracion_id: number | null;
+  descripcion: string | null;
+  numero_hilos: number;
+  carretes: number;
+  metros_por_carrete: number;
+  km_totales: number;
+  sku_destino: string | null;
+};
+
 type OrdenProduccion = {
   id: number;
   numero: string | null;
@@ -103,6 +116,7 @@ export default function ManufacturaDashboard() {
   const [insumos, setInsumos] = useState<MateriaPrima[]>([]);
   const [recetas, setRecetas] = useState<Receta[]>([]);
   const [ordenes, setOrdenes] = useState<OrdenProduccion[]>([]);
+  const [lineasOrden, setLineasOrden] = useState<LineaOrden[]>([]);
 
   // --- Filtros ---
   const [filtroQuotes, setFiltroQuotes] = useState<"PENDIENTES" | "APROBADAS" | "TODAS">("PENDIENTES");
@@ -122,7 +136,12 @@ export default function ManufacturaDashboard() {
 
   // --- Modal orden de producción ---
   const [modalOP, setModalOP] = useState<{ open: boolean; quote: any | null }>({ open: false, quote: null });
-  const [formOP, setFormOP] = useState<any>({ configuracion_id: "", numero_hilos: 12, carretes: 1, metros_por_carrete: 1000, sku_destino: "", notas: "" });
+  // Una cotización puede traer varios cables distintos (por ejemplo un ASU
+  // y un FTTX). Cada uno necesita SU PROPIA orden de producción, porque son
+  // recetas distintas en máquinas distintas. Por eso se maneja una lista de
+  // renglones y no un formulario único.
+  const [lineasOP, setLineasOP] = useState<any[]>([]);
+  const [notasOP, setNotasOP] = useState("");
   const [guardandoOP, setGuardandoOP] = useState(false);
 
   // --- Modal requerimiento / cierre ---
@@ -143,12 +162,13 @@ export default function ManufacturaDashboard() {
     if (!supabase) { setCargando(false); return; }
     setCargando(true);
     try {
-      const [qRes, cRes, mRes, rRes, oRes] = await Promise.all([
+      const [qRes, cRes, mRes, rRes, oRes, lRes] = await Promise.all([
         supabase.from("quotes").select("*").order("created_at", { ascending: false }),
         supabase.from("producto_configuraciones").select("*").eq("activo", true).order("codigo"),
         supabase.from("materia_prima").select("*").eq("activo", true).order("codigo"),
         supabase.from("recetas").select("*"),
         supabase.from("ordenes_produccion").select("*").order("id", { ascending: false }),
+        supabase.from("orden_produccion_lineas").select("*").order("posicion"),
       ]);
 
       if (cRes.error) console.error("producto_configuraciones (¿corriste el SQL?):", cRes.error.message);
@@ -170,6 +190,7 @@ export default function ManufacturaDashboard() {
       setInsumos(mRes.data || []);
       setRecetas(rRes.data || []);
       setOrdenes(oRes.data || []);
+      setLineasOrden(lRes.data || []);
       if (!configReceta && listaConfigs.length > 0) setConfigReceta(String(listaConfigs[0].id));
     } catch (err) {
       console.error("Error cargando manufactura:", err);
@@ -219,6 +240,39 @@ export default function ManufacturaDashboard() {
     }).sort((a, b) => a.codigo.localeCompare(b.codigo));
   };
 
+  /** Renglones de una orden. Si es antigua y no tiene, se arma uno desde el resumen. */
+  const renglonesDe = (o: OrdenProduccion): LineaOrden[] => {
+    const l = lineasOrden.filter((x) => x.orden_produccion_id === o.id);
+    if (l.length > 0) return l;
+    return [{
+      id: -o.id, orden_produccion_id: o.id, posicion: 1,
+      configuracion_id: o.configuracion_id, descripcion: "Renglón único",
+      numero_hilos: o.numero_hilos, carretes: o.carretes,
+      metros_por_carrete: 1000, km_totales: Number(o.km_totales || 0),
+      sku_destino: o.sku_destino,
+    }];
+  };
+
+  /**
+   * Requerimiento de una orden completa: suma el consumo de todos
+   * sus renglones. Si un insumo aparece en dos cables distintos,
+   * las cantidades se acumulan.
+   */
+  const requerimientoOrden = (o: OrdenProduccion) => {
+    const acum: Record<number, any> = {};
+    renglonesDe(o).forEach((l) => {
+      if (!l.configuracion_id) return;
+      explotarReceta(l.configuracion_id, Number(l.km_totales || 0), l.numero_hilos)
+        .forEach((r) => {
+          if (!acum[r.materia_prima_id]) acum[r.materia_prima_id] = { ...r };
+          else acum[r.materia_prima_id].requerido += r.requerido;
+        });
+    });
+    return Object.values(acum).map((r: any) => ({
+      ...r, falta: Math.max(0, r.requerido - r.disponible),
+    })).sort((a: any, b: any) => a.codigo.localeCompare(b.codigo));
+  };
+
   /* ========================================================
      APROBACIÓN DE COTIZACIONES
      ======================================================== */
@@ -255,81 +309,175 @@ export default function ManufacturaDashboard() {
      ======================================================== */
 
   const abrirGenerarOP = (q: any) => {
-    // Se intenta deducir la configuración desde el primer renglón
-    // de la cotización; si no se logra, el usuario la elige a mano.
     let items: any[] = [];
     try {
-      items = typeof q.items === "string" ? JSON.parse(q.items) : (q.items || []);
+      items = q ? (typeof q.items === "string" ? JSON.parse(q.items) : (q.items || [])) : [];
     } catch { items = []; }
+    if (!Array.isArray(items)) items = items ? [items] : [];
 
-    const primero = Array.isArray(items) && items.length > 0 ? items[0] : null;
-    const codigoInferido = primero ? inferirCodigoConfig(primero) : null;
-    const cfg = configs.find((c) => c.codigo === codigoInferido);
+    // Se recorre CADA renglón de la cotización, no solo el primero.
+    // De cada uno se deduce su configuración, hilos y tamaño de carrete
+    // desde los campos estructurados que guarda el cotizador.
+    const lineas = items.map((it: any, idx: number) => {
+      const codigo = inferirCodigoConfig(it);
+      const cfg = configs.find((c) => c.codigo === codigo);
+      const kmCotizado = Number(it?.longitudKm || it?.km_carrete || 0);
+      const metros = kmCotizado > 0 ? kmCotizado * 1000 : (cfg?.metros_por_carrete || 1000);
 
-    const hilos = Number(primero?.hilos || primero?.numero_hilos || 12);
-    const carretes = Number(primero?.cantidad || 1);
-
-    setModalOP({ open: true, quote: q });
-    // El carrete puede variar dentro de un mismo producto (FTTH viene en
-    // 1 km y en 2 km), así que se toma el de la cotización si viene, y si
-    // no, el valor por defecto de la configuración.
-    const kmCotizado = Number(primero?.longitudKm || primero?.km_carrete || 0);
-    const metros = kmCotizado > 0 ? kmCotizado * 1000 : (cfg?.metros_por_carrete || 1000);
-
-    setFormOP({
-      configuracion_id: cfg ? String(cfg.id) : "",
-      numero_hilos: hilos,
-      carretes,
-      metros_por_carrete: metros,
-      sku_destino: "",
-      notas: `Generada desde cotización ${q.referencia}`,
+      return {
+        key: `l${idx}`,
+        incluir: true,
+        descripcion: it?.descripcion || it?.SKU || `Renglón ${idx + 1}`,
+        configuracion_id: cfg ? String(cfg.id) : "",
+        numero_hilos: Number(it?.hilos || it?.numero_hilos || 12),
+        carretes: Number(it?.cantidad || 1),
+        metros_por_carrete: metros,
+        sku_destino: "",
+        reconocido: !!cfg,
+      };
     });
+
+    // Si la cotización no trajo renglones utilizables, se abre con uno vacío
+    // para que se pueda cargar a mano.
+    setLineasOP(lineas.length > 0 ? lineas : [{
+      key: "l0", incluir: true, descripcion: "Renglón manual",
+      configuracion_id: "", numero_hilos: 12, carretes: 1,
+      metros_por_carrete: 1000, sku_destino: "", reconocido: false,
+    }]);
+
+    setNotasOP(q ? `Generada desde cotización ${q.referencia}` : "");
+    setModalOP({ open: true, quote: q });
   };
 
-  const kmDeFormOP = useMemo(() => {
-    const metros = Number(formOP.metros_por_carrete) || 0;
-    return (Number(formOP.carretes) || 0) * (metros / 1000);
-  }, [formOP]);
+  const actualizarLinea = (key: string, campo: string, valor: any) => {
+    setLineasOP((prev) => prev.map((l) => (l.key === key ? { ...l, [campo]: valor } : l)));
+  };
 
+  const agregarLineaManual = () => {
+    setLineasOP((prev) => [...prev, {
+      key: `l${Date.now()}`, incluir: true, descripcion: "Renglón manual",
+      configuracion_id: "", numero_hilos: 12, carretes: 1,
+      metros_por_carrete: 1000, sku_destino: "", reconocido: false,
+    }]);
+  };
+
+  const kmDeLinea = (l: any) =>
+    (Number(l.carretes) || 0) * ((Number(l.metros_por_carrete) || 0) / 1000);
+
+  /**
+   * Suma el requerimiento de TODOS los renglones incluidos.
+   * Si un insumo se usa en dos cables distintos, sus cantidades
+   * se acumulan para saber si el stock alcanza para la corrida
+   * completa, no para cada cable por separado.
+   */
   const previewOP = useMemo(() => {
-    if (!formOP.configuracion_id || kmDeFormOP <= 0) return [];
-    return explotarReceta(Number(formOP.configuracion_id), kmDeFormOP, Number(formOP.numero_hilos) || 1);
-  }, [formOP, kmDeFormOP, recetas, insumos]);
+    const acumulado: Record<number, any> = {};
 
+    lineasOP.filter((l) => l.incluir && l.configuracion_id).forEach((l) => {
+      const km = kmDeLinea(l);
+      if (km <= 0) return;
+      explotarReceta(Number(l.configuracion_id), km, Number(l.numero_hilos) || 1)
+        .forEach((r) => {
+          if (!acumulado[r.materia_prima_id]) {
+            acumulado[r.materia_prima_id] = { ...r };
+          } else {
+            acumulado[r.materia_prima_id].requerido += r.requerido;
+          }
+        });
+    });
+
+    return Object.values(acumulado).map((r: any) => ({
+      ...r,
+      falta: Math.max(0, r.requerido - r.disponible),
+    })).sort((a: any, b: any) => a.codigo.localeCompare(b.codigo));
+  }, [lineasOP, recetas, insumos]);
+
+  const kmTotalOP = lineasOP
+    .filter((l) => l.incluir)
+    .reduce((a, l) => a + kmDeLinea(l), 0);
+
+  /**
+   * Crea UNA ORDEN POR CADA RENGLÓN incluido.
+   * Antes solo se tomaba el primer ítem de la cotización, así que si el
+   * cliente pedía ASU y FTTX, el segundo cable simplemente no se producía.
+   */
+  /**
+   * Crea UNA orden con TODOS sus renglones.
+   * Antes solo se leía el primer ítem de la cotización, así que si el
+   * cliente pedía ASU y FTTX, el segundo cable nunca se producía.
+   */
   const crearOrdenProduccion = async () => {
     const q = modalOP.quote;
     if (!supabase) return;
-    if (!formOP.configuracion_id) return alert("Selecciona la configuración del producto.");
-    if ((Number(formOP.carretes) || 0) <= 0) return alert("La cantidad de carretes debe ser mayor a cero.");
+
+    const activas = lineasOP.filter((l) => l.incluir);
+    if (activas.length === 0) return alert("Marca al menos un renglón para producir.");
+
+    const sinConfig = activas.filter((l) => !l.configuracion_id);
+    if (sinConfig.length > 0) {
+      return alert(
+        `Hay ${sinConfig.length} renglón(es) sin configuración asignada:\n\n` +
+        sinConfig.map((l) => `· ${l.descripcion}`).join("\n") +
+        `\n\nElige la configuración de cada uno o desmárcalos.`
+      );
+    }
+    if (activas.some((l) => (Number(l.carretes) || 0) <= 0)) {
+      return alert("Todos los renglones deben tener al menos un carrete.");
+    }
 
     setGuardandoOP(true);
     try {
       const numero = "OP-" + Date.now().toString().slice(-8);
-      const { data, error } = await supabase.from("ordenes_produccion").insert([{
+      const kmTotal = activas.reduce((a, l) => a + kmDeLinea(l), 0);
+      const carretesTotal = activas.reduce((a, l) => a + (Number(l.carretes) || 0), 0);
+      const primera = activas[0];
+
+      // La orden guarda el total; el detalle por producto va en los renglones
+      const { data: orden, error } = await supabase.from("ordenes_produccion").insert([{
         numero,
         quote_id: q ? String(q.id) : null,
         quote_referencia: q?.referencia || null,
         cliente_nombre: q?.empresa || q?.razon_social || null,
-        configuracion_id: Number(formOP.configuracion_id),
-        numero_hilos: Number(formOP.numero_hilos) || 1,
-        carretes: Number(formOP.carretes) || 1,
-        metros_por_carrete: Number(formOP.metros_por_carrete) || 1000,
-        km_totales: kmDeFormOP,
-        sku_destino: formOP.sku_destino || null,
+        configuracion_id: Number(primera.configuracion_id),
+        numero_hilos: Number(primera.numero_hilos) || 1,
+        carretes: carretesTotal,
+        metros_por_carrete: Number(primera.metros_por_carrete) || 1000,
+        km_totales: kmTotal,
+        sku_destino: primera.sku_destino || null,
         estado: "Planificada",
         fecha_inicio: hoyISO(),
-        notas: formOP.notas || null,
+        notas: notasOP || null,
       }]).select().single();
 
       if (error) throw error;
 
-      const cfg = configs.find((c) => String(c.id) === String(formOP.configuracion_id));
-      auditar("op_creada", "orden_produccion", data?.id ?? null,
-        `${numero}: ${formOP.carretes} carrete(s) de ${cfg?.nombre} = ${num(kmDeFormOP)} km.`);
+      const filas = activas.map((l, i) => ({
+        orden_produccion_id: orden.id,
+        posicion: i + 1,
+        configuracion_id: Number(l.configuracion_id),
+        descripcion: l.descripcion || null,
+        numero_hilos: Number(l.numero_hilos) || 1,
+        carretes: Number(l.carretes) || 1,
+        metros_por_carrete: Number(l.metros_por_carrete) || 1000,
+        km_totales: kmDeLinea(l),
+        sku_destino: l.sku_destino || null,
+      }));
+
+      const { error: errL } = await supabase.from("orden_produccion_lineas").insert(filas);
+      if (errL) throw errL;
+
+      const resumen = activas.map((l) => {
+        const cfg = configs.find((c) => String(c.id) === String(l.configuracion_id));
+        return `${cfg?.codigo}: ${l.carretes} carrete(s), ${l.numero_hilos} hilos`;
+      }).join(" · ");
+
+      auditar("op_creada", "orden_produccion", orden?.id ?? null,
+        `${numero} con ${activas.length} renglón(es), ${num(kmTotal)} km. ${resumen}`);
 
       setModalOP({ open: false, quote: null });
+      setLineasOP([]);
       cargarTodo();
-      alert(`Orden ${numero} creada: ${formOP.carretes} carrete(s) = ${num(kmDeFormOP)} km.`);
+      alert(`Orden ${numero} creada con ${activas.length} renglón(es):\n\n${resumen}\n\nTotal: ${num(kmTotal)} km`);
     } catch (err: any) {
       alert("Error al crear la orden: " + (err.message || err));
     } finally {
@@ -354,7 +502,8 @@ export default function ManufacturaDashboard() {
     const o = modalReq.orden;
     if (!o || !supabase) return;
 
-    const req = explotarReceta(o.configuracion_id!, Number(o.km_totales), o.numero_hilos);
+    const renglones = renglonesDe(o);
+    const req = requerimientoOrden(o);
     const conFaltante = req.filter((r) => r.falta > 0);
 
     if (conFaltante.length > 0) {
@@ -365,72 +514,86 @@ export default function ManufacturaDashboard() {
     const sinCalibrar = req.filter((r) => r.sinReceta);
     if (sinCalibrar.length > 0) {
       const lista = sinCalibrar.map((r) => r.codigo).join(", ");
-      if (!confirm(`Estos insumos tienen receta en cero y NO se van a descontar:\n\n${lista}\n\nCalíbralos en la pestaña Recetas para que se consuman. ¿Continuar?`)) return;
+      if (!confirm(`Estos insumos tienen receta en cero y NO se van a descontar:\n\n${lista}\n\nCalíbralos en la pestaña Recetas. ¿Continuar?`)) return;
     }
 
     setCerrando(true);
     const errores: string[] = [];
 
     try {
-      for (const linea of req) {
-        if (linea.requerido <= 0) continue;
+      // El consumo se descuenta renglón por renglón, para que quede
+      // registrado qué insumo se fue en qué producto.
+      for (const linea of renglones) {
+        if (!linea.configuracion_id) continue;
+        const detalleLinea = explotarReceta(
+          linea.configuracion_id, Number(linea.km_totales || 0), linea.numero_hilos
+        );
 
-        const { data: mp } = await supabase
-          .from("materia_prima").select("stock_actual").eq("id", linea.materia_prima_id).maybeSingle();
+        for (const l of detalleLinea) {
+          if (l.requerido <= 0) continue;
 
-        const antes = Number(mp?.stock_actual || 0);
-        const despues = Number((antes - linea.requerido).toFixed(4));
+          const { data: mp } = await supabase
+            .from("materia_prima").select("stock_actual").eq("id", l.materia_prima_id).maybeSingle();
 
-        const { error } = await supabase.from("materia_prima")
-          .update({ stock_actual: despues }).eq("id", linea.materia_prima_id);
-        if (error) { errores.push(`${linea.codigo}: ${error.message}`); continue; }
+          const antes = Number(mp?.stock_actual || 0);
+          const despues = Number((antes - l.requerido).toFixed(4));
 
-        await supabase.from("movimientos_inventario").insert([{
-          tipo: "salida", origen: "produccion", referencia_id: String(o.id),
-          destino: "materia_prima", materia_prima_id: linea.materia_prima_id,
-          descripcion: `${linea.codigo} — ${linea.nombre}`,
-          cantidad_anterior: antes, cantidad: linea.requerido, cantidad_nueva: despues,
-          unidad: linea.unidad, motivo: `Producción ${o.numero}`,
-        }]);
+          const { error } = await supabase.from("materia_prima")
+            .update({ stock_actual: despues }).eq("id", l.materia_prima_id);
+          if (error) { errores.push(`${l.codigo}: ${error.message}`); continue; }
 
-        await supabase.from("orden_produccion_consumos").insert([{
-          orden_produccion_id: o.id, materia_prima_id: linea.materia_prima_id,
-          codigo_insumo: linea.codigo, descripcion: linea.nombre, unidad: linea.unidad,
-          cantidad_planificada: linea.requerido, cantidad_consumida: linea.requerido,
-          stock_antes: antes, stock_despues: despues,
-        }]);
-      }
-
-      // Entrada del cable terminado a bodega, si se indicó el SKU
-      if (o.sku_destino) {
-        const { data: prod } = await supabase
-          .from("cablesdb").select("id, cantidad")
-          .or(`SKU.eq.${o.sku_destino},sku.eq.${o.sku_destino}`).maybeSingle();
-
-        if (prod) {
-          const antes = Number(prod.cantidad || 0);
-          const despues = antes + Number(o.carretes);
-          await supabase.from("cablesdb").update({ cantidad: despues }).eq("id", prod.id);
           await supabase.from("movimientos_inventario").insert([{
-            tipo: "entrada", origen: "produccion", referencia_id: String(o.id),
-            destino: "bodega", tabla_bodega: "cablesdb", sku_bodega: o.sku_destino,
-            descripcion: `Cable fabricado — ${o.carretes} carrete(s)`,
-            cantidad_anterior: antes, cantidad: Number(o.carretes), cantidad_nueva: despues,
-            unidad: "carrete", motivo: `Producción ${o.numero}`,
+            tipo: "salida", origen: "produccion", referencia_id: String(o.id),
+            destino: "materia_prima", materia_prima_id: l.materia_prima_id,
+            descripcion: `${l.codigo} — ${l.nombre}`,
+            cantidad_anterior: antes, cantidad: l.requerido, cantidad_nueva: despues,
+            unidad: l.unidad,
+            motivo: `Producción ${o.numero}${renglones.length > 1 ? ` · renglón ${linea.posicion}` : ""}`,
           }]);
-        } else {
-          errores.push(`SKU ${o.sku_destino}: no existe en cablesdb, el cable no entró a bodega`);
+
+          await supabase.from("orden_produccion_consumos").insert([{
+            orden_produccion_id: o.id,
+            linea_id: linea.id > 0 ? linea.id : null,
+            materia_prima_id: l.materia_prima_id,
+            codigo_insumo: l.codigo, descripcion: l.nombre, unidad: l.unidad,
+            cantidad_planificada: l.requerido, cantidad_consumida: l.requerido,
+            stock_antes: antes, stock_despues: despues,
+          }]);
+        }
+
+        // Entrada a bodega del cable fabricado de ESTE renglón
+        if (linea.sku_destino) {
+          const { data: prod } = await supabase
+            .from("cablesdb").select("id, cantidad")
+            .or(`SKU.eq.${linea.sku_destino},sku.eq.${linea.sku_destino}`).maybeSingle();
+
+          if (prod) {
+            const antes = Number(prod.cantidad || 0);
+            const despues = antes + Number(linea.carretes || 0);
+            await supabase.from("cablesdb").update({ cantidad: despues }).eq("id", prod.id);
+            await supabase.from("movimientos_inventario").insert([{
+              tipo: "entrada", origen: "produccion", referencia_id: String(o.id),
+              destino: "bodega", tabla_bodega: "cablesdb", sku_bodega: linea.sku_destino,
+              descripcion: `Cable fabricado — ${linea.descripcion || ""}`,
+              cantidad_anterior: antes, cantidad: Number(linea.carretes || 0), cantidad_nueva: despues,
+              unidad: "carrete", motivo: `Producción ${o.numero}`,
+            }]);
+          } else {
+            errores.push(`SKU ${linea.sku_destino}: no existe en cablesdb`);
+          }
         }
       }
 
       await supabase.from("ordenes_produccion").update({
         estado: "Completada",
         fecha_fin: hoyISO(),
-        faltantes: conFaltante.length > 0 ? conFaltante.map((r) => `${r.codigo}: ${num(r.falta, 3)} ${r.unidad}`).join(" | ") : null,
+        faltantes: conFaltante.length > 0
+          ? conFaltante.map((r) => `${r.codigo}: ${num(r.falta, 3)} ${r.unidad}`).join(" | ")
+          : null,
       }).eq("id", o.id);
 
       auditar("op_completada", "orden_produccion", o.id,
-        `${o.numero} cerrada: ${o.carretes} carrete(s), ${num(o.km_totales)} km. Materia prima descontada.`);
+        `${o.numero} cerrada: ${renglones.length} renglón(es), ${num(o.km_totales)} km. Materia prima descontada.`);
 
       setModalReq({ open: false, orden: null });
       cargarTodo();
@@ -720,7 +883,7 @@ export default function ManufacturaDashboard() {
                       <option value="COMPLETADAS">Completadas</option>
                       <option value="TODAS">Todas</option>
                     </select>
-                    <button className="mf-gold" onClick={() => { setModalOP({ open: true, quote: null }); setFormOP({ configuracion_id: "", numero_hilos: 12, carretes: 1, metros_por_carrete: 1000, sku_destino: "", notas: "" }); }}>
+                    <button className="mf-gold" onClick={() => abrirGenerarOP(null)}>
                       + Orden Manual
                     </button>
                   </div>
@@ -744,7 +907,8 @@ export default function ManufacturaDashboard() {
                       </thead>
                       <tbody>
                         {ordenesFiltradas.map((o) => {
-                          const cfg = configs.find((c) => c.id === o.configuracion_id);
+                          const rs = renglonesDe(o);
+                          const cfg = configs.find((c) => c.id === rs[0]?.configuracion_id);
                           const completada = o.estado === "Completada";
                           return (
                             <tr key={o.id}>
@@ -754,11 +918,24 @@ export default function ManufacturaDashboard() {
                               </td>
                               <td style={{ fontSize: "0.76rem" }}>{o.quote_referencia || "Manual"}</td>
                               <td style={{ fontSize: "0.76rem" }}>
-                                {cfg?.nombre || "—"}
-                                {cfg?.vano_metros && <div style={{ fontSize: "0.66rem", color: "#777" }}>Vano {cfg.vano_metros} m</div>}
-                                {cfg?.con_mensajero && <div style={{ fontSize: "0.66rem", color: "#777" }}>Con mensajero</div>}
+                                {rs.length === 1 ? (
+                                  <>
+                                    {cfg?.nombre || "—"}
+                                    {cfg?.vano_metros && <div style={{ fontSize: "0.66rem", color: "#777" }}>Vano {cfg.vano_metros} m</div>}
+                                    {cfg?.con_mensajero && <div style={{ fontSize: "0.66rem", color: "#777" }}>Con mensajero</div>}
+                                  </>
+                                ) : (
+                                  <>
+                                    <span style={{ color: "#9b59b6", fontWeight: 600 }}>{rs.length} productos</span>
+                                    <div style={{ fontSize: "0.66rem", color: "#777" }}>
+                                      {rs.map((l) => configs.find((c) => c.id === l.configuracion_id)?.codigo || "?").join(" · ")}
+                                    </div>
+                                  </>
+                                )}
                               </td>
-                              <td>{o.numero_hilos}</td>
+                              <td style={{ fontSize: "0.78rem" }}>
+                                {rs.length === 1 ? rs[0].numero_hilos : rs.map((l) => l.numero_hilos).join(" / ")}
+                              </td>
                               <td style={{ color: "#DAA520", fontWeight: 600 }}>{o.carretes}</td>
                               <td>{num(o.km_totales)} km</td>
                               <td>
@@ -1027,145 +1204,238 @@ export default function ManufacturaDashboard() {
       )}
 
       {/* ============ MODAL: ORDEN DE PRODUCCIÓN ============ */}
-      {modalOP.open && (
-        <div className="mf-ov">
-          <div className="mf-md" style={{ maxWidth: "760px" }}>
-            <h2 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>
-              {modalOP.quote ? `Orden de Producción — ${modalOP.quote.referencia}` : "Orden de Producción Manual"}
-            </h2>
+      {modalOP.open && (() => {
+        const activas = lineasOP.filter((l) => l.incluir);
+        const noReconocidos = lineasOP.filter((l) => !l.reconocido).length;
+        return (
+          <div className="mf-ov">
+            <div className="mf-md" style={{ maxWidth: "980px" }}>
+              <h2 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>
+                {modalOP.quote ? `Orden de Producción — ${modalOP.quote.referencia}` : "Orden de Producción Manual"}
+              </h2>
+              <p style={{ color: "#888", fontSize: "0.78rem", margin: "0 0 16px 0" }}>
+                Una sola orden con todos los renglones de la cotización. Cada cable lleva su propia
+                configuración, hilos y carretes; el consumo de materia prima se suma.
+              </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-              <div><label className="mf-lb">Configuración *</label>
-                <select className="mf-in" value={formOP.configuracion_id}
-                  onChange={(e) => setFormOP({ ...formOP, configuracion_id: e.target.value })}>
-                  <option value="">— Selecciona —</option>
-                  {configs.map((c) => <option key={c.id} value={String(c.id)}>{c.codigo} — {c.nombre}</option>)}
-                </select></div>
-              <div><label className="mf-lb">N° de hilos</label>
-                <input className="mf-in" type="number" min={1} value={formOP.numero_hilos}
-                  onChange={(e) => setFormOP({ ...formOP, numero_hilos: e.target.value })} /></div>
-              <div><label className="mf-lb">Carretes</label>
-                <input className="mf-in" type="number" min={1} value={formOP.carretes}
-                  onChange={(e) => setFormOP({ ...formOP, carretes: e.target.value })} /></div>
-              <div><label className="mf-lb">Km por carrete</label>
-                <input className="mf-in" type="number" min={0} step="0.5" value={(Number(formOP.metros_por_carrete) || 0) / 1000}
-                  onChange={(e) => setFormOP({ ...formOP, metros_por_carrete: (Number(e.target.value) || 0) * 1000 })} /></div>
-              <div><label className="mf-lb">SKU destino</label>
-                <input className="mf-in" placeholder="En cablesdb" value={formOP.sku_destino}
-                  onChange={(e) => setFormOP({ ...formOP, sku_destino: e.target.value })} /></div>
-            </div>
+              {noReconocidos > 0 && (
+                <div style={{ background: "rgba(230,126,34,0.07)", border: "1px dashed rgba(230,126,34,0.4)",
+                  borderRadius: "8px", padding: "12px 16px", marginBottom: "14px" }}>
+                  <p style={{ color: "#e67e22", fontSize: "0.78rem", margin: 0 }}>
+                    ⚠ {noReconocidos} renglón(es) sin configuración deducida. Suele pasar con cotizaciones
+                    viejas que no guardaron vano ni mensajero. Elígela a mano.
+                  </p>
+                </div>
+              )}
 
-            {kmDeFormOP > 0 && (
-              <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.35)", borderRadius: "8px", padding: "13px 16px", marginBottom: "16px" }}>
-                <span style={{ color: "#fff", fontSize: "0.85rem" }}>
-                  {formOP.carretes} carrete(s) × {(Number(formOP.metros_por_carrete) || 0) / 1000} km ={" "}
-                  <strong style={{ color: "#DAA520", fontSize: "1.05rem" }}>{num(kmDeFormOP)} km</strong> de cable
-                </span>
+              {/* Renglones */}
+              <div style={{ border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", overflow: "hidden", marginBottom: "14px" }}>
+                <table className="mf-tabla">
+                  <thead>
+                    <tr>
+                      <th style={{ width: "34px" }}></th>
+                      <th>Renglón</th>
+                      <th style={{ width: "190px" }}>Configuración</th>
+                      <th style={{ width: "78px" }}>Hilos</th>
+                      <th style={{ width: "78px" }}>Carretes</th>
+                      <th style={{ width: "90px" }}>Km/carrete</th>
+                      <th style={{ width: "115px" }}>SKU destino</th>
+                      <th style={{ textAlign: "right", width: "70px" }}>Km</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineasOP.map((l) => (
+                      <tr key={l.key} style={{ opacity: l.incluir ? 1 : 0.4 }}>
+                        <td style={{ textAlign: "center" }}>
+                          <input type="checkbox" checked={l.incluir}
+                            style={{ width: "15px", height: "15px", accentColor: "#DAA520" }}
+                            onChange={(e) => actualizarLinea(l.key, "incluir", e.target.checked)} />
+                        </td>
+                        <td style={{ fontSize: "0.74rem" }}>
+                          {l.descripcion}
+                          {!l.reconocido && (
+                            <div style={{ fontSize: "0.64rem", color: "#e67e22" }}>sin deducir</div>
+                          )}
+                        </td>
+                        <td>
+                          <select className="mf-in" style={{ padding: "5px 7px", fontSize: "0.72rem" }}
+                            value={l.configuracion_id}
+                            onChange={(e) => {
+                              actualizarLinea(l.key, "configuracion_id", e.target.value);
+                              const c = configs.find((x) => String(x.id) === e.target.value);
+                              if (c) actualizarLinea(l.key, "metros_por_carrete", c.metros_por_carrete);
+                            }}>
+                            <option value="">— elegir —</option>
+                            {configs.map((c) => <option key={c.id} value={String(c.id)}>{c.codigo}</option>)}
+                          </select>
+                        </td>
+                        <td>
+                          <input className="mf-in" type="number" min={1} value={l.numero_hilos}
+                            style={{ padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
+                            onChange={(e) => actualizarLinea(l.key, "numero_hilos", Number(e.target.value) || 1)} />
+                        </td>
+                        <td>
+                          <input className="mf-in" type="number" min={1} value={l.carretes}
+                            style={{ padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
+                            onChange={(e) => actualizarLinea(l.key, "carretes", Number(e.target.value) || 1)} />
+                        </td>
+                        <td>
+                          <input className="mf-in" type="number" min={0} step="0.5"
+                            value={(Number(l.metros_por_carrete) || 0) / 1000}
+                            style={{ padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
+                            onChange={(e) => actualizarLinea(l.key, "metros_por_carrete", (Number(e.target.value) || 0) * 1000)} />
+                        </td>
+                        <td>
+                          <input className="mf-in" placeholder="cablesdb" value={l.sku_destino}
+                            style={{ padding: "5px", fontSize: "0.72rem" }}
+                            onChange={(e) => actualizarLinea(l.key, "sku_destino", e.target.value)} />
+                        </td>
+                        <td style={{ textAlign: "right", color: "#DAA520", fontWeight: 700, fontSize: "0.78rem" }}>
+                          {num(kmDeLinea(l))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            )}
 
-            {previewOP.length > 0 && (
-              <div style={{ marginBottom: "16px" }}>
-                <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Materia prima que va a consumir
-                </p>
-                <div style={{ maxHeight: "230px", overflowY: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px" }}>
-                  <table className="mf-tabla">
-                    <thead><tr><th>Insumo</th><th style={{ textAlign: "right" }}>Requiere</th><th style={{ textAlign: "right" }}>Hay</th><th>Estado</th></tr></thead>
-                    <tbody>
-                      {previewOP.map((l) => (
-                        <tr key={l.materia_prima_id}>
-                          <td style={{ fontSize: "0.76rem" }}>
-                            <span style={{ color: "#DAA520" }}>{l.codigo}</span>
-                            <div style={{ fontSize: "0.68rem", color: "#777" }}>{l.nombre}</div>
-                          </td>
-                          <td style={{ textAlign: "right", fontWeight: 600 }}>
-                            {l.sinReceta ? <span style={{ color: "#e67e22" }}>sin receta</span> : `${num(l.requerido, 3)} ${l.unidad}`}
-                          </td>
-                          <td style={{ textAlign: "right", color: "#aaa" }}>{num(l.disponible, 2)}</td>
-                          <td>
-                            {l.sinReceta ? (
-                              <span style={{ color: "#e67e22", fontSize: "0.7rem" }}>calibrar</span>
-                            ) : l.falta > 0 ? (
-                              <span style={{ color: "#e74c3c", fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
-                            ) : (
-                              <span style={{ color: "#2ecc71", fontSize: "0.7rem" }}>✓ alcanza</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                <button className="mf-mini" onClick={agregarLineaManual}>+ Agregar renglón</button>
+                <div style={{ background: "rgba(218,165,32,0.06)", border: "1px solid rgba(218,165,32,0.3)",
+                  borderRadius: "8px", padding: "9px 18px" }}>
+                  <span style={{ color: "#fff", fontSize: "0.84rem" }}>
+                    {activas.length} renglón(es) ={" "}
+                    <strong style={{ color: "#DAA520", fontSize: "1.05rem" }}>{num(kmTotalOP)} km</strong> de cable
+                  </span>
                 </div>
               </div>
-            )}
 
-            <div style={{ marginBottom: "18px" }}>
-              <label className="mf-lb">Notas</label>
-              <textarea className="mf-in" rows={2} style={{ resize: "vertical" }} value={formOP.notas}
-                onChange={(e) => setFormOP({ ...formOP, notas: e.target.value })} />
-            </div>
+              {/* Requerimiento consolidado */}
+              {previewOP.length > 0 && (
+                <div style={{ marginBottom: "16px" }}>
+                  <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Materia prima total de la orden
+                  </p>
+                  <div style={{ maxHeight: "215px", overflowY: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px" }}>
+                    <table className="mf-tabla">
+                      <thead><tr><th>Insumo</th><th style={{ textAlign: "right" }}>Requiere</th><th style={{ textAlign: "right" }}>Hay</th><th>Estado</th></tr></thead>
+                      <tbody>
+                        {previewOP.map((l: any) => (
+                          <tr key={l.materia_prima_id}>
+                            <td style={{ fontSize: "0.76rem" }}>
+                              <span style={{ color: "#DAA520" }}>{l.codigo}</span>
+                              <div style={{ fontSize: "0.66rem", color: "#777" }}>{l.nombre}</div>
+                            </td>
+                            <td style={{ textAlign: "right", fontWeight: 600 }}>
+                              {l.sinReceta ? <span style={{ color: "#e67e22" }}>sin receta</span> : `${num(l.requerido, 3)} ${l.unidad}`}
+                            </td>
+                            <td style={{ textAlign: "right", color: "#aaa" }}>{num(l.disponible, 2)}</td>
+                            <td>
+                              {l.sinReceta ? <span style={{ color: "#e67e22", fontSize: "0.7rem" }}>calibrar</span>
+                                : l.falta > 0 ? <span style={{ color: "#e74c3c", fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
+                                : <span style={{ color: "#2ecc71", fontSize: "0.7rem" }}>✓ alcanza</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setModalOP({ open: false, quote: null })}
-                style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
-                Cancelar
-              </button>
-              <button className="mf-gold" disabled={guardandoOP} onClick={crearOrdenProduccion}>
-                {guardandoOP ? "Creando..." : "Crear Orden"}
-              </button>
+              <div style={{ marginBottom: "18px" }}>
+                <label className="mf-lb">Notas de la orden</label>
+                <textarea className="mf-in" rows={2} style={{ resize: "vertical" }} value={notasOP}
+                  onChange={(e) => setNotasOP(e.target.value)} />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button onClick={() => { setModalOP({ open: false, quote: null }); setLineasOP([]); }}
+                  style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+                  Cancelar
+                </button>
+                <button className="mf-gold" disabled={guardandoOP || activas.length === 0} onClick={crearOrdenProduccion}>
+                  {guardandoOP ? "Creando..." : `Crear Orden (${activas.length} renglón${activas.length !== 1 ? "es" : ""})`}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ============ MODAL: REQUERIMIENTO Y CIERRE ============ */}
       {modalReq.open && modalReq.orden && (() => {
         const o = modalReq.orden!;
-        const cfg = configs.find((c) => c.id === o.configuracion_id);
-        const req = o.configuracion_id ? explotarReceta(o.configuracion_id, Number(o.km_totales), o.numero_hilos) : [];
+        const renglones = renglonesDe(o);
+        const req = requerimientoOrden(o);
         const completada = o.estado === "Completada";
         const faltantes = req.filter((r) => r.falta > 0).length;
+        const conSku = renglones.filter((l) => l.sku_destino);
+
         return (
           <div className="mf-ov">
-            <div className="mf-md" style={{ maxWidth: "720px" }}>
+            <div className="mf-md" style={{ maxWidth: "780px" }}>
               <h2 style={{ color: completada ? "#DAA520" : "#2ecc71", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>
                 {completada ? "Consumo de la Orden" : "Requerimiento de Materia Prima"}
               </h2>
               <p style={{ color: "#bbb", fontSize: "0.85rem", marginBottom: "16px" }}>
-                <strong style={{ color: "#DAA520" }}>{o.numero}</strong> — {cfg?.nombre}
+                <strong style={{ color: "#DAA520" }}>{o.numero}</strong>
+                {o.cliente_nombre ? ` — ${o.cliente_nombre}` : ""}
                 <br />
                 <span style={{ fontSize: "0.8rem", color: "#888" }}>
-                  {o.carretes} carrete(s) · {o.numero_hilos} hilos · {num(o.km_totales)} km
-                  {o.cliente_nombre ? ` · ${o.cliente_nombre}` : ""}
+                  {renglones.length} renglón(es) · {num(o.km_totales)} km en total
                 </span>
               </p>
 
-              <div style={{ maxHeight: "300px", overflowY: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", marginBottom: "16px" }}>
+              {/* Renglones de la orden */}
+              <div style={{ border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", overflow: "hidden", marginBottom: "16px" }}>
                 <table className="mf-tabla">
-                  <thead><tr><th>Insumo</th><th>Cálculo</th><th style={{ textAlign: "right" }}>Requiere</th><th style={{ textAlign: "right" }}>Existencia</th><th>Estado</th></tr></thead>
+                  <thead><tr><th>#</th><th>Producto</th><th style={{ textAlign: "center" }}>Hilos</th><th style={{ textAlign: "center" }}>Carretes</th><th style={{ textAlign: "right" }}>Km</th><th>SKU destino</th></tr></thead>
                   <tbody>
-                    {req.map((l) => (
+                    {renglones.map((l) => {
+                      const cfg = configs.find((c) => c.id === l.configuracion_id);
+                      return (
+                        <tr key={l.id}>
+                          <td style={{ color: "#666", fontSize: "0.74rem" }}>{l.posicion}</td>
+                          <td style={{ fontSize: "0.76rem" }}>
+                            <span style={{ color: "#DAA520" }}>{cfg?.codigo || "—"}</span>
+                            {cfg?.vano_metros && <div style={{ fontSize: "0.66rem", color: "#777" }}>vano {cfg.vano_metros} m</div>}
+                            {cfg?.con_mensajero && <div style={{ fontSize: "0.66rem", color: "#777" }}>con mensajero</div>}
+                          </td>
+                          <td style={{ textAlign: "center" }}>{l.numero_hilos}</td>
+                          <td style={{ textAlign: "center", color: "#DAA520", fontWeight: 600 }}>{l.carretes}</td>
+                          <td style={{ textAlign: "right" }}>{num(l.km_totales)}</td>
+                          <td style={{ fontSize: "0.72rem", color: l.sku_destino ? "#aaa" : "#e67e22" }}>
+                            {l.sku_destino || "sin SKU"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                Consumo consolidado de todos los renglones
+              </p>
+              <div style={{ maxHeight: "260px", overflowY: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", marginBottom: "16px" }}>
+                <table className="mf-tabla">
+                  <thead><tr><th>Insumo</th><th style={{ textAlign: "right" }}>Requiere</th><th style={{ textAlign: "right" }}>Existencia</th><th>Estado</th></tr></thead>
+                  <tbody>
+                    {req.map((l: any) => (
                       <tr key={l.materia_prima_id}>
                         <td style={{ fontSize: "0.76rem" }}>
                           <span style={{ color: "#DAA520" }}>{l.codigo}</span>
-                          <div style={{ fontSize: "0.68rem", color: "#777" }}>{l.nombre}</div>
-                        </td>
-                        <td style={{ fontSize: "0.68rem", color: "#888" }}>
-                          {l.tipo_calculo === "por_hilo" ? `${num(l.receta.cantidad_por_km, 4)} × ${num(o.km_totales)} km × ${o.numero_hilos} hilos` : `${num(l.receta.cantidad_por_km, 4)} × ${num(o.km_totales)} km`}
+                          <div style={{ fontSize: "0.66rem", color: "#777" }}>{l.nombre}</div>
                         </td>
                         <td style={{ textAlign: "right", fontWeight: 700, color: l.sinReceta ? "#e67e22" : "#fff" }}>
                           {l.sinReceta ? "sin receta" : `${num(l.requerido, 3)} ${l.unidad}`}
                         </td>
                         <td style={{ textAlign: "right", color: "#aaa" }}>{num(l.disponible, 2)} {l.unidad}</td>
                         <td>
-                          {l.sinReceta ? (
-                            <span style={{ color: "#e67e22", fontSize: "0.7rem" }}>no descuenta</span>
-                          ) : l.falta > 0 ? (
-                            <span style={{ color: "#e74c3c", fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
-                          ) : (
-                            <span style={{ color: "#2ecc71", fontSize: "0.7rem" }}>✓</span>
-                          )}
+                          {l.sinReceta ? <span style={{ color: "#e67e22", fontSize: "0.7rem" }}>no descuenta</span>
+                            : l.falta > 0 ? <span style={{ color: "#e74c3c", fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
+                            : <span style={{ color: "#2ecc71", fontSize: "0.7rem" }}>✓</span>}
                         </td>
                       </tr>
                     ))}
@@ -1177,15 +1447,15 @@ export default function ManufacturaDashboard() {
                 <div style={{ background: "rgba(46,204,113,0.06)", border: "1px dashed rgba(46,204,113,0.35)", borderRadius: "8px", padding: "13px 16px", marginBottom: "16px" }}>
                   <p style={{ fontSize: "0.7rem", color: "#2ecc71", margin: "0 0 8px 0", textTransform: "uppercase" }}>Al cerrar la producción</p>
                   <ul style={{ color: "#ccc", fontSize: "0.78rem", margin: 0, paddingLeft: "18px", lineHeight: 1.7 }}>
-                    <li>Se descuenta cada insumo de materia prima</li>
-                    <li>Queda el movimiento registrado para auditoría</li>
-                    {o.sku_destino
-                      ? <li>Entran {o.carretes} carrete(s) al SKU <strong style={{ color: "#DAA520" }}>{o.sku_destino}</strong> en bodega</li>
-                      : <li style={{ color: "#e67e22" }}>Sin SKU destino: el cable no entrará a bodega</li>}
+                    <li>Se descuenta la materia prima de cada renglón por separado</li>
+                    <li>Cada movimiento queda registrado con su renglón de origen</li>
+                    {conSku.length > 0
+                      ? <li>Entran a bodega: {conSku.map((l) => `${l.carretes} de ${l.sku_destino}`).join(", ")}</li>
+                      : <li style={{ color: "#e67e22" }}>Ningún renglón tiene SKU destino: nada entrará a bodega</li>}
                   </ul>
                   {faltantes > 0 && (
                     <p style={{ color: "#e74c3c", fontSize: "0.74rem", margin: "10px 0 0 0" }}>
-                      ⚠ {faltantes} insumo(s) sin existencia suficiente. Se puede cerrar igual, pero el stock quedará negativo.
+                      ⚠ {faltantes} insumo(s) sin existencia suficiente. Se puede cerrar, pero el stock quedará negativo.
                     </p>
                   )}
                 </div>
