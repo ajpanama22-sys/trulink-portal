@@ -110,6 +110,12 @@ export default function ManufacturaDashboard() {
   const [filtroOP, setFiltroOP] = useState("ABIERTAS");
   const [configReceta, setConfigReceta] = useState<string>("");
 
+  // Simulador de la pestaña Recetas: deja ver el consumo TOTAL de una
+  // corrida concreta, no solo la tasa por kilómetro.
+  const [simHilos, setSimHilos] = useState<number>(96);
+  const [simCarretes, setSimCarretes] = useState<number>(1);
+  const [simKmCarrete, setSimKmCarrete] = useState<number>(3);
+
   // --- Modal aprobación ---
   const [modalAprobar, setModalAprobar] = useState<{ open: boolean; quote: any | null }>({ open: false, quote: null });
   const [formAprob, setFormAprob] = useState({ tipo: "Correo", referencia: "", autor: "" });
@@ -512,6 +518,14 @@ export default function ManufacturaDashboard() {
   const recetasDeConfig = recetas.filter((r) => String(r.configuracion_id) === String(configReceta));
   const configSel = configs.find((c) => String(c.id) === String(configReceta));
 
+  const simKmTotales = (Number(simCarretes) || 0) * (Number(simKmCarrete) || 0);
+
+  /** Consumo total de la corrida simulada, insumo por insumo. */
+  const consumoSimulado = (r: Receta): number => {
+    const factor = r.tipo_calculo === "por_hilo" ? (Number(simHilos) || 1) : 1;
+    return Number(r.cantidad_por_km || 0) * simKmTotales * factor;
+  };
+
   const insumosBajos = insumos.filter((m) => Number(m.stock_minimo || 0) > 0 && Number(m.stock_actual) < Number(m.stock_minimo));
   const recetasPendientes = recetas.filter((r) => !r.calibrado).length;
 
@@ -777,7 +791,12 @@ export default function ManufacturaDashboard() {
               <div>
                 <div className="mf-card" style={{ marginBottom: "20px" }}>
                   <label className="mf-lb">Configuración de producto</label>
-                  <select className="mf-in" style={{ maxWidth: "460px" }} value={configReceta} onChange={(e) => setConfigReceta(e.target.value)}>
+                  <select className="mf-in" style={{ maxWidth: "460px" }} value={configReceta}
+                    onChange={(e) => {
+                      setConfigReceta(e.target.value);
+                      const c = configs.find((x) => String(x.id) === e.target.value);
+                      if (c) setSimKmCarrete(c.metros_por_carrete / 1000);
+                    }}>
                     {configs.map((c) => <option key={c.id} value={String(c.id)}>{c.codigo} — {c.nombre}</option>)}
                   </select>
                   {configSel && (
@@ -788,6 +807,31 @@ export default function ManufacturaDashboard() {
                       {configSel.notas ? ` · ${configSel.notas}` : ""}
                     </p>
                   )}
+                </div>
+
+                {/* Simulador: convierte las tasas por km en el total de una corrida */}
+                <div className="mf-card" style={{ marginBottom: "20px" }}>
+                  <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
+                    Simular una Corrida
+                  </h3>
+                  <p style={{ color: "#777", fontSize: "0.76rem", margin: "0 0 14px 0" }}>
+                    Define hilos y carretes para ver el consumo total, no solo la tasa por kilómetro.
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.4fr", gap: "14px", alignItems: "end" }}>
+                    <div><label className="mf-lb">N° de hilos</label>
+                      <input className="mf-in" type="number" min={1} value={simHilos}
+                        onChange={(e) => setSimHilos(Number(e.target.value) || 1)} /></div>
+                    <div><label className="mf-lb">Carretes</label>
+                      <input className="mf-in" type="number" min={1} value={simCarretes}
+                        onChange={(e) => setSimCarretes(Number(e.target.value) || 1)} /></div>
+                    <div><label className="mf-lb">Km por carrete</label>
+                      <input className="mf-in" type="number" min={0} step="0.5" value={simKmCarrete}
+                        onChange={(e) => setSimKmCarrete(Number(e.target.value) || 0)} /></div>
+                    <div style={{ background: "rgba(218,165,32,0.07)", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "8px", padding: "11px 16px" }}>
+                      <div style={{ fontSize: "0.66rem", color: "#888", textTransform: "uppercase" }}>Producción total</div>
+                      <div style={{ color: "#DAA520", fontSize: "1.3rem", fontWeight: 700 }}>{num(simKmTotales)} km</div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mf-card">
@@ -810,6 +854,7 @@ export default function ManufacturaDashboard() {
                         <tr>
                           <th>Insumo</th><th>Cálculo</th>
                           <th style={{ textAlign: "right" }}>Cantidad por km</th>
+                          <th style={{ textAlign: "right" }}>Total de la corrida</th>
                           <th>Estado</th><th style={{ textAlign: "right" }}>Acción</th>
                         </tr>
                       </thead>
@@ -843,6 +888,25 @@ export default function ManufacturaDashboard() {
                                     }} />
                                   <span style={{ fontSize: "0.7rem", color: "#777", width: "28px" }}>{mp?.unidad}</span>
                                 </div>
+                              </td>
+                              <td style={{ textAlign: "right" }}>
+                                {(() => {
+                                  const total = consumoSimulado(r);
+                                  const hay = Number(mp?.stock_actual || 0);
+                                  const alcanza = total <= hay;
+                                  return (
+                                    <>
+                                      <div style={{ color: total > 0 ? "#fff" : "#666", fontWeight: 700 }}>
+                                        {num(total, 2)} {mp?.unidad}
+                                      </div>
+                                      {total > 0 && (
+                                        <div style={{ fontSize: "0.66rem", color: alcanza ? "#2ecc71" : "#e74c3c" }}>
+                                          {alcanza ? `hay ${num(hay, 1)}` : `faltan ${num(total - hay, 1)}`}
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </td>
                               <td>
                                 {listo ? (
