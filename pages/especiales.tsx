@@ -2,34 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { getSupabase } from "../lib/supabaseClient";
 
-/* ============================================================
-   PEDIDOS ESPECIALES — PORTAL DEL CLIENTE
-   ------------------------------------------------------------
-   Qué estaba roto en la versión anterior:
-
-   1. Enviaba user_id en el payload. quotes tiene una llave
-      foránea hacia "profiles", y los usuarios creados vía Auth
-      admin no generan fila ahí. Resultado: error 23503 y la
-      solicitud NO se guardaba.
-
-   2. Tenía toda la maquinaria de ítems (estado, cálculo de
-      total, tabla en el PDF)... pero ninguna interfaz para
-      agregarlos. El arreglo siempre estaba vacío: código
-      muerto que solo confundía.
-
-   3. Consultaba la tabla "perfiles" con .single(), que lanza
-      error si no encuentra fila. El resto del portal usa
-      "clientes".
-
-   4. createClient directo en vez del singleton.
-
-   Cambio de enfoque:
-   Un pedido especial NO es una cotización, es una SOLICITUD DE
-   COTIZACIÓN. El cliente describe lo que necesita; el precio
-   lo pone Trulink después. Por eso el total entra en cero y el
-   estado es "pendiente_cotizar", no se manda a checkout.
-   ============================================================ */
-
 export default function EspecialesPage() {
   const router = useRouter();
   const supabase = getSupabase();
@@ -56,11 +28,6 @@ export default function EspecialesPage() {
     cargarCliente();
   }, []);
 
-  /**
-   * Misma lógica que fabricacion.tsx: se toma el correo de la
-   * sesión de Auth y se busca al cliente en "clientes" con ilike,
-   * para que una diferencia de mayúsculas no rompa el match.
-   */
   const cargarCliente = async () => {
     if (!supabase) { setCargandoSesion(false); return; }
 
@@ -133,13 +100,9 @@ export default function EspecialesPage() {
       const fechaEstimada = new Date();
       fechaEstimada.setDate(fechaEstimada.getDate() + 15);
 
-      // NOTA: no se envía user_id. La tabla quotes tiene una FK hacia
-      // "profiles" que los usuarios creados vía Auth admin no satisfacen,
-      // y eso rompía el guardado con error 23503. La identidad del cliente
-      // queda en empresa, representante, email y teléfono.
       const payload = {
         referencia,
-        total: 0,                       // lo cotiza Trulink después
+        total: 0,
         items: [],
         status: "pendiente_cotizar",
         type: "especiales",
@@ -164,10 +127,6 @@ export default function EspecialesPage() {
       setEnviando(false);
     }
   };
-
-  /* ========================================================
-     PANTALLA DE CONFIRMACIÓN
-     ======================================================== */
 
   if (enviado) {
     return (
@@ -198,10 +157,6 @@ export default function EspecialesPage() {
     );
   }
 
-  /* ========================================================
-     FORMULARIO
-     ======================================================== */
-
   return (
     <div style={contenedor}>
       <style jsx global>{estilosGlobales}</style>
@@ -226,7 +181,6 @@ export default function EspecialesPage() {
           </p>
         </div>
 
-        {/* Datos del cliente */}
         <div className="esp-card" style={{ marginBottom: "22px" }}>
           <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "0.95rem", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "14px" }}>
             Tus Datos
@@ -255,7 +209,6 @@ export default function EspecialesPage() {
           )}
         </div>
 
-        {/* Especificaciones */}
         <div className="esp-card" style={{ marginBottom: "22px" }}>
           <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "0.95rem", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px" }}>
             Qué Necesitas
@@ -289,7 +242,6 @@ export default function EspecialesPage() {
           </div>
         </div>
 
-        {/* Adjunto */}
         <div className="esp-card" style={{ marginBottom: "26px" }}>
           <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "0.95rem", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px" }}>
             Documentos Técnicos
