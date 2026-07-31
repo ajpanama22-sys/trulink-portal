@@ -103,6 +103,27 @@ export default function PlanillaPeriodosPage() {
     }
   }
 
+  async function calcularDeducciones(id: string) {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("planilla_calcular_periodo", { p_periodo_id: id });
+    if (error) setError(error.message);
+    else await cargarPeriodos();
+  }
+
+  async function generarComprobantes(id: string) {
+    if (!supabase) return;
+    const { data, error } = await supabase.rpc("planilla_generar_comprobantes", { p_periodo_id: id });
+    if (error) setError(error.message);
+    else alert(`Comprobantes generados: ${data}`);
+  }
+
+  async function generarAsiento(id: string) {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("planilla_generar_asiento", { p_periodo_id: id });
+    if (error) setError(error.message);
+    else await cargarPeriodos();
+  }
+
   async function aprobarPeriodo(id: string) {
     if (!supabase) return;
     if (!confirm("¿Aprobar este periodo? Esto lo deja listo para generar el asiento contable y la dispersión.")) return;
@@ -186,7 +207,16 @@ export default function PlanillaPeriodosPage() {
                 <td>{p.asiento_contable_id ? "✔" : "—"}</td>
                 <td>
                   {p.estado === "borrador" && (
-                    <button onClick={() => aprobarPeriodo(p.id)}>Aprobar</button>
+                    <>
+                      <button onClick={() => calcularDeducciones(p.id)}>Calcular deducciones</button>{" "}
+                      <button onClick={() => aprobarPeriodo(p.id)}>Aprobar</button>
+                    </>
+                  )}
+                  {(p.estado === "aprobado" || p.estado === "pagado") && (
+                    <>
+                      <button onClick={() => generarComprobantes(p.id)}>Comprobantes</button>{" "}
+                      <button onClick={() => generarAsiento(p.id)}>Generar asiento</button>
+                    </>
                   )}
                 </td>
               </tr>
