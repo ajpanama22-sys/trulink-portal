@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getSupabase } from "../../../lib/supabaseClient";
+import { getSupabaseAdmin } from "../../../lib/supabaseAdmin";
 import { procesarEgreso } from "../../../lib/contabilidad";
 
 type Body = {
@@ -21,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "No se pudo inicializar Supabase" });
   }
 
-  // --- Validación de sesión ---
+  // --- Validación de sesión (con el cliente normal, valida el JWT del usuario) ---
   const authHeader = req.headers.authorization; // "Bearer <token>"
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
@@ -34,8 +35,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: "Sesión inválida o expirada" });
   }
 
+  // --- A partir de acá usamos el cliente admin (service_role) para leer/escribir ---
+  // Este cliente se salta RLS, así que las validaciones de rol y estado de acá
+  // en adelante son las que protegen la operación (no una política de la base).
+  const supabaseAdmin = getSupabaseAdmin();
+
   // --- Validación de rol contra colaboradores ---
-  const { data: colaborador, error: errColaborador } = await supabase
+  const { data: colaborador, error: errColaborador } = await supabaseAdmin
     .from("colaboradores")
     .select("rol, nombre, activo")
     .eq("auth_id", userData.user.id)
@@ -63,7 +69,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     // 1. Leer el periodo
-    const { data: periodo, error: errPeriodo } = await supabase
+    const { data: periodo, error: errPeriodo } = await supabaseAdmin
       .from("planilla_periodos")
       .select("*")
       .eq("id", periodo_id)
@@ -101,7 +107,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     // 5. Actualizar el periodo con la cuenta por pagar generada
-    const { error: errUpdate } = await supabase
+    const { error: errUpdate } = await supabaseAdmin
       .from("planilla_periodos")
       .update({
         cuenta_por_pagar_id: resultado.cuentaId,
@@ -112,7 +118,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (errUpdate) {
       // El egreso YA se creó en contabilidad. Lo dejamos registrado
       // para reconciliación manual o un job de reintento.
-      await supabase.from("egresos_pendientes_sync").insert({
+      await supabaseAdmin.from("egresos_pendientes_sync").insert({
         periodo_id,
         cuenta_id: resultado.cuentaId,
         error: errUpdate.message,
