@@ -1,21 +1,54 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
 export const dynamic = 'force-dynamic';
 
+interface RmaVinculado {
+  id: string;
+  estado: string;
+  tipo_resolucion: string | null;
+  producto_cambio: string | null;
+  numero_nota_credito: string | null;
+  monto_nota_credito: number | null;
+  motivo: string;
+  created_at: string;
+}
+
 export default function Cotizaciones() {
+  const router = useRouter();
   const [cotizaciones, setCotizaciones] = useState<any[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState<any>(null);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [cargandoPdf, setCargandoPdf] = useState(false);
 
+  // RMAs / Garantías vinculados a la cotización abierta (para la parte contable)
+  const [rmasVinculados, setRmasVinculados] = useState<RmaVinculado[]>([]);
+  const [cargandoRmas, setCargandoRmas] = useState(false);
+
   useEffect(() => {
     cargarCotizaciones();
   }, []);
+
+  // Si llega ?ref=QT-1234 desde el módulo de RMA, filtra y abre el detalle automáticamente
+  useEffect(() => {
+    if (!router.isReady) return;
+    const ref = router.query.ref;
+    if (ref && typeof ref === "string" && cotizaciones.length > 0) {
+      setBusqueda(ref);
+      const encontrada = cotizaciones.find(
+        (c) => (c.referencia || `QT-${c.id}`).toLowerCase() === ref.toLowerCase()
+      );
+      if (encontrada) {
+        abrirDetalle(encontrada);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, router.query.ref, cotizaciones]);
 
   const cargarCotizaciones = async () => {
     if (!supabase) return;
@@ -27,9 +60,31 @@ export default function Cotizaciones() {
     if (error) {
       console.error("Error al cargar cotizaciones:", error);
     } else {
-      console.log("Datos de Supabase (Normalizados):", data);
       setCotizaciones(data || []);
     }
+  };
+
+  // Busca en la tabla "rmas" todos los registros vinculados a esta cotización/factura,
+  // usando la referencia como llave de cruce (rmas.referencia = quotes.referencia).
+  const cargarRmasVinculados = async (referencia: string) => {
+    if (!supabase || !referencia) {
+      setRmasVinculados([]);
+      return;
+    }
+    setCargandoRmas(true);
+    const { data, error } = await supabase
+      .from("rmas")
+      .select("id, estado, tipo_resolucion, producto_cambio, numero_nota_credito, monto_nota_credito, motivo, created_at")
+      .eq("referencia", referencia)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error al cargar RMAs vinculados:", error.message);
+      setRmasVinculados([]);
+    } else {
+      setRmasVinculados(data || []);
+    }
+    setCargandoRmas(false);
   };
 
   // Función de seguridad para evitar errores con JSON (usado principalmente para ítems o arrays de productos)
@@ -54,9 +109,9 @@ export default function Cotizaciones() {
 
   const abrirDetalle = async (item: any) => {
     if (!supabase) return;
-    
+
     const { empresa, representante, email, telefono } = resolverDatosCliente(item);
-    
+
     const itemEnriquecido = {
       ...item,
       empresaResuelto: empresa,
@@ -68,6 +123,9 @@ export default function Cotizaciones() {
     setCotizacionSeleccionada(itemEnriquecido);
     setModalAbierto(true);
     setCargandoPdf(false);
+
+    const referenciaStr = item.referencia || `QT-${item.id}`;
+    cargarRmasVinculados(referenciaStr);
 
     if (item.pdf_url && !item.pdf_url.startsWith("http")) {
       setCargandoPdf(true);
@@ -100,7 +158,7 @@ export default function Cotizaciones() {
           const { data } = supabase.storage
             .from("documentos")
             .getPublicUrl(path);
-          
+
           if (data?.publicUrl) {
             setCotizacionSeleccionada((prev: any) => ({
               ...prev,
@@ -121,6 +179,15 @@ export default function Cotizaciones() {
     setCotizacionSeleccionada(null);
     setModalAbierto(false);
     setCargandoPdf(false);
+    setRmasVinculados([]);
+    // limpia el ?ref= de la URL para no reabrir el modal al refrescar
+    if (router.query.ref) {
+      router.replace("/admin/cotizaciones", undefined, { shallow: true });
+    }
+  };
+
+  const irAModuloRma = (codigoCotizacion: string) => {
+    router.push(`/admin/rmas?buscar=${encodeURIComponent(codigoCotizacion)}`);
   };
 
   const cotizacionesFiltradas = cotizaciones.filter((item) => {
@@ -140,12 +207,16 @@ export default function Cotizaciones() {
     );
   });
 
+  const montoTotalCreditoCotizacion = rmasVinculados
+    .filter((r) => r.tipo_resolucion === "Nota de Crédito")
+    .reduce((acc, r) => acc + (r.monto_nota_credito || 0), 0);
+
   return (
     <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
       <Sidebar currentActive="cotizaciones" />
 
       <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
-        
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
           <div>
             <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
@@ -207,12 +278,12 @@ export default function Cotizaciones() {
                   const totalVal = Number(item.total || 0).toFixed(2);
                   const referenciaStr = item.referencia || `QT-${item.id}`;
                   const tipoStr = item.tipo_solicitud || item.type || item.tipo || "N/D";
-                  
+
                   const { empresa, representante, email, telefono } = resolverDatosCliente(item);
 
                   return (
-                    <tr 
-                      key={item.id} 
+                    <tr
+                      key={item.id}
                       style={{ borderBottom: "1px solid #1a1a1a", transition: "background 0.2s" }}
                       onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.03)"; }}
                       onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
@@ -232,12 +303,12 @@ export default function Cotizaciones() {
                         <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>{telefono}</div>
                       </td>
                       <td style={{ ...tdStyle, color: "#fff", fontSize: "0.85rem" }}>
-                        <span style={{ 
-                          padding: "3px 8px", 
-                          borderRadius: "4px", 
-                          fontSize: "0.75rem", 
-                          border: "1px solid rgba(218, 165, 32, 0.3)", 
-                          backgroundColor: "rgba(218, 165, 32, 0.08)", 
+                        <span style={{
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          fontSize: "0.75rem",
+                          border: "1px solid rgba(218, 165, 32, 0.3)",
+                          backgroundColor: "rgba(218, 165, 32, 0.08)",
                           color: "#DAA520",
                           fontWeight: "600"
                         }}>
@@ -373,6 +444,91 @@ export default function Cotizaciones() {
                 </div>
               </div>
 
+              {/* RMA / GARANTÍAS VINCULADAS — parte contable de notas de crédito y cambios */}
+              <div style={{ marginBottom: "20px" }}>
+                <p style={{ ...labelStyle, marginBottom: "8px" }}>Garantías / RMA vinculados (impacto contable):</p>
+                <div style={{ backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px", padding: "12px" }}>
+                  {cargandoRmas ? (
+                    <p style={{ color: "#DAA520", fontSize: "0.85rem", margin: 0, fontStyle: "italic" }}>Buscando garantías vinculadas...</p>
+                  ) : rmasVinculados.length === 0 ? (
+                    <p style={{ color: "#666", fontSize: "0.85rem", margin: 0, fontStyle: "italic" }}>
+                      Sin RMA/garantías registradas para esta cotización.
+                    </p>
+                  ) : (
+                    <>
+                      {rmasVinculados.map((rma) => (
+                        <div
+                          key={rma.id}
+                          style={{
+                            padding: "10px 0",
+                            borderBottom: "1px solid #1a1a1a",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: "6px",
+                          }}
+                        >
+                          <div>
+                            <span style={{
+                              padding: "3px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.7rem",
+                              fontWeight: 700,
+                              marginRight: "8px",
+                              backgroundColor: rma.estado === "Finalizado" ? "rgba(46,204,113,0.15)" : "rgba(241,196,15,0.15)",
+                              color: rma.estado === "Finalizado" ? "#2ecc71" : "#f1c40f",
+                              border: `1px solid ${rma.estado === "Finalizado" ? "#2ecc71" : "#f1c40f"}`,
+                            }}>
+                              {rma.estado}
+                            </span>
+                            <span style={{ color: "#ccc", fontSize: "0.85rem" }}>{rma.motivo}</span>
+                          </div>
+                          <div style={{ fontSize: "0.85rem", color: "#fff" }}>
+                            {rma.tipo_resolucion === "Nota de Crédito" && (
+                              <span style={{ color: "#FFD700", fontWeight: 700 }}>
+                                💳 NC {rma.numero_nota_credito} — ${rma.monto_nota_credito?.toFixed(2)}
+                              </span>
+                            )}
+                            {rma.tipo_resolucion === "Cambio de Producto" && (
+                              <span style={{ color: "#3498db", fontWeight: 600 }}>
+                                🔁 Cambio: {rma.producto_cambio}
+                              </span>
+                            )}
+                            {!rma.tipo_resolucion && <span style={{ color: "#666" }}>Pendiente de resolución</span>}
+                          </div>
+                        </div>
+                      ))}
+                      {montoTotalCreditoCotizacion > 0 && (
+                        <div style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid rgba(218,165,32,0.3)", display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ color: "#888", fontSize: "0.8rem" }}>Total en Notas de Crédito emitidas para esta cotización:</span>
+                          <span style={{ color: "#FFD700", fontWeight: 800, fontSize: "0.95rem" }}>
+                            ${montoTotalCreditoCotizacion.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <button
+                    onClick={() => irAModuloRma(cotizacionSeleccionada.referencia || `QT-${cotizacionSeleccionada.id}`)}
+                    style={{
+                      marginTop: "12px",
+                      padding: "8px 14px",
+                      background: "transparent",
+                      border: "1px solid rgba(218,165,32,0.4)",
+                      borderRadius: "6px",
+                      color: "#DAA520",
+                      fontSize: "0.75rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.5px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    IR AL MÓDULO DE RMA / GARANTÍAS ↗
+                  </button>
+                </div>
+              </div>
+
               {/* ACCIONES Y DOCUMENTO PDF */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(218, 165, 32, 0.3)", paddingTop: "15px" }}>
                 <div>
@@ -398,8 +554,8 @@ export default function Cotizaciones() {
                   ) : (
                     <span style={{ fontSize: "0.8rem", color: "#666" }}>Archivo no encontrado en bucket</span>
                   )}
-                  <button 
-                    onClick={cerrarDetalle} 
+                  <button
+                    onClick={cerrarDetalle}
                     style={btnCerrarModalStyle}
                     onMouseOver={(e) => { e.currentTarget.style.background = "rgba(218, 165, 32, 0.15)"; }}
                     onMouseOut={(e) => { e.currentTarget.style.background = "transparent"; }}
