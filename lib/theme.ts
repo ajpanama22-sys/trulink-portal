@@ -1,60 +1,78 @@
-// ============================================================
-// THEME.TS — Fuente única de verdad para el look del portal
-// Navy + circuitos + dorado metálico (estilo "Admin Panel" Trulink)
-// Importar desde cualquier página: import { theme, circuitBg } from "../../lib/theme";
-// ============================================================
+import type { CSSProperties } from "react";
+
+// =============================================================
+// lib/theme.ts
+// Sistema de diseño Trulink Fiber — Tema "Circuito Dorado"
+// Fondo negro profundo + acentos dorados metálicos.
+// Exporta `theme` (objeto) y `pageWrapStyle()` (función) porque
+// ese es el contrato que ya usan las páginas existentes
+// (rrhh.tsx, y en adelante manufactura/despachos/validaciones).
+// =============================================================
+
+// Degradado metálico dorado — categoría de menú activa y botones CTA sólidos
+export const goldGradient =
+  "linear-gradient(135deg, #F4D874 0%, #DAA520 45%, #B8860B 100%)";
 
 export const theme = {
-  // Fondo
-  navyDark: "#0a1526",
-  navyMid: "#0f1f3d",
-  navyCard: "rgba(13, 27, 51, 0.88)",
-  navyCardHover: "rgba(18, 35, 64, 0.95)",
-  navyInput: "rgba(6, 14, 28, 0.8)",
+  // Fondos
+  background: "#0A0A0A",
+  panelBg: "#121212",
+  sidebarBg: "#050505",
+  inputBg: "#080808",
 
-  // Dorado
+  // Dorado (marca)
   gold: "#DAA520",
-  goldBright: "#FFD700",
-  goldGlow: "rgba(218, 165, 32, 0.35)",
+  goldBright: "#F4D874",
+  goldSoft: "rgba(218,165,32,0.08)",
+  goldGradient,
+  borderGold: "rgba(218,165,32,0.2)",
+  borderGoldLight: "rgba(218,165,32,0.15)",
+  borderGoldInput: "rgba(218,165,32,0.25)",
+  borderGoldCounter: "rgba(218,165,32,0.35)",
 
   // Texto
-  textLight: "#E8ECF5",
-  textMuted: "#9FB0C9",
+  textLight: "#F8F8F8",
+  textMuted: "#B8B8B8",
 
-  // Estados / semántica
-  green: "#2ecc71",
-  red: "#e74c3c",
+  // Semánticos
+  green: "#2ECC71",
+  greenBg: "rgba(46,204,113,0.1)",
+  greenBorder: "rgba(46,204,113,0.4)",
 
-  // Radios y espaciados estándar
-  radiusCard: 14,
-  radiusButton: 10,
-  radiusPill: 999,
-} as const;
+  red: "#E74C3C",
+  redBg: "rgba(231,76,60,0.1)",
+  redBorder: "rgba(231,76,60,0.4)",
 
-// Tipografía estándar del portal — usar en _app.tsx o globals.css:
-// Encabezados: Montserrat / Poppins (bold, letter-spacing amplio, mayúsculas)
-// Cuerpo: Inter / system-ui (regular)
-// Si el portal ya tiene una fuente definida en _app.tsx, mantenerla; esto es solo
-// una recomendación si aún no hay una elegida.
-export const fontStack = {
-  heading: `"Poppins", "Montserrat", sans-serif`,
-  body: `"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`,
+  neutral: "#B8B8B8",
+  neutralBg: "rgba(184,184,184,0.08)",
+  neutralBorder: "rgba(184,184,184,0.3)",
+
+  // Tipografía / forma
+  fontFamily: "'Montserrat', 'Inter', sans-serif",
+  radiusSm: "8px",
+  radiusMd: "10px",
+  radiusLg: "12px",
+  shadowCard: "0 6px 24px rgba(0,0,0,0.5)",
 };
 
-// Patrón de circuitos hexagonales de fondo, en dorado muy tenue
-const circuitPatternSVG = `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='104' viewBox='0 0 120 104'><g fill='none' stroke='rgba(218,165,32,0.10)' stroke-width='1'><path d='M30 0 L60 17.3 L60 51.9 L30 69.2 L0 51.9 L0 17.3 Z'/><path d='M90 0 L120 17.3 L120 51.9 L90 69.2 L60 51.9 L60 17.3 Z'/><path d='M30 69.2 L60 86.5 L60 121 L30 138 L0 121 L0 86.5 Z'/></g></svg>`;
-export const circuitBg = `url("data:image/svg+xml,${encodeURIComponent(circuitPatternSVG)}")`;
+// Patrón de fondo "circuitos" reutilizable
+const circuitBackgroundImage =
+  "radial-gradient(circle at 20% 20%, rgba(218,165,32,0.03) 0%, transparent 50%), " +
+  "radial-gradient(circle at 80% 80%, rgba(218,165,32,0.03) 0%, transparent 50%)";
 
-// Estilo base para el contenedor de cada página (al lado del Sidebar)
-export function pageWrapStyle(): React.CSSProperties {
+// Estilo del contenedor principal de cada página (a la derecha del Sidebar).
+// Se llama como función: `<div style={pageWrapStyle()}>`, y admite overrides:
+// `pageWrapStyle({ maxWidth: 1100 })`
+export function pageWrapStyle(overrides: CSSProperties = {}): CSSProperties {
   return {
     flex: 1,
     minHeight: "100vh",
-    backgroundImage: `${circuitBg}, linear-gradient(160deg, ${theme.navyDark} 0%, ${theme.navyMid} 100%)`,
-    backgroundRepeat: "repeat, no-repeat",
-    color: theme.textLight,
-    padding: "36px 40px",
+    padding: "32px 40px",
     boxSizing: "border-box",
-    fontFamily: fontStack.body,
+    color: theme.textLight,
+    fontFamily: theme.fontFamily,
+    backgroundColor: theme.background,
+    backgroundImage: circuitBackgroundImage,
+    ...overrides,
   };
 }
