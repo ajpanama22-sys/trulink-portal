@@ -6,14 +6,13 @@ import ResumenTesoreria from '../../components/admin/contable/ResumenTesoreria';
 import CuentasPorCobrar from '../../components/admin/contable/CuentasPorCobrar';
 import CuentasPorPagar from '../../components/admin/contable/CuentasPorPagar';
 import GastosServicios from '../../components/admin/contable/GastosServicios';
-import PlanillaNomina from '../../components/admin/contable/PlanillaNomina';
 import Comisiones from '../../components/admin/contable/Comisiones';
 
 // Modales de Registro de Tesorería
 import RegistrarIngresoModal from '../../components/admin/contable/RegistrarIngresoModal';
 import RegistrarGastoModal from '../../components/admin/contable/RegistrarGastoModal';
 
-type TabType = 'resumen' | 'cxc' | 'cxp' | 'gastos' | 'planilla' | 'comisiones';
+type TabType = 'resumen' | 'cxc' | 'cxp' | 'gastos' | 'comisiones';
 
 export default function ModuloContable() {
   const [activeTab, setActiveTab] = useState<TabType>('resumen');
@@ -25,7 +24,6 @@ export default function ModuloContable() {
     { key: 'cxc', label: 'Cuentas por Cobrar (CxC)', icon: '💵' },
     { key: 'cxp', label: 'Cuentas por Pagar (CxP)', icon: '🏷️' },
     { key: 'gastos', label: 'Gastos & Servicios', icon: '⚡' },
-    { key: 'planilla', label: 'Planilla & Nómina', icon: '👥' },
     { key: 'comisiones', label: 'Comisiones & Bonos', icon: '💰' },
   ];
 
@@ -140,7 +138,6 @@ export default function ModuloContable() {
           {activeTab === 'cxc' && <CuentasPorCobrar />}
           {activeTab === 'cxp' && <CuentasPorPagar />}
           {activeTab === 'gastos' && <GastosServicios />}
-          {activeTab === 'planilla' && <PlanillaNomina />}
           {activeTab === 'comisiones' && <Comisiones />}
 
         </div>
