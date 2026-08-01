@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { theme } from "../lib/theme";
+import { Button } from "../lib/ui";
 
 export default function Home() {
   useEffect(() => {
@@ -70,8 +72,8 @@ export default function Home() {
   return (
     <div
       style={{
-        backgroundColor: "#000",
-        color: "#DAA520",
+        backgroundColor: theme.background,
+        color: theme.gold,
         minHeight: "100vh",
         width: "100vw",
         margin: 0,
@@ -103,9 +105,9 @@ export default function Home() {
           style={{ width: "140px", marginBottom: "25px", filter: "drop-shadow(0 0 12px rgba(218, 165, 32, 0.25))" }}
         />
 
-        <h1 style={{ 
-          color: "#DAA520", 
-          marginBottom: "45px", 
+        <h1 style={{
+          color: theme.gold,
+          marginBottom: "45px",
           fontSize: "1.8rem", 
           fontWeight: "300", 
           letterSpacing: "3px", 
@@ -123,21 +125,21 @@ export default function Home() {
           }}
         >
           <a href="/clientes" style={{ textDecoration: "none" }}>
-            <button className="trulink-btn">Registro Cliente B2B</button>
+            <Button variant="outline-gold">Registro Cliente B2B</Button>
           </a>
           <a href="/inversores" style={{ textDecoration: "none" }}>
-            <button className="trulink-btn">Registro Inversor Estratégico</button>
+            <Button variant="outline-gold">Registro Inversor Estratégico</Button>
           </a>
           <a href="/login" style={{ textDecoration: "none" }}>
-            <button className="trulink-btn">Acceso con User + Pass</button>
+            <Button variant="outline-gold">Acceso con User + Pass</Button>
           </a>
         </div>
 
-        <p style={{ 
-          marginTop: "65px", 
-          fontSize: "11px", 
-          color: "rgba(218, 165, 32, 0.7)", 
-          letterSpacing: "1px" 
+        <p style={{
+          marginTop: "65px",
+          fontSize: "11px",
+          color: theme.gold,
+          letterSpacing: "1px"
         }}>
           © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
         </p>
@@ -151,29 +153,6 @@ export default function Home() {
           width: 100%;
           height: 100%;
           overflow: hidden;
-        }
-        .trulink-btn {
-          background-color: transparent;
-          color: #DAA520;
-          padding: 14px 28px;
-          border: 1px solid rgba(218, 165, 32, 0.4);
-          font-weight: 500;
-          font-size: 0.85rem;
-          letter-spacing: 0.5px;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        .trulink-btn:hover {
-          background-color: #DAA520;
-          color: #000;
-          border-color: #DAA520;
-          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
-          transform: translateY(-2px);
-        }
-        .trulink-btn:active {
-          transform: translateY(0);
-          box-shadow: 0 0 10px rgba(218, 165, 32, 0.4);
         }
       `}</style>
     </div>

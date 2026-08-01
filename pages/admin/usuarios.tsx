@@ -1,6 +1,16 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import {
+  Card,
+  Heading,
+  PageHeader,
+  Button,
+  Badge,
+  estadoToTone,
+  inputStyle,
+} from "../../lib/ui";
 
 // ─────────────────────────────────────────────────────────────
 // CONFIGURACIÓN DE ROLES, JERARQUÍAS Y PERMISOS
@@ -318,35 +328,34 @@ export default function AdminUsuarios() {
   );
 
   return (
-    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
+    <div style={{ display: "flex" }}>
       <Sidebar currentActive="usuarios" />
 
-      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
-        {/* Header Superior con Estilo Premium Black & Gold */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
-          <div>
-            <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
-              GESTIÓN DE USUARIOS
-            </h1>
-            <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
-              Administra el acceso, credenciales, roles y estados de clientes, inversionistas y equipo corporativo.
-            </p>
-          </div>
+      <div style={pageWrapStyle()}>
+        <PageHeader
+          title="Gestión de Usuarios"
+          subtitle="Administra el acceso, credenciales, roles y estados de clientes, inversionistas y equipo corporativo."
+        />
 
-          {vistaActiva === "equipo" && (
-            <button
-              onClick={() => setMostrarModalColaborador(true)}
-              style={botonPrimario}
-              onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#e6b835"; }}
-              onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#DAA520"; }}
-            >
-              + NUEVO COLABORADOR
-            </button>
-          )}
-        </div>
+        {vistaActiva === "equipo" && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+            <Button onClick={() => setMostrarModalColaborador(true)}>+ Nuevo Colaborador</Button>
+          </div>
+        )}
 
         {mensajeModal && (
-          <div style={{ marginBottom: "25px", padding: "15px 20px", backgroundColor: "rgba(0, 255, 0, 0.08)", border: "1px solid rgba(0, 255, 0, 0.4)", color: "#00FF00", borderRadius: "8px", fontSize: "0.9rem", letterSpacing: "0.5px" }}>
+          <div
+            style={{
+              marginBottom: "25px",
+              padding: "15px 20px",
+              backgroundColor: theme.greenBg,
+              border: `1px solid ${theme.greenBorder}`,
+              color: theme.green,
+              borderRadius: theme.radiusSm,
+              fontSize: "0.9rem",
+              letterSpacing: "0.5px",
+            }}
+          >
             {mensajeModal}
           </div>
         )}
@@ -354,10 +363,18 @@ export default function AdminUsuarios() {
         {/* CONTROLES DE FILTRADO Y VISTAS */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", flexWrap: "wrap", gap: "20px" }}>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            <TabButton label="CLIENTES" activo={vistaActiva === "clientes"} onClick={() => setVistaActiva("clientes")} />
-            <TabButton label="INVERSIONISTAS" activo={vistaActiva === "inversionistas"} onClick={() => setVistaActiva("inversionistas")} />
-            <TabButton label="EQUIPO ADMINISTRATIVO" activo={vistaActiva === "equipo"} onClick={() => setVistaActiva("equipo")} />
-            <TabButton label="AUDITORÍA" activo={vistaActiva === "auditoria"} onClick={() => setVistaActiva("auditoria")} />
+            <Button variant={vistaActiva === "clientes" ? "gold" : "outline-gold"} onClick={() => setVistaActiva("clientes")}>
+              CLIENTES
+            </Button>
+            <Button variant={vistaActiva === "inversionistas" ? "gold" : "outline-gold"} onClick={() => setVistaActiva("inversionistas")}>
+              INVERSIONISTAS
+            </Button>
+            <Button variant={vistaActiva === "equipo" ? "gold" : "outline-gold"} onClick={() => setVistaActiva("equipo")}>
+              EQUIPO ADMINISTRATIVO
+            </Button>
+            <Button variant={vistaActiva === "auditoria" ? "gold" : "outline-gold"} onClick={() => setVistaActiva("auditoria")}>
+              AUDITORÍA
+            </Button>
           </div>
 
           {vistaActiva !== "auditoria" && (
@@ -367,14 +384,18 @@ export default function AdminUsuarios() {
                 placeholder={`Buscar en ${vistaActiva}...`}
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                style={inputStyle}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
               />
             </div>
           )}
 
           {vistaActiva === "auditoria" && (
             <div style={{ minWidth: "220px" }}>
-              <select value={filtroAccion} onChange={(e) => setFiltroAccion(e.target.value)} style={inputStyle}>
+              <select
+                value={filtroAccion}
+                onChange={(e) => setFiltroAccion(e.target.value)}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+              >
                 <option value="todas" style={optionStyle}>Todas las acciones</option>
                 {Object.keys(ACCIONES_LABEL).map((a) => (
                   <option key={a} value={a} style={optionStyle}>{ACCIONES_LABEL[a]}</option>
@@ -387,98 +408,175 @@ export default function AdminUsuarios() {
         {/* Modal Crear Colaborador */}
         {mostrarModalColaborador && (
           <div style={overlayModal}>
-            <form onSubmit={crearColaborador} style={cajaModal}>
-              <h2 style={tituloModal}>Nuevo Colaborador</h2>
+            <Card style={{ maxWidth: 450, width: "100%", maxHeight: "85vh", overflowY: "auto" }}>
+              <form onSubmit={crearColaborador}>
+                <Heading style={modalTitleStyle}>Nuevo Colaborador</Heading>
 
-              <Campo label="Nombre Completo">
-                <input type="text" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required style={inputStyle} />
-              </Campo>
+                <Campo label="Nombre Completo">
+                  <input
+                    type="text"
+                    value={nuevoNombre}
+                    onChange={(e) => setNuevoNombre(e.target.value)}
+                    required
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  />
+                </Campo>
 
-              <Campo label="Correo Electrónico">
-                <input type="email" value={nuevoEmail} onChange={(e) => setNuevoEmail(e.target.value)} required style={inputStyle} />
-              </Campo>
+                <Campo label="Correo Electrónico">
+                  <input
+                    type="email"
+                    value={nuevoEmail}
+                    onChange={(e) => setNuevoEmail(e.target.value)}
+                    required
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  />
+                </Campo>
 
-              <Campo label="Contraseña Inicial">
-                <input type="password" value={nuevoPassword} onChange={(e) => setNuevoPassword(e.target.value)} required style={inputStyle} />
-              </Campo>
+                <Campo label="Contraseña Inicial">
+                  <input
+                    type="password"
+                    value={nuevoPassword}
+                    onChange={(e) => setNuevoPassword(e.target.value)}
+                    required
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  />
+                </Campo>
 
-              <div style={{ marginBottom: "10px" }}>
-                <label style={labelStyle}>Rol / Jerarquía</label>
-                <select value={nuevoRol} onChange={(e) => setNuevoRol(e.target.value)} style={inputStyle}>
-                  {Object.entries(ROLES_CONFIG).map(([rol, cfg]) => (
-                    <option key={rol} value={rol} style={optionStyle}>
-                      {rol} — Nivel {cfg.jerarquia}
-                    </option>
-                  ))}
-                </select>
-                <p style={{ fontSize: "0.75rem", color: "#888", marginTop: "8px" }}>
-                  {ROLES_CONFIG[nuevoRol]?.descripcion}
-                </p>
-              </div>
+                <div style={{ marginBottom: "10px" }}>
+                  <label style={labelStyle}>Rol / Jerarquía</label>
+                  <select
+                    value={nuevoRol}
+                    onChange={(e) => setNuevoRol(e.target.value)}
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  >
+                    {Object.entries(ROLES_CONFIG).map(([rol, cfg]) => (
+                      <option key={rol} value={rol} style={optionStyle}>
+                        {rol} — Nivel {cfg.jerarquia}
+                      </option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: "0.75rem", color: theme.textMuted, marginTop: "8px" }}>
+                    {ROLES_CONFIG[nuevoRol]?.descripcion}
+                  </p>
+                </div>
 
-              <div style={{ display: "flex", gap: "15px", marginTop: "20px" }}>
-                <button type="submit" style={botonGuardar}>Guardar</button>
-                <button type="button" onClick={() => setMostrarModalColaborador(false)} style={botonCancelar}>Cancelar</button>
-              </div>
-            </form>
+                <div style={{ display: "flex", gap: "15px", marginTop: "20px" }}>
+                  <Button type="submit" style={{ flex: 1 }}>Guardar</Button>
+                  <Button
+                    type="button"
+                    variant="outline-gold"
+                    style={{ flex: 1 }}
+                    onClick={() => setMostrarModalColaborador(false)}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </Card>
           </div>
         )}
 
         {/* Modal Editar Perfil (clientes, inversionistas o equipo) */}
         {mostrarModalEditar && editando && (
           <div style={overlayModal}>
-            <form onSubmit={guardarEdicion} style={cajaModal}>
-              <h2 style={tituloModal}>
-                Modificar {editando._vista === "equipo" ? "Colaborador" : "Perfil"}
-              </h2>
+            <Card style={{ maxWidth: 450, width: "100%", maxHeight: "85vh", overflowY: "auto" }}>
+              <form onSubmit={guardarEdicion}>
+                <Heading style={modalTitleStyle}>
+                  Modificar {editando._vista === "equipo" ? "Colaborador" : "Perfil"}
+                </Heading>
 
-              {editando._vista === "equipo" ? (
-                <>
-                  <Campo label="Nombre Completo">
-                    <input type="text" value={editando.nombre || ""} onChange={(e) => setEditando({ ...editando, nombre: e.target.value })} required style={inputStyle} />
-                  </Campo>
-                  <Campo label="Correo Electrónico">
-                    <input type="email" value={editando.email || ""} onChange={(e) => setEditando({ ...editando, email: e.target.value })} required style={inputStyle} />
-                  </Campo>
-                  <div style={{ marginBottom: "10px" }}>
-                    <label style={labelStyle}>Rol / Jerarquía</label>
-                    <select value={editando.rol || "Administrador"} onChange={(e) => setEditando({ ...editando, rol: e.target.value })} style={inputStyle}>
-                      {Object.entries(ROLES_CONFIG).map(([rol, cfg]) => (
-                        <option key={rol} value={rol} style={optionStyle}>{rol} — Nivel {cfg.jerarquia}</option>
-                      ))}
-                    </select>
-                    <p style={{ fontSize: "0.75rem", color: "#888", marginTop: "8px" }}>
-                      {ROLES_CONFIG[editando.rol]?.descripcion}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <Campo label="Razón Social / Nombre">
-                    <input type="text" value={editando.razon_social || ""} onChange={(e) => setEditando({ ...editando, razon_social: e.target.value })} required style={inputStyle} />
-                  </Campo>
-                  <Campo label="Correo Electrónico">
-                    <input type="email" value={editando.email || ""} onChange={(e) => setEditando({ ...editando, email: e.target.value })} required style={inputStyle} />
-                  </Campo>
-                  <div style={{ marginBottom: "20px" }}>
-                    <label style={labelStyle}>Tipo de Cliente</label>
-                    <select value={editando.tipo_cliente || "Integrador"} onChange={(e) => setEditando({ ...editando, tipo_cliente: e.target.value })} style={inputStyle}>
-                      {TIPOS_CLIENTE.map((t) => (
-                        <option key={t} value={t} style={optionStyle}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <Campo label="Lista de Precios">
-                    <input type="text" value={editando.price_list || ""} onChange={(e) => setEditando({ ...editando, price_list: e.target.value })} style={inputStyle} />
-                  </Campo>
-                </>
-              )}
+                {editando._vista === "equipo" ? (
+                  <>
+                    <Campo label="Nombre Completo">
+                      <input
+                        type="text"
+                        value={editando.nombre || ""}
+                        onChange={(e) => setEditando({ ...editando, nombre: e.target.value })}
+                        required
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
+                    <Campo label="Correo Electrónico">
+                      <input
+                        type="email"
+                        value={editando.email || ""}
+                        onChange={(e) => setEditando({ ...editando, email: e.target.value })}
+                        required
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
+                    <div style={{ marginBottom: "10px" }}>
+                      <label style={labelStyle}>Rol / Jerarquía</label>
+                      <select
+                        value={editando.rol || "Administrador"}
+                        onChange={(e) => setEditando({ ...editando, rol: e.target.value })}
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      >
+                        {Object.entries(ROLES_CONFIG).map(([rol, cfg]) => (
+                          <option key={rol} value={rol} style={optionStyle}>{rol} — Nivel {cfg.jerarquia}</option>
+                        ))}
+                      </select>
+                      <p style={{ fontSize: "0.75rem", color: theme.textMuted, marginTop: "8px" }}>
+                        {ROLES_CONFIG[editando.rol]?.descripcion}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <Campo label="Razón Social / Nombre">
+                      <input
+                        type="text"
+                        value={editando.razon_social || ""}
+                        onChange={(e) => setEditando({ ...editando, razon_social: e.target.value })}
+                        required
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
+                    <Campo label="Correo Electrónico">
+                      <input
+                        type="email"
+                        value={editando.email || ""}
+                        onChange={(e) => setEditando({ ...editando, email: e.target.value })}
+                        required
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={labelStyle}>Tipo de Cliente</label>
+                      <select
+                        value={editando.tipo_cliente || "Integrador"}
+                        onChange={(e) => setEditando({ ...editando, tipo_cliente: e.target.value })}
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      >
+                        {TIPOS_CLIENTE.map((t) => (
+                          <option key={t} value={t} style={optionStyle}>{t}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <Campo label="Lista de Precios">
+                      <input
+                        type="text"
+                        value={editando.price_list || ""}
+                        onChange={(e) => setEditando({ ...editando, price_list: e.target.value })}
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
+                  </>
+                )}
 
-              <div style={{ display: "flex", gap: "15px", marginTop: "10px" }}>
-                <button type="submit" style={botonGuardar}>Guardar Cambios</button>
-                <button type="button" onClick={() => { setMostrarModalEditar(false); setEditando(null); }} style={botonCancelar}>Cancelar</button>
-              </div>
-            </form>
+                <div style={{ display: "flex", gap: "15px", marginTop: "10px" }}>
+                  <Button type="submit" style={{ flex: 1 }}>Guardar Cambios</Button>
+                  <Button
+                    type="button"
+                    variant="outline-gold"
+                    style={{ flex: 1 }}
+                    onClick={() => { setMostrarModalEditar(false); setEditando(null); }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </Card>
           </div>
         )}
 
@@ -491,20 +589,30 @@ export default function AdminUsuarios() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               {registrosAuditoriaFiltrados.map((r) => (
-                <div key={r.id} style={tarjetaAuditoria}>
+                <Card
+                  key={r.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: "20px",
+                    padding: "16px 22px",
+                    marginBottom: 0,
+                  }}
+                >
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    <div style={{ fontWeight: 700, color: "#fff", fontSize: "0.95rem" }}>
+                    <div style={{ fontWeight: 700, color: theme.textLight, fontSize: "0.95rem" }}>
                       {ACCIONES_LABEL[r.accion] || r.accion} — {r.usuario_afectado_nombre || "N/A"}
                     </div>
-                    <div style={{ fontSize: "0.8rem", color: "#999" }}>{r.detalle}</div>
-                    <div style={{ fontSize: "0.75rem", color: "#666" }}>
-                      Realizado por: <span style={{ color: "#DAA520" }}>{r.realizado_por}</span> · Tabla: {r.tabla_origen}
+                    <div style={{ fontSize: "0.8rem", color: theme.textMuted }}>{r.detalle}</div>
+                    <div style={{ fontSize: "0.75rem", color: theme.textMuted }}>
+                      Realizado por: <span style={{ color: theme.gold }}>{r.realizado_por}</span> · Tabla: {r.tabla_origen}
                     </div>
                   </div>
-                  <div style={{ fontSize: "0.75rem", color: "#888", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: "0.75rem", color: theme.textMuted, whiteSpace: "nowrap" }}>
                     {new Date(r.created_at).toLocaleString("es-PA")}
                   </div>
-                </div>
+                </Card>
               ))}
             </div>
           )
@@ -518,87 +626,64 @@ export default function AdminUsuarios() {
               const estaActivo = user.activo !== false;
               const nombreMostrado = user.razon_social || user.nombre || "Usuario Sin Nombre";
               return (
-                <div
+                <Card
                   key={user.id}
                   style={{
-                    backgroundColor: "#111111",
-                    border: `1px solid ${estaActivo ? "rgba(218, 165, 32, 0.25)" : "rgba(255, 0, 0, 0.4)"}`,
-                    borderRadius: "12px",
-                    padding: "20px 25px",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
-                    boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
-                    transition: "all 0.2s ease",
+                    padding: "20px 25px",
+                    marginBottom: 0,
+                    border: `1px solid ${estaActivo ? theme.borderGold : theme.redBorder}`,
                   }}
-                  onMouseOver={(e) => { e.currentTarget.style.borderColor = estaActivo ? "rgba(218, 165, 32, 0.6)" : "rgba(255, 0, 0, 0.7)"; }}
-                  onMouseOut={(e) => { e.currentTarget.style.borderColor = estaActivo ? "rgba(218, 165, 32, 0.25)" : "rgba(255, 0, 0, 0.4)"; }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div style={{ fontWeight: "700", fontSize: "1.05rem", color: "#fff", letterSpacing: "0.5px" }}>
+                    <div style={{ fontWeight: "700", fontSize: "1.05rem", color: theme.textLight, letterSpacing: "0.5px" }}>
                       {nombreMostrado}
                     </div>
-                    <div style={{ fontSize: "0.85rem", color: "#aaa", letterSpacing: "0.5px" }}>Email: {user.email || "N/A"}</div>
+                    <div style={{ fontSize: "0.85rem", color: theme.textMuted, letterSpacing: "0.5px" }}>Email: {user.email || "N/A"}</div>
 
                     {(vistaActiva === "clientes" || vistaActiva === "inversionistas") && (
-                      <div style={{ fontSize: "0.8rem", color: "#888", display: "flex", gap: "12px", alignItems: "center", marginTop: "2px" }}>
-                        <span>Tipo: <strong style={{ color: "#ccc" }}>{user.tipo_cliente || "Integrador"}</strong></span> |
-                        <span>Lista: <strong style={{ color: "#DAA520" }}>{user.price_list || "C"}</strong></span> |
-                        <span>Estado: <strong style={{ color: estaActivo ? "#00FF00" : "#FF5555" }}>{estaActivo ? "Activo" : "Inactivo"}</strong></span>
+                      <div style={{ fontSize: "0.8rem", color: theme.textMuted, display: "flex", gap: "12px", alignItems: "center", marginTop: "2px" }}>
+                        <span>Tipo: <strong style={{ color: theme.textLight }}>{user.tipo_cliente || "Integrador"}</strong></span> |
+                        <span>Lista: <strong style={{ color: theme.gold }}>{user.price_list || "C"}</strong></span> |
+                        <span>Estado: <Badge tone={estadoToTone(estaActivo ? "activo" : "inactivo")}>{estaActivo ? "Activo" : "Inactivo"}</Badge></span>
                       </div>
                     )}
 
                     {vistaActiva === "equipo" && (
-                      <div style={{ fontSize: "0.8rem", color: "#888", display: "flex", gap: "12px", alignItems: "center", marginTop: "2px" }}>
-                        <span>Rol: <strong style={{ color: "#DAA520" }}>{user.rol || "Administrador"}</strong></span> |
-                        <span>Jerarquía: <strong style={{ color: "#ccc" }}>Nivel {ROLES_CONFIG[user.rol]?.jerarquia ?? "N/A"}</strong></span> |
-                        <span>Estado: <strong style={{ color: estaActivo ? "#00FF00" : "#FF5555" }}>{estaActivo ? "Activo" : "Suspendido"}</strong></span>
+                      <div style={{ fontSize: "0.8rem", color: theme.textMuted, display: "flex", gap: "12px", alignItems: "center", marginTop: "2px" }}>
+                        <span>Rol: <strong style={{ color: theme.gold }}>{user.rol || "Administrador"}</strong></span> |
+                        <span>Jerarquía: <strong style={{ color: theme.textLight }}>Nivel {ROLES_CONFIG[user.rol]?.jerarquia ?? "N/A"}</strong></span> |
+                        <span>Estado: <Badge tone={estadoToTone(estaActivo ? "activo" : "inactivo")}>{estaActivo ? "Activo" : "Suspendido"}</Badge></span>
                       </div>
                     )}
                   </div>
 
                   <div style={{ display: "flex", gap: "12px" }}>
                     {vistaActiva !== "equipo" && (
-                      <button
+                      <Button
+                        variant="outline-gold"
                         onClick={() => enviarInvitacionCliente(user.email, user.id, nombreMostrado)}
-                        style={botonSecundario}
-                        onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.1)"; }}
-                        onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                       >
                         ENVIAR ACCESO / PASS
-                      </button>
+                      </Button>
                     )}
 
-                    <button
-                      onClick={() => abrirModalEditar(user, vistaActiva)}
-                      style={botonSecundario}
-                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.1)"; }}
-                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
-                    >
+                    <Button variant="outline-gold" onClick={() => abrirModalEditar(user, vistaActiva)}>
                       MODIFICAR
-                    </button>
+                    </Button>
 
-                    <button
+                    <Button
+                      variant={estaActivo ? "outline-red" : "outline-green"}
                       onClick={() => toggleEstadoUsuario(user.id, estaActivo, vistaActiva, nombreMostrado)}
-                      style={{
-                        padding: "10px 16px",
-                        backgroundColor: estaActivo ? "rgba(100, 0, 0, 0.3)" : "rgba(0, 80, 0, 0.3)",
-                        border: `1px solid ${estaActivo ? "#FF4444" : "#00FF00"}`,
-                        color: estaActivo ? "#FF6666" : "#00FF00",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        fontWeight: "700",
-                        fontSize: "0.75rem",
-                        letterSpacing: "1px",
-                        transition: "all 0.2s ease",
-                      }}
                     >
                       {vistaActiva === "equipo"
                         ? estaActivo ? "SUSPENDER" : "REACTIVAR"
                         : estaActivo ? "INACTIVAR" : "ACTIVAR"}
-                    </button>
+                    </Button>
                   </div>
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -611,28 +696,6 @@ export default function AdminUsuarios() {
 // ─────────────────────────────────────────────────────────────
 // Subcomponentes de apoyo
 // ─────────────────────────────────────────────────────────────
-function TabButton({ label, activo, onClick }: { label: string; activo: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "12px 20px",
-        borderRadius: "8px",
-        border: `1px solid ${activo ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`,
-        backgroundColor: activo ? "#DAA520" : "#111111",
-        color: activo ? "#000" : "#DAA520",
-        fontWeight: "700",
-        cursor: "pointer",
-        fontSize: "0.8rem",
-        letterSpacing: "1px",
-        transition: "all 0.2s ease",
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
 function Campo({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: "20px" }}>
@@ -642,84 +705,20 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function EstadoVacio({ texto, atenuado }: { texto: string; atenuado?: boolean }) {
+function EstadoVacio({ texto }: { texto: string; atenuado?: boolean }) {
   return (
-    <div style={{ backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-      <p style={{ color: atenuado ? "#666" : "#888", fontStyle: "italic", margin: 0, letterSpacing: "0.5px" }}>{texto}</p>
-    </div>
+    <Card style={{ textAlign: "center", padding: "40px" }}>
+      <p style={{ color: theme.textMuted, fontStyle: "italic", margin: 0, letterSpacing: "0.5px" }}>{texto}</p>
+    </Card>
   );
 }
 
 // ─────────────────────────────────────────────────────────────
-// Estilos reutilizables
+// Estilos reutilizables (sin equivalente directo en lib/ui)
 // ─────────────────────────────────────────────────────────────
-const inputStyle = {
-  width: "100%",
-  backgroundColor: "#0b0b0b",
-  border: "1px solid rgba(218, 165, 32, 0.3)",
-  borderRadius: "8px",
-  padding: "12px 16px",
-  color: "#DAA520",
-  outline: "none",
-  fontSize: "0.9rem",
-  letterSpacing: "0.5px",
-  boxSizing: "border-box" as const,
-};
+const optionStyle = { backgroundColor: theme.panelBg, color: theme.gold };
 
-const optionStyle = { backgroundColor: "#111", color: "#DAA520" };
-
-const labelStyle = { display: "block", marginBottom: "8px", fontSize: "0.85rem", color: "#aaa" };
-
-const botonPrimario = {
-  backgroundColor: "#DAA520",
-  color: "#000",
-  border: "none",
-  borderRadius: "8px",
-  padding: "12px 22px",
-  fontWeight: "700",
-  cursor: "pointer",
-  fontSize: "0.9rem",
-  letterSpacing: "1px",
-  boxShadow: "0 4px 15px rgba(218, 165, 32, 0.2)",
-  transition: "all 0.2s ease",
-} as const;
-
-const botonSecundario = {
-  padding: "10px 16px",
-  backgroundColor: "transparent",
-  border: "1px solid rgba(218, 165, 32, 0.5)",
-  color: "#DAA520",
-  borderRadius: "8px",
-  cursor: "pointer",
-  fontWeight: "700",
-  fontSize: "0.75rem",
-  letterSpacing: "1px",
-  transition: "all 0.2s ease",
-} as const;
-
-const botonGuardar = {
-  flex: 1,
-  padding: "14px",
-  backgroundColor: "#DAA520",
-  color: "#000",
-  border: "none",
-  fontWeight: "700",
-  borderRadius: "8px",
-  cursor: "pointer",
-  letterSpacing: "1px",
-} as const;
-
-const botonCancelar = {
-  flex: 1,
-  padding: "14px",
-  backgroundColor: "transparent",
-  color: "#DAA520",
-  border: "1px solid rgba(218, 165, 32, 0.4)",
-  fontWeight: "700",
-  borderRadius: "8px",
-  cursor: "pointer",
-  letterSpacing: "1px",
-} as const;
+const labelStyle = { display: "block", marginBottom: "8px", fontSize: "0.85rem", color: theme.textMuted };
 
 const overlayModal = {
   position: "fixed",
@@ -735,35 +734,11 @@ const overlayModal = {
   zIndex: 1000,
 } as const;
 
-const cajaModal = {
-  backgroundColor: "#111111",
-  border: "1px solid rgba(218, 165, 32, 0.5)",
-  padding: "40px",
-  borderRadius: "12px",
-  width: "100%",
-  maxWidth: "450px",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.8)",
-  maxHeight: "85vh",
-  overflowY: "auto",
-} as const;
-
-const tituloModal = {
-  color: "#DAA520",
-  marginBottom: "25px",
+const modalTitleStyle = {
   fontSize: "1.2rem",
   letterSpacing: "1px",
   textTransform: "uppercase",
-  borderLeft: "3px solid #DAA520",
+  borderLeft: `3px solid ${theme.gold}`,
   paddingLeft: "12px",
-} as const;
-
-const tarjetaAuditoria = {
-  backgroundColor: "#111111",
-  border: "1px solid rgba(218, 165, 32, 0.2)",
-  borderRadius: "10px",
-  padding: "16px 22px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  gap: "20px",
+  marginBottom: "25px",
 } as const;

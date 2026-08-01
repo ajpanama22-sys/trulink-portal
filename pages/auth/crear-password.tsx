@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
+import { theme } from "../../lib/theme";
+import { Card, Heading, Button, inputStyle } from "../../lib/ui";
 
 export default function CrearPassword() {
   const router = useRouter();
@@ -50,42 +52,52 @@ export default function CrearPassword() {
   };
 
   return (
-    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center", color: "#E0E0E0", fontFamily: "sans-serif" }}>
-      <form onSubmit={handleCrearPassword} style={{ background: "#111", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "40px", borderRadius: "12px", width: "100%", maxWidth: "400px", boxSizing: "border-box" }}>
-        <h2 style={{ color: "#DAA520", marginBottom: "20px", fontSize: "1.5rem", textAlign: "center" }}>CREAR CONTRASEÑA</h2>
+    <div
+      style={{
+        backgroundColor: theme.background,
+        minHeight: "100vh",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        color: theme.textLight,
+        fontFamily: theme.fontFamily,
+      }}
+    >
+      <Card style={{ width: "100%", maxWidth: "400px", boxSizing: "border-box", padding: "40px" }}>
+        <form onSubmit={handleCrearPassword}>
+          <Heading style={{ textAlign: "center", fontSize: "1.5rem", marginBottom: "20px" }}>
+            CREAR CONTRASEÑA
+          </Heading>
 
-        <div style={{ marginBottom: "15px", display: "flex", flexDirection: "column", gap: "5px" }}>
-          <label style={{ fontSize: "0.8rem", color: "#AAA" }}>Nueva Contraseña</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-            style={{ background: "#1a1a1a", border: "1px solid #333", color: "#FFF", padding: "10px", borderRadius: "6px", outline: "none" }}
-          />
-        </div>
+          <div style={{ marginBottom: "15px", display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label style={{ fontSize: "0.8rem", color: theme.textMuted }}>Nueva Contraseña</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+            />
+          </div>
 
-        <div style={{ marginBottom: "25px", display: "flex", flexDirection: "column", gap: "5px" }}>
-          <label style={{ fontSize: "0.8rem", color: "#AAA" }}>Confirmar Contraseña</label>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={6}
-            style={{ background: "#1a1a1a", border: "1px solid #333", color: "#FFF", padding: "10px", borderRadius: "6px", outline: "none" }}
-          />
-        </div>
+          <div style={{ marginBottom: "25px", display: "flex", flexDirection: "column", gap: "5px" }}>
+            <label style={{ fontSize: "0.8rem", color: theme.textMuted }}>Confirmar Contraseña</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+              style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+            />
+          </div>
 
-        <button
-          type="submit"
-          disabled={loading}
-          style={{ width: "100%", background: "#DAA520", color: "#000", border: "none", padding: "12px", borderRadius: "6px", fontWeight: "700", cursor: loading ? "wait" : "pointer", opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? "Guardando..." : "Guardar Contraseña"}
-        </button>
-      </form>
+          <Button type="submit" variant="gold" disabled={loading} style={{ width: "100%" }}>
+            {loading ? "Guardando..." : "Guardar Contraseña"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

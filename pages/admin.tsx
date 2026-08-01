@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import AdminValidaciones from "./admin/validaciones";
+import { theme } from "../lib/theme";
+import { Card, Button } from "../lib/ui";
 
 export default function AdminRoot() {
   const [mostrarModalNotif, setMostrarModalNotif] = useState(false);
@@ -126,28 +128,28 @@ export default function AdminRoot() {
           alignItems: "center",
           zIndex: 9999
         }}>
-          <div style={{
-            backgroundColor: "#0a0a0a",
-            border: "2px solid #DAA520",
-            padding: "30px",
-            borderRadius: "20px",
-            width: "100%",
-            maxWidth: "480px",
-            boxShadow: "0 0 30px rgba(218, 165, 32, 0.4)",
-            color: "#DAA520",
-            fontFamily: "sans-serif"
-          }}>
-            <h2 style={{ marginBottom: "15px", textAlign: "center", fontSize: "1.3rem" }}>Canales de Notificación Activos</h2>
+          <Card
+            style={{
+              border: `2px solid ${theme.gold}`,
+              width: "100%",
+              maxWidth: "480px",
+              boxShadow: "0 0 30px rgba(218, 165, 32, 0.4)",
+              color: theme.gold,
+              fontFamily: "sans-serif",
+              marginBottom: 0,
+            }}
+          >
+            <h2 style={{ marginBottom: "15px", textAlign: "center", fontSize: "1.3rem", color: theme.gold }}>Canales de Notificación Activos</h2>
             <p style={{ fontSize: "0.9rem", color: "#ccc", marginBottom: "20px", textAlign: "center" }}>
               Es su primer acceso al panel administrativo. Los avisos y actualizaciones del sistema se enviarán automáticamente a sus medios registrados:
             </p>
 
             <div style={{ backgroundColor: "#111", border: "1px solid #333", padding: "15px", borderRadius: "10px", marginBottom: "20px" }}>
               <p style={{ fontSize: "0.9rem", marginBottom: "8px", color: "#aaa" }}>
-                📧 <strong style={{ color: "#DAA520" }}>Correo:</strong> {userEmail || "Cargando..."}
+                📧 <strong style={{ color: theme.gold }}>Correo:</strong> {userEmail || "Cargando..."}
               </p>
               <p style={{ fontSize: "0.9rem", color: "#aaa" }}>
-                📱 <strong style={{ color: "#DAA520" }}>Celular:</strong> {userCelular}
+                📱 <strong style={{ color: theme.gold }}>Celular:</strong> {userCelular}
               </p>
             </div>
 
@@ -158,33 +160,20 @@ export default function AdminRoot() {
                   id="pushCheckAdmin"
                   checked={pushNotif}
                   onChange={(e) => setPushNotif(e.target.checked)}
-                  style={{ accentColor: "#DAA520", width: "18px", height: "18px" }}
+                  style={{ accentColor: theme.gold, width: "18px", height: "18px" }}
                 />
-                <label htmlFor="pushCheckAdmin" style={{ fontSize: "0.9rem", cursor: "pointer", color: "#ddd" }}>Habilitar notificaciones Push adicionales en navegador</label>
+                <label htmlFor="pushCheckAdmin" style={{ fontSize: "0.9rem", cursor: "pointer", color: theme.textLight }}>Habilitar notificaciones Push adicionales en navegador</label>
               </div>
 
-              <button
-                type="submit"
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  backgroundColor: "#DAA520",
-                  color: "#000",
-                  border: "none",
-                  borderRadius: "10px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  fontSize: "1rem"
-                }}
-              >
+              <Button type="submit" variant="gold" style={{ width: "100%", padding: "12px", fontSize: "1rem" }}>
                 Entendido y Continuar
-              </button>
+              </Button>
 
               {mensajeModal && (
-                <p style={{ marginTop: "10px", color: "red", textAlign: "center", fontSize: "0.85rem" }}>{mensajeModal}</p>
+                <p style={{ marginTop: "10px", color: theme.red, textAlign: "center", fontSize: "0.85rem" }}>{mensajeModal}</p>
               )}
             </form>
-          </div>
+          </Card>
         </div>
       )}
 
