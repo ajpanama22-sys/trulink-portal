@@ -286,11 +286,24 @@ export default function PlanillaPeriodosPage() {
   }
 
   async function generarAsiento(id: string) {
+    if (!supabase) return;
     setError(null);
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        setError("Tu sesión expiró, volvé a iniciar sesión.");
+        return;
+      }
+
       const res = await fetch("/api/planilla/generar-egreso", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ periodo_id: id }),
       });
       const data = await res.json();
