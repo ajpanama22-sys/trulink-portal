@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabaseClient';
+import { puedeVerItem } from '../../lib/accesoModulos';
 
 interface SidebarProps {
   currentActive: string;
@@ -19,8 +20,34 @@ interface MenuBlock {
 
 export default function Sidebar({ currentActive }: SidebarProps) {
   const router = useRouter();
+  const [rolActual, setRolActual] = useState<string | null>(null);
+  const [rolCargado, setRolCargado] = useState(false);
 
-  const menuBlocks: MenuBlock[] = [
+  // ── Cargar el rol real del colaborador logueado, para filtrar el menú ──
+  useEffect(() => {
+    async function cargarRol() {
+      if (!supabase) { setRolCargado(true); return; }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.email) { setRolCargado(true); return; }
+
+        const { data } = await supabase
+          .from('colaboradores')
+          .select('rol')
+          .eq('email', user.email)
+          .single();
+
+        setRolActual(data?.rol ?? null);
+      } catch (err) {
+        console.warn('No se pudo determinar el rol del colaborador:', err);
+      } finally {
+        setRolCargado(true);
+      }
+    }
+    cargarRol();
+  }, []);
+
+  const menuBlocksBase: MenuBlock[] = [
     {
       category: 'COMERCIAL',
       items: [
@@ -48,6 +75,12 @@ export default function Sidebar({ currentActive }: SidebarProps) {
       ],
     },
     {
+      category: 'RECURSOS HUMANOS',
+      items: [
+        { key: 'rrhh', label: 'Autoservicio (RRHH)', path: '/admin/rrhh' },
+      ],
+    },
+    {
       category: 'POSTVENTA',
       items: [
         { key: 'rmas', label: 'RMA y Garantías', path: '/admin/rmas' },
@@ -68,14 +101,25 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     },
   ];
 
-  const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>(() => {
+  // ── Filtrar ítems según el rol, y ocultar categorías que queden vacías ──
+  const menuBlocks: MenuBlock[] = menuBlocksBase
+    .map((block) => ({
+      ...block,
+      items: block.items.filter((item) => puedeVerItem(rolActual, item.key)),
+    }))
+    .filter((block) => block.items.length > 0);
+
+  const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
+
+  // Reabrir todas las categorías visibles cada vez que cambia el set filtrado
+  useEffect(() => {
     const initial: { [key: string]: boolean } = {};
     menuBlocks.forEach((block) => {
-      const hasActiveItem = block.items.some((item) => item.key === currentActive);
-      initial[block.category] = hasActiveItem;
+      initial[block.category] = true;
     });
-    return initial;
-  });
+    setOpenCategories(initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolActual, rolCargado]);
 
   const toggleCategory = (category: string) => {
     setOpenCategories((prev) => ({
@@ -121,99 +165,104 @@ export default function Sidebar({ currentActive }: SidebarProps) {
             <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "100px", marginBottom: "10px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.3))" }} />
             <h2 style={{ color: "#DAA520", fontSize: "1.1rem", letterSpacing: "1px", margin: 0 }}>ADMIN PANEL</h2>
           </div>
-          <nav style={{ display: "flex", flexDirection: "column", gap: "15px", paddingBottom: "15px" }}>
-            {menuBlocks.map((block) => {
-              const isOpen = openCategories[block.category];
-              const hasActiveChild = block.items.some((item) => item.key === currentActive);
-              return (
-                <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <div
-                    onClick={() => toggleCategory(block.category)}
-                    style={{
-                      textAlign: "center",
-                      border: hasActiveChild ? "1px solid #DAA520" : "1px solid rgba(218, 165, 32, 0.4)",
-                      background: hasActiveChild ? "rgba(218, 165, 32, 0.15)" : "rgba(218, 165, 32, 0.08)",
-                      borderRadius: "6px",
-                      padding: "8px 10px",
-                      margin: "0",
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      transition: "all 0.2s ease"
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = "rgba(218, 165, 32, 0.2)";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = hasActiveChild ? "rgba(218, 165, 32, 0.15)" : "rgba(218, 165, 32, 0.08)";
-                    }}
-                  >
-                    <span style={{
-                      color: "#DAA520",
-                      fontSize: "0.68rem",
-                      fontWeight: "bold",
-                      letterSpacing: "1.2px",
-                      textTransform: "uppercase",
-                      flex: 1,
-                      textAlign: "center"
-                    }}>
-                      {block.category}
-                    </span>
-                    <span style={{ color: "#DAA520", fontSize: "0.75rem", fontWeight: "bold" }}>
-                      {isOpen ? '▲' : '▼'}
-                    </span>
-                  </div>
-                  {isOpen && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "8px", animation: "fadeIn 0.2s ease-in-out" }}>
-                      {block.items.map((item) => {
-                        const isActive = currentActive === item.key;
-                        return (
-                          <button
-                            key={item.key}
-                            onClick={() => router.push(item.path)}
-                            style={{
-                              padding: "9px 12px",
-                              borderRadius: "6px",
-                              border: isActive ? "1px solid #DAA520" : "1px solid transparent",
-                              background: isActive ? "#111111" : "transparent",
-                              color: isActive ? "#FFDF00" : "#d1a73e",
-                              textShadow: isActive 
-                                ? "0 0 10px rgba(255, 223, 0, 0.8), 0 0 20px rgba(218, 165, 32, 0.5)" 
-                                : "none",
-                              boxShadow: isActive ? "0 0 12px rgba(218, 165, 32, 0.2)" : "none",
-                              width: "100%",
-                              cursor: "pointer",
-                              fontWeight: isActive ? "800" : "bold",
-                              fontSize: "0.82rem",
-                              textAlign: "left",
-                              transition: "all 0.2s ease-in-out"
-                            }}
-                            onMouseOver={(e) => {
-                              if (!isActive) {
-                                e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.08)";
-                                e.currentTarget.style.color = "#FFDF00";
-                                e.currentTarget.style.textShadow = "0 0 8px rgba(255, 223, 0, 0.6)";
-                              }
-                            }}
-                            onMouseOut={(e) => {
-                              if (!isActive) {
-                                e.currentTarget.style.backgroundColor = "transparent";
-                                e.currentTarget.style.color = "#d1a73e";
-                                e.currentTarget.style.textShadow = "none";
-                              }
-                            }}
-                          >
-                            {item.label}
-                          </button>
-                        );
-                      })}
+
+          {!rolCargado ? (
+            <p style={{ color: "#666", fontSize: "0.78rem", textAlign: "center" }}>Cargando menú...</p>
+          ) : (
+            <nav style={{ display: "flex", flexDirection: "column", gap: "15px", paddingBottom: "15px" }}>
+              {menuBlocks.map((block) => {
+                const isOpen = openCategories[block.category];
+                const hasActiveChild = block.items.some((item) => item.key === currentActive);
+                return (
+                  <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <div
+                      onClick={() => toggleCategory(block.category)}
+                      style={{
+                        textAlign: "center",
+                        border: hasActiveChild ? "1px solid #DAA520" : "1px solid rgba(218, 165, 32, 0.4)",
+                        background: hasActiveChild ? "rgba(218, 165, 32, 0.15)" : "rgba(218, 165, 32, 0.08)",
+                        borderRadius: "6px",
+                        padding: "8px 10px",
+                        margin: "0",
+                        cursor: "pointer",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = "rgba(218, 165, 32, 0.2)";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = hasActiveChild ? "rgba(218, 165, 32, 0.15)" : "rgba(218, 165, 32, 0.08)";
+                      }}
+                    >
+                      <span style={{
+                        color: "#DAA520",
+                        fontSize: "0.68rem",
+                        fontWeight: "bold",
+                        letterSpacing: "1.2px",
+                        textTransform: "uppercase",
+                        flex: 1,
+                        textAlign: "center"
+                      }}>
+                        {block.category}
+                      </span>
+                      <span style={{ color: "#DAA520", fontSize: "0.75rem", fontWeight: "bold" }}>
+                        {isOpen ? '▲' : '▼'}
+                      </span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
+                    {isOpen && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "8px", animation: "fadeIn 0.2s ease-in-out" }}>
+                        {block.items.map((item) => {
+                          const isActive = currentActive === item.key;
+                          return (
+                            <button
+                              key={item.key}
+                              onClick={() => router.push(item.path)}
+                              style={{
+                                padding: "9px 12px",
+                                borderRadius: "6px",
+                                border: isActive ? "1px solid #DAA520" : "1px solid transparent",
+                                background: isActive ? "#111111" : "transparent",
+                                color: isActive ? "#FFDF00" : "#d1a73e",
+                                textShadow: isActive 
+                                  ? "0 0 10px rgba(255, 223, 0, 0.8), 0 0 20px rgba(218, 165, 32, 0.5)" 
+                                  : "none",
+                                boxShadow: isActive ? "0 0 12px rgba(218, 165, 32, 0.2)" : "none",
+                                width: "100%",
+                                cursor: "pointer",
+                                fontWeight: isActive ? "800" : "bold",
+                                fontSize: "0.82rem",
+                                textAlign: "left",
+                                transition: "all 0.2s ease-in-out"
+                              }}
+                              onMouseOver={(e) => {
+                                if (!isActive) {
+                                  e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.08)";
+                                  e.currentTarget.style.color = "#FFDF00";
+                                  e.currentTarget.style.textShadow = "0 0 8px rgba(255, 223, 0, 0.6)";
+                                }
+                              }}
+                              onMouseOut={(e) => {
+                                if (!isActive) {
+                                  e.currentTarget.style.backgroundColor = "transparent";
+                                  e.currentTarget.style.color = "#d1a73e";
+                                  e.currentTarget.style.textShadow = "none";
+                                }
+                              }}
+                            >
+                              {item.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
+          )}
 
           {/* Imagen biku.png ampliada 3 veces (~220px) */}
           <div style={{ textAlign: "center", margin: "15px 0 20px 0", flexShrink: 0 }}>

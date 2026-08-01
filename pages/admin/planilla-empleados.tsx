@@ -1,6 +1,7 @@
 // pages/admin/planilla-empleados.tsx
 import { useEffect, useState } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
+import { useRequiereRol } from "../../lib/useRequiereRol";
 import Sidebar from "./Sidebar";
 
 type Modo = "panama" | "us_corp";
@@ -227,6 +228,9 @@ const styles = {
 };
 
 export default function PlanillaEmpleadosPage() {
+  // ── Guard de página: solo Super Administrador y Administrador ──
+  const { cargando: cargandoAuth, autorizado } = useRequiereRol(["Super Administrador", "Administrador"]);
+
   const supabase = getSupabase();
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [filtroModo, setFiltroModo] = useState<Modo | "todos">("todos");
@@ -259,9 +263,10 @@ export default function PlanillaEmpleadosPage() {
   }
 
   useEffect(() => {
+    if (!autorizado) return;
     cargarEmpleados();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtroModo]);
+  }, [filtroModo, autorizado]);
 
   function iniciarEdicion(emp?: Empleado) {
     if (emp) {
@@ -308,6 +313,18 @@ export default function PlanillaEmpleadosPage() {
     } else {
       await cargarEmpleados();
     }
+  }
+
+  // ── Guard de acceso ──
+  if (cargandoAuth) {
+    return (
+      <div style={{ ...styles.page, alignItems: "center", justifyContent: "center" }}>
+        <span style={{ color: GOLD }}>Verificando acceso...</span>
+      </div>
+    );
+  }
+  if (!autorizado) {
+    return null; // useRequiereRol ya redirigió
   }
 
   return (
