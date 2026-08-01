@@ -1,6 +1,17 @@
 import { useState, useEffect, useMemo } from "react";
+import type { CSSProperties } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import {
+  Card,
+  Heading,
+  PageHeader,
+  Button,
+  Badge,
+  estadoToTone,
+  inputStyle,
+} from "../../lib/ui";
 
 /* ============================================================
    PANEL DE MANUFACTURA — TRULINK FIBER LLC
@@ -696,101 +707,88 @@ export default function ManufacturaDashboard() {
      RENDER
      ======================================================== */
 
+  const kpiCardStyle: CSSProperties = { padding: "18px", marginBottom: 0 };
+  const lbStyle: CSSProperties = {
+    display: "block",
+    fontSize: "0.66rem",
+    color: theme.textMuted,
+    marginBottom: 5,
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  };
+  const miniBtnStyle: CSSProperties = { padding: "5px 10px", fontSize: "0.7rem" };
+
   return (
-    <div style={{ display: "flex", backgroundColor: "#000", minHeight: "100vh", fontFamily: "sans-serif" }}>
+    <div style={{ display: "flex" }}>
       <Sidebar currentActive="manufactura" />
 
-      <main style={{ flex: 1, padding: "35px 30px", color: "#DAA520", boxSizing: "border-box", overflowX: "auto" }}>
+      <div style={pageWrapStyle({ overflowX: "auto" })}>
         <style jsx global>{`
-          .mf-card { background:#080808; border:1px solid rgba(218,165,32,0.3); border-radius:12px; padding:22px; }
-          .mf-kpi { background:#0d0d0d; border:1px solid rgba(218,165,32,0.3); border-radius:10px; padding:18px; }
-          .mf-tab { background:transparent; color:#DAA520; border:1px solid rgba(218,165,32,0.5); padding:10px 18px;
-                    border-radius:8px; font-weight:600; font-size:0.78rem; letter-spacing:0.8px; cursor:pointer; transition:all .25s; }
-          .mf-tab:hover, .mf-tab.on { background:#DAA520; color:#000; }
-          .mf-gold { background:#DAA520; color:#000; border:none; padding:10px 18px; border-radius:6px;
-                     font-weight:700; font-size:0.78rem; cursor:pointer; }
-          .mf-gold:disabled { opacity:.5; cursor:not-allowed; }
-          .mf-mini { background:transparent; color:#DAA520; border:1px solid rgba(218,165,32,0.45);
-                     padding:5px 10px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer; white-space:nowrap; }
-          .mf-mini:hover { background:rgba(218,165,32,0.15); }
-          .mf-verde { background:transparent; color:#2ecc71; border:1px solid rgba(46,204,113,0.5);
-                      padding:5px 10px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer; white-space:nowrap; }
-          .mf-verde:hover { background:rgba(46,204,113,0.15); }
           .mf-tabla { width:100%; border-collapse:collapse; font-size:0.82rem; }
-          .mf-tabla th { background:#0a0a0a; color:#DAA520; text-transform:uppercase; font-size:0.66rem;
-                         letter-spacing:1px; padding:11px 10px; text-align:left; border-bottom:1px solid rgba(218,165,32,0.35); }
-          .mf-tabla td { padding:10px; color:#fff; border-bottom:1px solid #141414; }
-          .mf-in { width:100%; background:#050505; color:#DAA520; border:1px solid rgba(218,165,32,0.4);
-                   padding:9px 11px; border-radius:6px; outline:none; font-size:0.82rem; box-sizing:border-box; font-family:inherit; }
-          .mf-lb { display:block; font-size:0.66rem; color:rgba(255,255,255,0.55); margin-bottom:5px;
-                   text-transform:uppercase; letter-spacing:0.5px; }
+          .mf-tabla th { background:${theme.background}; color:${theme.gold}; text-transform:uppercase; font-size:0.66rem;
+                         letter-spacing:1px; padding:11px 10px; text-align:left; border-bottom:1px solid ${theme.borderGoldCounter}; }
+          .mf-tabla td { padding:10px; color:${theme.textLight}; border-bottom:1px solid #141414; }
           .mf-ov { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center;
                    justify-content:center; z-index:1000; padding:20px; }
-          .mf-md { background:#111; border:1px solid rgba(218,165,32,0.5); border-radius:12px; padding:26px;
-                   width:100%; max-height:90vh; overflow-y:auto; }
-          .mf-chip { padding:3px 9px; border-radius:10px; font-size:0.66rem; font-weight:600; }
         `}</style>
 
-        <div style={{ marginBottom: "22px", borderBottom: "1px solid rgba(218,165,32,0.3)", paddingBottom: "18px" }}>
-          <h1 style={{ color: "#DAA520", fontSize: "1.5rem", textTransform: "uppercase", letterSpacing: "1.2px", margin: "0 0 6px 0", fontWeight: 700 }}>
-            Panel de Manufactura
-          </h1>
-          <p style={{ color: "#888", fontSize: "0.82rem", margin: "0 0 18px 0" }}>
-            De la cotización aprobada al cable terminado, descontando materia prima real.
-          </p>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <button onClick={() => setTab("cotizaciones")} className={`mf-tab ${tab === "cotizaciones" ? "on" : ""}`}>📄 Cotizaciones</button>
-            <button onClick={() => setTab("produccion")} className={`mf-tab ${tab === "produccion" ? "on" : ""}`}>⚙️ Producción</button>
-            <button onClick={() => setTab("recetas")} className={`mf-tab ${tab === "recetas" ? "on" : ""}`}>🧪 Recetas</button>
-            <button onClick={() => setTab("insumos")} className={`mf-tab ${tab === "insumos" ? "on" : ""}`}>📦 Insumos</button>
-          </div>
+        <PageHeader
+          title="Panel de Manufactura"
+          subtitle="De la cotización aprobada al cable terminado, descontando materia prima real."
+        />
+
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "25px" }}>
+          <Button variant={tab === "cotizaciones" ? "gold" : "outline-gold"} onClick={() => setTab("cotizaciones")}>📄 Cotizaciones</Button>
+          <Button variant={tab === "produccion" ? "gold" : "outline-gold"} onClick={() => setTab("produccion")}>⚙️ Producción</Button>
+          <Button variant={tab === "recetas" ? "gold" : "outline-gold"} onClick={() => setTab("recetas")}>🧪 Recetas</Button>
+          <Button variant={tab === "insumos" ? "gold" : "outline-gold"} onClick={() => setTab("insumos")}>📦 Insumos</Button>
         </div>
 
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "15px", marginBottom: "25px" }}>
-          <div className="mf-kpi">
-            <span className="mf-lb">Por Aprobar</span>
-            <h2 style={{ color: "#e74c3c", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
+          <Card style={kpiCardStyle}>
+            <span style={lbStyle}>Por Aprobar</span>
+            <h2 style={{ color: theme.red, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
               {quotes.filter((q) => !q.aprobada).length}
             </h2>
-          </div>
-          <div className="mf-kpi">
-            <span className="mf-lb">Órdenes Abiertas</span>
-            <h2 style={{ color: "#DAA520", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
+          </Card>
+          <Card style={kpiCardStyle}>
+            <span style={lbStyle}>Órdenes Abiertas</span>
+            <h2 style={{ color: theme.gold, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
               {ordenes.filter((o) => o.estado !== "Completada" && o.estado !== "Cancelada").length}
             </h2>
-          </div>
-          <div className="mf-kpi">
-            <span className="mf-lb">Recetas sin Calibrar</span>
-            <h2 style={{ color: recetasPendientes > 0 ? "#e67e22" : "#2ecc71", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
+          </Card>
+          <Card style={kpiCardStyle}>
+            <span style={lbStyle}>Recetas sin Calibrar</span>
+            <h2 style={{ color: recetasPendientes > 0 ? "#e67e22" : theme.green, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
               {recetasPendientes}
             </h2>
-          </div>
-          <div className="mf-kpi">
-            <span className="mf-lb">Insumos Bajo Mínimo</span>
-            <h2 style={{ color: insumosBajos.length > 0 ? "#e74c3c" : "#2ecc71", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
+          </Card>
+          <Card style={kpiCardStyle}>
+            <span style={lbStyle}>Insumos Bajo Mínimo</span>
+            <h2 style={{ color: insumosBajos.length > 0 ? theme.red : theme.green, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
               {insumosBajos.length}
             </h2>
-          </div>
+          </Card>
         </div>
 
         {cargando ? (
-          <div className="mf-card" style={{ textAlign: "center", padding: "40px" }}>
-            <p style={{ color: "#888" }}>Cargando planta...</p>
-          </div>
+          <Card style={{ textAlign: "center", padding: "40px" }}>
+            <p style={{ color: theme.textMuted }}>Cargando planta...</p>
+          </Card>
         ) : (
           <>
             {/* ============ COTIZACIONES ============ */}
             {tab === "cotizaciones" && (
-              <div className="mf-card">
+              <Card>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
+                  <Heading style={{ margin: 0, fontSize: "1rem", textTransform: "uppercase" }}>
                     Cotizaciones de Fábrica ({quotesFiltradas.length})
-                  </h3>
+                  </Heading>
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <input className="mf-in" style={{ width: "230px" }} placeholder="Buscar referencia o empresa..."
+                    <input style={{ ...inputStyle, width: "230px" }} placeholder="Buscar referencia o empresa..."
                       value={buscarQuote} onChange={(e) => setBuscarQuote(e.target.value)} />
-                    <select className="mf-in" style={{ width: "auto" }} value={filtroQuotes}
+                    <select style={{ ...inputStyle, width: "auto" }} value={filtroQuotes}
                       onChange={(e) => setFiltroQuotes(e.target.value as any)}>
                       <option value="PENDIENTES">Por aprobar</option>
                       <option value="APROBADAS">Aprobadas</option>
@@ -800,7 +798,7 @@ export default function ManufacturaDashboard() {
                 </div>
 
                 {quotesFiltradas.length === 0 ? (
-                  <p style={{ color: "#777", textAlign: "center", padding: "30px" }}>
+                  <p style={{ color: theme.textMuted, textAlign: "center", padding: "30px" }}>
                     No hay cotizaciones de fábrica que coincidan con el filtro.
                   </p>
                 ) : (
@@ -820,7 +818,7 @@ export default function ManufacturaDashboard() {
                           const yaTieneOP = quotesConOP.has(String(q.id));
                           return (
                             <tr key={q.id}>
-                              <td style={{ color: "#DAA520", fontWeight: 700 }}>{q.referencia}</td>
+                              <td style={{ color: theme.gold, fontWeight: 700 }}>{q.referencia}</td>
                               <td>
                                 {q.empresa || "N/D"}
                                 {q.representante && <div style={{ fontSize: "0.7rem", color: "#777" }}>Atn: {q.representante}</div>}
@@ -828,36 +826,31 @@ export default function ManufacturaDashboard() {
                               <td style={{ fontSize: "0.74rem", color: "#aaa" }}>
                                 {q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}
                               </td>
-                              <td style={{ textAlign: "right", color: "#DAA520", fontWeight: 600 }}>{fmt(total)}</td>
-                              <td style={{ fontSize: "0.76rem", color: abonado > 0 ? "#2ecc71" : "#666" }}>
+                              <td style={{ textAlign: "right", color: theme.gold, fontWeight: 600 }}>{fmt(total)}</td>
+                              <td style={{ fontSize: "0.76rem", color: abonado > 0 ? theme.green : "#666" }}>
                                 {abonado > 0 ? fmt(abonado) : "—"}
                               </td>
                               <td>
                                 {q.aprobada ? (
                                   <div>
-                                    <span className="mf-chip" style={{ background: "rgba(46,204,113,0.15)", color: "#2ecc71", border: "1px solid rgba(46,204,113,0.35)" }}>
-                                      {q.tipo_aprobacion || "Aprobada"}
-                                    </span>
+                                    <Badge tone="success">{q.tipo_aprobacion || "Aprobada"}</Badge>
                                     {q.referencia_aprobacion && (
                                       <div style={{ fontSize: "0.66rem", color: "#777", marginTop: "3px" }}>{q.referencia_aprobacion}</div>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="mf-chip" style={{ background: "rgba(231,76,60,0.15)", color: "#e74c3c", border: "1px solid rgba(231,76,60,0.35)" }}>
-                                    Sin aprobar
-                                  </span>
+                                  <Badge tone="danger">Sin aprobar</Badge>
                                 )}
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                                 {!q.aprobada ? (
-                                  <button className="mf-verde" onClick={() => abrirAprobar(q)}>✓ Aprobar</button>
+                                  <Button variant="outline-green" style={miniBtnStyle} onClick={() => abrirAprobar(q)}>✓ Aprobar</Button>
                                 ) : yaTieneOP ? (
-                                  <span style={{ color: "#2ecc71", fontSize: "0.7rem" }}>✓ En producción</span>
+                                  <span style={{ color: theme.green, fontSize: "0.7rem" }}>✓ En producción</span>
                                 ) : (
-                                  <button className="mf-gold" style={{ padding: "5px 12px", fontSize: "0.7rem" }}
-                                    onClick={() => abrirGenerarOP(q)}>
+                                  <Button variant="gold" style={miniBtnStyle} onClick={() => abrirGenerarOP(q)}>
                                     ⚙️ Generar OP
-                                  </button>
+                                  </Button>
                                 )}
                               </td>
                             </tr>
@@ -867,31 +860,31 @@ export default function ManufacturaDashboard() {
                     </table>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {/* ============ PRODUCCIÓN ============ */}
             {tab === "produccion" && (
-              <div className="mf-card">
+              <Card>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
+                  <Heading style={{ margin: 0, fontSize: "1rem", textTransform: "uppercase" }}>
                     Órdenes de Producción ({ordenesFiltradas.length})
-                  </h3>
+                  </Heading>
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <select className="mf-in" style={{ width: "auto" }} value={filtroOP} onChange={(e) => setFiltroOP(e.target.value)}>
+                    <select style={{ ...inputStyle, width: "auto" }} value={filtroOP} onChange={(e) => setFiltroOP(e.target.value)}>
                       <option value="ABIERTAS">Abiertas</option>
                       <option value="COMPLETADAS">Completadas</option>
                       <option value="TODAS">Todas</option>
                     </select>
-                    <button className="mf-gold" onClick={() => abrirGenerarOP(null)}>
+                    <Button variant="gold" onClick={() => abrirGenerarOP(null)}>
                       + Orden Manual
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
                 {ordenesFiltradas.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "30px" }}>
-                    <p style={{ color: "#777", marginBottom: "6px" }}>No hay órdenes de producción.</p>
+                    <p style={{ color: theme.textMuted, marginBottom: "6px" }}>No hay órdenes de producción.</p>
                     <p style={{ color: "#555", fontSize: "0.78rem" }}>
                       Aprueba una cotización de fábrica y genera su orden desde la pestaña Cotizaciones.
                     </p>
@@ -912,7 +905,7 @@ export default function ManufacturaDashboard() {
                           const completada = o.estado === "Completada";
                           return (
                             <tr key={o.id}>
-                              <td style={{ color: "#DAA520", fontWeight: 700 }}>
+                              <td style={{ color: theme.gold, fontWeight: 700 }}>
                                 {o.numero}
                                 {o.cliente_nombre && <div style={{ fontSize: "0.68rem", color: "#777" }}>{o.cliente_nombre}</div>}
                               </td>
@@ -936,10 +929,10 @@ export default function ManufacturaDashboard() {
                               <td style={{ fontSize: "0.78rem" }}>
                                 {rs.length === 1 ? rs[0].numero_hilos : rs.map((l) => l.numero_hilos).join(" / ")}
                               </td>
-                              <td style={{ color: "#DAA520", fontWeight: 600 }}>{o.carretes}</td>
+                              <td style={{ color: theme.gold, fontWeight: 600 }}>{o.carretes}</td>
                               <td>{num(o.km_totales)} km</td>
                               <td>
-                                <select className="mf-in" style={{ width: "auto", padding: "5px 8px", fontSize: "0.7rem" }}
+                                <select style={{ ...inputStyle, width: "auto", padding: "5px 8px", fontSize: "0.7rem" }}
                                   value={o.estado} disabled={completada}
                                   onChange={(e) => cambiarEstadoOP(o, e.target.value)}>
                                   {ESTADOS_OP.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -949,9 +942,13 @@ export default function ManufacturaDashboard() {
                                 )}
                               </td>
                               <td style={{ textAlign: "right" }}>
-                                <button className={completada ? "mf-mini" : "mf-verde"} onClick={() => setModalReq({ open: true, orden: o })}>
+                                <Button
+                                  variant={completada ? "outline-gold" : "outline-green"}
+                                  style={miniBtnStyle}
+                                  onClick={() => setModalReq({ open: true, orden: o })}
+                                >
                                   {completada ? "Ver consumo" : "🧾 Requerimiento"}
-                                </button>
+                                </Button>
                               </td>
                             </tr>
                           );
@@ -960,15 +957,15 @@ export default function ManufacturaDashboard() {
                     </table>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {/* ============ RECETAS ============ */}
             {tab === "recetas" && (
               <div>
-                <div className="mf-card" style={{ marginBottom: "20px" }}>
-                  <label className="mf-lb">Configuración de producto</label>
-                  <select className="mf-in" style={{ maxWidth: "460px" }} value={configReceta}
+                <Card style={{ marginBottom: "20px" }}>
+                  <label style={lbStyle}>Configuración de producto</label>
+                  <select style={{ ...inputStyle, maxWidth: "460px" }} value={configReceta}
                     onChange={(e) => {
                       setConfigReceta(e.target.value);
                       const c = configs.find((x) => String(x.id) === e.target.value);
@@ -984,45 +981,45 @@ export default function ManufacturaDashboard() {
                       {configSel.notas ? ` · ${configSel.notas}` : ""}
                     </p>
                   )}
-                </div>
+                </Card>
 
                 {/* Simulador: convierte las tasas por km en el total de una corrida */}
-                <div className="mf-card" style={{ marginBottom: "20px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
+                <Card style={{ marginBottom: "20px" }}>
+                  <Heading style={{ fontSize: "0.95rem", marginBottom: "6px" }}>
                     Simular una Corrida
-                  </h3>
+                  </Heading>
                   <p style={{ color: "#777", fontSize: "0.76rem", margin: "0 0 14px 0" }}>
                     Define hilos y carretes para ver el consumo total, no solo la tasa por kilómetro.
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1.4fr", gap: "14px", alignItems: "end" }}>
-                    <div><label className="mf-lb">N° de hilos</label>
-                      <input className="mf-in" type="number" min={1} value={simHilos}
+                    <div><label style={lbStyle}>N° de hilos</label>
+                      <input style={inputStyle} type="number" min={1} value={simHilos}
                         onChange={(e) => setSimHilos(Number(e.target.value) || 1)} /></div>
-                    <div><label className="mf-lb">Carretes</label>
-                      <input className="mf-in" type="number" min={1} value={simCarretes}
+                    <div><label style={lbStyle}>Carretes</label>
+                      <input style={inputStyle} type="number" min={1} value={simCarretes}
                         onChange={(e) => setSimCarretes(Number(e.target.value) || 1)} /></div>
-                    <div><label className="mf-lb">Km por carrete</label>
-                      <input className="mf-in" type="number" min={0} step="0.5" value={simKmCarrete}
+                    <div><label style={lbStyle}>Km por carrete</label>
+                      <input style={inputStyle} type="number" min={0} step="0.5" value={simKmCarrete}
                         onChange={(e) => setSimKmCarrete(Number(e.target.value) || 0)} /></div>
-                    <div style={{ background: "rgba(218,165,32,0.07)", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "8px", padding: "11px 16px" }}>
+                    <div style={{ background: theme.goldSoft, border: `1px solid ${theme.borderGold}`, borderRadius: theme.radiusSm, padding: "11px 16px" }}>
                       <div style={{ fontSize: "0.66rem", color: "#888", textTransform: "uppercase" }}>Producción total</div>
-                      <div style={{ color: "#DAA520", fontSize: "1.3rem", fontWeight: 700 }}>{num(simKmTotales)} km</div>
+                      <div style={{ color: theme.gold, fontSize: "1.3rem", fontWeight: 700 }}>{num(simKmTotales)} km</div>
                     </div>
                   </div>
-                </div>
+                </Card>
 
-                <div className="mf-card">
-                  <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
+                <Card>
+                  <Heading style={{ marginBottom: "6px" }}>
                     Consumo por Kilómetro
-                  </h3>
+                  </Heading>
                   <p style={{ color: "#777", fontSize: "0.76rem", margin: "0 0 16px 0", lineHeight: 1.6 }}>
                     Las líneas de geometría ya están calculadas. Las empíricas dependen de tu máquina:
-                    edítalas a mano si conoces el número, o usa <strong style={{ color: "#DAA520" }}>Calibrar</strong> para
+                    edítalas a mano si conoces el número, o usa <strong style={{ color: theme.gold }}>Calibrar</strong> para
                     deducirlo de un lote real que ya produjiste.
                   </p>
 
                   {recetasDeConfig.length === 0 ? (
-                    <p style={{ color: "#777", textAlign: "center", padding: "24px" }}>
+                    <p style={{ color: theme.textMuted, textAlign: "center", padding: "24px" }}>
                       Esta configuración no tiene receta cargada. ¿Corriste el SQL de producción?
                     </p>
                   ) : (
@@ -1042,7 +1039,7 @@ export default function ManufacturaDashboard() {
                           return (
                             <tr key={r.id}>
                               <td>
-                                <span style={{ color: "#DAA520", fontWeight: 600 }}>{mp?.codigo}</span>
+                                <span style={{ color: theme.gold, fontWeight: 600 }}>{mp?.codigo}</span>
                                 <div style={{ fontSize: "0.72rem", color: "#aaa" }}>{mp?.nombre}</div>
                               </td>
                               <td style={{ fontSize: "0.72rem" }}>
@@ -1051,14 +1048,14 @@ export default function ManufacturaDashboard() {
                                 ) : r.tipo_calculo === "empirico" ? (
                                   <span style={{ color: "#e67e22" }}>empírico</span>
                                 ) : (
-                                  <span style={{ color: "#2ecc71" }}>fijo</span>
+                                  <span style={{ color: theme.green }}>fijo</span>
                                 )}
                               </td>
                               <td style={{ textAlign: "right" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" }}>
-                                  <input className="mf-in" type="number" min={0} step="0.0001"
+                                  <input style={{ ...inputStyle, width: "110px", textAlign: "right", padding: "6px 8px" }}
+                                    type="number" min={0} step="0.0001"
                                     defaultValue={r.cantidad_por_km}
-                                    style={{ width: "110px", textAlign: "right", padding: "6px 8px" }}
                                     onBlur={(e) => {
                                       const v = Number(e.target.value) || 0;
                                       if (v !== Number(r.cantidad_por_km)) guardarCantidadReceta(r, v);
@@ -1073,11 +1070,11 @@ export default function ManufacturaDashboard() {
                                   const alcanza = total <= hay;
                                   return (
                                     <>
-                                      <div style={{ color: total > 0 ? "#fff" : "#666", fontWeight: 700 }}>
+                                      <div style={{ color: total > 0 ? theme.textLight : "#666", fontWeight: 700 }}>
                                         {num(total, 2)} {mp?.unidad}
                                       </div>
                                       {total > 0 && (
-                                        <div style={{ fontSize: "0.66rem", color: alcanza ? "#2ecc71" : "#e74c3c" }}>
+                                        <div style={{ fontSize: "0.66rem", color: alcanza ? theme.green : theme.red }}>
                                           {alcanza ? `hay ${num(hay, 1)}` : `faltan ${num(total - hay, 1)}`}
                                         </div>
                                       )}
@@ -1087,17 +1084,15 @@ export default function ManufacturaDashboard() {
                               </td>
                               <td>
                                 {listo ? (
-                                  <span className="mf-chip" style={{ background: "rgba(46,204,113,0.15)", color: "#2ecc71", border: "1px solid rgba(46,204,113,0.35)" }}>
-                                    Listo
-                                  </span>
+                                  <Badge tone="success">Listo</Badge>
                                 ) : (
-                                  <span className="mf-chip" style={{ background: "rgba(230,126,34,0.15)", color: "#e67e22", border: "1px solid rgba(230,126,34,0.35)" }}>
+                                  <span style={{ padding: "3px 9px", borderRadius: "10px", fontSize: "0.66rem", fontWeight: 600, background: "rgba(230,126,34,0.15)", color: "#e67e22", border: "1px solid rgba(230,126,34,0.35)" }}>
                                     Por calibrar
                                   </span>
                                 )}
                               </td>
                               <td style={{ textAlign: "right" }}>
-                                <button className="mf-mini" onClick={() => abrirCalibrar(r)}>📐 Calibrar</button>
+                                <Button variant="outline-gold" style={miniBtnStyle} onClick={() => abrirCalibrar(r)}>📐 Calibrar</Button>
                               </td>
                             </tr>
                           );
@@ -1105,22 +1100,22 @@ export default function ManufacturaDashboard() {
                       </tbody>
                     </table>
                   )}
-                </div>
+                </Card>
               </div>
             )}
 
             {/* ============ INSUMOS ============ */}
             {tab === "insumos" && (
-              <div className="mf-card">
-                <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
+              <Card>
+                <Heading style={{ marginBottom: "6px" }}>
                   Existencias de Materia Prima ({insumos.length})
-                </h3>
-                <p style={{ color: "#777", fontSize: "0.76rem", margin: "0 0 16px 0" }}>
+                </Heading>
+                <p style={{ color: theme.textMuted, fontSize: "0.76rem", margin: "0 0 16px 0" }}>
                   Datos reales de la tabla materia_prima. Suben con las recepciones de compra y bajan al cerrar producción.
                 </p>
 
                 {insumos.length === 0 ? (
-                  <p style={{ color: "#777", textAlign: "center", padding: "24px" }}>No hay insumos cargados.</p>
+                  <p style={{ color: theme.textMuted, textAlign: "center", padding: "24px" }}>No hay insumos cargados.</p>
                 ) : (
                   <table className="mf-tabla">
                     <thead>
@@ -1134,20 +1129,20 @@ export default function ManufacturaDashboard() {
                         const enCero = Number(m.stock_actual) <= 0;
                         return (
                           <tr key={m.id}>
-                            <td style={{ color: "#DAA520", fontWeight: 700 }}>{m.codigo}</td>
+                            <td style={{ color: theme.gold, fontWeight: 700 }}>{m.codigo}</td>
                             <td style={{ fontSize: "0.8rem" }}>{m.nombre}</td>
                             <td style={{ fontSize: "0.74rem", color: "#aaa" }}>{m.categoria || "—"}</td>
-                            <td style={{ textAlign: "right", fontWeight: 700, color: enCero ? "#e74c3c" : bajo ? "#e67e22" : "#2ecc71" }}>
+                            <td style={{ textAlign: "right", fontWeight: 700, color: enCero ? theme.red : bajo ? "#e67e22" : theme.green }}>
                               {num(m.stock_actual, 3)}
                             </td>
                             <td style={{ fontSize: "0.74rem", color: "#aaa" }}>{m.unidad}</td>
                             <td>
                               {enCero ? (
-                                <span className="mf-chip" style={{ background: "rgba(231,76,60,0.15)", color: "#e74c3c", border: "1px solid rgba(231,76,60,0.35)" }}>Sin stock</span>
+                                <Badge tone="danger">Sin stock</Badge>
                               ) : bajo ? (
-                                <span className="mf-chip" style={{ background: "rgba(230,126,34,0.15)", color: "#e67e22", border: "1px solid rgba(230,126,34,0.35)" }}>Bajo mínimo</span>
+                                <span style={{ padding: "3px 9px", borderRadius: "10px", fontSize: "0.66rem", fontWeight: 600, background: "rgba(230,126,34,0.15)", color: "#e67e22", border: "1px solid rgba(230,126,34,0.35)" }}>Bajo mínimo</span>
                               ) : (
-                                <span className="mf-chip" style={{ background: "rgba(46,204,113,0.15)", color: "#2ecc71", border: "1px solid rgba(46,204,113,0.35)" }}>Disponible</span>
+                                <Badge tone="success">Disponible</Badge>
                               )}
                             </td>
                           </tr>
@@ -1156,25 +1151,25 @@ export default function ManufacturaDashboard() {
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
             )}
           </>
         )}
-      </main>
+      </div>
 
       {/* ============ MODAL: APROBAR COTIZACIÓN ============ */}
       {modalAprobar.open && modalAprobar.quote && (
         <div className="mf-ov">
-          <div className="mf-md" style={{ maxWidth: "480px" }}>
-            <h2 style={{ color: "#2ecc71", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>Aprobar Cotización</h2>
+          <Card style={{ maxWidth: "480px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+            <h2 style={{ color: theme.green, marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>Aprobar Cotización</h2>
             <p style={{ color: "#bbb", fontSize: "0.85rem", marginBottom: "18px" }}>
-              <strong style={{ color: "#DAA520" }}>{modalAprobar.quote.referencia}</strong> — {modalAprobar.quote.empresa}
+              <strong style={{ color: theme.gold }}>{modalAprobar.quote.referencia}</strong> — {modalAprobar.quote.empresa}
               <br /><span style={{ fontSize: "0.8rem", color: "#888" }}>Total: {fmt(modalAprobar.quote.total)}</span>
             </p>
 
             <div style={{ marginBottom: "14px" }}>
-              <label className="mf-lb">¿Cómo se aprobó?</label>
-              <select className="mf-in" value={formAprob.tipo} onChange={(e) => setFormAprob({ ...formAprob, tipo: e.target.value })}>
+              <label style={lbStyle}>¿Cómo se aprobó?</label>
+              <select style={inputStyle} value={formAprob.tipo} onChange={(e) => setFormAprob({ ...formAprob, tipo: e.target.value })}>
                 <option value="Correo">Aceptación por correo</option>
                 <option value="OC Cliente">Orden de compra del cliente</option>
                 <option value="Abono">Abono recibido (parcial)</option>
@@ -1182,24 +1177,23 @@ export default function ManufacturaDashboard() {
               </select>
             </div>
             <div style={{ marginBottom: "14px" }}>
-              <label className="mf-lb">Referencia del respaldo</label>
-              <input className="mf-in" placeholder="N° de OC, transferencia o asunto del correo"
+              <label style={lbStyle}>Referencia del respaldo</label>
+              <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} placeholder="N° de OC, transferencia o asunto del correo"
                 value={formAprob.referencia} onChange={(e) => setFormAprob({ ...formAprob, referencia: e.target.value })} />
             </div>
             <div style={{ marginBottom: "20px" }}>
-              <label className="mf-lb">Aprobada por</label>
-              <input className="mf-in" placeholder="Tu nombre" value={formAprob.autor}
+              <label style={lbStyle}>Aprobada por</label>
+              <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} placeholder="Tu nombre" value={formAprob.autor}
                 onChange={(e) => setFormAprob({ ...formAprob, autor: e.target.value })} />
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setModalAprobar({ open: false, quote: null })}
-                style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+              <Button variant="ghost" onClick={() => setModalAprobar({ open: false, quote: null })}>
                 Cancelar
-              </button>
-              <button className="mf-gold" style={{ background: "#2ecc71" }} onClick={confirmarAprobacion}>Confirmar Aprobación</button>
+              </Button>
+              <Button variant="gold" style={{ background: theme.green, boxShadow: "none" }} onClick={confirmarAprobacion}>Confirmar Aprobación</Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
@@ -1209,8 +1203,8 @@ export default function ManufacturaDashboard() {
         const noReconocidos = lineasOP.filter((l) => !l.reconocido).length;
         return (
           <div className="mf-ov">
-            <div className="mf-md" style={{ maxWidth: "980px" }}>
-              <h2 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>
+            <Card style={{ maxWidth: "980px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+              <h2 style={{ color: theme.gold, marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>
                 {modalOP.quote ? `Orden de Producción — ${modalOP.quote.referencia}` : "Orden de Producción Manual"}
               </h2>
               <p style={{ color: "#888", fontSize: "0.78rem", margin: "0 0 16px 0" }}>
@@ -1258,7 +1252,7 @@ export default function ManufacturaDashboard() {
                           )}
                         </td>
                         <td>
-                          <select className="mf-in" style={{ padding: "5px 7px", fontSize: "0.72rem" }}
+                          <select style={{ ...inputStyle, padding: "5px 7px", fontSize: "0.72rem" }}
                             value={l.configuracion_id}
                             onChange={(e) => {
                               actualizarLinea(l.key, "configuracion_id", e.target.value);
@@ -1270,27 +1264,27 @@ export default function ManufacturaDashboard() {
                           </select>
                         </td>
                         <td>
-                          <input className="mf-in" type="number" min={1} value={l.numero_hilos}
-                            style={{ padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
+                          <input type="number" min={1} value={l.numero_hilos}
+                            style={{ ...inputStyle, padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
                             onChange={(e) => actualizarLinea(l.key, "numero_hilos", Number(e.target.value) || 1)} />
                         </td>
                         <td>
-                          <input className="mf-in" type="number" min={1} value={l.carretes}
-                            style={{ padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
+                          <input type="number" min={1} value={l.carretes}
+                            style={{ ...inputStyle, padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
                             onChange={(e) => actualizarLinea(l.key, "carretes", Number(e.target.value) || 1)} />
                         </td>
                         <td>
-                          <input className="mf-in" type="number" min={0} step="0.5"
+                          <input type="number" min={0} step="0.5"
                             value={(Number(l.metros_por_carrete) || 0) / 1000}
-                            style={{ padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
+                            style={{ ...inputStyle, padding: "5px", textAlign: "center", fontSize: "0.74rem" }}
                             onChange={(e) => actualizarLinea(l.key, "metros_por_carrete", (Number(e.target.value) || 0) * 1000)} />
                         </td>
                         <td>
-                          <input className="mf-in" placeholder="cablesdb" value={l.sku_destino}
-                            style={{ padding: "5px", fontSize: "0.72rem" }}
+                          <input placeholder="cablesdb" value={l.sku_destino}
+                            style={{ ...inputStyle, padding: "5px", fontSize: "0.72rem" }}
                             onChange={(e) => actualizarLinea(l.key, "sku_destino", e.target.value)} />
                         </td>
-                        <td style={{ textAlign: "right", color: "#DAA520", fontWeight: 700, fontSize: "0.78rem" }}>
+                        <td style={{ textAlign: "right", color: theme.gold, fontWeight: 700, fontSize: "0.78rem" }}>
                           {num(kmDeLinea(l))}
                         </td>
                       </tr>
@@ -1300,12 +1294,12 @@ export default function ManufacturaDashboard() {
               </div>
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
-                <button className="mf-mini" onClick={agregarLineaManual}>+ Agregar renglón</button>
-                <div style={{ background: "rgba(218,165,32,0.06)", border: "1px solid rgba(218,165,32,0.3)",
+                <Button variant="outline-gold" style={miniBtnStyle} onClick={agregarLineaManual}>+ Agregar renglón</Button>
+                <div style={{ background: theme.goldSoft, border: `1px solid ${theme.borderGold}`,
                   borderRadius: "8px", padding: "9px 18px" }}>
-                  <span style={{ color: "#fff", fontSize: "0.84rem" }}>
+                  <span style={{ color: theme.textLight, fontSize: "0.84rem" }}>
                     {activas.length} renglón(es) ={" "}
-                    <strong style={{ color: "#DAA520", fontSize: "1.05rem" }}>{num(kmTotalOP)} km</strong> de cable
+                    <strong style={{ color: theme.gold, fontSize: "1.05rem" }}>{num(kmTotalOP)} km</strong> de cable
                   </span>
                 </div>
               </div>
@@ -1313,7 +1307,7 @@ export default function ManufacturaDashboard() {
               {/* Requerimiento consolidado */}
               {previewOP.length > 0 && (
                 <div style={{ marginBottom: "16px" }}>
-                  <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  <p style={{ fontSize: "0.7rem", color: theme.gold, margin: "0 0 8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                     Materia prima total de la orden
                   </p>
                   <div style={{ maxHeight: "215px", overflowY: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px" }}>
@@ -1323,7 +1317,7 @@ export default function ManufacturaDashboard() {
                         {previewOP.map((l: any) => (
                           <tr key={l.materia_prima_id}>
                             <td style={{ fontSize: "0.76rem" }}>
-                              <span style={{ color: "#DAA520" }}>{l.codigo}</span>
+                              <span style={{ color: theme.gold }}>{l.codigo}</span>
                               <div style={{ fontSize: "0.66rem", color: "#777" }}>{l.nombre}</div>
                             </td>
                             <td style={{ textAlign: "right", fontWeight: 600 }}>
@@ -1332,8 +1326,8 @@ export default function ManufacturaDashboard() {
                             <td style={{ textAlign: "right", color: "#aaa" }}>{num(l.disponible, 2)}</td>
                             <td>
                               {l.sinReceta ? <span style={{ color: "#e67e22", fontSize: "0.7rem" }}>calibrar</span>
-                                : l.falta > 0 ? <span style={{ color: "#e74c3c", fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
-                                : <span style={{ color: "#2ecc71", fontSize: "0.7rem" }}>✓ alcanza</span>}
+                                : l.falta > 0 ? <span style={{ color: theme.red, fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
+                                : <span style={{ color: theme.green, fontSize: "0.7rem" }}>✓ alcanza</span>}
                             </td>
                           </tr>
                         ))}
@@ -1344,21 +1338,20 @@ export default function ManufacturaDashboard() {
               )}
 
               <div style={{ marginBottom: "18px" }}>
-                <label className="mf-lb">Notas de la orden</label>
-                <textarea className="mf-in" rows={2} style={{ resize: "vertical" }} value={notasOP}
+                <label style={lbStyle}>Notas de la orden</label>
+                <textarea rows={2} style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical" }} value={notasOP}
                   onChange={(e) => setNotasOP(e.target.value)} />
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button onClick={() => { setModalOP({ open: false, quote: null }); setLineasOP([]); }}
-                  style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+                <Button variant="ghost" onClick={() => { setModalOP({ open: false, quote: null }); setLineasOP([]); }}>
                   Cancelar
-                </button>
-                <button className="mf-gold" disabled={guardandoOP || activas.length === 0} onClick={crearOrdenProduccion}>
+                </Button>
+                <Button variant="gold" disabled={guardandoOP || activas.length === 0} onClick={crearOrdenProduccion}>
                   {guardandoOP ? "Creando..." : `Crear Orden (${activas.length} renglón${activas.length !== 1 ? "es" : ""})`}
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
           </div>
         );
       })()}
@@ -1374,12 +1367,12 @@ export default function ManufacturaDashboard() {
 
         return (
           <div className="mf-ov">
-            <div className="mf-md" style={{ maxWidth: "780px" }}>
-              <h2 style={{ color: completada ? "#DAA520" : "#2ecc71", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>
+            <Card style={{ maxWidth: "780px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+              <h2 style={{ color: completada ? theme.gold : theme.green, marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>
                 {completada ? "Consumo de la Orden" : "Requerimiento de Materia Prima"}
               </h2>
               <p style={{ color: "#bbb", fontSize: "0.85rem", marginBottom: "16px" }}>
-                <strong style={{ color: "#DAA520" }}>{o.numero}</strong>
+                <strong style={{ color: theme.gold }}>{o.numero}</strong>
                 {o.cliente_nombre ? ` — ${o.cliente_nombre}` : ""}
                 <br />
                 <span style={{ fontSize: "0.8rem", color: "#888" }}>
@@ -1398,12 +1391,12 @@ export default function ManufacturaDashboard() {
                         <tr key={l.id}>
                           <td style={{ color: "#666", fontSize: "0.74rem" }}>{l.posicion}</td>
                           <td style={{ fontSize: "0.76rem" }}>
-                            <span style={{ color: "#DAA520" }}>{cfg?.codigo || "—"}</span>
+                            <span style={{ color: theme.gold }}>{cfg?.codigo || "—"}</span>
                             {cfg?.vano_metros && <div style={{ fontSize: "0.66rem", color: "#777" }}>vano {cfg.vano_metros} m</div>}
                             {cfg?.con_mensajero && <div style={{ fontSize: "0.66rem", color: "#777" }}>con mensajero</div>}
                           </td>
                           <td style={{ textAlign: "center" }}>{l.numero_hilos}</td>
-                          <td style={{ textAlign: "center", color: "#DAA520", fontWeight: 600 }}>{l.carretes}</td>
+                          <td style={{ textAlign: "center", color: theme.gold, fontWeight: 600 }}>{l.carretes}</td>
                           <td style={{ textAlign: "right" }}>{num(l.km_totales)}</td>
                           <td style={{ fontSize: "0.72rem", color: l.sku_destino ? "#aaa" : "#e67e22" }}>
                             {l.sku_destino || "sin SKU"}
@@ -1415,7 +1408,7 @@ export default function ManufacturaDashboard() {
                 </table>
               </div>
 
-              <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              <p style={{ fontSize: "0.7rem", color: theme.gold, margin: "0 0 8px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Consumo consolidado de todos los renglones
               </p>
               <div style={{ maxHeight: "260px", overflowY: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", marginBottom: "16px" }}>
@@ -1425,17 +1418,17 @@ export default function ManufacturaDashboard() {
                     {req.map((l: any) => (
                       <tr key={l.materia_prima_id}>
                         <td style={{ fontSize: "0.76rem" }}>
-                          <span style={{ color: "#DAA520" }}>{l.codigo}</span>
+                          <span style={{ color: theme.gold }}>{l.codigo}</span>
                           <div style={{ fontSize: "0.66rem", color: "#777" }}>{l.nombre}</div>
                         </td>
-                        <td style={{ textAlign: "right", fontWeight: 700, color: l.sinReceta ? "#e67e22" : "#fff" }}>
+                        <td style={{ textAlign: "right", fontWeight: 700, color: l.sinReceta ? "#e67e22" : theme.textLight }}>
                           {l.sinReceta ? "sin receta" : `${num(l.requerido, 3)} ${l.unidad}`}
                         </td>
                         <td style={{ textAlign: "right", color: "#aaa" }}>{num(l.disponible, 2)} {l.unidad}</td>
                         <td>
                           {l.sinReceta ? <span style={{ color: "#e67e22", fontSize: "0.7rem" }}>no descuenta</span>
-                            : l.falta > 0 ? <span style={{ color: "#e74c3c", fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
-                            : <span style={{ color: "#2ecc71", fontSize: "0.7rem" }}>✓</span>}
+                            : l.falta > 0 ? <span style={{ color: theme.red, fontSize: "0.7rem" }}>faltan {num(l.falta, 2)}</span>
+                            : <span style={{ color: theme.green, fontSize: "0.7rem" }}>✓</span>}
                         </td>
                       </tr>
                     ))}
@@ -1444,8 +1437,8 @@ export default function ManufacturaDashboard() {
               </div>
 
               {!completada && (
-                <div style={{ background: "rgba(46,204,113,0.06)", border: "1px dashed rgba(46,204,113,0.35)", borderRadius: "8px", padding: "13px 16px", marginBottom: "16px" }}>
-                  <p style={{ fontSize: "0.7rem", color: "#2ecc71", margin: "0 0 8px 0", textTransform: "uppercase" }}>Al cerrar la producción</p>
+                <div style={{ background: theme.greenBg, border: `1px dashed ${theme.greenBorder}`, borderRadius: "8px", padding: "13px 16px", marginBottom: "16px" }}>
+                  <p style={{ fontSize: "0.7rem", color: theme.green, margin: "0 0 8px 0", textTransform: "uppercase" }}>Al cerrar la producción</p>
                   <ul style={{ color: "#ccc", fontSize: "0.78rem", margin: 0, paddingLeft: "18px", lineHeight: 1.7 }}>
                     <li>Se descuenta la materia prima de cada renglón por separado</li>
                     <li>Cada movimiento queda registrado con su renglón de origen</li>
@@ -1454,7 +1447,7 @@ export default function ManufacturaDashboard() {
                       : <li style={{ color: "#e67e22" }}>Ningún renglón tiene SKU destino: nada entrará a bodega</li>}
                   </ul>
                   {faltantes > 0 && (
-                    <p style={{ color: "#e74c3c", fontSize: "0.74rem", margin: "10px 0 0 0" }}>
+                    <p style={{ color: theme.red, fontSize: "0.74rem", margin: "10px 0 0 0" }}>
                       ⚠ {faltantes} insumo(s) sin existencia suficiente. Se puede cerrar, pero el stock quedará negativo.
                     </p>
                   )}
@@ -1462,17 +1455,16 @@ export default function ManufacturaDashboard() {
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button onClick={() => setModalReq({ open: false, orden: null })}
-                  style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+                <Button variant="ghost" onClick={() => setModalReq({ open: false, orden: null })}>
                   {completada ? "Cerrar" : "Cancelar"}
-                </button>
+                </Button>
                 {!completada && (
-                  <button className="mf-gold" style={{ background: "#2ecc71" }} disabled={cerrando} onClick={cerrarProduccion}>
+                  <Button variant="gold" style={{ background: theme.green, boxShadow: "none" }} disabled={cerrando} onClick={cerrarProduccion}>
                     {cerrando ? "Procesando..." : "Cerrar Producción"}
-                  </button>
+                  </Button>
                 )}
               </div>
-            </div>
+            </Card>
           </div>
         );
       })()}
@@ -1486,47 +1478,46 @@ export default function ManufacturaDashboard() {
         const resultado = km > 0 ? real / km : 0;
         return (
           <div className="mf-ov">
-            <div className="mf-md" style={{ maxWidth: "480px" }}>
-              <h2 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>Calibrar Receta</h2>
+            <Card style={{ maxWidth: "480px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+              <h2 style={{ color: theme.gold, marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>Calibrar Receta</h2>
               <p style={{ color: "#bbb", fontSize: "0.85rem", marginBottom: "8px" }}>
-                <strong style={{ color: "#DAA520" }}>{mp?.codigo}</strong> — {mp?.nombre}
+                <strong style={{ color: theme.gold }}>{mp?.codigo}</strong> — {mp?.nombre}
               </p>
-              <p style={{ color: "#777", fontSize: "0.76rem", marginBottom: "18px", lineHeight: 1.6 }}>
+              <p style={{ color: theme.textMuted, fontSize: "0.76rem", marginBottom: "18px", lineHeight: 1.6 }}>
                 Anota lo que realmente consumiste en un lote ya producido. El sistema deduce el consumo por km
                 y actualiza la receta. Con dos o tres lotes el número deja de ser estimado.
               </p>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
-                <div><label className="mf-lb">Km producidos</label>
-                  <input className="mf-in" type="number" min={0} step="0.01" value={formCal.km_producidos}
+                <div><label style={lbStyle}>Km producidos</label>
+                  <input style={inputStyle} type="number" min={0} step="0.01" value={formCal.km_producidos}
                     onChange={(e) => setFormCal({ ...formCal, km_producidos: Number(e.target.value) || 0 })} /></div>
-                <div><label className="mf-lb">Consumo real ({mp?.unidad})</label>
-                  <input className="mf-in" type="number" min={0} step="0.01" value={formCal.consumo_real}
+                <div><label style={lbStyle}>Consumo real ({mp?.unidad})</label>
+                  <input style={inputStyle} type="number" min={0} step="0.01" value={formCal.consumo_real}
                     onChange={(e) => setFormCal({ ...formCal, consumo_real: Number(e.target.value) || 0 })} /></div>
-                <div style={{ gridColumn: "1 / -1" }}><label className="mf-lb">Registrado por</label>
-                  <input className="mf-in" placeholder="Tu nombre" value={formCal.autor}
+                <div style={{ gridColumn: "1 / -1" }}><label style={lbStyle}>Registrado por</label>
+                  <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} placeholder="Tu nombre" value={formCal.autor}
                     onChange={(e) => setFormCal({ ...formCal, autor: e.target.value })} /></div>
               </div>
 
-              <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "8px", padding: "14px", marginBottom: "18px" }}>
+              <div style={{ background: theme.goldSoft, border: `1px dashed ${theme.borderGold}`, borderRadius: "8px", padding: "14px", marginBottom: "18px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", marginBottom: "6px" }}>
                   <span style={{ color: "#888" }}>Receta actual</span>
                   <strong style={{ color: "#aaa" }}>{num(r.cantidad_por_km, 4)} {mp?.unidad}/km</strong>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
                   <span style={{ color: "#888" }}>Nueva receta</span>
-                  <strong style={{ color: "#2ecc71", fontSize: "1rem" }}>{num(resultado, 4)} {mp?.unidad}/km</strong>
+                  <strong style={{ color: theme.green, fontSize: "1rem" }}>{num(resultado, 4)} {mp?.unidad}/km</strong>
                 </div>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button onClick={() => setModalCal({ open: false, receta: null })}
-                  style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+                <Button variant="ghost" onClick={() => setModalCal({ open: false, receta: null })}>
                   Cancelar
-                </button>
-                <button className="mf-gold" onClick={aplicarCalibracion}>Aplicar Calibración</button>
+                </Button>
+                <Button variant="gold" onClick={aplicarCalibracion}>Aplicar Calibración</Button>
               </div>
-            </div>
+            </Card>
           </div>
         );
       })()}

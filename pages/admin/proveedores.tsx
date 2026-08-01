@@ -2,6 +2,15 @@ import { useState, useEffect, useMemo } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
 import { useRequiereRol } from "../../lib/useRequiereRol";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import {
+  Card,
+  PageHeader,
+  Button,
+  Badge,
+  estadoToTone,
+  inputStyle,
+} from "../../lib/ui";
 
 /* ============================================================
    PROVEEDORES Y ABASTECIMIENTO — TRULINK FIBER LLC
@@ -127,11 +136,21 @@ const cubetaAging = (fechaVenc?: string | null): string => {
 };
 
 const COLOR_AGING: Record<string, string> = {
-  Corriente: "#2ecc71",
+  Corriente: theme.green,
   "1-30": "#f1c40f",
   "31-60": "#e67e22",
-  "61-90": "#e74c3c",
+  "61-90": theme.red,
   "+90": "#c0392b",
+};
+
+// Estilo local para labels de formulario (sin equivalente en lib/ui.tsx)
+const labelStyle = {
+  display: "block",
+  fontSize: "0.66rem",
+  color: theme.textMuted,
+  marginBottom: "5px",
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.5px",
 };
 
 export default function Proveedores() {
@@ -600,7 +619,7 @@ export default function Proveedores() {
   // ── Guard de acceso ──
   if (cargandoAuth) {
     return (
-      <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#DAA520" }}>
+      <div style={{ backgroundColor: theme.background, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: theme.gold }}>
         Verificando acceso...
       </div>
     );
@@ -610,100 +629,77 @@ export default function Proveedores() {
   }
 
   return (
-    <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
+    <div style={{ display: "flex" }}>
       <Sidebar currentActive="proveedores" />
 
-      <div style={{ flex: 1, padding: "35px 30px", overflowY: "auto", boxSizing: "border-box" }}>
+      <div style={pageWrapStyle()}>
         <style jsx global>{`
-          .pv-card { background:#080808; border:1px solid rgba(218,165,32,0.3); border-radius:12px; padding:22px; }
-          .pv-kpi { background:#0d0d0d; border:1px solid rgba(218,165,32,0.3); border-radius:10px; padding:18px; }
-          .pv-tab { background:transparent; color:#DAA520; border:1px solid rgba(218,165,32,0.5); padding:10px 18px;
-                    border-radius:8px; font-weight:600; font-size:0.78rem; letter-spacing:0.8px; cursor:pointer; transition:all .25s; }
-          .pv-tab:hover, .pv-tab.on { background:#DAA520; color:#000; }
-          .pv-gold { background:#DAA520; color:#000; border:none; padding:10px 18px; border-radius:6px;
-                     font-weight:700; font-size:0.78rem; cursor:pointer; }
-          .pv-gold:disabled { opacity:.5; cursor:not-allowed; }
-          .pv-mini { background:transparent; color:#DAA520; border:1px solid rgba(218,165,32,0.45);
-                     padding:5px 10px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer; white-space:nowrap; }
-          .pv-mini:hover { background:rgba(218,165,32,0.15); }
-          .pv-verde { background:transparent; color:#2ecc71; border:1px solid rgba(46,204,113,0.5);
-                      padding:5px 10px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer; white-space:nowrap; }
-          .pv-verde:hover { background:rgba(46,204,113,0.15); }
-          .pv-rojo { background:transparent; color:#e74c3c; border:1px solid rgba(231,76,60,0.45);
-                     padding:5px 10px; border-radius:5px; font-size:0.7rem; font-weight:600; cursor:pointer; }
           .pv-tabla { width:100%; border-collapse:collapse; font-size:0.82rem; }
-          .pv-tabla th { background:#0a0a0a; color:#DAA520; text-transform:uppercase; font-size:0.68rem;
-                         letter-spacing:1px; padding:11px 10px; text-align:left; border-bottom:1px solid rgba(218,165,32,0.35); }
-          .pv-tabla td { padding:11px 10px; color:#fff; border-bottom:1px solid #141414; }
-          .pv-in { width:100%; background:#050505; color:#DAA520; border:1px solid rgba(218,165,32,0.4);
-                   padding:9px 11px; border-radius:6px; outline:none; font-size:0.82rem; box-sizing:border-box; font-family:inherit; }
-          .pv-lb { display:block; font-size:0.66rem; color:rgba(255,255,255,0.55); margin-bottom:5px;
-                   text-transform:uppercase; letter-spacing:0.5px; }
+          .pv-tabla th { background:#0a0a0a; color:${theme.gold}; text-transform:uppercase; font-size:0.68rem;
+                         letter-spacing:1px; padding:11px 10px; text-align:left; border-bottom:1px solid ${theme.borderGoldCounter}; }
+          .pv-tabla td { padding:11px 10px; color:${theme.textLight}; border-bottom:1px solid #141414; }
           .pv-ov { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center;
                    justify-content:center; z-index:1000; padding:20px; }
-          .pv-md { background:#111; border:1px solid rgba(218,165,32,0.5); border-radius:12px; padding:26px;
+          .pv-md { background:${theme.panelBg}; border:1px solid ${theme.borderGoldCounter}; border-radius:${theme.radiusLg}; padding:26px;
                    width:100%; max-height:90vh; overflow-y:auto; }
         `}</style>
 
-        <div style={{ marginBottom: "25px", borderBottom: "1px solid rgba(218,165,32,0.3)", paddingBottom: "18px" }}>
-          <h1 style={{ fontSize: "1.55rem", color: "#DAA520", textTransform: "uppercase", letterSpacing: "1.2px", margin: "0 0 6px 0", fontWeight: 700 }}>
-            Proveedores y Abastecimiento
-          </h1>
-          <p style={{ color: "#888", fontSize: "0.82rem", margin: "0 0 18px 0" }}>
-            Directorio de fábricas, órdenes de compra, cuentas por pagar y control de crédito.
-          </p>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <button onClick={() => setTab("directorio")} className={`pv-tab ${tab === "directorio" ? "on" : ""}`}>🏭 Directorio</button>
-            <button onClick={() => setTab("ordenes")} className={`pv-tab ${tab === "ordenes" ? "on" : ""}`}>📋 Órdenes de Compra</button>
-            <button onClick={() => setTab("cxp")} className={`pv-tab ${tab === "cxp" ? "on" : ""}`}>💸 Cuentas por Pagar</button>
-            <button onClick={() => setTab("estado")} className={`pv-tab ${tab === "estado" ? "on" : ""}`}>📑 Estado de Cuenta</button>
-          </div>
+        <PageHeader
+          title="Proveedores y Abastecimiento"
+          subtitle="Directorio de fábricas, órdenes de compra, cuentas por pagar y control de crédito."
+        />
+
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "25px" }}>
+          <Button variant={tab === "directorio" ? "gold" : "outline-gold"} onClick={() => setTab("directorio")}>🏭 Directorio</Button>
+          <Button variant={tab === "ordenes" ? "gold" : "outline-gold"} onClick={() => setTab("ordenes")}>📋 Órdenes de Compra</Button>
+          <Button variant={tab === "cxp" ? "gold" : "outline-gold"} onClick={() => setTab("cxp")}>💸 Cuentas por Pagar</Button>
+          <Button variant={tab === "estado" ? "gold" : "outline-gold"} onClick={() => setTab("estado")}>📑 Estado de Cuenta</Button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "15px", marginBottom: "25px" }}>
-          <div className="pv-kpi">
-            <span className="pv-lb">Total por Pagar</span>
-            <h2 style={{ color: "#e74c3c", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{fmt(totalPorPagar)}</h2>
-          </div>
-          <div className="pv-kpi">
-            <span className="pv-lb">Saldo Vencido</span>
-            <h2 style={{ color: totalVencido > 0 ? "#c0392b" : "#2ecc71", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{fmt(totalVencido)}</h2>
-          </div>
-          <div className="pv-kpi">
-            <span className="pv-lb">Proveedores Activos</span>
-            <h2 style={{ color: "#DAA520", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
+          <Card style={{ padding: "18px", marginBottom: 0 }}>
+            <span style={labelStyle}>Total por Pagar</span>
+            <h2 style={{ color: theme.red, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{fmt(totalPorPagar)}</h2>
+          </Card>
+          <Card style={{ padding: "18px", marginBottom: 0 }}>
+            <span style={labelStyle}>Saldo Vencido</span>
+            <h2 style={{ color: totalVencido > 0 ? "#c0392b" : theme.green, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{fmt(totalVencido)}</h2>
+          </Card>
+          <Card style={{ padding: "18px", marginBottom: 0 }}>
+            <span style={labelStyle}>Proveedores Activos</span>
+            <h2 style={{ color: theme.gold, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
               {proveedores.filter((p) => p.estado === "Activo").length}
             </h2>
-          </div>
-          <div className="pv-kpi">
-            <span className="pv-lb">Órdenes Abiertas</span>
-            <h2 style={{ color: "#DAA520", fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
+          </Card>
+          <Card style={{ padding: "18px", marginBottom: 0 }}>
+            <span style={labelStyle}>Órdenes Abiertas</span>
+            <h2 style={{ color: theme.gold, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>
               {ordenes.filter((o) => o.estado !== "Recibida" && o.estado !== "Cancelada").length}
             </h2>
-          </div>
+          </Card>
         </div>
 
         {cargando ? (
-          <div className="pv-card" style={{ textAlign: "center", padding: "40px" }}>
-            <p style={{ color: "#888" }}>Cargando información de abastecimiento...</p>
-          </div>
+          <Card style={{ textAlign: "center", padding: "40px" }}>
+            <p style={{ color: theme.textMuted }}>Cargando información de abastecimiento...</p>
+          </Card>
         ) : (
           <>
             {tab === "directorio" && (
-              <div className="pv-card">
+              <Card>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
+                  <h3 style={{ color: theme.gold, fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
                     Directorio de Fábricas ({proveedoresFiltrados.length})
                   </h3>
                   <div style={{ display: "flex", gap: "10px" }}>
-                    <input className="pv-in" style={{ width: "250px" }} placeholder="Buscar por nombre, país, RUC..."
+                    <input style={{ ...inputStyle, width: "250px" }} placeholder="Buscar por nombre, país, RUC..."
                       value={buscarProv} onChange={(e) => setBuscarProv(e.target.value)} />
-                    <button onClick={abrirNuevoProv} className="pv-gold">+ Nuevo Proveedor</button>
+                    <Button onClick={abrirNuevoProv}>+ Nuevo Proveedor</Button>
                   </div>
                 </div>
 
                 {proveedoresFiltrados.length === 0 ? (
-                  <p style={{ color: "#777", textAlign: "center", padding: "30px" }}>No hay proveedores registrados.</p>
+                  <p style={{ color: theme.textMuted, textAlign: "center", padding: "30px" }}>No hay proveedores registrados.</p>
                 ) : (
                   <div style={{ overflowX: "auto" }}>
                     <table className="pv-tabla">
@@ -722,42 +718,40 @@ export default function Proveedores() {
                           return (
                             <tr key={p.id}>
                               <td>
-                                <div style={{ color: "#DAA520", fontWeight: 700 }}>{p.nombre}</div>
-                                <div style={{ fontSize: "0.72rem", color: "#777" }}>{p.email} {p.telefono ? `| ${p.telefono}` : ""}</div>
+                                <div style={{ color: theme.gold, fontWeight: 700 }}>{p.nombre}</div>
+                                <div style={{ fontSize: "0.72rem", color: theme.textMuted }}>{p.email} {p.telefono ? `| ${p.telefono}` : ""}</div>
                                 {p.ruc && <div style={{ fontSize: "0.7rem", color: "#666" }}>RUC: {p.ruc}</div>}
                               </td>
                               <td>
                                 <div>{p.contacto || "—"}</div>
-                                <div style={{ fontSize: "0.72rem", color: "#DAA520" }}>📍 {p.pais || "Internacional"}</div>
+                                <div style={{ fontSize: "0.72rem", color: theme.gold }}>📍 {p.pais || "Internacional"}</div>
                               </td>
                               <td style={{ fontSize: "0.76rem" }}>{p.tipo_insumo || "General"}</td>
                               <td style={{ fontSize: "0.76rem" }}>
                                 {limite > 0 ? fmt(limite) : <span style={{ color: "#666" }}>Sin línea</span>}
-                                <div style={{ fontSize: "0.68rem", color: "#777" }}>{p.dias_credito || 0} días</div>
+                                <div style={{ fontSize: "0.68rem", color: theme.textMuted }}>{p.dias_credito || 0} días</div>
                               </td>
                               <td>
-                                <span style={{ color: s.saldo > 0 ? "#e74c3c" : "#2ecc71", fontWeight: 600 }}>{fmt(s.saldo)}</span>
+                                <span style={{ color: s.saldo > 0 ? theme.red : theme.green, fontWeight: 600 }}>{fmt(s.saldo)}</span>
                                 {s.vencido > 0 && (
                                   <div style={{ fontSize: "0.68rem", color: "#c0392b" }}>Vencido {fmt(s.vencido)}</div>
                                 )}
                               </td>
                               <td>
                                 {limite > 0 ? (
-                                  <span style={{ color: excedido ? "#c0392b" : "#2ecc71", fontWeight: 600 }}>
+                                  <span style={{ color: excedido ? "#c0392b" : theme.green, fontWeight: 600 }}>
                                     {fmt(disponible)}{excedido ? " ⚠" : ""}
                                   </span>
                                 ) : <span style={{ color: "#666" }}>—</span>}
                               </td>
                               <td>
-                                <span style={{ color: p.estado === "Activo" ? "#2ecc71" : "#e74c3c", fontWeight: 700, fontSize: "0.78rem" }}>
-                                  ● {p.estado || "Activo"}
-                                </span>
+                                <Badge tone={estadoToTone(p.estado || "Activo")}>{p.estado || "Activo"}</Badge>
                               </td>
                               <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                                <button className="pv-mini" style={{ marginRight: "5px" }} onClick={() => abrirEditarProv(p)}>Editar</button>
-                                <button className="pv-mini" style={{ marginRight: "5px" }}
-                                  onClick={() => { setProvEstadoCuenta(String(p.id)); setTab("estado"); }}>Estado</button>
-                                <button className="pv-rojo" onClick={() => eliminarProveedor(p)}>Eliminar</button>
+                                <Button variant="ghost" style={{ marginRight: "5px" }} onClick={() => abrirEditarProv(p)}>Editar</Button>
+                                <Button variant="ghost" style={{ marginRight: "5px" }}
+                                  onClick={() => { setProvEstadoCuenta(String(p.id)); setTab("estado"); }}>Estado</Button>
+                                <Button variant="outline-red" onClick={() => eliminarProveedor(p)}>Eliminar</Button>
                               </td>
                             </tr>
                           );
@@ -766,21 +760,21 @@ export default function Proveedores() {
                     </table>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {tab === "ordenes" && (
-              <div className="pv-card">
+              <Card>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
+                  <h3 style={{ color: theme.gold, fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
                     Órdenes de Compra ({ordenes.length})
                   </h3>
-                  <button onClick={() => setModalOC(true)} className="pv-gold">+ Nueva Orden</button>
+                  <Button onClick={() => setModalOC(true)}>+ Nueva Orden</Button>
                 </div>
 
                 {ordenes.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "30px" }}>
-                    <p style={{ color: "#777", marginBottom: "6px" }}>No hay órdenes de compra todavía.</p>
+                    <p style={{ color: theme.textMuted, marginBottom: "6px" }}>No hay órdenes de compra todavía.</p>
                     <p style={{ color: "#555", fontSize: "0.78rem" }}>
                       La orden de compra es el documento que conecta al proveedor con el inventario y con la deuda.
                     </p>
@@ -812,7 +806,7 @@ export default function Proveedores() {
                               </td>
                               <td style={{ textAlign: "right", color: "#DAA520", fontWeight: 600 }}>{fmt(o.total)}</td>
                               <td>
-                                <select className="pv-in" style={{ width: "auto", padding: "5px 8px", fontSize: "0.72rem" }}
+                                <select style={{ ...inputStyle, width: "auto", padding: "5px 8px", fontSize: "0.72rem" }}
                                   value={o.estado} disabled={recibida}
                                   onChange={(e) => cambiarEstadoOC(o, e.target.value)}>
                                   {ESTADOS_OC.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -820,13 +814,13 @@ export default function Proveedores() {
                               </td>
                               <td style={{ textAlign: "right" }}>
                                 {recibida ? (
-                                  <span style={{ color: "#2ecc71", fontSize: "0.72rem" }}>✓ Recibida</span>
+                                  <span style={{ color: theme.green, fontSize: "0.72rem" }}>✓ Recibida</span>
                                 ) : o.estado === "Cancelada" ? (
                                   <span style={{ color: "#666", fontSize: "0.72rem" }}>Cancelada</span>
                                 ) : (
-                                  <button className="pv-verde" onClick={() => { setModalRecepcion({ open: true, orden: o }); setNumeroFactura(o.numero || ""); }}>
+                                  <Button variant="outline-green" style={{ padding: "5px 10px", fontSize: "0.7rem" }} onClick={() => { setModalRecepcion({ open: true, orden: o }); setNumeroFactura(o.numero || ""); }}>
                                     📦 Recibir
-                                  </button>
+                                  </Button>
                                 )}
                               </td>
                             </tr>
@@ -836,16 +830,16 @@ export default function Proveedores() {
                     </table>
                   </div>
                 )}
-              </div>
+              </Card>
             )}
 
             {tab === "cxp" && (
               <div>
-                <div className="pv-card" style={{ marginBottom: "22px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
+                <Card style={{ marginBottom: "22px" }}>
+                  <h3 style={{ color: theme.gold, fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
                     Antigüedad de Saldos
                   </h3>
-                  <p style={{ color: "#777", fontSize: "0.75rem", margin: "0 0 16px 0" }}>
+                  <p style={{ color: theme.textMuted, fontSize: "0.75rem", margin: "0 0 16px 0" }}>
                     Cuánto debes y hace cuánto venció. Corriente todavía no vence; el resto son días de atraso.
                   </p>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px" }}>
@@ -858,14 +852,14 @@ export default function Proveedores() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </Card>
 
-                <div className="pv-card">
+                <Card>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "14px" }}>
-                    <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
+                    <h3 style={{ color: theme.gold, fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
                       Gestión de Cuentas por Pagar ({cuentasFiltradas.length})
                     </h3>
-                    <select className="pv-in" style={{ width: "auto" }} value={filtroEstadoCxp} onChange={(e) => setFiltroEstadoCxp(e.target.value)}>
+                    <select style={{ ...inputStyle, width: "auto" }} value={filtroEstadoCxp} onChange={(e) => setFiltroEstadoCxp(e.target.value)}>
                       <option value="PENDIENTES">Pendientes</option>
                       <option value="VENCIDAS">Solo vencidas</option>
                       <option value="PAGADAS">Pagadas</option>
@@ -923,7 +917,7 @@ export default function Proveedores() {
                                 </td>
                                 <td style={{ textAlign: "right" }}>
                                   {saldada ? <span style={{ color: "#2ecc71", fontSize: "0.72rem" }}>✓</span> : (
-                                    <button className="pv-verde" onClick={() => abrirPago(c)}>💵 Pagar</button>
+                                    <Button variant="outline-green" style={{ padding: "5px 10px", fontSize: "0.7rem" }} onClick={() => abrirPago(c)}>💵 Pagar</Button>
                                   )}
                                 </td>
                               </tr>
@@ -933,42 +927,42 @@ export default function Proveedores() {
                       </table>
                     </div>
                   )}
-                </div>
+                </Card>
               </div>
             )}
 
             {tab === "estado" && (
               <div>
-                <div className="pv-card" style={{ marginBottom: "22px" }}>
-                  <label className="pv-lb">Seleccionar proveedor</label>
-                  <select className="pv-in" style={{ maxWidth: "420px" }} value={provEstadoCuenta} onChange={(e) => setProvEstadoCuenta(e.target.value)}>
+                <Card style={{ marginBottom: "22px" }}>
+                  <label style={labelStyle}>Seleccionar proveedor</label>
+                  <select style={{ ...inputStyle, maxWidth: "420px" }} value={provEstadoCuenta} onChange={(e) => setProvEstadoCuenta(e.target.value)}>
                     <option value="">— Elige un proveedor —</option>
                     {proveedores.map((p) => <option key={p.id} value={String(p.id)}>{p.nombre}</option>)}
                   </select>
-                </div>
+                </Card>
 
                 {!provSel ? (
-                  <div className="pv-card" style={{ textAlign: "center", padding: "40px" }}>
-                    <p style={{ color: "#777" }}>Elige un proveedor para ver su estado de cuenta completo.</p>
-                  </div>
+                  <Card style={{ textAlign: "center", padding: "40px" }}>
+                    <p style={{ color: theme.textMuted }}>Elige un proveedor para ver su estado de cuenta completo.</p>
+                  </Card>
                 ) : (
                   <>
-                    <div className="pv-card" style={{ marginBottom: "22px" }}>
-                      <h3 style={{ color: "#DAA520", fontSize: "1.05rem", marginTop: 0, marginBottom: "14px" }}>{provSel.nombre}</h3>
+                    <Card style={{ marginBottom: "22px" }}>
+                      <h3 style={{ color: theme.gold, fontSize: "1.05rem", marginTop: 0, marginBottom: "14px" }}>{provSel.nombre}</h3>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "16px", fontSize: "0.82rem" }}>
-                        <div><span className="pv-lb">Contacto</span><strong style={{ color: "#fff" }}>{provSel.contacto || "—"}</strong></div>
-                        <div><span className="pv-lb">País</span><strong style={{ color: "#fff" }}>{provSel.pais || "—"}</strong></div>
-                        <div><span className="pv-lb">Condiciones</span><strong style={{ color: "#fff" }}>{provSel.condiciones_pago || "—"}</strong></div>
-                        <div><span className="pv-lb">Días de crédito</span><strong style={{ color: "#DAA520" }}>{provSel.dias_credito || 0}</strong></div>
-                        <div><span className="pv-lb">Límite de crédito</span><strong style={{ color: "#DAA520" }}>{fmt(provSel.limite_credito)}</strong></div>
-                        <div><span className="pv-lb">Incoterm</span><strong style={{ color: "#fff" }}>{provSel.incoterm || "—"}</strong></div>
-                        {provSel.banco && <div><span className="pv-lb">Banco</span><strong style={{ color: "#fff" }}>{provSel.banco}</strong></div>}
-                        {provSel.cuenta_bancaria && <div><span className="pv-lb">Cuenta</span><strong style={{ color: "#fff" }}>{provSel.cuenta_bancaria}</strong></div>}
+                        <div><span style={labelStyle}>Contacto</span><strong style={{ color: theme.textLight }}>{provSel.contacto || "—"}</strong></div>
+                        <div><span style={labelStyle}>País</span><strong style={{ color: theme.textLight }}>{provSel.pais || "—"}</strong></div>
+                        <div><span style={labelStyle}>Condiciones</span><strong style={{ color: theme.textLight }}>{provSel.condiciones_pago || "—"}</strong></div>
+                        <div><span style={labelStyle}>Días de crédito</span><strong style={{ color: theme.gold }}>{provSel.dias_credito || 0}</strong></div>
+                        <div><span style={labelStyle}>Límite de crédito</span><strong style={{ color: theme.gold }}>{fmt(provSel.limite_credito)}</strong></div>
+                        <div><span style={labelStyle}>Incoterm</span><strong style={{ color: theme.textLight }}>{provSel.incoterm || "—"}</strong></div>
+                        {provSel.banco && <div><span style={labelStyle}>Banco</span><strong style={{ color: theme.textLight }}>{provSel.banco}</strong></div>}
+                        {provSel.cuenta_bancaria && <div><span style={labelStyle}>Cuenta</span><strong style={{ color: theme.textLight }}>{provSel.cuenta_bancaria}</strong></div>}
                       </div>
-                    </div>
+                    </Card>
 
-                    <div className="pv-card" style={{ marginBottom: "22px" }}>
-                      <h4 style={{ color: "#DAA520", fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "14px" }}>
+                    <Card style={{ marginBottom: "22px" }}>
+                      <h4 style={{ color: theme.gold, fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "14px" }}>
                         Antigüedad de su Saldo
                       </h4>
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "10px" }}>
@@ -981,14 +975,14 @@ export default function Proveedores() {
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </Card>
 
-                    <div className="pv-card" style={{ marginBottom: "22px" }}>
-                      <h4 style={{ color: "#DAA520", fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>
+                    <Card style={{ marginBottom: "22px" }}>
+                      <h4 style={{ color: theme.gold, fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>
                         Facturas ({cuentasProvSel.length})
                       </h4>
                       {cuentasProvSel.length === 0 ? (
-                        <p style={{ color: "#777", fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin facturas registradas.</p>
+                        <p style={{ color: theme.textMuted, fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin facturas registradas.</p>
                       ) : (
                         <table className="pv-tabla">
                           <thead><tr><th>Factura</th><th>Emisión</th><th>Vencimiento</th><th style={{ textAlign: "right" }}>Total</th><th style={{ textAlign: "right" }}>Saldo</th><th>Estado</th></tr></thead>
@@ -1006,15 +1000,15 @@ export default function Proveedores() {
                           </tbody>
                         </table>
                       )}
-                    </div>
+                    </Card>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px" }}>
-                      <div className="pv-card">
-                        <h4 style={{ color: "#DAA520", fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>
+                      <Card>
+                        <h4 style={{ color: theme.gold, fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>
                           Órdenes ({ordenesProvSel.length})
                         </h4>
                         {ordenesProvSel.length === 0 ? (
-                          <p style={{ color: "#777", fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin órdenes.</p>
+                          <p style={{ color: theme.textMuted, fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin órdenes.</p>
                         ) : (
                           <table className="pv-tabla">
                             <thead><tr><th>Orden</th><th>Fecha</th><th style={{ textAlign: "right" }}>Total</th><th>Estado</th></tr></thead>
@@ -1030,14 +1024,14 @@ export default function Proveedores() {
                             </tbody>
                           </table>
                         )}
-                      </div>
+                      </Card>
 
-                      <div className="pv-card">
-                        <h4 style={{ color: "#DAA520", fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>
+                      <Card>
+                        <h4 style={{ color: theme.gold, fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>
                           Pagos ({pagosProvSel.length})
                         </h4>
                         {pagosProvSel.length === 0 ? (
-                          <p style={{ color: "#777", fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin pagos registrados.</p>
+                          <p style={{ color: theme.textMuted, fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin pagos registrados.</p>
                         ) : (
                           <table className="pv-tabla">
                             <thead><tr><th>Fecha</th><th>Método</th><th>Referencia</th><th style={{ textAlign: "right" }}>Monto</th></tr></thead>
@@ -1053,7 +1047,7 @@ export default function Proveedores() {
                             </tbody>
                           </table>
                         )}
-                      </div>
+                      </Card>
                     </div>
                   </>
                 )}
@@ -1066,100 +1060,99 @@ export default function Proveedores() {
       {modalProv && (
         <div className="pv-ov">
           <div className="pv-md" style={{ maxWidth: "760px" }}>
-            <h2 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.15rem", textTransform: "uppercase" }}>
+            <h2 style={{ color: theme.gold, marginTop: 0, fontSize: "1.15rem", textTransform: "uppercase" }}>
               {editandoProv ? "Editar Proveedor" : "Registrar Nueva Fábrica / Proveedor"}
             </h2>
             <form onSubmit={guardarProveedor}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "14px" }}>
-                <div><label className="pv-lb">Nombre de la fábrica *</label>
-                  <input className="pv-in" value={formProv.nombre || ""} required placeholder="Ej: FiberOptic Tech China"
+                <div><label style={labelStyle}>Nombre de la fábrica *</label>
+                  <input style={inputStyle} value={formProv.nombre || ""} required placeholder="Ej: FiberOptic Tech China"
                     onChange={(e) => setFormProv({ ...formProv, nombre: e.target.value })} /></div>
-                <div><label className="pv-lb">Persona de contacto</label>
-                  <input className="pv-in" value={formProv.contacto || ""} placeholder="Ej: Mr. Wang"
+                <div><label style={labelStyle}>Persona de contacto</label>
+                  <input style={inputStyle} value={formProv.contacto || ""} placeholder="Ej: Mr. Wang"
                     onChange={(e) => setFormProv({ ...formProv, contacto: e.target.value })} /></div>
-                <div><label className="pv-lb">Correo</label>
-                  <input className="pv-in" type="email" value={formProv.email || ""}
+                <div><label style={labelStyle}>Correo</label>
+                  <input style={inputStyle} type="email" value={formProv.email || ""}
                     onChange={(e) => setFormProv({ ...formProv, email: e.target.value })} /></div>
-                <div><label className="pv-lb">Teléfono / WhatsApp</label>
-                  <input className="pv-in" value={formProv.telefono || ""} placeholder="+86 ..."
+                <div><label style={labelStyle}>Teléfono / WhatsApp</label>
+                  <input style={inputStyle} value={formProv.telefono || ""} placeholder="+86 ..."
                     onChange={(e) => setFormProv({ ...formProv, telefono: e.target.value })} /></div>
-                <div><label className="pv-lb">RUC / Tax ID</label>
-                  <input className="pv-in" value={formProv.ruc || ""}
+                <div><label style={labelStyle}>RUC / Tax ID</label>
+                  <input style={inputStyle} value={formProv.ruc || ""}
                     onChange={(e) => setFormProv({ ...formProv, ruc: e.target.value })} /></div>
-                <div><label className="pv-lb">País de origen</label>
-                  <input className="pv-in" value={formProv.pais || ""} placeholder="Ej: China"
+                <div><label style={labelStyle}>País de origen</label>
+                  <input style={inputStyle} value={formProv.pais || ""} placeholder="Ej: China"
                     onChange={(e) => setFormProv({ ...formProv, pais: e.target.value })} /></div>
-                <div style={{ gridColumn: "1 / -1" }}><label className="pv-lb">Dirección</label>
-                  <input className="pv-in" value={formProv.direccion || ""}
+                <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Dirección</label>
+                  <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={formProv.direccion || ""}
                     onChange={(e) => setFormProv({ ...formProv, direccion: e.target.value })} /></div>
-                <div><label className="pv-lb">Tipo de insumo</label>
-                  <input className="pv-in" value={formProv.tipo_insumo || ""} placeholder="Ej: Cables ADSS, Herrajes"
+                <div><label style={labelStyle}>Tipo de insumo</label>
+                  <input style={inputStyle} value={formProv.tipo_insumo || ""} placeholder="Ej: Cables ADSS, Herrajes"
                     onChange={(e) => setFormProv({ ...formProv, tipo_insumo: e.target.value })} /></div>
-                <div><label className="pv-lb">Estado</label>
-                  <select className="pv-in" value={formProv.estado || "Activo"}
+                <div><label style={labelStyle}>Estado</label>
+                  <select style={inputStyle} value={formProv.estado || "Activo"}
                     onChange={(e) => setFormProv({ ...formProv, estado: e.target.value })}>
                     <option value="Activo">Activo</option><option value="Inactivo">Inactivo</option>
                   </select></div>
               </div>
 
-              <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.35)", borderRadius: "8px", padding: "16px", marginBottom: "14px" }}>
-                <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 12px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              <div style={{ background: theme.goldSoft, border: `1px dashed ${theme.borderGold}`, borderRadius: "8px", padding: "16px", marginBottom: "14px" }}>
+                <p style={{ fontSize: "0.7rem", color: theme.gold, margin: "0 0 12px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Crédito y condiciones comerciales
                 </p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px" }}>
-                  <div><label className="pv-lb">Límite de crédito</label>
-                    <input className="pv-in" type="number" min={0} value={formProv.limite_credito ?? 0}
+                  <div><label style={labelStyle}>Límite de crédito</label>
+                    <input style={inputStyle} type="number" min={0} value={formProv.limite_credito ?? 0}
                       onChange={(e) => setFormProv({ ...formProv, limite_credito: e.target.value })} /></div>
-                  <div><label className="pv-lb">Días de crédito</label>
-                    <input className="pv-in" type="number" min={0} value={formProv.dias_credito ?? 0}
+                  <div><label style={labelStyle}>Días de crédito</label>
+                    <input style={inputStyle} type="number" min={0} value={formProv.dias_credito ?? 0}
                       onChange={(e) => setFormProv({ ...formProv, dias_credito: e.target.value })} /></div>
-                  <div><label className="pv-lb">Moneda</label>
-                    <select className="pv-in" value={formProv.moneda || "USD"}
+                  <div><label style={labelStyle}>Moneda</label>
+                    <select style={inputStyle} value={formProv.moneda || "USD"}
                       onChange={(e) => setFormProv({ ...formProv, moneda: e.target.value })}>
                       <option value="USD">USD</option><option value="EUR">EUR</option><option value="CNY">CNY</option>
                     </select></div>
-                  <div><label className="pv-lb">Incoterm</label>
-                    <select className="pv-in" value={formProv.incoterm || "FOB"}
+                  <div><label style={labelStyle}>Incoterm</label>
+                    <select style={inputStyle} value={formProv.incoterm || "FOB"}
                       onChange={(e) => setFormProv({ ...formProv, incoterm: e.target.value })}>
                       <option value="EXW">EXW</option><option value="FOB">FOB</option>
                       <option value="CIF">CIF</option><option value="DDP">DDP</option><option value="CFR">CFR</option>
                     </select></div>
                 </div>
                 <div style={{ marginTop: "12px" }}>
-                  <label className="pv-lb">Condiciones de pago (texto libre)</label>
-                  <input className="pv-in" value={formProv.condiciones_pago || ""}
+                  <label style={labelStyle}>Condiciones de pago (texto libre)</label>
+                  <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={formProv.condiciones_pago || ""}
                     onChange={(e) => setFormProv({ ...formProv, condiciones_pago: e.target.value })} />
                 </div>
-                <p style={{ fontSize: "0.7rem", color: "#777", margin: "10px 0 0 0" }}>
+                <p style={{ fontSize: "0.7rem", color: theme.textMuted, margin: "10px 0 0 0" }}>
                   Los días de crédito calculan solos la fecha de vencimiento de cada factura al recibir mercancía.
                 </p>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "14px" }}>
-                <div><label className="pv-lb">Banco</label>
-                  <input className="pv-in" value={formProv.banco || ""}
+                <div><label style={labelStyle}>Banco</label>
+                  <input style={inputStyle} value={formProv.banco || ""}
                     onChange={(e) => setFormProv({ ...formProv, banco: e.target.value })} /></div>
-                <div><label className="pv-lb">Cuenta bancaria</label>
-                  <input className="pv-in" value={formProv.cuenta_bancaria || ""}
+                <div><label style={labelStyle}>Cuenta bancaria</label>
+                  <input style={inputStyle} value={formProv.cuenta_bancaria || ""}
                     onChange={(e) => setFormProv({ ...formProv, cuenta_bancaria: e.target.value })} /></div>
-                <div><label className="pv-lb">SWIFT</label>
-                  <input className="pv-in" value={formProv.swift || ""}
+                <div><label style={labelStyle}>SWIFT</label>
+                  <input style={inputStyle} value={formProv.swift || ""}
                     onChange={(e) => setFormProv({ ...formProv, swift: e.target.value })} /></div>
               </div>
 
               <div style={{ marginBottom: "18px" }}>
-                <label className="pv-lb">Notas y observaciones</label>
-                <textarea className="pv-in" rows={3} style={{ resize: "vertical" }} value={formProv.descripcion || ""}
+                <label style={labelStyle}>Notas y observaciones</label>
+                <textarea style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical" }} rows={3} value={formProv.descripcion || ""}
                   placeholder="Tiempos de entrega, capacidad de producción, historial..."
                   onChange={(e) => setFormProv({ ...formProv, descripcion: e.target.value })} />
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" onClick={() => setModalProv(false)}
-                  style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+                <Button variant="ghost" type="button" onClick={() => setModalProv(false)}>
                   Cancelar
-                </button>
-                <button type="submit" className="pv-gold">{editandoProv ? "Actualizar" : "Guardar Proveedor"}</button>
+                </Button>
+                <Button variant="gold" type="submit">{editandoProv ? "Actualizar" : "Guardar Proveedor"}</Button>
               </div>
             </form>
           </div>
@@ -1169,44 +1162,44 @@ export default function Proveedores() {
       {modalOC && (
         <div className="pv-ov">
           <div className="pv-md" style={{ maxWidth: "880px" }}>
-            <h2 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.15rem", textTransform: "uppercase" }}>Nueva Orden de Compra</h2>
+            <h2 style={{ color: theme.gold, marginTop: 0, fontSize: "1.15rem", textTransform: "uppercase" }}>Nueva Orden de Compra</h2>
 
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "12px", marginBottom: "18px" }}>
-              <div><label className="pv-lb">Proveedor *</label>
-                <select className="pv-in" value={formOC.proveedor_id} onChange={(e) => setFormOC({ ...formOC, proveedor_id: e.target.value })}>
+              <div><label style={labelStyle}>Proveedor *</label>
+                <select style={inputStyle} value={formOC.proveedor_id} onChange={(e) => setFormOC({ ...formOC, proveedor_id: e.target.value })}>
                   <option value="">— Selecciona —</option>
                   {proveedores.filter((p) => p.estado !== "Inactivo").map((p) => (
                     <option key={p.id} value={String(p.id)}>{p.nombre}</option>
                   ))}
                 </select></div>
-              <div><label className="pv-lb">Fecha</label>
-                <input className="pv-in" type="date" value={formOC.fecha} onChange={(e) => setFormOC({ ...formOC, fecha: e.target.value })} /></div>
-              <div><label className="pv-lb">Entrega estimada</label>
-                <input className="pv-in" type="date" value={formOC.fecha_estimada_entrega}
+              <div><label style={labelStyle}>Fecha</label>
+                <input style={inputStyle} type="date" value={formOC.fecha} onChange={(e) => setFormOC({ ...formOC, fecha: e.target.value })} /></div>
+              <div><label style={labelStyle}>Entrega estimada</label>
+                <input style={inputStyle} type="date" value={formOC.fecha_estimada_entrega}
                   onChange={(e) => setFormOC({ ...formOC, fecha_estimada_entrega: e.target.value })} /></div>
-              <div><label className="pv-lb">Incoterm</label>
-                <select className="pv-in" value={formOC.incoterm} onChange={(e) => setFormOC({ ...formOC, incoterm: e.target.value })}>
+              <div><label style={labelStyle}>Incoterm</label>
+                <select style={inputStyle} value={formOC.incoterm} onChange={(e) => setFormOC({ ...formOC, incoterm: e.target.value })}>
                   <option value="">Del proveedor</option>
                   <option value="EXW">EXW</option><option value="FOB">FOB</option>
                   <option value="CIF">CIF</option><option value="DDP">DDP</option><option value="CFR">CFR</option>
                 </select></div>
             </div>
 
-            <div style={{ background: "#050505", border: "1px dashed rgba(218,165,32,0.35)", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
-              <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 12px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <div style={{ background: "#050505", border: `1px dashed ${theme.borderGold}`, borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
+              <p style={{ fontSize: "0.7rem", color: theme.gold, margin: "0 0 12px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Agregar renglón
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr 1fr 1fr auto", gap: "10px", alignItems: "end" }}>
-                <div><label className="pv-lb">Destino</label>
-                  <select className="pv-in" value={itemBorrador.destino}
+                <div><label style={labelStyle}>Destino</label>
+                  <select style={inputStyle} value={itemBorrador.destino}
                     onChange={(e) => setItemBorrador({ ...itemBorrador, destino: e.target.value, materia_prima_id: "", sku_bodega: "" })}>
                     <option value="materia_prima">Materia prima</option>
                     <option value="bodega">Bodega</option>
                   </select></div>
 
                 {itemBorrador.destino === "materia_prima" ? (
-                  <div><label className="pv-lb">Insumo</label>
-                    <select className="pv-in" value={itemBorrador.materia_prima_id}
+                  <div><label style={labelStyle}>Insumo</label>
+                    <select style={inputStyle} value={itemBorrador.materia_prima_id}
                       onChange={(e) => setItemBorrador({ ...itemBorrador, materia_prima_id: e.target.value })}>
                       <option value="">— Selecciona insumo —</option>
                       {materiasPrimas.map((m) => (
@@ -1215,27 +1208,27 @@ export default function Proveedores() {
                     </select></div>
                 ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                    <div><label className="pv-lb">Catálogo</label>
-                      <select className="pv-in" value={itemBorrador.tabla_bodega}
+                    <div><label style={labelStyle}>Catálogo</label>
+                      <select style={inputStyle} value={itemBorrador.tabla_bodega}
                         onChange={(e) => setItemBorrador({ ...itemBorrador, tabla_bodega: e.target.value })}>
                         {TABLAS_BODEGA.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
                       </select></div>
-                    <div><label className="pv-lb">SKU</label>
-                      <input className="pv-in" value={itemBorrador.sku_bodega} placeholder="TL-FO-101"
+                    <div><label style={labelStyle}>SKU</label>
+                      <input style={inputStyle} value={itemBorrador.sku_bodega} placeholder="TL-FO-101"
                         onChange={(e) => setItemBorrador({ ...itemBorrador, sku_bodega: e.target.value })} /></div>
                   </div>
                 )}
 
-                <div><label className="pv-lb">Cantidad</label>
-                  <input className="pv-in" type="number" min={0} value={itemBorrador.cantidad}
+                <div><label style={labelStyle}>Cantidad</label>
+                  <input style={inputStyle} type="number" min={0} value={itemBorrador.cantidad}
                     onChange={(e) => setItemBorrador({ ...itemBorrador, cantidad: e.target.value })} /></div>
-                <div><label className="pv-lb">Precio unit.</label>
-                  <input className="pv-in" type="number" min={0} step="0.01" value={itemBorrador.precio_unitario}
+                <div><label style={labelStyle}>Precio unit.</label>
+                  <input style={inputStyle} type="number" min={0} step="0.01" value={itemBorrador.precio_unitario}
                     onChange={(e) => setItemBorrador({ ...itemBorrador, precio_unitario: e.target.value })} /></div>
-                <button type="button" className="pv-gold" style={{ height: "38px" }} onClick={agregarItemBorrador}>+ Agregar</button>
+                <Button variant="gold" type="button" style={{ height: "38px" }} onClick={agregarItemBorrador}>+ Agregar</Button>
               </div>
               {itemBorrador.destino === "bodega" && (
-                <p style={{ fontSize: "0.7rem", color: "#777", margin: "10px 0 0 0" }}>
+                <p style={{ fontSize: "0.7rem", color: theme.textMuted, margin: "10px 0 0 0" }}>
                   El SKU debe existir ya en el catálogo de bodega. Si no existe, créalo primero en Inventario.
                 </p>
               )}
@@ -1256,7 +1249,7 @@ export default function Proveedores() {
                         <td style={{ textAlign: "right" }}>{fmt(it.precio_unitario)}</td>
                         <td style={{ textAlign: "right", color: "#DAA520", fontWeight: 600 }}>{fmt(it.total)}</td>
                         <td style={{ textAlign: "right" }}>
-                          <button className="pv-rojo" onClick={() => setItemsNuevaOC((prev) => prev.filter((_, i) => i !== idx))}>✕</button>
+                          <Button variant="outline-red" style={{ padding: "3px 9px", fontSize: "0.7rem" }} onClick={() => setItemsNuevaOC((prev) => prev.filter((_, i) => i !== idx))}>✕</Button>
                         </td>
                       </tr>
                     ))}
@@ -1266,34 +1259,33 @@ export default function Proveedores() {
             )}
 
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "16px", marginBottom: "18px" }}>
-              <div><label className="pv-lb">Notas de la orden</label>
-                <textarea className="pv-in" rows={3} style={{ resize: "vertical" }} value={formOC.notas}
+              <div><label style={labelStyle}>Notas de la orden</label>
+                <textarea style={{ ...inputStyle, width: "100%", boxSizing: "border-box", resize: "vertical" }} rows={3} value={formOC.notas}
                   placeholder="Instrucciones de embarque, especificaciones..."
                   onChange={(e) => setFormOC({ ...formOC, notas: e.target.value })} /></div>
-              <div style={{ background: "rgba(218,165,32,0.05)", border: "1px solid rgba(218,165,32,0.25)", borderRadius: "8px", padding: "14px" }}>
+              <div style={{ background: theme.goldSoft, border: `1px solid ${theme.borderGoldLight}`, borderRadius: "8px", padding: "14px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", marginBottom: "8px" }}>
-                  <span style={{ color: "#888" }}>Subtotal</span><strong style={{ color: "#fff" }}>{fmt(subtotalNuevaOC)}</strong>
+                  <span style={{ color: "#888" }}>Subtotal</span><strong style={{ color: theme.textLight }}>{fmt(subtotalNuevaOC)}</strong>
                 </div>
                 <div style={{ marginBottom: "10px" }}>
-                  <label className="pv-lb">Impuestos / flete</label>
-                  <input className="pv-in" type="number" min={0} step="0.01" value={formOC.impuestos}
+                  <label style={labelStyle}>Impuestos / flete</label>
+                  <input style={inputStyle} type="number" min={0} step="0.01" value={formOC.impuestos}
                     onChange={(e) => setFormOC({ ...formOC, impuestos: Number(e.target.value) || 0 })} />
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid rgba(218,165,32,0.25)", paddingTop: "10px" }}>
-                  <span style={{ color: "#DAA520", fontSize: "0.82rem" }}>TOTAL</span>
-                  <strong style={{ color: "#DAA520", fontSize: "1.1rem" }}>{fmt(totalNuevaOC)}</strong>
+                <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${theme.borderGoldLight}`, paddingTop: "10px" }}>
+                  <span style={{ color: theme.gold, fontSize: "0.82rem" }}>TOTAL</span>
+                  <strong style={{ color: theme.gold, fontSize: "1.1rem" }}>{fmt(totalNuevaOC)}</strong>
                 </div>
               </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button type="button" onClick={() => { setModalOC(false); setItemsNuevaOC([]); }}
-                style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+              <Button variant="ghost" type="button" onClick={() => { setModalOC(false); setItemsNuevaOC([]); }}>
                 Cancelar
-              </button>
-              <button className="pv-gold" disabled={guardandoOC} onClick={guardarOrdenCompra}>
+              </Button>
+              <Button variant="gold" disabled={guardandoOC} onClick={guardarOrdenCompra}>
                 {guardandoOC ? "Guardando..." : "Crear Orden de Compra"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -1325,8 +1317,8 @@ export default function Proveedores() {
               </div>
 
               <div style={{ marginBottom: "16px" }}>
-                <label className="pv-lb">Número de factura del proveedor</label>
-                <input className="pv-in" value={numeroFactura} placeholder="Ej: FAC-9921"
+                <label style={labelStyle}>Número de factura del proveedor</label>
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={numeroFactura} placeholder="Ej: FAC-9921"
                   onChange={(e) => setNumeroFactura(e.target.value)} />
               </div>
 
@@ -1355,14 +1347,13 @@ export default function Proveedores() {
               )}
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button type="button" onClick={() => setModalRecepcion({ open: false, orden: null })}
-                  style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+                <Button variant="ghost" type="button" onClick={() => setModalRecepcion({ open: false, orden: null })}>
                   Cancelar
-                </button>
-                <button className="pv-gold" disabled={recibiendo} onClick={recibirOrden}
-                  style={{ background: "#2ecc71" }}>
+                </Button>
+                <Button variant="gold" disabled={recibiendo} onClick={recibirOrden}
+                  style={{ background: theme.green, boxShadow: "none" }}>
                   {recibiendo ? "Procesando..." : "Confirmar Recepción"}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -1382,43 +1373,42 @@ export default function Proveedores() {
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "14px" }}>
-              <div><label className="pv-lb">Monto a pagar</label>
-                <input className="pv-in" type="number" min={0} step="0.01" value={formPago.monto}
+              <div><label style={labelStyle}>Monto a pagar</label>
+                <input style={inputStyle} type="number" min={0} step="0.01" value={formPago.monto}
                   onChange={(e) => setFormPago({ ...formPago, monto: Number(e.target.value) || 0 })} /></div>
-              <div><label className="pv-lb">Fecha</label>
-                <input className="pv-in" type="date" value={formPago.fecha}
+              <div><label style={labelStyle}>Fecha</label>
+                <input style={inputStyle} type="date" value={formPago.fecha}
                   onChange={(e) => setFormPago({ ...formPago, fecha: e.target.value })} /></div>
-              <div><label className="pv-lb">Método</label>
-                <select className="pv-in" value={formPago.metodo_pago}
+              <div><label style={labelStyle}>Método</label>
+                <select style={inputStyle} value={formPago.metodo_pago}
                   onChange={(e) => setFormPago({ ...formPago, metodo_pago: e.target.value })}>
                   <option value="Transferencia">Transferencia</option>
                   <option value="Cheque">Cheque</option>
                   <option value="Efectivo">Efectivo</option>
                   <option value="Carta de Crédito">Carta de Crédito</option>
                 </select></div>
-              <div><label className="pv-lb">Referencia</label>
-                <input className="pv-in" value={formPago.referencia} placeholder="N° de transferencia"
+              <div><label style={labelStyle}>Referencia</label>
+                <input style={inputStyle} value={formPago.referencia} placeholder="N° de transferencia"
                   onChange={(e) => setFormPago({ ...formPago, referencia: e.target.value })} /></div>
-              <div style={{ gridColumn: "1 / -1" }}><label className="pv-lb">Registrado por</label>
-                <input className="pv-in" value={formPago.autor} placeholder="Tu nombre"
+              <div style={{ gridColumn: "1 / -1" }}><label style={labelStyle}>Registrado por</label>
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={formPago.autor} placeholder="Tu nombre"
                   onChange={(e) => setFormPago({ ...formPago, autor: e.target.value })} /></div>
             </div>
 
-            <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "8px", padding: "13px", marginBottom: "18px", fontSize: "0.8rem" }}>
+            <div style={{ background: theme.goldSoft, border: `1px dashed ${theme.borderGold}`, borderRadius: "8px", padding: "13px", marginBottom: "18px", fontSize: "0.8rem" }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "#888" }}>Saldo después del pago</span>
-                <strong style={{ color: Number(modalPago.cuenta.saldo_pendiente) - formPago.monto <= 0.009 ? "#2ecc71" : "#e74c3c" }}>
+                <strong style={{ color: Number(modalPago.cuenta.saldo_pendiente) - formPago.monto <= 0.009 ? theme.green : theme.red }}>
                   {fmt(Math.max(0, Number(modalPago.cuenta.saldo_pendiente) - formPago.monto))}
                 </strong>
               </div>
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button type="button" onClick={() => setModalPago({ open: false, cuenta: null })}
-                style={{ background: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "6px", padding: "10px 20px", cursor: "pointer", fontSize: "0.78rem" }}>
+              <Button variant="ghost" type="button" onClick={() => setModalPago({ open: false, cuenta: null })}>
                 Cancelar
-              </button>
-              <button className="pv-gold" style={{ background: "#2ecc71" }} onClick={registrarPago}>Registrar Pago</button>
+              </Button>
+              <Button variant="gold" style={{ background: theme.green, boxShadow: "none" }} onClick={registrarPago}>Registrar Pago</Button>
             </div>
           </div>
         </div>

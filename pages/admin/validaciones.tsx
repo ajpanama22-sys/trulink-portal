@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import { Card, PageHeader, Button, inputStyle } from "../../lib/ui";
 
 export default function AdminValidaciones() {
   const [dataList, setDataList] = useState<any[]>([]);
@@ -56,23 +58,23 @@ export default function AdminValidaciones() {
     const { data, error } = await supabase
       .from("solicitudes_acceso")
       .select("*");
-      
+
     if (error) {
       console.error("Error al cargar solicitudes:", error);
     } else {
       // Filtro SÚPER BLINDADO
       const pendientesLimpias = (data || []).filter(item => {
         const s = String(item.status || "").trim().toLowerCase();
-        
+
         if (s.includes("aprob") || s.includes("rechaz")) {
-          return false; 
+          return false;
         }
-        
+
         return s === "" || s === "pendiente" || s === "pending" || s === "null" || s === "undefined";
       });
 
       setDataList(pendientesLimpias);
-      
+
       const initialPagos: { [key: string]: { tipo: string; porcentaje: number } } = {};
       pendientesLimpias.forEach((item: any) => {
         initialPagos[item.id] = { tipo: "50%", porcentaje: 50 };
@@ -174,7 +176,7 @@ export default function AdminValidaciones() {
   const confirmarAccion = async () => {
     const { id, tipoAccion, emailCliente, razonSocialParam, itemCompleto } = modalConfig;
     const supabase = getSupabase();
-    
+
     if (!supabase || !tipoAccion) return;
 
     setProcesandoAccion(true);
@@ -235,8 +237,8 @@ export default function AdminValidaciones() {
       // 2. Actualizar solicitud a 'aprobado'
       const { data: confirmData, error: updateError } = await supabase
         .from("solicitudes_acceso")
-        .update({ 
-          status: 'aprobado', 
+        .update({
+          status: 'aprobado',
           password_token: passwordToken
         })
         .eq('id', id)
@@ -280,7 +282,7 @@ export default function AdminValidaciones() {
       // 1. Actualizar solicitud a 'rechazado'
       const { data: confirmReject, error: rejectError } = await supabase
         .from("solicitudes_acceso")
-        .update({ 
+        .update({
             status: 'rechazado',
             motivo_rechazo: motivoInterno
         })
@@ -317,36 +319,28 @@ export default function AdminValidaciones() {
 
     setDataList(prev => prev.filter(item => item.id !== id));
     setFilteredList(prev => prev.filter(item => item.id !== id));
-    
+
     setProcesandoAccion(false);
     cerrarModal();
   };
 
   return (
-    <div style={{ backgroundColor: "#080808", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "sans-serif" }}>
+    <div style={{ display: "flex" }}>
       <Sidebar currentActive="validaciones" />
 
-      <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box", position: "relative" }}>
-        
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
-          <div>
-            <h1 style={{ fontSize: "1.8rem", fontWeight: "700", color: "#DAA520", margin: "0 0 8px 0", letterSpacing: "1.5px" }}>
-              VALIDACIÓN DE INSCRIPCIONES
-            </h1>
-            <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
-              Gestión, asignación de condiciones comerciales y aprobación de solicitudes de acceso.
-            </p>
-          </div>
-          <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "10px 20px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.85rem", letterSpacing: "1px" }}>
-            PENDIENTES: {filteredList.length}
-          </div>
-        </div>
+      <div style={pageWrapStyle()}>
 
-        <div style={{ background: "#111111", border: "1px solid #222", borderRadius: "10px", padding: "20px", marginBottom: "30px", display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center", justifyContent: "space-between" }}>
+        <PageHeader
+          title="VALIDACIÓN DE INSCRIPCIONES"
+          subtitle="Gestión, asignación de condiciones comerciales y aprobación de solicitudes de acceso."
+          counterLabel={`PENDIENTES: ${filteredList.length}`}
+        />
+
+        <Card style={{ display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-              <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>FILTRAR POR:</label>
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} style={selectStyle}>
+              <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>FILTRAR POR:</label>
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value as any)} style={{ ...inputStyle, cursor: "pointer" }}>
                 <option value="todos">Todos los registros</option>
                 <option value="dia">Por Día</option>
                 <option value="mes">Por Mes</option>
@@ -357,30 +351,30 @@ export default function AdminValidaciones() {
 
             {filterType === "dia" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>DÍA:</label>
+                <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>DÍA:</label>
                 <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} style={inputStyle} />
               </div>
             )}
             {filterType === "mes" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>MES:</label>
+                <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>MES:</label>
                 <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} style={inputStyle} />
               </div>
             )}
             {filterType === "anio" && (
               <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>AÑO:</label>
+                <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>AÑO:</label>
                 <input type="number" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} style={{ ...inputStyle, width: "100px" }} />
               </div>
             )}
             {filterType === "rango" && (
               <div style={{ display: "flex", gap: "10px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>DESDE:</label>
+                  <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>DESDE:</label>
                   <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>HASTA:</label>
+                  <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>HASTA:</label>
                   <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} />
                 </div>
               </div>
@@ -388,20 +382,20 @@ export default function AdminValidaciones() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-            <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>ORDENAR:</label>
-            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")} style={selectStyle}>
+            <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>ORDENAR:</label>
+            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")} style={{ ...inputStyle, cursor: "pointer" }}>
               <option value="desc">Más recientes primero</option>
               <option value="asc">Más antiguos primero</option>
             </select>
           </div>
-        </div>
+        </Card>
 
         {loading ? (
-          <div style={{ textAlign: "center", padding: "60px", color: "#666" }}>Cargando solicitudes pendientes...</div>
+          <div style={{ textAlign: "center", padding: "60px", color: theme.textMuted }}>Cargando solicitudes pendientes...</div>
         ) : filteredList.length === 0 ? (
-          <div style={{ background: "#111", border: "1px solid #222", borderRadius: "12px", padding: "60px", textAlign: "center" }}>
-            <p style={{ color: "#777", fontStyle: "italic", margin: 0 }}>No se encontraron solicitudes pendientes. Todo al día.</p>
-          </div>
+          <Card style={{ padding: "60px", textAlign: "center" }}>
+            <p style={{ color: theme.textMuted, fontStyle: "italic", margin: 0 }}>No se encontraron solicitudes pendientes. Todo al día.</p>
+          </Card>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "20px" }}>
             {filteredList.map((item: any) => {
@@ -409,39 +403,55 @@ export default function AdminValidaciones() {
               const currentPago = formasPago[item.id] || { tipo: "50%", porcentaje: 50 };
 
               return (
-                <div key={item.id} style={{ background: "#111111", border: "1px solid #222", borderRadius: "12px", padding: "25px 30px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 4px 20px rgba(0,0,0,0.5)" }}>
-                  
+                <Card key={item.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 0 }}>
+
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1, marginRight: "30px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                      <span style={{ fontSize: "0.75rem", background: "rgba(218, 165, 32, 0.15)", color: "#DAA520", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
+                      <span style={{ fontSize: "0.75rem", background: theme.goldSoft, color: theme.gold, padding: "3px 8px", borderRadius: theme.radiusSm, fontWeight: 600 }}>
                         ID: {item.id ? item.id.substring(0, 8) : 'N/A'}
                       </span>
-                      <span style={{ fontSize: "0.75rem", color: "#888" }}>Fecha: {fechaCreacion}</span>
+                      <span style={{ fontSize: "0.75rem", color: theme.textMuted }}>Fecha: {fechaCreacion}</span>
                       {item.tipo_solicitud && (
-                        <span style={{ fontSize: "0.75rem", background: "#222", color: "#AAA", padding: "3px 8px", borderRadius: "4px" }}>
+                        <span style={{ fontSize: "0.75rem", background: theme.neutralBg, color: theme.neutral, padding: "3px 8px", borderRadius: theme.radiusSm }}>
                           Tipo: {item.tipo_solicitud}
                         </span>
                       )}
                     </div>
 
-                    <div style={{ fontWeight: "600", fontSize: "1.05rem", color: "#FFF" }}>
+                    <div style={{ fontWeight: 600, fontSize: "1.05rem", color: theme.textLight }}>
                       {item.razon_social || 'Sin Razón Social'}
                     </div>
 
-                    <div style={{ fontSize: "0.88rem", color: "#AAA", display: "flex", gap: "20px", flexWrap: "wrap" }}>
-                      <span>Correo: <strong style={{ color: "#DAA520" }}>{item.email}</strong></span>
-                      {item.pais && <span>País: <strong style={{ color: "#FFF" }}>{item.pais}</strong></span>}
+                    <div style={{ fontSize: "0.88rem", color: theme.textMuted, display: "flex", gap: "20px", flexWrap: "wrap" }}>
+                      <span>Correo: <strong style={{ color: theme.gold }}>{item.email}</strong></span>
+                      {item.pais && <span>País: <strong style={{ color: theme.textLight }}>{item.pais}</strong></span>}
                       {(item.telefono_celular || item.telefono_oficina) && (
-                        <span>Teléfono: <strong style={{ color: "#FFF" }}>{item.telefono_celular || item.telefono_oficina}</strong></span>
+                        <span>Teléfono: <strong style={{ color: theme.textLight }}>{item.telefono_celular || item.telefono_oficina}</strong></span>
                       )}
-                      {item.perfil_cliente && <span>Perfil: <strong style={{ color: "#DAA520" }}>{item.perfil_cliente}</strong></span>}
-                      {item.industria && <span>Industria: <strong style={{ color: "#DAA520" }}>{item.industria}</strong></span>}
+                      {item.perfil_cliente && <span>Perfil: <strong style={{ color: theme.gold }}>{item.perfil_cliente}</strong></span>}
+                      {item.industria && <span>Industria: <strong style={{ color: theme.gold }}>{item.industria}</strong></span>}
                     </div>
 
                     <div>
                       {(() => {
                         const rawVal = item.documento_url || item.documentos_url || item.url || item.documento;
                         const supabaseClient = getSupabase();
+                        const docLinkStyle = {
+                          padding: "11px 22px",
+                          borderRadius: theme.radiusSm,
+                          fontWeight: 600,
+                          fontSize: "0.8rem",
+                          letterSpacing: "0.8px",
+                          textDecoration: "none",
+                          display: "block",
+                          textAlign: "center" as const,
+                          background: theme.goldSoft,
+                          color: theme.gold,
+                          border: `1px solid ${theme.borderGoldInput}`,
+                          width: "220px",
+                          boxSizing: "border-box" as const,
+                          marginTop: "5px",
+                        };
 
                         if (rawVal) {
                           let filePaths: string[] = [];
@@ -475,7 +485,7 @@ export default function AdminValidaciones() {
                                 cleanPath = parts[parts.length - 1];
                               }
                               if (cleanPath.startsWith('/')) cleanPath = cleanPath.substring(1);
-                              
+
                               const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(cleanPath);
                               return publicData?.publicUrl || null;
                             }
@@ -484,7 +494,7 @@ export default function AdminValidaciones() {
 
                           if (validLinks.length > 0) {
                             return validLinks.map((link, idx) => (
-                              <a key={idx} href={link} target="_blank" rel="noreferrer" style={{ ...btnDocumentos, display: "block", marginBottom: "5px" }}>
+                              <a key={idx} href={link} target="_blank" rel="noreferrer" style={docLinkStyle}>
                                 📄 VER ARCHIVOS PDF {validLinks.length > 1 ? idx + 1 : ''}
                               </a>
                             ));
@@ -495,25 +505,25 @@ export default function AdminValidaciones() {
                           const { data: publicData } = supabaseClient.storage.from("registros").getPublicUrl(`${item.id}_documento`);
                           const fallbackUrl = publicData?.publicUrl || "#";
                           return (
-                            <a href={fallbackUrl} target="_blank" rel="noreferrer" style={btnDocumentos}>
+                            <a href={fallbackUrl} target="_blank" rel="noreferrer" style={docLinkStyle}>
                               📄 VER ARCHIVOS PDF
                             </a>
                           );
                         }
 
                         return (
-                          <span style={{ fontSize: "0.8rem", color: "#666" }}>Sin documentos PDF adjuntos</span>
+                          <span style={{ fontSize: "0.8rem", color: theme.textMuted }}>Sin documentos PDF adjuntos</span>
                         );
                       })()}
                     </div>
 
-                    <div style={{ marginTop: "10px", background: "rgba(20,20,20,0.8)", border: "1px solid rgba(218, 165, 32, 0.2)", padding: "12px 15px", borderRadius: "8px", display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center" }}>
+                    <div style={{ marginTop: "10px", background: "rgba(20,20,20,0.8)", border: `1px solid ${theme.borderGoldLight}`, padding: "12px 15px", borderRadius: theme.radiusSm, display: "flex", flexWrap: "wrap", gap: "15px", alignItems: "center" }}>
                       <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <label style={{ fontSize: "0.7rem", color: "#DAA520", fontWeight: "700", letterSpacing: "0.5px" }}>FORMA DE PAGO:</label>
-                        <select 
-                          value={currentPago.tipo} 
+                        <label style={{ fontSize: "0.7rem", color: theme.gold, fontWeight: 700, letterSpacing: "0.5px" }}>FORMA DE PAGO:</label>
+                        <select
+                          value={currentPago.tipo}
                           onChange={(e) => handleTipoPagoChange(item.id, e.target.value)}
-                          style={selectStyle}
+                          style={{ ...inputStyle, cursor: "pointer" }}
                         >
                           <option value="50%">50% Anticipo / 50% antes despacho (3 días antes)</option>
                           <option value="100%">100% a la Orden de Compra</option>
@@ -522,20 +532,20 @@ export default function AdminValidaciones() {
                       </div>
 
                       {currentPago.tipo === "ESPECIAL" && (
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(218, 165, 32, 0.05)", padding: "6px 10px", borderRadius: "6px", border: "1px dashed rgba(218, 165, 32, 0.4)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", background: theme.goldSoft, padding: "6px 10px", borderRadius: theme.radiusSm, border: `1px dashed ${theme.borderGoldCounter}` }}>
                           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                            <label style={{ fontSize: "0.65rem", color: "#DAA520", fontWeight: "600" }}>% A LA ORDEN:</label>
-                            <input 
-                              type="number" 
-                              min="0" 
-                              max="100" 
+                            <label style={{ fontSize: "0.65rem", color: theme.gold, fontWeight: 600 }}>% A LA ORDEN:</label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
                               value={currentPago.porcentaje}
                               onChange={(e) => handlePorcentajeEspecialChange(item.id, parseInt(e.target.value) || 0)}
-                              style={{ background: "#000", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "4px", padding: "4px 8px", width: "65px", textAlign: "center", fontWeight: "700" }}
+                              style={{ ...inputStyle, background: theme.inputBg, color: theme.gold, border: `1px solid ${theme.gold}`, width: "65px", textAlign: "center", fontWeight: 700 }}
                             />
                           </div>
-                          <div style={{ fontSize: "0.75rem", color: "#AAA", alignSelf: "flex-end", paddingBottom: "4px" }}>
-                            Saldo (3 días antes despacho): <strong style={{ color: "#2ecc71" }}>{100 - currentPago.porcentaje}%</strong>
+                          <div style={{ fontSize: "0.75rem", color: theme.textMuted, alignSelf: "flex-end", paddingBottom: "4px" }}>
+                            Saldo (3 días antes despacho): <strong style={{ color: theme.green }}>{100 - currentPago.porcentaje}%</strong>
                           </div>
                         </div>
                       )}
@@ -544,15 +554,15 @@ export default function AdminValidaciones() {
                   </div>
 
                   <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <button onClick={() => abrirModal(item.id, 'ACTIVAR', item.email, item.razon_social, item)} style={btnActivar}>
+                    <Button variant="outline-green" onClick={() => abrirModal(item.id, 'ACTIVAR', item.email, item.razon_social, item)}>
                       ACTIVAR
-                    </button>
-                    <button onClick={() => abrirModal(item.id, 'RECHAZAR', item.email, item.razon_social, item)} style={btnRechazar}>
+                    </Button>
+                    <Button variant="outline-red" onClick={() => abrirModal(item.id, 'RECHAZAR', item.email, item.razon_social, item)}>
                       RECHAZAR
-                    </button>
+                    </Button>
                   </div>
 
-                </div>
+                </Card>
               );
             })}
           </div>
@@ -560,149 +570,45 @@ export default function AdminValidaciones() {
       </div>
 
       {modalConfig.isOpen && (
-        <div style={overlayStyle}>
-          <div style={modalStyle}>
-            <h2 style={{ color: modalConfig.tipoAccion === 'ACTIVAR' ? "#2ecc71" : "#e74c3c", marginTop: 0, fontSize: "1.2rem", letterSpacing: "1px" }}>
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0, 0, 0, 0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
+          <Card style={{ width: "100%", maxWidth: "500px", marginBottom: 0 }}>
+            <h2 style={{ color: modalConfig.tipoAccion === 'ACTIVAR' ? theme.green : theme.red, marginTop: 0, fontSize: "1.2rem", letterSpacing: "1px" }}>
               {modalConfig.tipoAccion === 'ACTIVAR' ? 'ACTIVACIÓN DE CLIENTE' : 'RECHAZAR SOLICITUD'}
             </h2>
-            <p style={{ fontSize: "0.9rem", color: "#CCC", marginBottom: "15px" }}>
-              {modalConfig.tipoAccion === 'ACTIVAR' 
-                ? `Añade un comentario u observación interna para el expediente de ${modalConfig.razonSocialParam} (No se envía por correo):` 
+            <p style={{ fontSize: "0.9rem", color: theme.textMuted, marginBottom: "15px" }}>
+              {modalConfig.tipoAccion === 'ACTIVAR'
+                ? `Añade un comentario u observación interna para el expediente de ${modalConfig.razonSocialParam} (No se envía por correo):`
                 : `Añade un motivo o nota interna para el rechazo de ${modalConfig.razonSocialParam} (No se envía por correo):`}
             </p>
-            
-            <textarea 
-              rows={3} 
+
+            <textarea
+              rows={3}
               placeholder="Nota o comentario interno..."
               value={comentarioAdmin}
               onChange={(e) => setComentarioAdmin(e.target.value)}
-              style={textareaStyle}
+              style={{ ...inputStyle, width: "100%", resize: "none", boxSizing: "border-box", fontSize: "0.95rem" }}
             />
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-              <button 
-                onClick={cerrarModal} 
+              <Button
+                variant="ghost"
+                onClick={cerrarModal}
                 disabled={procesandoAccion}
-                style={{ ...baseBtn, background: "transparent", color: "#AAA", border: "1px solid #555" }}
               >
                 CANCELAR
-              </button>
-              <button 
-                onClick={confirmarAccion} 
+              </Button>
+              <Button
+                variant="gold"
+                onClick={confirmarAccion}
                 disabled={procesandoAccion}
-                style={{ 
-                  ...baseBtn, 
-                  background: modalConfig.tipoAccion === 'ACTIVAR' ? "rgba(46, 204, 113, 0.2)" : "rgba(231, 76, 60, 0.2)", 
-                  color: modalConfig.tipoAccion === 'ACTIVAR' ? "#2ecc71" : "#e74c3c", 
-                  border: `1px solid ${modalConfig.tipoAccion === 'ACTIVAR' ? "#2ecc71" : "#e74c3c"}`,
-                  opacity: procesandoAccion ? 0.5 : 1
-                }}
               >
                 {procesandoAccion ? "PROCESANDO..." : "CONFIRMAR ACCIÓN"}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
     </div>
   );
 }
-
-const selectStyle = {
-  background: "#1a1a1a",
-  color: "#E0E0E0",
-  border: "1px solid rgba(218, 165, 32, 0.3)",
-  borderRadius: "6px",
-  padding: "8px 12px",
-  fontSize: "0.85rem",
-  outline: "none",
-  cursor: "pointer"
-};
-
-const inputStyle = {
-  background: "#1a1a1a",
-  color: "#E0E0E0",
-  border: "1px solid rgba(218, 165, 32, 0.3)",
-  borderRadius: "6px",
-  padding: "7px 10px",
-  fontSize: "0.85rem",
-  outline: "none"
-};
-
-const baseBtn = {
-  padding: "11px 22px",
-  cursor: "pointer",
-  borderRadius: "6px",
-  fontWeight: "600",
-  fontSize: "0.8rem",
-  letterSpacing: "0.8px",
-  transition: "all 0.2s ease",
-  textDecoration: "none",
-  display: "inline-block",
-  textAlign: "center" as const
-};
-
-const btnDocumentos = {
-  ...baseBtn,
-  background: "rgba(218, 165, 32, 0.05)",
-  color: "#DAA525",
-  border: "1px solid rgba(218, 165, 32, 0.4)",
-  width: "220px",
-  boxSizing: "border-box" as const,
-  marginTop: "5px"
-};
-
-const btnActivar = {
-  ...baseBtn,
-  background: "transparent",
-  color: "#2ecc71",
-  border: "1px solid rgba(46, 204, 113, 0.5)",
-  minWidth: "110px"
-};
-
-const btnRechazar = {
-  ...baseBtn,
-  background: "transparent",
-  color: "#e74c3c",
-  border: "1px solid rgba(231, 76, 60, 0.5)",
-  minWidth: "110px"
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  backgroundColor: "rgba(0, 0, 0, 0.85)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 1000,
-  backdropFilter: "blur(4px)"
-};
-
-const modalStyle: React.CSSProperties = {
-  background: "#111111",
-  border: "1px solid rgba(218, 165, 32, 0.5)",
-  borderRadius: "12px",
-  padding: "30px",
-  width: "100%",
-  maxWidth: "500px",
-  boxShadow: "0 10px 40px rgba(0,0,0,0.8)"
-};
-
-const textareaStyle: React.CSSProperties = {
-  width: "100%",
-  background: "#1a1a1a",
-  color: "#E0E0E0",
-  border: "1px solid rgba(218, 165, 32, 0.4)",
-  borderRadius: "8px",
-  padding: "12px",
-  fontSize: "0.95rem",
-  outline: "none",
-  resize: "none",
-  boxSizing: "border-box",
-  fontFamily: "inherit"
-};

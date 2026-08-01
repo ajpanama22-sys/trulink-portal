@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
+import { theme } from "../../lib/theme";
+import { Card, Heading, Button, Badge, inputStyle } from "../../lib/ui";
 
 /* ============================================================
    MATERIA PRIMA — TRULINK FIBER LLC
@@ -255,85 +257,81 @@ export default function MateriaPrima() {
      ======================================================== */
 
   return (
-    <div style={cardBox}>
+    <Card style={{ padding: "22px", marginBottom: 0 }}>
       <style jsx global>{`
-        .mp-in { width:100%; background:#050505; color:#DAA520; border:1px solid rgba(218,165,32,0.4);
-                 padding:9px 11px; border-radius:6px; outline:none; font-size:0.82rem;
-                 box-sizing:border-box; font-family:inherit; }
         .mp-lb { display:block; font-size:0.66rem; color:rgba(255,255,255,0.55); margin-bottom:5px;
                  text-transform:uppercase; letter-spacing:0.5px; }
         .mp-ov { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center;
                  justify-content:center; z-index:1000; padding:20px; }
-        .mp-md { background:#111; border:1px solid rgba(218,165,32,0.5); border-radius:12px; padding:26px;
-                 width:100%; max-height:90vh; overflow-y:auto; }
         .mp-chip { padding:2px 8px; border-radius:10px; font-size:0.64rem; font-weight:600; }
       `}</style>
 
       <div style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "15px" }}>
         <div>
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", textTransform: "uppercase", margin: "0 0 6px 0" }}>
+          <Heading style={{ textTransform: "uppercase", margin: "0 0 6px 0" }}>
             Bodega de Materia Prima
-          </h2>
-          <p style={{ color: "#888", fontSize: "0.78rem", margin: 0, lineHeight: 1.5 }}>
+          </Heading>
+          <p style={{ color: theme.textMuted, fontSize: "0.78rem", margin: 0, lineHeight: 1.5 }}>
             Existencias reales. Suben con las recepciones de compra en Proveedores,
             y bajan al cerrar producción en Manufactura.
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button onClick={() => setModalNuevo(true)} style={btn("#DAA520", "#000")}>+ Nuevo Insumo</button>
-          <button onClick={() => setModalBitacora(true)} style={btn("transparent", "#3498db")}>
+          <Button variant="gold" onClick={() => setModalNuevo(true)}>+ Nuevo Insumo</Button>
+          <Button variant="outline-gold" onClick={() => setModalBitacora(true)}>
             Bitácora de Movimientos
-          </button>
-          <button onClick={cargar} style={btn("transparent", "#DAA520")}>↻ Actualizar</button>
+          </Button>
+          <Button variant="ghost" onClick={cargar}>↻ Actualizar</Button>
         </div>
       </div>
 
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "14px", marginBottom: "20px" }}>
-        <div style={kpi}>
+        <Card style={{ padding: "14px 16px", marginBottom: 0 }}>
           <span className="mp-lb">Insumos Activos</span>
-          <h3 style={{ color: "#DAA520", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{insumos.filter((i) => i.activo).length}</h3>
-        </div>
-        <div style={kpi}>
+          <h3 style={{ color: theme.gold, fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{insumos.filter((i) => i.activo).length}</h3>
+        </Card>
+        <Card style={{ padding: "14px 16px", marginBottom: 0 }}>
           <span className="mp-lb">Bajo Mínimo</span>
-          <h3 style={{ color: bajoMinimo.length > 0 ? "#e67e22" : "#2ecc71", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{bajoMinimo.length}</h3>
-        </div>
-        <div style={kpi}>
+          <h3 style={{ color: bajoMinimo.length > 0 ? "#e67e22" : theme.green, fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{bajoMinimo.length}</h3>
+        </Card>
+        <Card style={{ padding: "14px 16px", marginBottom: 0 }}>
           <span className="mp-lb">Sin Existencia</span>
-          <h3 style={{ color: sinStock.length > 0 ? "#e74c3c" : "#2ecc71", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{sinStock.length}</h3>
-        </div>
-        <div style={kpi}>
+          <h3 style={{ color: sinStock.length > 0 ? theme.red : theme.green, fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{sinStock.length}</h3>
+        </Card>
+        <Card style={{ padding: "14px 16px", marginBottom: 0 }}>
           <span className="mp-lb">Movimientos Recientes</span>
-          <h3 style={{ color: "#DAA520", fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{movimientos.length}</h3>
-        </div>
+          <h3 style={{ color: theme.gold, fontSize: "1.4rem", margin: "4px 0 0 0", fontWeight: 400 }}>{movimientos.length}</h3>
+        </Card>
       </div>
 
       {/* Filtros */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "18px", flexWrap: "wrap", alignItems: "center" }}>
         {(["TODOS", ...TIPOS_CABLE] as const).map((t) => (
-          <button key={t} onClick={() => setFiltroCable(t as any)} style={tab(filtroCable === t)}>
+          <Button key={t} variant={filtroCable === t ? "gold" : "outline-gold"} onClick={() => setFiltroCable(t as any)}>
             {t === "TODOS" ? "TODAS LAS MATERIAS PRIMAS" : t}
-          </button>
+          </Button>
         ))}
-        <input className="mp-in" style={{ width: "250px", marginLeft: "auto" }}
+        <input
+          style={{ ...inputStyle, width: "250px", marginLeft: "auto", boxSizing: "border-box" }}
           placeholder="Buscar código, nombre o categoría..."
           value={buscar} onChange={(e) => setBuscar(e.target.value)} />
       </div>
 
       {cargando ? (
-        <p style={{ color: "#888", textAlign: "center", padding: "40px" }}>Cargando existencias...</p>
+        <p style={{ color: theme.textMuted, textAlign: "center", padding: "40px" }}>Cargando existencias...</p>
       ) : filtrados.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px" }}>
-          <p style={{ color: "#888", marginBottom: "6px" }}>No hay insumos que coincidan.</p>
-          <p style={{ color: "#555", fontSize: "0.78rem" }}>
+          <p style={{ color: theme.textMuted, marginBottom: "6px" }}>No hay insumos que coincidan.</p>
+          <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>
             Si esperabas ver el catálogo, revisa que hayas corrido el SQL de abastecimiento.
           </p>
         </div>
       ) : (
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.83rem" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", color: theme.textLight, fontSize: "0.83rem" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid rgba(218,165,32,0.4)", backgroundColor: "#000", color: "#DAA520" }}>
+              <tr style={{ borderBottom: `1px solid ${theme.borderGold}`, backgroundColor: theme.sidebarBg, color: theme.gold }}>
                 <th style={th}>Código</th>
                 <th style={th}>Material / Insumo</th>
                 <th style={th}>Categoría</th>
@@ -353,30 +351,30 @@ export default function MateriaPrima() {
                 const cables = cablesDeInsumo(i.id);
                 return (
                   <tr key={i.id} style={{ borderBottom: "1px solid #111" }}>
-                    <td style={{ ...td, color: "#DAA520", fontWeight: 700 }}>{i.codigo}</td>
+                    <td style={{ ...td, color: theme.gold, fontWeight: 700 }}>{i.codigo}</td>
                     <td style={td}>
                       {i.nombre}
                       {i.especificacion && (
-                        <div style={{ fontSize: "0.7rem", color: "#777", marginTop: "2px" }}>{i.especificacion}</div>
+                        <div style={{ fontSize: "0.7rem", color: theme.textMuted, marginTop: "2px" }}>{i.especificacion}</div>
                       )}
                     </td>
-                    <td style={{ ...td, fontSize: "0.75rem", color: "#aaa" }}>{i.categoria || "—"}</td>
+                    <td style={{ ...td, fontSize: "0.75rem", color: theme.textMuted }}>{i.categoria || "—"}</td>
                     <td style={td}>
                       <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                         {cables.length === 0 ? (
-                          <span style={{ color: "#666", fontSize: "0.7rem" }}>—</span>
+                          <span style={{ color: theme.textMuted, fontSize: "0.7rem" }}>—</span>
                         ) : cables.map((c) => (
-                          <span key={c} className="mp-chip" style={{ background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)" }}>{c}</span>
+                          <Badge key={c} tone="gold">{c}</Badge>
                         ))}
                       </div>
                     </td>
                     <td style={{ ...td, textAlign: "right", fontWeight: 700, fontSize: "0.95rem",
-                      color: enCero ? "#e74c3c" : bajo ? "#e67e22" : "#2ecc71" }}>
-                      {num(stock, 3)} <span style={{ fontSize: "0.72rem", color: "#888", fontWeight: 400 }}>{i.unidad}</span>
+                      color: enCero ? theme.red : bajo ? "#e67e22" : theme.green }}>
+                      {num(stock, 3)} <span style={{ fontSize: "0.72rem", color: theme.textMuted, fontWeight: 400 }}>{i.unidad}</span>
                     </td>
                     <td style={{ ...td, textAlign: "right" }}>
-                      <input className="mp-in" type="number" min={0} defaultValue={min}
-                        style={{ width: "90px", textAlign: "right", padding: "5px 8px", fontSize: "0.78rem" }}
+                      <input type="number" min={0} defaultValue={min}
+                        style={{ ...inputStyle, width: "90px", textAlign: "right", padding: "5px 8px", fontSize: "0.78rem", boxSizing: "border-box" }}
                         onBlur={(e) => {
                           const v = Number(e.target.value) || 0;
                           if (v !== min) cambiarMinimo(i, v);
@@ -384,15 +382,15 @@ export default function MateriaPrima() {
                     </td>
                     <td style={td}>
                       {enCero ? (
-                        <span className="mp-chip" style={{ background: "rgba(231,76,60,0.15)", color: "#e74c3c", border: "1px solid rgba(231,76,60,0.35)" }}>Sin stock</span>
+                        <Badge tone="danger">Sin stock</Badge>
                       ) : bajo ? (
                         <span className="mp-chip" style={{ background: "rgba(230,126,34,0.15)", color: "#e67e22", border: "1px solid rgba(230,126,34,0.35)" }}>Bajo mínimo</span>
                       ) : (
-                        <span className="mp-chip" style={{ background: "rgba(46,204,113,0.15)", color: "#2ecc71", border: "1px solid rgba(46,204,113,0.35)" }}>Disponible</span>
+                        <Badge tone="success">Disponible</Badge>
                       )}
                     </td>
                     <td style={{ ...td, textAlign: "right" }}>
-                      <button onClick={() => abrirAjuste(i)} style={btnMini}>⚙️ Ajustar</button>
+                      <Button variant="ghost" onClick={() => abrirAjuste(i)} style={{ padding: "5px 10px", fontSize: "0.72rem" }}>⚙️ Ajustar</Button>
                     </td>
                   </tr>
                 );
@@ -402,8 +400,8 @@ export default function MateriaPrima() {
         </div>
       )}
 
-      <p style={{ color: "#666", fontSize: "0.73rem", marginTop: "18px", lineHeight: 1.6 }}>
-        📌 Para <strong style={{ color: "#DAA520" }}>ingresar mercancía comprada</strong>, usa Proveedores → Órdenes de
+      <p style={{ color: theme.textMuted, fontSize: "0.73rem", marginTop: "18px", lineHeight: 1.6 }}>
+        📌 Para <strong style={{ color: theme.gold }}>ingresar mercancía comprada</strong>, usa Proveedores → Órdenes de
         Compra → Recibir. Eso genera la cuenta por pagar además de sumar el stock.
         El ajuste de esta pantalla es solo para conteos físicos, mermas y correcciones.
       </p>
@@ -411,42 +409,42 @@ export default function MateriaPrima() {
       {/* ============ MODAL: NUEVO INSUMO ============ */}
       {modalNuevo && (
         <div className="mp-ov">
-          <div className="mp-md" style={{ maxWidth: "620px" }}>
-            <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem", textTransform: "uppercase" }}>Nuevo Insumo</h3>
+          <Card style={{ maxWidth: "620px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+            <Heading style={{ textTransform: "uppercase", marginTop: 0 }}>Nuevo Insumo</Heading>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px", marginBottom: "12px" }}>
               <div><label className="mp-lb">Código *</label>
-                <input className="mp-in" placeholder="MP-XXX-01" value={formNuevo.codigo}
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} placeholder="MP-XXX-01" value={formNuevo.codigo}
                   onChange={(e) => setFormNuevo({ ...formNuevo, codigo: e.target.value })} /></div>
               <div><label className="mp-lb">Nombre del material *</label>
-                <input className="mp-in" value={formNuevo.nombre}
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={formNuevo.nombre}
                   onChange={(e) => setFormNuevo({ ...formNuevo, nombre: e.target.value })} /></div>
             </div>
 
             <div style={{ marginBottom: "12px" }}>
               <label className="mp-lb">Especificación técnica</label>
-              <input className="mp-in" value={formNuevo.especificacion}
+              <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={formNuevo.especificacion}
                 onChange={(e) => setFormNuevo({ ...formNuevo, especificacion: e.target.value })} />
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "12px", marginBottom: "12px" }}>
               <div><label className="mp-lb">Categoría</label>
-                <select className="mp-in" value={formNuevo.categoria}
+                <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={formNuevo.categoria}
                   onChange={(e) => setFormNuevo({ ...formNuevo, categoria: e.target.value })}>
                   {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select></div>
               <div><label className="mp-lb">Unidad</label>
-                <select className="mp-in" value={formNuevo.unidad}
+                <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} value={formNuevo.unidad}
                   onChange={(e) => setFormNuevo({ ...formNuevo, unidad: e.target.value })}>
                   <option value="kg">kg</option><option value="km">km</option>
                   <option value="m">m</option><option value="litros">litros</option>
                   <option value="und">und</option>
                 </select></div>
               <div><label className="mp-lb">Stock inicial</label>
-                <input className="mp-in" type="number" min={0} value={formNuevo.stock_actual}
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} type="number" min={0} value={formNuevo.stock_actual}
                   onChange={(e) => setFormNuevo({ ...formNuevo, stock_actual: e.target.value })} /></div>
               <div><label className="mp-lb">Stock mínimo</label>
-                <input className="mp-in" type="number" min={0} value={formNuevo.stock_minimo}
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} type="number" min={0} value={formNuevo.stock_minimo}
                   onChange={(e) => setFormNuevo({ ...formNuevo, stock_minimo: e.target.value })} /></div>
             </div>
 
@@ -455,9 +453,9 @@ export default function MateriaPrima() {
               <div style={{ display: "flex", gap: "18px", marginTop: "6px" }}>
                 {TIPOS_CABLE.map((t) => (
                   <label key={t} style={{ display: "flex", alignItems: "center", gap: "7px", cursor: "pointer",
-                    color: formNuevo.cables.includes(t) ? "#DAA520" : "#888", fontSize: "0.82rem" }}>
+                    color: formNuevo.cables.includes(t) ? theme.gold : theme.textMuted, fontSize: "0.82rem" }}>
                     <input type="checkbox" checked={formNuevo.cables.includes(t)}
-                      style={{ width: "15px", height: "15px", accentColor: "#DAA520" }}
+                      style={{ width: "15px", height: "15px", accentColor: theme.gold }}
                       onChange={(e) => {
                         const l = e.target.checked
                           ? [...formNuevo.cables, t]
@@ -471,10 +469,10 @@ export default function MateriaPrima() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setModalNuevo(false)} style={btnCancel}>Cancelar</button>
-              <button onClick={crearInsumo} style={btn("#DAA520", "#000")}>Crear Insumo</button>
+              <Button variant="ghost" onClick={() => setModalNuevo(false)}>Cancelar</Button>
+              <Button variant="gold" onClick={crearInsumo}>Crear Insumo</Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
@@ -484,48 +482,48 @@ export default function MateriaPrima() {
         const dif = (Number(formAjuste.cantidad) || 0) - Number(i.stock_actual);
         return (
           <div className="mp-ov">
-            <div className="mp-md" style={{ maxWidth: "460px" }}>
-              <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.05rem", textTransform: "uppercase" }}>
+            <Card style={{ maxWidth: "460px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+              <Heading style={{ textTransform: "uppercase", marginTop: 0 }}>
                 Ajustar Existencia
-              </h3>
-              <p style={{ color: "#bbb", fontSize: "0.85rem", marginBottom: "16px" }}>
-                <strong style={{ color: "#DAA520" }}>{i.codigo}</strong> — {i.nombre}<br />
-                <span style={{ fontSize: "0.8rem", color: "#888" }}>
-                  En sistema: <strong style={{ color: "#2ecc71" }}>{num(i.stock_actual, 3)} {i.unidad}</strong>
+              </Heading>
+              <p style={{ color: theme.textMuted, fontSize: "0.85rem", marginBottom: "16px" }}>
+                <strong style={{ color: theme.gold }}>{i.codigo}</strong> — {i.nombre}<br />
+                <span style={{ fontSize: "0.8rem", color: theme.textMuted }}>
+                  En sistema: <strong style={{ color: theme.green }}>{num(i.stock_actual, 3)} {i.unidad}</strong>
                 </span>
               </p>
 
               <div style={{ marginBottom: "12px" }}>
                 <label className="mp-lb">Cantidad física real ({i.unidad})</label>
-                <input className="mp-in" type="number" min={0} step="0.001" value={formAjuste.cantidad}
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} type="number" min={0} step="0.001" value={formAjuste.cantidad}
                   onChange={(e) => setFormAjuste({ ...formAjuste, cantidad: Number(e.target.value) || 0 })} />
               </div>
               <div style={{ marginBottom: "12px" }}>
                 <label className="mp-lb">Motivo *</label>
-                <input className="mp-in" placeholder="Conteo trimestral, merma de extrusión..."
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} placeholder="Conteo trimestral, merma de extrusión..."
                   value={formAjuste.motivo} onChange={(e) => setFormAjuste({ ...formAjuste, motivo: e.target.value })} />
               </div>
               <div style={{ marginBottom: "16px" }}>
                 <label className="mp-lb">Registrado por</label>
-                <input className="mp-in" placeholder="Tu nombre" value={formAjuste.autor}
+                <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} placeholder="Tu nombre" value={formAjuste.autor}
                   onChange={(e) => setFormAjuste({ ...formAjuste, autor: e.target.value })} />
               </div>
 
-              <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)",
-                borderRadius: "8px", padding: "13px 16px", marginBottom: "18px", fontSize: "0.83rem" }}>
+              <div style={{ background: theme.goldSoft, border: `1px dashed ${theme.borderGoldLight}`,
+                borderRadius: theme.radiusSm, padding: "13px 16px", marginBottom: "18px", fontSize: "0.83rem" }}>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "#888" }}>Diferencia a registrar</span>
-                  <strong style={{ color: dif > 0 ? "#2ecc71" : dif < 0 ? "#e74c3c" : "#888" }}>
+                  <span style={{ color: theme.textMuted }}>Diferencia a registrar</span>
+                  <strong style={{ color: dif > 0 ? theme.green : dif < 0 ? theme.red : theme.textMuted }}>
                     {dif > 0 ? "+" : ""}{num(dif, 3)} {i.unidad}
                   </strong>
                 </div>
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button onClick={() => setModalAjuste({ open: false, insumo: null })} style={btnCancel}>Cancelar</button>
-                <button onClick={guardarAjuste} style={btn("#DAA520", "#000")}>Aplicar Ajuste</button>
+                <Button variant="ghost" onClick={() => setModalAjuste({ open: false, insumo: null })}>Cancelar</Button>
+                <Button variant="gold" onClick={guardarAjuste}>Aplicar Ajuste</Button>
               </div>
-            </div>
+            </Card>
           </div>
         );
       })()}
@@ -533,22 +531,22 @@ export default function MateriaPrima() {
       {/* ============ MODAL: BITÁCORA ============ */}
       {modalBitacora && (
         <div className="mp-ov">
-          <div className="mp-md" style={{ maxWidth: "900px" }}>
+          <Card style={{ maxWidth: "900px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ color: "#DAA520", margin: 0, fontSize: "1.05rem", textTransform: "uppercase" }}>
+              <Heading style={{ textTransform: "uppercase", margin: 0 }}>
                 Bitácora de Movimientos
-              </h3>
-              <button onClick={() => setModalBitacora(false)} style={btnCancel}>Cerrar</button>
+              </Heading>
+              <Button variant="ghost" onClick={() => setModalBitacora(false)}>Cerrar</Button>
             </div>
 
             {movimientos.length === 0 ? (
-              <p style={{ color: "#888", textAlign: "center", padding: "30px" }}>
+              <p style={{ color: theme.textMuted, textAlign: "center", padding: "30px" }}>
                 Todavía no hay movimientos registrados.
               </p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.78rem" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", color: theme.textLight, fontSize: "0.78rem" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(218,165,32,0.4)", color: "#DAA520" }}>
+                  <tr style={{ borderBottom: `1px solid ${theme.borderGold}`, color: theme.gold }}>
                     <th style={th}>Fecha</th><th style={th}>Tipo</th><th style={th}>Insumo</th>
                     <th style={{ ...th, textAlign: "right" }}>Antes</th>
                     <th style={{ ...th, textAlign: "right" }}>Cantidad</th>
@@ -559,27 +557,34 @@ export default function MateriaPrima() {
                 <tbody>
                   {movimientos.map((m) => {
                     const entrada = m.tipo === "entrada";
-                    const color = entrada ? "#2ecc71" : m.tipo === "salida" ? "#e74c3c" : "#f1c40f";
+                    const salida = m.tipo === "salida";
+                    const color = entrada ? theme.green : salida ? theme.red : "#f1c40f";
                     return (
                       <tr key={m.id} style={{ borderBottom: "1px solid #1a1a1a" }}>
-                        <td style={{ ...td, color: "#aaa", fontSize: "0.72rem" }}>
+                        <td style={{ ...td, color: theme.textMuted, fontSize: "0.72rem" }}>
                           {new Date(m.created_at).toLocaleString()}
                         </td>
                         <td style={td}>
-                          <span className="mp-chip" style={{ background: `${color}22`, color, border: `1px solid ${color}55` }}>
-                            {m.tipo}
-                          </span>
-                          <div style={{ fontSize: "0.66rem", color: "#777", marginTop: "2px" }}>{m.origen}</div>
+                          {entrada ? (
+                            <Badge tone="success">{m.tipo}</Badge>
+                          ) : salida ? (
+                            <Badge tone="danger">{m.tipo}</Badge>
+                          ) : (
+                            <span className="mp-chip" style={{ background: `${color}22`, color, border: `1px solid ${color}55` }}>
+                              {m.tipo}
+                            </span>
+                          )}
+                          <div style={{ fontSize: "0.66rem", color: theme.textMuted, marginTop: "2px" }}>{m.origen}</div>
                         </td>
                         <td style={{ ...td, fontSize: "0.76rem" }}>{m.descripcion || "—"}</td>
-                        <td style={{ ...td, textAlign: "right", color: "#888" }}>{num(m.cantidad_anterior, 2)}</td>
+                        <td style={{ ...td, textAlign: "right", color: theme.textMuted }}>{num(m.cantidad_anterior, 2)}</td>
                         <td style={{ ...td, textAlign: "right", color, fontWeight: 700 }}>
-                          {entrada ? "+" : m.tipo === "salida" ? "−" : "±"}{num(m.cantidad, 2)} {m.unidad}
+                          {entrada ? "+" : salida ? "−" : "±"}{num(m.cantidad, 2)} {m.unidad}
                         </td>
                         <td style={{ ...td, textAlign: "right", fontWeight: 600 }}>{num(m.cantidad_nueva, 2)}</td>
-                        <td style={{ ...td, fontSize: "0.72rem", color: "#999" }}>
+                        <td style={{ ...td, fontSize: "0.72rem", color: theme.textMuted }}>
                           {m.motivo || "—"}
-                          {m.autor && <div style={{ fontSize: "0.66rem", color: "#666" }}>por {m.autor}</div>}
+                          {m.autor && <div style={{ fontSize: "0.66rem", color: theme.textMuted }}>por {m.autor}</div>}
                         </td>
                       </tr>
                     );
@@ -587,41 +592,15 @@ export default function MateriaPrima() {
                 </tbody>
               </table>
             )}
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
-const cardBox: React.CSSProperties = {
-  backgroundColor: "#080808", border: "1px solid rgba(218,165,32,0.3)",
-  borderRadius: "8px", padding: "22px",
-};
-const kpi: React.CSSProperties = {
-  background: "#0d0d0d", border: "1px solid rgba(218,165,32,0.25)",
-  borderRadius: "8px", padding: "14px 16px",
-};
 const th: React.CSSProperties = {
   padding: "10px", fontSize: "0.68rem", textTransform: "uppercase",
   textAlign: "left", letterSpacing: "0.8px",
 };
 const td: React.CSSProperties = { padding: "10px", textAlign: "left" };
-const tab = (on: boolean): React.CSSProperties => ({
-  backgroundColor: on ? "#DAA520" : "transparent", color: on ? "#000" : "#DAA520",
-  border: "1px solid #DAA520", borderRadius: "4px", padding: "8px 14px",
-  fontWeight: "bold", fontSize: "0.72rem", cursor: "pointer",
-});
-const btn = (bg: string, color: string): React.CSSProperties => ({
-  backgroundColor: bg, color, border: "1px solid #DAA520", borderRadius: "5px",
-  padding: "9px 15px", fontWeight: "bold", fontSize: "0.75rem", cursor: "pointer",
-});
-const btnMini: React.CSSProperties = {
-  backgroundColor: "transparent", color: "#DAA520",
-  border: "1px solid rgba(218,165,32,0.5)", borderRadius: "5px",
-  padding: "5px 10px", fontSize: "0.72rem", cursor: "pointer", whiteSpace: "nowrap",
-};
-const btnCancel: React.CSSProperties = {
-  backgroundColor: "transparent", color: "#aaa", border: "1px solid #444",
-  borderRadius: "5px", padding: "9px 16px", cursor: "pointer", fontSize: "0.78rem",
-};

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { theme } from "../../lib/theme";
+import { Card, Button, inputStyle } from "../../lib/ui";
 
 interface Producto {
   id?: string;
@@ -21,7 +23,7 @@ interface Producto {
 
 export default function Bodega() {
   const [subModulo, setSubModulo] = useState<"buscador" | "crear" | "editar" | "eliminar">("buscador");
-  
+
   // Mapeo solicitado: CABLES (cablesdb), ACCESORIOS (accesoriosdb), HERRAJES (herrajesdb)
   const [tablaActiva, setTablaActiva] = useState<string>("cablesdb");
   const tablasDisponibles = [
@@ -92,7 +94,7 @@ export default function Bodega() {
     setFamiliasCreacion([]);
     setNuevaFamiliaSeleccionada("");
     setNombreNuevaFamilia("");
-    
+
     if (!supabase) return;
 
     try {
@@ -260,31 +262,32 @@ export default function Bodega() {
   return (
     <div style={{ width: "100%" }}>
       <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
-        <button onClick={() => setSubModulo("buscador")} style={subTabBtn(subModulo === "buscador")}>🔍 BUSCADOR BODEGA</button>
-        <button onClick={() => { setSubModulo("crear"); setTablaCreacion(""); }} style={subTabBtn(subModulo === "crear")}>+ NUEVO PRODUCTO</button>
+        <Button
+          variant={subModulo === "buscador" ? "gold" : "outline-gold"}
+          onClick={() => setSubModulo("buscador")}
+        >
+          🔍 BUSCADOR BODEGA
+        </Button>
+        <Button
+          variant={subModulo === "crear" ? "gold" : "outline-gold"}
+          onClick={() => { setSubModulo("crear"); setTablaCreacion(""); }}
+        >
+          + NUEVO PRODUCTO
+        </Button>
       </div>
 
       {subModulo === "buscador" && (
-        <div style={cardBox}>
+        <Card>
           <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
             {tablasDisponibles.map((item) => (
-              <button
+              <Button
                 key={item.key}
+                variant={tablaActiva === item.key ? "gold" : "outline-gold"}
                 onClick={() => setTablaActiva(item.key)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "4px",
-                  border: "1px solid #DAA520",
-                  backgroundColor: tablaActiva === item.key ? "#DAA520" : "transparent",
-                  color: tablaActiva === item.key ? "#000" : "#DAA520",
-                  fontWeight: "bold",
-                  fontSize: "0.75rem",
-                  cursor: "pointer",
-                  textTransform: "uppercase"
-                }}
+                style={{ padding: "8px 16px", fontSize: "0.75rem", textTransform: "uppercase" }}
               >
                 {item.label}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -294,15 +297,15 @@ export default function Bodega() {
               placeholder="Buscar por SKU o Descripción..."
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              style={inputStyle}
+              style={{ ...inputStyle, flex: 1 }}
             />
-            <button onClick={buscarProductos} style={btnAccion}>BUSCAR</button>
+            <Button variant="gold" onClick={buscarProductos}>BUSCAR</Button>
           </div>
 
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.85rem" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", color: theme.textLight, fontSize: "0.85rem" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.4)", backgroundColor: "#000", color: "#DAA520" }}>
+                <tr style={{ borderBottom: `1px solid ${theme.borderGoldCounter}`, backgroundColor: theme.background, color: theme.gold }}>
                   <th style={thStyle}>Foto</th>
                   <th style={thStyle}>SKU</th>
                   <th style={thStyle}>Descripción</th>
@@ -316,20 +319,20 @@ export default function Bodega() {
               </thead>
               <tbody>
                 {cargando ? (
-                  <tr><td colSpan={9} style={{ textTransform: "uppercase", padding: "20px", textAlign: "center", color: "#DAA520" }}>Cargando catálogo...</td></tr>
+                  <tr><td colSpan={9} style={{ textTransform: "uppercase", padding: "20px", textAlign: "center", color: theme.gold }}>Cargando catálogo...</td></tr>
                 ) : resultados.length === 0 ? (
-                  <tr><td colSpan={9} style={{ textTransform: "uppercase", padding: "20px", textAlign: "center", color: "#666" }}>No se encontraron productos.</td></tr>
+                  <tr><td colSpan={9} style={{ textTransform: "uppercase", padding: "20px", textAlign: "center", color: theme.textMuted }}>No se encontraron productos.</td></tr>
                 ) : (
                   resultados.map((prod, idx) => (
-                    <tr key={prod.id || idx} style={{ borderBottom: "1px solid #111" }}>
+                    <tr key={prod.id || idx} style={{ borderBottom: `1px solid ${theme.borderGoldLight}` }}>
                       <td style={tdStyle}>
                         {prod.imagen_url ? (
                           <img src={prod.imagen_url} alt="Prod" style={{ width: "35px", height: "35px", objectFit: "contain", borderRadius: "3px" }} />
                         ) : (
-                          <div style={{ width: "35px", height: "35px", backgroundColor: "#111", borderRadius: "3px" }} />
+                          <div style={{ width: "35px", height: "35px", backgroundColor: theme.panelBg, borderRadius: "3px" }} />
                         )}
                       </td>
-                      <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "bold" }}>{prod.SKU || prod.sku}</td>
+                      <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>{prod.SKU || prod.sku}</td>
                       <td style={tdStyle}>{prod.Descripción || prod.descripcion}</td>
                       <td style={tdStyle}>${prod.precio_a ?? 0}</td>
                       <td style={tdStyle}>${prod.precio_b ?? 0}</td>
@@ -338,8 +341,20 @@ export default function Bodega() {
                       <td style={{ ...tdStyle, fontWeight: "bold" }}>{prod.cantidad ?? 0}</td>
                       <td style={tdStyle}>
                         <div style={{ display: "flex", gap: "5px" }}>
-                          <button onClick={() => seleccionarParaEditar(prod)} style={btnAccionSmall}>EDITAR</button>
-                          <button onClick={() => { setProductoSeleccionado(prod); setSubModulo("eliminar"); }} style={{ ...btnAccionSmall, color: "#e74c3c", borderColor: "#e74c3c" }}>BORRAR</button>
+                          <Button
+                            variant="ghost"
+                            style={{ padding: "4px 10px", fontSize: "0.7rem", border: `1px solid ${theme.borderGoldLight}` }}
+                            onClick={() => seleccionarParaEditar(prod)}
+                          >
+                            EDITAR
+                          </Button>
+                          <Button
+                            variant="outline-red"
+                            style={{ padding: "4px 10px", fontSize: "0.7rem" }}
+                            onClick={() => { setProductoSeleccionado(prod); setSubModulo("eliminar"); }}
+                          >
+                            BORRAR
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -348,60 +363,51 @@ export default function Bodega() {
               </tbody>
             </table>
           </div>
-        </div>
+        </Card>
       )}
 
       {subModulo === "crear" && (
-        <div style={{ ...cardBox, maxWidth: "750px" }}>
+        <Card style={{ maxWidth: "750px" }}>
           {!tablaCreacion ? (
             <div>
-              <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", color: "#DAA520", textTransform: "uppercase" }}>
+              <h2 style={{ fontSize: "1.1rem", marginBottom: "15px", color: theme.gold, textTransform: "uppercase" }}>
                 PASO 1: SELECCIONA LA BASE DE DATOS DE DESTINO
               </h2>
               <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
                 {tablasDisponibles.map((item) => (
-                  <button
+                  <Button
                     key={item.key}
+                    variant="outline-gold"
                     onClick={() => seleccionarTablaCreacion(item.key)}
-                    style={{
-                      padding: "15px 25px",
-                      borderRadius: "6px",
-                      border: "1px solid #DAA520",
-                      backgroundColor: "#000",
-                      color: "#DAA520",
-                      fontWeight: "bold",
-                      fontSize: "0.9rem",
-                      cursor: "pointer",
-                      textTransform: "uppercase"
-                    }}
+                    style={{ padding: "15px 25px", fontSize: "0.9rem" }}
                   >
                     📦 {item.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
           ) : (
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <h2 style={{ fontSize: "1.1rem", color: "#fff" }}>
-                  CREANDO EN: <span style={{ color: "#DAA520", textTransform: "uppercase" }}>{tablasDisponibles.find(t => t.key === tablaCreacion)?.label}</span>
+                <h2 style={{ fontSize: "1.1rem", color: theme.textLight }}>
+                  CREANDO EN: <span style={{ color: theme.gold, textTransform: "uppercase" }}>{tablasDisponibles.find(t => t.key === tablaCreacion)?.label}</span>
                 </h2>
-                <button onClick={() => setTablaCreacion("")} style={{ ...btnSecundario, fontSize: "0.7rem" }}>
+                <Button variant="outline-gold" style={{ fontSize: "0.7rem" }} onClick={() => setTablaCreacion("")}>
                   CAMBIAR BASE DE DATOS
-                </button>
+                </Button>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
                 <div>
                   <label style={labelStyle}>SKU / Código *</label>
-                  <input type="text" value={nuevoSku} onChange={(e) => setNuevoSku(e.target.value)} placeholder="Ej: TL-FO-101" style={inputStyleFull} />
+                  <input type="text" value={nuevoSku} onChange={(e) => setNuevoSku(e.target.value)} placeholder="Ej: TL-FO-101" style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                 </div>
                 <div>
                   <label style={labelStyle}>Familia de Producto</label>
                   <select
                     value={nuevaFamiliaSeleccionada}
                     onChange={(e) => setNuevaFamiliaSeleccionada(e.target.value)}
-                    style={inputStyleFull}
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                   >
                     <option value="">-- Seleccionar Familia --</option>
                     {familiasCreacion.map((f, i) => (
@@ -415,137 +421,141 @@ export default function Bodega() {
               {nuevaFamiliaSeleccionada === "__NUEVA__" && (
                 <div style={{ marginBottom: "15px" }}>
                   <label style={labelStyle}>Nombre de la Nueva Familia</label>
-                  <input type="text" value={nombreNuevaFamilia} onChange={(e) => setNombreNuevaFamilia(e.target.value)} placeholder="Escribe la nueva familia..." style={inputStyleFull} />
+                  <input type="text" value={nombreNuevaFamilia} onChange={(e) => setNombreNuevaFamilia(e.target.value)} placeholder="Escribe la nueva familia..." style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                 </div>
               )}
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={labelStyle}>Descripción</label>
-                <input type="text" value={nuevaDescripcion} onChange={(e) => setNuevaDescripcion(e.target.value)} placeholder="Descripción detallada del producto" style={inputStyleFull} />
+                <input type="text" value={nuevaDescripcion} onChange={(e) => setNuevaDescripcion(e.target.value)} placeholder="Descripción detallada del producto" style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
               </div>
 
               <div style={{ marginBottom: "15px" }}>
                 <label style={labelStyle}>Especificaciones Técnicas</label>
-                <textarea value={nuevasEspecificaciones} onChange={(e) => setNuevasEspecificaciones(e.target.value)} placeholder="Especificaciones principales..." style={{ ...inputStyleFull, height: "60px", resize: "vertical" }} />
+                <textarea value={nuevasEspecificaciones} onChange={(e) => setNuevasEspecificaciones(e.target.value)} placeholder="Especificaciones principales..." style={{ ...inputStyle, width: "100%", boxSizing: "border-box", height: "60px", resize: "vertical" }} />
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "10px", marginBottom: "15px" }}>
                 <div>
                   <label style={labelStyle}>P. A (ISP)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioA} onChange={(e) => setNuevoPrecioA(parseNumInput(e.target.value))} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioA} onChange={(e) => setNuevoPrecioA(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                 </div>
                 <div>
                   <label style={labelStyle}>P. B (Mayorista)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioB} onChange={(e) => setNuevoPrecioB(parseNumInput(e.target.value))} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioB} onChange={(e) => setNuevoPrecioB(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                 </div>
                 <div>
                   <label style={labelStyle}>P. C (Integrador)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioC} onChange={(e) => setNuevoPrecioC(parseNumInput(e.target.value))} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioC} onChange={(e) => setNuevoPrecioC(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                 </div>
                 <div>
                   <label style={labelStyle}>P. D (Final)</label>
-                  <input type="number" step="0.01" value={nuevoPrecioD} onChange={(e) => setNuevoPrecioD(parseNumInput(e.target.value))} style={inputStyleFull} />
+                  <input type="number" step="0.01" value={nuevoPrecioD} onChange={(e) => setNuevoPrecioD(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                 </div>
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px" }}>
                 <div>
                   <label style={labelStyle}>Stock Inicial</label>
-                  <input type="number" value={nuevaCantidad} onChange={(e) => setNuevaCantidad(parseNumInput(e.target.value))} style={inputStyleFull} />
+                  <input type="number" value={nuevaCantidad} onChange={(e) => setNuevaCantidad(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                 </div>
                 <div>
                   <label style={labelStyle}>Imagen del Producto</label>
-                  <input type="file" accept="image/*" onChange={handleSubirImagen} style={{ color: "#aaa", fontSize: "0.8rem" }} />
-                  {subiendoImagen && <span style={{ color: "#DAA520", fontSize: "0.75rem", display: "block" }}>Subiendo imagen...</span>}
+                  <input type="file" accept="image/*" onChange={handleSubirImagen} style={{ color: theme.textMuted, fontSize: "0.8rem" }} />
+                  {subiendoImagen && <span style={{ color: theme.gold, fontSize: "0.75rem", display: "block" }}>Subiendo imagen...</span>}
                   {nuevaImagenUrl && <img src={nuevaImagenUrl} alt="Vista previa" style={{ width: "40px", height: "40px", marginTop: "5px", objectFit: "contain", borderRadius: "3px" }} />}
                 </div>
               </div>
 
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={guardarNuevoProducto} style={btnAccion}>REGISTRAR PRODUCTO</button>
-                <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
+                <Button variant="gold" onClick={guardarNuevoProducto}>REGISTRAR PRODUCTO</Button>
+                <Button variant="outline-gold" onClick={() => setSubModulo("buscador")}>CANCELAR</Button>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {subModulo === "editar" && productoSeleccionado && (
-        <div style={{ ...cardBox, maxWidth: "700px" }}>
-          <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: "#fff" }}>
-            Editando SKU: <span style={{ color: "#DAA520" }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</span>
+        <Card style={{ maxWidth: "700px" }}>
+          <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: theme.textLight }}>
+            Editando SKU: <span style={{ color: theme.gold }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</span>
           </h2>
           <div style={{ marginBottom: "15px" }}>
             <label style={labelStyle}>Descripción</label>
-            <input type="text" value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} style={inputStyleFull} />
+            <input type="text" value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
           </div>
           <div style={{ marginBottom: "15px" }}>
             <label style={labelStyle}>Especificaciones</label>
-            <textarea value={editEspecificaciones} onChange={(e) => setEditEspecificaciones(e.target.value)} style={{ ...inputStyleFull, height: "60px", resize: "vertical" }} />
+            <textarea value={editEspecificaciones} onChange={(e) => setEditEspecificaciones(e.target.value)} style={{ ...inputStyle, width: "100%", boxSizing: "border-box", height: "60px", resize: "vertical" }} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
             <div>
               <label style={labelStyle}>Precio A (ISP)</label>
-              <input type="number" step="0.01" value={editPrecioA} onChange={(e) => setEditPrecioA(parseNumInput(e.target.value))} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioA} onChange={(e) => setEditPrecioA(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={labelStyle}>Precio B (Mayorista)</label>
-              <input type="number" step="0.01" value={editPrecioB} onChange={(e) => setEditPrecioB(parseNumInput(e.target.value))} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioB} onChange={(e) => setEditPrecioB(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={labelStyle}>Precio C (Integrador)</label>
-              <input type="number" step="0.01" value={editPrecioC} onChange={(e) => setEditPrecioC(parseNumInput(e.target.value))} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioC} onChange={(e) => setEditPrecioC(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
             </div>
             <div>
               <label style={labelStyle}>Precio D (Cliente Final)</label>
-              <input type="number" step="0.01" value={editPrecioD} onChange={(e) => setEditPrecioD(parseNumInput(e.target.value))} style={inputStyleFull} />
+              <input type="number" step="0.01" value={editPrecioD} onChange={(e) => setEditPrecioD(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
             </div>
           </div>
           <div style={{ marginBottom: "15px" }}>
             <label style={labelStyle}>Stock / Cantidad</label>
-            <input type="number" value={editCantidad} onChange={(e) => setEditCantidad(parseNumInput(e.target.value))} style={inputStyleFull} />
+            <input type="number" value={editCantidad} onChange={(e) => setEditCantidad(parseNumInput(e.target.value))} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
           </div>
           <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-            <button onClick={guardarCambiosInteligente} style={btnAccion}>GUARDAR CAMBIOS</button>
-            <button onClick={() => setSubModulo("buscador")} style={btnSecundario}>CANCELAR</button>
+            <Button variant="gold" onClick={guardarCambiosInteligente}>GUARDAR CAMBIOS</Button>
+            <Button variant="outline-gold" onClick={() => setSubModulo("buscador")}>CANCELAR</Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {subModulo === "eliminar" && productoSeleccionado && (
-        <div style={{ ...cardBox, maxWidth: "500px", border: "1px solid #e74c3c" }}>
-          <h2 style={{ fontSize: "1rem", color: "#e74c3c", marginBottom: "15px" }}>⚠️ ELIMINAR PRODUCTO DE BODEGA</h2>
-          <p style={{ color: "#fff", fontSize: "0.85rem", marginBottom: "20px" }}>
-            Estás a punto de borrar el SKU: <b style={{ color: "#DAA520" }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</b>
+        <Card style={{ maxWidth: "500px", border: `1px solid ${theme.red}` }}>
+          <h2 style={{ fontSize: "1rem", color: theme.red, marginBottom: "15px" }}>⚠️ ELIMINAR PRODUCTO DE BODEGA</h2>
+          <p style={{ color: theme.textLight, fontSize: "0.85rem", marginBottom: "20px" }}>
+            Estás a punto de borrar el SKU: <b style={{ color: theme.gold }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</b>
           </p>
           {pasoEliminar === 1 ? (
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={() => confirmarEliminacion('S')} style={btnPeligro}>SÍ, ELIMINAR</button>
-              <button onClick={() => confirmarEliminacion('N')} style={btnSecundario}>CANCELAR</button>
+              <Button
+                variant="outline-red"
+                style={{ background: theme.red, color: "#fff", border: `1px solid ${theme.red}` }}
+                onClick={() => confirmarEliminacion('S')}
+              >
+                SÍ, ELIMINAR
+              </Button>
+              <Button variant="outline-gold" onClick={() => confirmarEliminacion('N')}>CANCELAR</Button>
             </div>
           ) : (
             <div>
-              <p style={{ color: "#e74c3c", fontWeight: "bold", fontSize: "0.85rem", marginBottom: "15px" }}>¿Seguro? Esta acción es irreversible.</p>
+              <p style={{ color: theme.red, fontWeight: "bold", fontSize: "0.85rem", marginBottom: "15px" }}>¿Seguro? Esta acción es irreversible.</p>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => confirmarEliminacion('S')} style={btnPeligro}>CONFIRMAR ELIMINACIÓN</button>
-                <button onClick={() => confirmarEliminacion('N')} style={btnSecundario}>REGRESAR</button>
+                <Button
+                  variant="outline-red"
+                  style={{ background: theme.red, color: "#fff", border: `1px solid ${theme.red}` }}
+                  onClick={() => confirmarEliminacion('S')}
+                >
+                  CONFIRMAR ELIMINACIÓN
+                </Button>
+                <Button variant="outline-gold" onClick={() => confirmarEliminacion('N')}>REGRESAR</Button>
               </div>
             </div>
           )}
-        </div>
+        </Card>
       )}
     </div>
   );
 }
 
-const cardBox: React.CSSProperties = { backgroundColor: "#080808", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "8px", padding: "20px" };
-const inputStyle: React.CSSProperties = { flex: 1, backgroundColor: "#000", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "4px", padding: "8px 12px", color: "#fff" };
-const inputStyleFull: React.CSSProperties = { width: "100%", backgroundColor: "#000", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "4px", padding: "8px 12px", color: "#fff", boxSizing: "border-box" };
-const labelStyle: React.CSSProperties = { fontSize: "0.75rem", color: "#DAA520", display: "block", marginBottom: "4px", textTransform: "uppercase" };
-const btnAccion: React.CSSProperties = { backgroundColor: "#DAA520", color: "#000", border: "none", borderRadius: "4px", padding: "8px 16px", fontWeight: "bold", cursor: "pointer", fontSize: "0.75rem" };
-const btnSecundario: React.CSSProperties = { backgroundColor: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "4px", padding: "8px 16px", cursor: "pointer", fontSize: "0.75rem" };
-const btnPeligro: React.CSSProperties = { backgroundColor: "#e74c3c", color: "#fff", border: "none", borderRadius: "4px", padding: "8px 16px", fontWeight: "bold", cursor: "pointer", fontSize: "0.75rem" };
-const btnAccionSmall: React.CSSProperties = { backgroundColor: "transparent", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "3px", padding: "3px 6px", fontSize: "0.7rem", cursor: "pointer" };
-const subTabBtn = (isActive: boolean): React.CSSProperties => ({ backgroundColor: isActive ? "#DAA520" : "transparent", color: isActive ? "#000" : "#DAA520", border: "1px solid #DAA520", borderRadius: "4px", padding: "6px 12px", fontWeight: "bold", fontSize: "0.75rem", cursor: "pointer" });
+const labelStyle: React.CSSProperties = { fontSize: "0.75rem", color: theme.gold, display: "block", marginBottom: "4px", textTransform: "uppercase" };
 const thStyle: React.CSSProperties = { padding: "10px", fontSize: "0.75rem", textTransform: "uppercase" };
 const tdStyle: React.CSSProperties = { padding: "10px" };

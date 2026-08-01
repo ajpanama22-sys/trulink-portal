@@ -1,7 +1,19 @@
 import { useState, useEffect } from "react";
+import type { CSSProperties } from "react";
 import { useRouter } from "next/router";
 import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import {
+  Card,
+  Heading,
+  PageHeader,
+  Button,
+  Badge,
+  estadoToTone,
+  inputStyle,
+  DataRow,
+} from "../../lib/ui";
 
 type Prospecto = {
   id: number;
@@ -721,140 +733,124 @@ export default function CRMEpicoEnterprise() {
     );
   });
 
+  // ------------------------------------------------------------
+  // Estilos locales (tokens del sistema de diseño compartido)
+  // ------------------------------------------------------------
+  const lbStyle: CSSProperties = {
+    display: "block",
+    fontSize: "0.7rem",
+    color: theme.textMuted,
+    marginBottom: "6px",
+    textTransform: "uppercase",
+  };
+
+  const tableStyle: CSSProperties = { width: "100%", borderCollapse: "collapse", marginTop: "15px" };
+  const thStyle: CSSProperties = {
+    border: `1px solid ${theme.borderGoldLight}`,
+    padding: "14px",
+    textAlign: "center",
+    background: theme.background,
+    color: theme.gold,
+    fontWeight: 600,
+    textTransform: "uppercase",
+    fontSize: "0.75rem",
+    letterSpacing: "1.5px",
+  };
+  const tdStyle: CSSProperties = {
+    border: `1px solid ${theme.borderGoldLight}`,
+    padding: "14px",
+    textAlign: "center",
+    color: theme.textLight,
+    fontSize: "0.9rem",
+  };
+
+  const overlayStyle: CSSProperties = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    backgroundColor: "rgba(0,0,0,0.85)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+    backdropFilter: "blur(4px)",
+    padding: "20px",
+    boxSizing: "border-box",
+  };
+
+  // El link de descarga del PDF necesita verse como el botón "gold" pero es
+  // un <a>, no un <button> — Button (lib/ui.tsx) no soporta anchors, así que
+  // se replica su estilo acá con los mismos tokens de theme.
+  const goldLinkStyle: CSSProperties = {
+    padding: "10px 24px",
+    borderRadius: theme.radiusSm,
+    fontWeight: 700,
+    fontSize: "0.85rem",
+    letterSpacing: "0.5px",
+    cursor: "pointer",
+    background: theme.goldGradient,
+    color: "#1A1400",
+    border: `1px solid ${theme.gold}`,
+    boxShadow: "0 2px 10px rgba(218,165,32,0.3)",
+    textDecoration: "none",
+    display: "inline-block",
+  };
+
   return (
-    <div style={{ display: "flex", backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", fontFamily: "sans-serif", boxSizing: "border-box" }}>
-      {/* SIDEBAR FIJO — ya incluye "Volver al Portal" y "Cerrar Sesión" */}
+    <div style={{ display: "flex" }}>
       <Sidebar currentActive="crm" />
 
-      {/* CONTENIDO PRINCIPAL */}
-      <main style={{ flex: 1, padding: "50px 30px", boxSizing: "border-box", overflowX: "auto" }}>
-        <style jsx global>{`
-          html, body {
-            margin: 0;
-            padding: 0;
-            background-color: #000 !important;
-            color: #DAA520;
-          }
-          .card-enterprise {
-            background-color: #080808;
-            border: 1px solid rgba(218, 165, 32, 0.35);
-            border-radius: 14px;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
-          }
-          .card-enterprise:hover {
-            border-color: #DAA520;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 1), 0 0 25px rgba(218, 165, 32, 0.25);
-            transform: translateY(-3px);
-          }
-          .custom-btn {
-            background-color: transparent;
-            color: #DAA520;
-            border: 1px solid rgba(218, 165, 32, 0.5);
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.8rem;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-          }
-          .custom-btn:hover, .custom-btn.active {
-            background-color: #DAA520 !important;
-            color: #000 !important;
-            box-shadow: 0 0 20px rgba(218, 165, 32, 0.5);
-          }
-          .gold-btn {
-            background-color: #DAA520;
-            color: #000;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 0.85rem;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-          }
-          .gold-btn:hover {
-            background-color: #f1c40f;
-            box-shadow: 0 0 25px rgba(218, 165, 32, 0.6);
-          }
-          .convertir-btn {
-            background-color: transparent;
-            color: #2ecc71;
-            border: 1px solid rgba(46, 204, 113, 0.5);
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 0.75rem;
-            letter-spacing: 0.5px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-          }
-          .convertir-btn:hover {
-            background-color: rgba(46, 204, 113, 0.15);
-          }
-          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th, td { border: 1px solid rgba(218, 165, 32, 0.25); padding: 14px; text-align: center; color: #FFF; font-size: 0.9rem; }
-          th { background-color: #0a0a0a; color: #DAA520; font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1.5px; }
-          input, select { background-color: #050505; color: #DAA520; border: 1px solid rgba(218, 165, 32, 0.4); padding: 12px; border-radius: 8px; outline: none; width: 100%; font-size: 0.9rem; }
-        `}</style>
-
-        {/* Navegación Superior — pestañas únicamente, sin botón duplicado de "Volver" */}
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", marginBottom: "40px", maxWidth: "1350px", margin: "0 auto 40px auto" }}>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <button onClick={() => setPestanaActiva("clientes")} className={`custom-btn ${pestanaActiva === "clientes" ? "active" : ""}`}>
-              🏢 Clientes & Cuentas
-            </button>
-            <button onClick={() => setPestanaActiva("pipeline")} className={`custom-btn ${pestanaActiva === "pipeline" ? "active" : ""}`}>
-              📈 Pipeline & Forecast
-            </button>
-            <button onClick={() => setPestanaActiva("actividades")} className={`custom-btn ${pestanaActiva === "actividades" ? "active" : ""}`}>
-              📞 Ficha Operativa
-            </button>
-            <button onClick={() => setPestanaActiva("cpq")} className={`custom-btn ${pestanaActiva === "cpq" ? "active" : ""}`}>
-              📑 CPQ & Cotizaciones
-            </button>
-            <button onClick={() => setPestanaActiva("gobierno")} className={`custom-btn ${pestanaActiva === "gobierno" ? "active" : ""}`}>
-              🛡️ Auditoría & Métricas
-            </button>
-          </div>
-        </div>
-
-        <div style={{ textAlign: "center", marginBottom: "45px" }}>
-          <h1 style={{ color: "#DAA520", fontSize: "1.8rem", fontWeight: "300", letterSpacing: "3px", textTransform: "uppercase", margin: 0 }}>
-            ENTERPRISE PURE CRM SUITE
-          </h1>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem", letterSpacing: "1px", marginTop: "8px" }}>
-            SISTEMA GLOBAL DE GESTIÓN COMERCIAL • TRULINK FIBER LLC
-          </p>
-        </div>
-
+      <div style={pageWrapStyle({ overflowX: "auto" })}>
         <div style={{ maxWidth: "1350px", margin: "0 auto" }}>
+          {/* Navegación Superior — pestañas */}
+          <div style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "10px", marginBottom: "30px" }}>
+            <Button variant={pestanaActiva === "clientes" ? "gold" : "outline-gold"} onClick={() => setPestanaActiva("clientes")}>
+              🏢 Clientes & Cuentas
+            </Button>
+            <Button variant={pestanaActiva === "pipeline" ? "gold" : "outline-gold"} onClick={() => setPestanaActiva("pipeline")}>
+              📈 Pipeline & Forecast
+            </Button>
+            <Button variant={pestanaActiva === "actividades" ? "gold" : "outline-gold"} onClick={() => setPestanaActiva("actividades")}>
+              📞 Ficha Operativa
+            </Button>
+            <Button variant={pestanaActiva === "cpq" ? "gold" : "outline-gold"} onClick={() => setPestanaActiva("cpq")}>
+              📑 CPQ & Cotizaciones
+            </Button>
+            <Button variant={pestanaActiva === "gobierno" ? "gold" : "outline-gold"} onClick={() => setPestanaActiva("gobierno")}>
+              🛡️ Auditoría & Métricas
+            </Button>
+          </div>
+
+          <PageHeader
+            title="ENTERPRISE PURE CRM SUITE"
+            subtitle="SISTEMA GLOBAL DE GESTIÓN COMERCIAL • TRULINK FIBER LLC"
+          />
+
           {/* SECCIÓN 1: PROSPECTOS (antes "clientes", ahora tabla separada crm_prospectos) */}
           {pestanaActiva === "clientes" && (
             <div>
-              <div className="card-enterprise" style={{ padding: "35px", marginBottom: "40px" }}>
-                <h3 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0 }}>
+              <Card style={{ padding: "35px", marginBottom: "40px" }}>
+                <Heading style={{ fontSize: "1.1rem", textTransform: "uppercase" }}>
                   Registro de Prospecto Comercial
-                </h3>
+                </Heading>
                 <form onSubmit={handleCrearProspecto} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "15px", alignItems: "end", marginTop: "20px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Empresa / Prospecto</label>
-                    <input type="text" placeholder="Ej: IGTEL Honduras" value={nuevoProspecto.razon_social} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, razon_social: e.target.value })} />
+                    <label style={lbStyle}>Empresa / Prospecto</label>
+                    <input type="text" placeholder="Ej: IGTEL Honduras" value={nuevoProspecto.razon_social} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, razon_social: e.target.value })} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Email de Contacto</label>
-                    <input type="email" placeholder="contacto@empresa.com" value={nuevoProspecto.email} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, email: e.target.value })} />
+                    <label style={lbStyle}>Email de Contacto</label>
+                    <input type="email" placeholder="contacto@empresa.com" value={nuevoProspecto.email} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, email: e.target.value })} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Teléfono Celular</label>
-                    <input type="text" placeholder="Ej: 66403720" value={nuevoProspecto.telefono_celular} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, telefono_celular: e.target.value })} />
+                    <label style={lbStyle}>Teléfono Celular</label>
+                    <input type="text" placeholder="Ej: 66403720" value={nuevoProspecto.telefono_celular} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, telefono_celular: e.target.value })} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Perfil de Cliente</label>
-                    <select value={nuevoProspecto.perfil_cliente} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, perfil_cliente: e.target.value })}>
+                    <label style={lbStyle}>Perfil de Cliente</label>
+                    <select value={nuevoProspecto.perfil_cliente} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, perfil_cliente: e.target.value })} style={inputStyle}>
                       <option value="ISP">ISP</option>
                       <option value="MAYORISTA">MAYORISTA</option>
                       <option value="INTEGRADOR">INTEGRADOR</option>
@@ -862,60 +858,60 @@ export default function CRMEpicoEnterprise() {
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Industria</label>
-                    <input type="text" value={nuevoProspecto.industria} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, industria: e.target.value })} />
+                    <label style={lbStyle}>Industria</label>
+                    <input type="text" value={nuevoProspecto.industria} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, industria: e.target.value })} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>País / Región</label>
-                    <input type="text" value={nuevoProspecto.pais} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, pais: e.target.value })} />
+                    <label style={lbStyle}>País / Región</label>
+                    <input type="text" value={nuevoProspecto.pais} onChange={(e) => setNuevoProspecto({ ...nuevoProspecto, pais: e.target.value })} style={inputStyle} />
                   </div>
                   <div style={{ gridColumn: "1 / -1" }}>
-                    <button type="submit" className="gold-btn" style={{ height: "45px", width: "100%" }}>Guardar Prospecto</button>
+                    <Button type="submit" style={{ height: "45px", width: "100%" }}>Guardar Prospecto</Button>
                   </div>
                 </form>
-              </div>
+              </Card>
 
-              <div className="card-enterprise" style={{ padding: "35px" }}>
-                <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
+              <Card style={{ padding: "35px" }}>
+                <Heading style={{ fontSize: "1.1rem", textTransform: "uppercase", marginBottom: "20px" }}>
                   Directorio de Prospectos (Pendientes de Cerrar Venta)
-                </h2>
+                </Heading>
                 {loading ? (
-                  <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center" }}>Cargando...</p>
+                  <p style={{ color: theme.textMuted, textAlign: "center" }}>Cargando...</p>
                 ) : prospectos.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay prospectos registrados.</p>
+                  <p style={{ color: theme.textMuted, fontStyle: "italic", textAlign: "center" }}>No hay prospectos registrados.</p>
                 ) : (
-                  <table>
+                  <table style={tableStyle}>
                     <thead>
                       <tr>
-                        <th>ID</th>
-                        <th>Empresa</th>
-                        <th>Email</th>
-                        <th>Perfil</th>
-                        <th>Industria</th>
-                        <th>País</th>
-                        <th>Acción</th>
+                        <th style={thStyle}>ID</th>
+                        <th style={thStyle}>Empresa</th>
+                        <th style={thStyle}>Email</th>
+                        <th style={thStyle}>Perfil</th>
+                        <th style={thStyle}>Industria</th>
+                        <th style={thStyle}>País</th>
+                        <th style={thStyle}>Acción</th>
                       </tr>
                     </thead>
                     <tbody>
                       {prospectos.map((p) => (
                         <tr key={p.id}>
-                          <td style={{ color: "rgba(255,255,255,0.5)" }}>#{p.id}</td>
-                          <td style={{ textAlign: "left", fontWeight: "600" }}>{p.razon_social}</td>
-                          <td style={{ fontSize: "0.8rem" }}>{p.email}</td>
-                          <td><span style={{ padding: "3px 10px", borderRadius: "12px", fontSize: "0.7rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)" }}>{p.perfil_cliente}</span></td>
-                          <td>{p.industria}</td>
-                          <td>{p.pais}</td>
-                          <td>
-                            <button className="convertir-btn" onClick={() => abrirModalConversion(p)}>
+                          <td style={{ ...tdStyle, color: theme.textMuted }}>#{p.id}</td>
+                          <td style={{ ...tdStyle, textAlign: "left", fontWeight: 600 }}>{p.razon_social}</td>
+                          <td style={{ ...tdStyle, fontSize: "0.8rem" }}>{p.email}</td>
+                          <td style={tdStyle}><Badge tone="gold">{p.perfil_cliente}</Badge></td>
+                          <td style={tdStyle}>{p.industria}</td>
+                          <td style={tdStyle}>{p.pais}</td>
+                          <td style={tdStyle}>
+                            <Button variant="outline-green" onClick={() => abrirModalConversion(p)}>
                               ✓ Convertir a Cliente
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
             </div>
           )}
 
@@ -923,94 +919,95 @@ export default function CRMEpicoEnterprise() {
           {pestanaActiva === "pipeline" && (
             <div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "25px", marginBottom: "40px" }}>
-                <div className="card-enterprise" style={{ padding: "30px" }}>
-                  <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Valor Total en Pipeline</span>
-                  <h2 style={{ fontSize: "2.2rem", color: "#FFF", margin: "10px 0 0 0", fontWeight: "400" }}>${pipelineValorTotal.toLocaleString()}</h2>
-                </div>
-                <div className="card-enterprise" style={{ padding: "30px" }}>
-                  <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Forecast Ponderado (Ingresos)</span>
-                  <h2 style={{ fontSize: "2.2rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>${forecastTotal.toLocaleString()}</h2>
-                </div>
-                <div className="card-enterprise" style={{ padding: "30px" }}>
-                  <span style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Oportunidades Abiertas</span>
-                  <h2 style={{ fontSize: "2.2rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>{oportunidadesAbiertas.length}</h2>
-                </div>
+                <Card style={{ padding: "30px" }}>
+                  <span style={lbStyle}>Valor Total en Pipeline</span>
+                  <h2 style={{ fontSize: "2.2rem", color: theme.textLight, margin: "10px 0 0 0", fontWeight: 400 }}>${pipelineValorTotal.toLocaleString()}</h2>
+                </Card>
+                <Card style={{ padding: "30px" }}>
+                  <span style={lbStyle}>Forecast Ponderado (Ingresos)</span>
+                  <h2 style={{ fontSize: "2.2rem", color: theme.gold, margin: "10px 0 0 0", fontWeight: 400 }}>${forecastTotal.toLocaleString()}</h2>
+                </Card>
+                <Card style={{ padding: "30px" }}>
+                  <span style={lbStyle}>Oportunidades Abiertas</span>
+                  <h2 style={{ fontSize: "2.2rem", color: theme.gold, margin: "10px 0 0 0", fontWeight: 400 }}>{oportunidadesAbiertas.length}</h2>
+                </Card>
               </div>
 
-              <div className="card-enterprise" style={{ padding: "35px", marginBottom: "40px" }}>
-                <h3 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0 }}>
+              <Card style={{ padding: "35px", marginBottom: "40px" }}>
+                <Heading style={{ fontSize: "1.1rem", textTransform: "uppercase" }}>
                   Apertura de Oportunidad Comercial (SFA)
-                </h3>
+                </Heading>
                 <form onSubmit={handleCrearOportunidad} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr auto", gap: "15px", alignItems: "end", marginTop: "20px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Título de Oportunidad / Licitación</label>
-                    <input type="text" placeholder="Ej: Contrato Anual Hub Panamá" value={nuevaOportunidad.titulo} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, titulo: e.target.value })} />
+                    <label style={lbStyle}>Título de Oportunidad / Licitación</label>
+                    <input type="text" placeholder="Ej: Contrato Anual Hub Panamá" value={nuevaOportunidad.titulo} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, titulo: e.target.value })} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Embudo / Pipeline</label>
-                    <select value={nuevaOportunidad.pipeline_tipo} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, pipeline_tipo: e.target.value })}>
+                    <label style={lbStyle}>Embudo / Pipeline</label>
+                    <select value={nuevaOportunidad.pipeline_tipo} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, pipeline_tipo: e.target.value })} style={inputStyle}>
                       <option value="B2B Licitación">B2B Licitación (Largo)</option>
                       <option value="B2C Rápido">B2C Ciclo Rápido</option>
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Valor Estimado ($ USD)</label>
-                    <input type="number" value={nuevaOportunidad.valor_estimado} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, valor_estimado: parseFloat(e.target.value) || 0 })} />
+                    <label style={lbStyle}>Valor Estimado ($ USD)</label>
+                    <input type="number" value={nuevaOportunidad.valor_estimado} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, valor_estimado: parseFloat(e.target.value) || 0 })} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Probabilidad Inicial (%)</label>
+                    <label style={lbStyle}>Probabilidad Inicial (%)</label>
                     <input
                       type="number"
                       min={0}
                       max={100}
                       value={nuevaOportunidad.probabilidad}
                       onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, probabilidad: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                      style={inputStyle}
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Ejecutivo Asignado</label>
-                    <input type="text" value={nuevaOportunidad.vendedor_asignado} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, vendedor_asignado: e.target.value })} />
+                    <label style={lbStyle}>Ejecutivo Asignado</label>
+                    <input type="text" value={nuevaOportunidad.vendedor_asignado} onChange={(e) => setNuevaOportunidad({ ...nuevaOportunidad, vendedor_asignado: e.target.value })} style={inputStyle} />
                   </div>
-                  <button type="submit" className="gold-btn" style={{ height: "45px" }}>Registrar</button>
+                  <Button type="submit" style={{ height: "45px" }}>Registrar</Button>
                 </form>
-              </div>
+              </Card>
 
-              <div className="card-enterprise" style={{ padding: "35px" }}>
-                <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
+              <Card style={{ padding: "35px" }}>
+                <Heading style={{ fontSize: "1.1rem", textTransform: "uppercase", marginBottom: "20px" }}>
                   Seguimiento de Embudos de Venta
-                </h2>
+                </Heading>
                 {oportunidades.length === 0 ? (
-                  <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay oportunidades en el pipeline (o falta crear la tabla crm_opportunities — revisa la consola).</p>
+                  <p style={{ color: theme.textMuted, fontStyle: "italic", textAlign: "center" }}>No hay oportunidades en el pipeline (o falta crear la tabla crm_opportunities — revisa la consola).</p>
                 ) : (
-                  <table>
+                  <table style={tableStyle}>
                     <thead>
                       <tr>
-                        <th>Negocio</th>
-                        <th>Tipo Embudo</th>
-                        <th>Etapa Actual</th>
-                        <th>Valor ($)</th>
-                        <th>Probabilidad</th>
-                        <th>Ejecutivo</th>
+                        <th style={thStyle}>Negocio</th>
+                        <th style={thStyle}>Tipo Embudo</th>
+                        <th style={thStyle}>Etapa Actual</th>
+                        <th style={thStyle}>Valor ($)</th>
+                        <th style={thStyle}>Probabilidad</th>
+                        <th style={thStyle}>Ejecutivo</th>
                       </tr>
                     </thead>
                     <tbody>
                       {oportunidades.map((o) => (
                         <tr key={o.id}>
-                          <td style={{ textAlign: "left", fontWeight: "600" }}>{o.titulo}</td>
-                          <td>{o.pipeline_tipo}</td>
-                          <td>
+                          <td style={{ ...tdStyle, textAlign: "left", fontWeight: 600 }}>{o.titulo}</td>
+                          <td style={tdStyle}>{o.pipeline_tipo}</td>
+                          <td style={tdStyle}>
                             <select
                               value={o.etapa}
                               onChange={(e) => handleCambiarEtapa(o.id, e.target.value)}
-                              style={{ width: "auto", padding: "6px 10px", fontSize: "0.75rem" }}
+                              style={{ ...inputStyle, width: "auto", padding: "6px 10px", fontSize: "0.75rem" }}
                             >
                               {ETAPAS_PIPELINE.map((etapa) => (
                                 <option key={etapa} value={etapa}>{etapa}</option>
                               ))}
                             </select>
                           </td>
-                          <td style={{ color: "#DAA520", fontWeight: "600" }}>${Number(o.valor_estimado).toLocaleString()}</td>
-                          <td>
+                          <td style={{ ...tdStyle, color: theme.gold, fontWeight: 600 }}>${Number(o.valor_estimado).toLocaleString()}</td>
+                          <td style={tdStyle}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
                               <input
                                 type="number"
@@ -1021,59 +1018,59 @@ export default function CRMEpicoEnterprise() {
                                   const nuevoValor = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
                                   if (nuevoValor !== o.probabilidad) handleCambiarProbabilidad(o.id, nuevoValor);
                                 }}
-                                style={{ width: "60px", padding: "6px", textAlign: "center", fontSize: "0.85rem" }}
+                                style={{ ...inputStyle, width: "60px", padding: "6px", textAlign: "center", fontSize: "0.85rem" }}
                               />
                               <span>%</span>
                             </div>
                           </td>
-                          <td>{o.vendedor_asignado}</td>
+                          <td style={tdStyle}>{o.vendedor_asignado}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
             </div>
           )}
 
           {/* SECCIÓN 3: FICHA OPERATIVA */}
           {pestanaActiva === "actividades" && (
             <div>
-              <div className="card-enterprise" style={{ padding: "35px", marginBottom: "30px" }}>
-                <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>
+              <Card style={{ padding: "35px", marginBottom: "30px" }}>
+                <Heading style={{ fontSize: "1.1rem", textTransform: "uppercase", marginBottom: "20px" }}>
                   Ficha Única Operativa (Bitácora Comercial)
-                </h2>
+                </Heading>
                 <div style={{ maxWidth: "500px" }}>
-                  <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Seleccionar Cliente</label>
-                  <select value={clienteSeleccionadoId} onChange={(e) => setClienteSeleccionadoId(e.target.value)}>
+                  <label style={lbStyle}>Seleccionar Cliente</label>
+                  <select value={clienteSeleccionadoId} onChange={(e) => setClienteSeleccionadoId(e.target.value)} style={inputStyle}>
                     <option value="">— Elegí un cliente —</option>
                     {clientesReales.map((c) => (
                       <option key={c.id} value={c.id}>{c.razon_social || c.email}</option>
                     ))}
                   </select>
                 </div>
-              </div>
+              </Card>
 
               {clienteSeleccionadoId && (() => {
                 const clienteActivo = clientesReales.find((c) => c.id === clienteSeleccionadoId);
                 return (
                   <>
-                    <div className="card-enterprise" style={{ padding: "30px", marginBottom: "30px" }}>
-                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "15px" }}>Datos de la Cuenta</h3>
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "20px", fontSize: "0.85rem" }}>
-                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Representante</span><br /><strong style={{ color: "#FFF" }}>{clienteActivo?.nombre_representante || "—"}</strong></div>
-                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Teléfono</span><br /><strong style={{ color: "#FFF" }}>{clienteActivo?.telefono_celular || "—"}</strong></div>
-                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Email</span><br /><strong style={{ color: "#FFF" }}>{clienteActivo?.email || "—"}</strong></div>
-                        <div><span style={{ color: "rgba(255,255,255,0.5)" }}>Lista de Precio</span><br /><strong style={{ color: "#DAA520" }}>{clienteActivo?.price_list || "—"}</strong></div>
+                    <Card style={{ padding: "30px", marginBottom: "30px" }}>
+                      <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "15px" }}>Datos de la Cuenta</Heading>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "20px" }}>
+                        <DataRow label="Representante" valor={clienteActivo?.nombre_representante || "—"} />
+                        <DataRow label="Teléfono" valor={clienteActivo?.telefono_celular || "—"} />
+                        <DataRow label="Email" valor={clienteActivo?.email || "—"} />
+                        <DataRow label="Lista de Precio" valor={clienteActivo?.price_list || "—"} />
                       </div>
-                    </div>
+                    </Card>
 
-                    <div className="card-enterprise" style={{ padding: "35px", marginBottom: "30px" }}>
-                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Registrar Contacto</h3>
+                    <Card style={{ padding: "35px", marginBottom: "30px" }}>
+                      <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "20px" }}>Registrar Contacto</Heading>
                       <form onSubmit={handleCrearActividad} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr auto", gap: "15px", alignItems: "end" }}>
                         <div>
-                          <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Tipo</label>
-                          <select value={nuevaActividad.tipo} onChange={(e) => setNuevaActividad({ ...nuevaActividad, tipo: e.target.value })}>
+                          <label style={lbStyle}>Tipo</label>
+                          <select value={nuevaActividad.tipo} onChange={(e) => setNuevaActividad({ ...nuevaActividad, tipo: e.target.value })} style={inputStyle}>
                             <option value="Nota">Nota</option>
                             <option value="Llamada">Llamada</option>
                             <option value="Reunión">Reunión</option>
@@ -1081,40 +1078,40 @@ export default function CRMEpicoEnterprise() {
                           </select>
                         </div>
                         <div>
-                          <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Registrado por</label>
-                          <input type="text" placeholder="Tu nombre" value={nuevaActividad.autor} onChange={(e) => setNuevaActividad({ ...nuevaActividad, autor: e.target.value })} />
+                          <label style={lbStyle}>Registrado por</label>
+                          <input type="text" placeholder="Tu nombre" value={nuevaActividad.autor} onChange={(e) => setNuevaActividad({ ...nuevaActividad, autor: e.target.value })} style={inputStyle} />
                         </div>
                         <div>
-                          <label style={{ display: "block", fontSize: "0.7rem", color: "rgba(255,255,255,0.6)", marginBottom: "6px", textTransform: "uppercase" }}>Descripción</label>
-                          <input type="text" placeholder="Ej: Cliente pidió actualizar su plan..." value={nuevaActividad.descripcion} onChange={(e) => setNuevaActividad({ ...nuevaActividad, descripcion: e.target.value })} />
+                          <label style={lbStyle}>Descripción</label>
+                          <input type="text" placeholder="Ej: Cliente pidió actualizar su plan..." value={nuevaActividad.descripcion} onChange={(e) => setNuevaActividad({ ...nuevaActividad, descripcion: e.target.value })} style={inputStyle} />
                         </div>
-                        <button type="submit" className="gold-btn" style={{ height: "45px" }}>Registrar</button>
+                        <Button type="submit" style={{ height: "45px" }}>Registrar</Button>
                       </form>
-                    </div>
+                    </Card>
 
-                    <div className="card-enterprise" style={{ padding: "35px" }}>
-                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Historial de Contacto</h3>
+                    <Card style={{ padding: "35px" }}>
+                      <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "20px" }}>Historial de Contacto</Heading>
                       {cargandoActividades ? (
-                        <p style={{ color: "rgba(255,255,255,0.5)", textAlign: "center" }}>Cargando...</p>
+                        <p style={{ color: theme.textMuted, textAlign: "center" }}>Cargando...</p>
                       ) : actividades.length === 0 ? (
-                        <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>Sin contactos registrados todavía para este cliente.</p>
+                        <p style={{ color: theme.textMuted, fontStyle: "italic", textAlign: "center" }}>Sin contactos registrados todavía para este cliente.</p>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                           {actividades.map((a) => (
-                            <div key={a.id} style={{ background: "#050505", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" }}>
+                            <div key={a.id} style={{ background: theme.inputBg, border: `1px solid ${theme.borderGoldLight}`, borderRadius: theme.radiusSm, padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" }}>
                               <div>
-                                <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "0.65rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)", marginRight: "10px" }}>{a.tipo}</span>
-                                <span style={{ color: "#FFF", fontSize: "0.85rem" }}>{a.descripcion}</span>
+                                <Badge tone="gold">{a.tipo}</Badge>
+                                <span style={{ color: theme.textLight, fontSize: "0.85rem", marginLeft: "10px" }}>{a.descripcion}</span>
                               </div>
                               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem" }}>{new Date(a.fecha_contacto).toLocaleString()}</div>
-                                {a.autor && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>por {a.autor}</div>}
+                                <div style={{ color: theme.textMuted, fontSize: "0.7rem" }}>{new Date(a.fecha_contacto).toLocaleString()}</div>
+                                {a.autor && <div style={{ color: theme.textMuted, fontSize: "0.7rem" }}>por {a.autor}</div>}
                               </div>
                             </div>
                           ))}
                         </div>
                       )}
-                    </div>
+                    </Card>
                   </>
                 );
               })()}
@@ -1123,14 +1120,12 @@ export default function CRMEpicoEnterprise() {
 
           {/* SECCIÓN 4: CPQ & COTIZACIONES (portado de pages/admin/cotizaciones.tsx) */}
           {pestanaActiva === "cpq" && (
-            <div className="card-enterprise" style={{ padding: "35px" }}>
+            <Card style={{ padding: "35px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", margin: 0 }}>
+                <Heading style={{ fontSize: "1.1rem", textTransform: "uppercase", margin: 0 }}>
                   Control de Cotizaciones (Tabla `quotes`)
-                </h2>
-                <div style={{ background: "rgba(218, 165, 32, 0.08)", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "8px 16px", borderRadius: "8px", color: "#DAA520", fontWeight: "600", fontSize: "0.8rem" }}>
-                  TOTAL: {cotizacionesFiltradas.length}
-                </div>
+                </Heading>
+                <Badge tone="gold">TOTAL: {cotizacionesFiltradas.length}</Badge>
               </div>
 
               <input
@@ -1138,21 +1133,21 @@ export default function CRMEpicoEnterprise() {
                 placeholder="Filtrar por referencia (QT-XXXX), tipo, razón social, representante, email o teléfono..."
                 value={busquedaCotizaciones}
                 onChange={(e) => setBusquedaCotizaciones(e.target.value)}
-                style={{ maxWidth: "550px", marginBottom: "20px" }}
+                style={{ ...inputStyle, maxWidth: "550px", width: "100%", boxSizing: "border-box", marginBottom: "20px" }}
               />
 
               {cotizacionesFiltradas.length === 0 ? (
-                <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No se encontraron cotizaciones registradas.</p>
+                <p style={{ color: theme.textMuted, fontStyle: "italic", textAlign: "center" }}>No se encontraron cotizaciones registradas.</p>
               ) : (
-                <table>
+                <table style={tableStyle}>
                   <thead>
                     <tr>
-                      <th>Referencia / Fecha</th>
-                      <th>Cliente / Razón Social</th>
-                      <th>Contacto (Email / Tel)</th>
-                      <th>Tipo</th>
-                      <th>Total</th>
-                      <th>Acción</th>
+                      <th style={thStyle}>Referencia / Fecha</th>
+                      <th style={thStyle}>Cliente / Razón Social</th>
+                      <th style={thStyle}>Contacto (Email / Tel)</th>
+                      <th style={thStyle}>Tipo</th>
+                      <th style={thStyle}>Total</th>
+                      <th style={thStyle}>Acción</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1165,30 +1160,28 @@ export default function CRMEpicoEnterprise() {
 
                       return (
                         <tr key={item.id}>
-                          <td style={{ textAlign: "left" }}>
-                            <span style={{ color: "#DAA520", fontWeight: "600" }}>{referenciaStr}</span>
-                            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>{fechaFormateada}</div>
+                          <td style={{ ...tdStyle, textAlign: "left" }}>
+                            <span style={{ color: theme.gold, fontWeight: 600 }}>{referenciaStr}</span>
+                            <div style={{ fontSize: "0.75rem", color: theme.textMuted, marginTop: "2px" }}>{fechaFormateada}</div>
                           </td>
-                          <td style={{ textAlign: "left" }}>
+                          <td style={{ ...tdStyle, textAlign: "left" }}>
                             {empresa}
                             {representante !== "N/D" && representante && (
-                              <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>Atn: {representante}</div>
+                              <div style={{ fontSize: "0.75rem", color: theme.textMuted, marginTop: "2px" }}>Atn: {representante}</div>
                             )}
                           </td>
-                          <td style={{ textAlign: "left", fontSize: "0.85rem" }}>
-                            <div style={{ color: "#DAA520" }}>{email}</div>
-                            <div style={{ fontSize: "0.75rem", color: "#888", marginTop: "2px" }}>{telefono}</div>
+                          <td style={{ ...tdStyle, textAlign: "left", fontSize: "0.85rem" }}>
+                            <div style={{ color: theme.gold }}>{email}</div>
+                            <div style={{ fontSize: "0.75rem", color: theme.textMuted, marginTop: "2px" }}>{telefono}</div>
                           </td>
-                          <td>
-                            <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "0.7rem", border: "1px solid rgba(218,165,32,0.3)", background: "rgba(218,165,32,0.08)", color: "#DAA520", fontWeight: "600" }}>
-                              {tipoStr}
-                            </span>
+                          <td style={tdStyle}>
+                            <Badge tone="gold">{tipoStr}</Badge>
                           </td>
-                          <td style={{ color: "#DAA520", fontWeight: "600" }}>${totalVal}</td>
-                          <td>
-                            <button className="convertir-btn" onClick={() => abrirDetalleCotizacion(item)}>
+                          <td style={{ ...tdStyle, color: theme.gold, fontWeight: 600 }}>${totalVal}</td>
+                          <td style={tdStyle}>
+                            <Button variant="outline-green" onClick={() => abrirDetalleCotizacion(item)}>
                               Ver Detalle
-                            </button>
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -1196,56 +1189,35 @@ export default function CRMEpicoEnterprise() {
                   </tbody>
                 </table>
               )}
-            </div>
+            </Card>
           )}
 
           {/* MODAL DE DETALLE DE COTIZACIÓN */}
           {modalCotizacionAbierto && cotizacionSeleccionada && (
-            <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
-              <div style={{ background: "#111111", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "12px", padding: "30px", width: "90%", maxWidth: "700px", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 40px rgba(0,0,0,0.8)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(218, 165, 32, 0.3)", paddingBottom: "12px", marginBottom: "20px" }}>
-                  <h2 style={{ fontSize: "1.2rem", color: "#DAA520", letterSpacing: "1px", margin: 0 }}>
+            <div style={overlayStyle}>
+              <Card style={{ width: "90%", maxWidth: "700px", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${theme.borderGold}`, paddingBottom: "12px", marginBottom: "20px" }}>
+                  <h2 style={{ fontSize: "1.2rem", color: theme.gold, letterSpacing: "1px", margin: 0 }}>
                     DETALLE: {cotizacionSeleccionada.referencia || `QT-${cotizacionSeleccionada.id}`}
                   </h2>
-                  <button onClick={cerrarDetalleCotizacion} style={{ background: "transparent", border: "none", color: "#DAA520", fontSize: "1.2rem", cursor: "pointer", fontWeight: "bold" }}>✕</button>
+                  <Button variant="ghost" onClick={cerrarDetalleCotizacion} style={{ fontSize: "1.2rem", padding: "0 6px" }}>✕</Button>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px", fontSize: "0.9rem" }}>
-                  <div>
-                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Empresa / Razón Social:</p>
-                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.empresaResuelto}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Representante / Atención:</p>
-                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.representanteResuelto}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Correo Electrónico:</p>
-                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.emailResuelto}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Teléfono:</p>
-                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.telefonoResuelto}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Tipo de Solicitud:</p>
-                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.tipo_solicitud || cotizacionSeleccionada.type || cotizacionSeleccionada.tipo || "N/D"}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Fecha de Emisión:</p>
-                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.created_at ? new Date(cotizacionSeleccionada.created_at).toLocaleString() : "N/D"}</p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "3px" }}>Estado:</p>
-                    <p style={{ color: "#fff", margin: 0, fontWeight: 500 }}>{cotizacionSeleccionada.status || "pendiente"}</p>
-                  </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "20px" }}>
+                  <DataRow label="Empresa / Razón Social" valor={cotizacionSeleccionada.empresaResuelto} />
+                  <DataRow label="Representante / Atención" valor={cotizacionSeleccionada.representanteResuelto} />
+                  <DataRow label="Correo Electrónico" valor={cotizacionSeleccionada.emailResuelto} />
+                  <DataRow label="Teléfono" valor={cotizacionSeleccionada.telefonoResuelto} />
+                  <DataRow label="Tipo de Solicitud" valor={cotizacionSeleccionada.tipo_solicitud || cotizacionSeleccionada.type || cotizacionSeleccionada.tipo || "N/D"} />
+                  <DataRow label="Fecha de Emisión" valor={cotizacionSeleccionada.created_at ? new Date(cotizacionSeleccionada.created_at).toLocaleString() : "N/D"} />
+                  <DataRow label="Estado" valor={<Badge tone={estadoToTone(cotizacionSeleccionada.status)}>{cotizacionSeleccionada.status || "pendiente"}</Badge>} />
                 </div>
 
                 {/* ESTADO DE PAGO — forma de pago acordada con el cliente + saldo pendiente */}
-                <div style={{ marginBottom: "20px", background: "rgba(218, 165, 32, 0.05)", border: "1px dashed rgba(218, 165, 32, 0.3)", borderRadius: "8px", padding: "15px 20px" }}>
-                  <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "6px" }}>Estado de Pago</p>
-                  <p style={{ color: "#fff", fontSize: "0.85rem", margin: "0 0 10px 0", lineHeight: "1.5" }}>
-                    <strong style={{ color: "#DAA520" }}>Forma de pago acordada: </strong>
+                <div style={{ marginBottom: "20px", background: theme.goldSoft, border: `1px dashed ${theme.borderGold}`, borderRadius: theme.radiusSm, padding: "15px 20px" }}>
+                  <p style={{ fontSize: "0.75rem", color: theme.textMuted, textTransform: "uppercase", marginBottom: "6px" }}>Estado de Pago</p>
+                  <p style={{ color: theme.textLight, fontSize: "0.85rem", margin: "0 0 10px 0", lineHeight: "1.5" }}>
+                    <strong style={{ color: theme.gold }}>Forma de pago acordada: </strong>
                     {descripcionFormaPago(cotizacionSeleccionada.formaPagoCliente, cotizacionSeleccionada.porcentajePagoCliente)}
                   </p>
                   {(() => {
@@ -1254,24 +1226,24 @@ export default function CRMEpicoEnterprise() {
                     const falta = Math.max(0, total - abonado);
                     return (
                       <div style={{ display: "flex", gap: "25px", fontSize: "0.85rem" }}>
-                        <span>Abonado: <strong style={{ color: "#2ecc71" }}>${abonado.toFixed(2)}</strong></span>
-                        <span>Total: <strong style={{ color: "#fff" }}>${total.toFixed(2)}</strong></span>
-                        <span>Falta: <strong style={{ color: falta > 0 ? "#e74c3c" : "#2ecc71" }}>${falta.toFixed(2)}</strong></span>
+                        <span>Abonado: <strong style={{ color: theme.green }}>${abonado.toFixed(2)}</strong></span>
+                        <span>Total: <strong style={{ color: theme.textLight }}>${total.toFixed(2)}</strong></span>
+                        <span>Falta: <strong style={{ color: falta > 0 ? theme.red : theme.green }}>${falta.toFixed(2)}</strong></span>
                       </div>
                     );
                   })()}
                 </div>
 
                 <div style={{ marginBottom: "20px" }}>
-                  <p style={{ fontSize: "0.75rem", color: "#888", textTransform: "uppercase", marginBottom: "8px" }}>Ítems / Contenido de la Cotización:</p>
-                  <div style={{ backgroundColor: "#0b0b0b", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px", maxHeight: "180px", overflowY: "auto" }}>
+                  <p style={{ fontSize: "0.75rem", color: theme.textMuted, textTransform: "uppercase", marginBottom: "8px" }}>Ítems / Contenido de la Cotización:</p>
+                  <div style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.borderGoldLight}`, borderRadius: theme.radiusSm, maxHeight: "180px", overflowY: "auto" }}>
                     {(() => {
                       const itemsList = parseJSON(cotizacionSeleccionada.items) || parseJSON(cotizacionSeleccionada.productos) || parseJSON(cotizacionSeleccionada.details);
                       if (Array.isArray(itemsList) && itemsList.length > 0) {
                         return (
                           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem", textAlign: "left" }}>
                             <thead>
-                              <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.3)", color: "#DAA520", backgroundColor: "#141414" }}>
+                              <tr style={{ borderBottom: `1px solid ${theme.borderGold}`, color: theme.gold, backgroundColor: theme.background }}>
                                 <th style={{ padding: "10px 14px" }}>SKU / Ref</th>
                                 <th style={{ padding: "10px 14px" }}>Descripción</th>
                                 <th style={{ padding: "10px 14px", textAlign: "center" }}>Cant.</th>
@@ -1280,11 +1252,11 @@ export default function CRMEpicoEnterprise() {
                             </thead>
                             <tbody>
                               {itemsList.map((prod: any, idx: number) => (
-                                <tr key={idx} style={{ borderBottom: "1px solid #161616" }}>
-                                  <td style={{ padding: "10px 14px", color: "#DAA520", fontWeight: "600" }}>{prod.SKU || prod.sku || prod.codigo || "N/D"}</td>
-                                  <td style={{ padding: "10px 14px", color: "#fff" }}>{prod.Descripción || prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
-                                  <td style={{ padding: "10px 14px", textAlign: "center", color: "#ccc" }}>{prod.cantidad || prod.quantity || 1}</td>
-                                  <td style={{ padding: "10px 14px", textAlign: "right", color: "#fff", fontWeight: "600" }}>
+                                <tr key={idx} style={{ borderBottom: `1px solid ${theme.borderGoldLight}` }}>
+                                  <td style={{ padding: "10px 14px", color: theme.gold, fontWeight: 600 }}>{prod.SKU || prod.sku || prod.codigo || "N/D"}</td>
+                                  <td style={{ padding: "10px 14px", color: theme.textLight }}>{prod.Descripción || prod.descripcion || prod.description || prod.nombre || "Sin descripción"}</td>
+                                  <td style={{ padding: "10px 14px", textAlign: "center", color: theme.textMuted }}>{prod.cantidad || prod.quantity || 1}</td>
+                                  <td style={{ padding: "10px 14px", textAlign: "right", color: theme.textLight, fontWeight: 600 }}>
                                     ${Number(prod.total || (Number(prod.precioUnitario || prod.precio || 0) * Number(prod.cantidad || 1)) || prod.subtotal || 0).toFixed(2)}
                                   </td>
                                 </tr>
@@ -1294,38 +1266,38 @@ export default function CRMEpicoEnterprise() {
                         );
                       } else if (typeof itemsList === "object" && itemsList !== null && Object.keys(itemsList).length > 0) {
                         return (
-                          <div style={{ padding: "12px", color: "#fff", fontSize: "0.85rem" }}>
-                            <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>SKU / Ref:</strong> {itemsList.SKU || itemsList.sku || "N/D"}</p>
-                            <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: "#DAA520" }}>Descripción:</strong> {itemsList.Descripción || itemsList.descripcion || itemsList.description || itemsList.nombre || "N/D"}</p>
-                            <p style={{ margin: 0 }}><strong style={{ color: "#DAA520" }}>Total:</strong> ${Number(itemsList.total || itemsList.precioUnitario || itemsList.precio || 0).toFixed(2)}</p>
+                          <div style={{ padding: "12px", color: theme.textLight, fontSize: "0.85rem" }}>
+                            <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: theme.gold }}>SKU / Ref:</strong> {itemsList.SKU || itemsList.sku || "N/D"}</p>
+                            <p style={{ margin: "0 0 4px 0" }}><strong style={{ color: theme.gold }}>Descripción:</strong> {itemsList.Descripción || itemsList.descripcion || itemsList.description || itemsList.nombre || "N/D"}</p>
+                            <p style={{ margin: 0 }}><strong style={{ color: theme.gold }}>Total:</strong> ${Number(itemsList.total || itemsList.precioUnitario || itemsList.precio || 0).toFixed(2)}</p>
                           </div>
                         );
                       } else {
-                        return <p style={{ color: "#666", fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados en esta cotización.</p>;
+                        return <p style={{ color: theme.textMuted, fontStyle: "italic", padding: "12px", margin: 0 }}>No hay ítems detallados guardados en esta cotización.</p>;
                       }
                     })()}
                   </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(218, 165, 32, 0.3)", paddingTop: "15px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${theme.borderGold}`, paddingTop: "15px" }}>
                   <div>
-                    <span style={{ fontSize: "0.85rem", color: "#888" }}>Total General: </span>
-                    <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: "#fff" }}>${Number(cotizacionSeleccionada.total || 0).toFixed(2)}</span>
+                    <span style={{ fontSize: "0.85rem", color: theme.textMuted }}>Total General: </span>
+                    <span style={{ fontSize: "1.2rem", fontWeight: "bold", color: theme.textLight }}>${Number(cotizacionSeleccionada.total || 0).toFixed(2)}</span>
                   </div>
                   <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                     {cargandoPdf ? (
-                      <span style={{ fontSize: "0.8rem", color: "#DAA520", fontStyle: "italic" }}>Buscando documento...</span>
+                      <span style={{ fontSize: "0.8rem", color: theme.gold, fontStyle: "italic" }}>Buscando documento...</span>
                     ) : cotizacionSeleccionada.pdf_url_final ? (
-                      <a href={cotizacionSeleccionada.pdf_url_final} target="_blank" rel="noopener noreferrer" className="gold-btn" style={{ textDecoration: "none", display: "inline-block" }}>
+                      <a href={cotizacionSeleccionada.pdf_url_final} target="_blank" rel="noopener noreferrer" style={goldLinkStyle}>
                         VER DOCUMENTO QT (PDF)
                       </a>
                     ) : (
-                      <span style={{ fontSize: "0.8rem", color: "#666" }}>Archivo no encontrado en bucket</span>
+                      <span style={{ fontSize: "0.8rem", color: theme.textMuted }}>Archivo no encontrado en bucket</span>
                     )}
-                    <button onClick={cerrarDetalleCotizacion} className="custom-btn">CERRAR</button>
+                    <Button variant="outline-gold" onClick={cerrarDetalleCotizacion}>CERRAR</Button>
                   </div>
                 </div>
-              </div>
+              </Card>
             </div>
           )}
 
@@ -1333,156 +1305,146 @@ export default function CRMEpicoEnterprise() {
           {pestanaActiva === "gobierno" && (
             <div>
               {cargandoGobierno && !metricas ? (
-                <div className="card-enterprise" style={{ padding: "35px", textAlign: "center" }}>
-                  <p style={{ color: "rgba(255,255,255,0.5)" }}>Calculando métricas...</p>
-                </div>
+                <Card style={{ padding: "35px", textAlign: "center" }}>
+                  <p style={{ color: theme.textMuted }}>Calculando métricas...</p>
+                </Card>
               ) : (
                 <>
                   {/* Tarjetas de métricas de ventas */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "30px" }}>
-                    <div className="card-enterprise" style={{ padding: "25px" }}>
-                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Win Rate (Ganadas vs Cerradas)</span>
-                      <h2 style={{ fontSize: "1.9rem", color: "#2ecc71", margin: "10px 0 0 0", fontWeight: "400" }}>
+                    <Card style={{ padding: "25px" }}>
+                      <span style={lbStyle}>Win Rate (Ganadas vs Cerradas)</span>
+                      <h2 style={{ fontSize: "1.9rem", color: theme.green, margin: "10px 0 0 0", fontWeight: 400 }}>
                         {metricas && (metricas.oportunidadesGanadas + metricas.oportunidadesPerdidas) > 0
                           ? `${((metricas.oportunidadesGanadas / (metricas.oportunidadesGanadas + metricas.oportunidadesPerdidas)) * 100).toFixed(0)}%`
                           : "N/D"}
                       </h2>
-                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>
+                      <span style={{ fontSize: "0.7rem", color: theme.textMuted }}>
                         {metricas?.oportunidadesGanadas || 0} ganadas / {metricas?.oportunidadesPerdidas || 0} perdidas
                       </span>
-                    </div>
-                    <div className="card-enterprise" style={{ padding: "25px" }}>
-                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Valor Total Ganado</span>
-                      <h2 style={{ fontSize: "1.9rem", color: "#DAA520", margin: "10px 0 0 0", fontWeight: "400" }}>${(metricas?.valorGanado || 0).toLocaleString()}</h2>
-                    </div>
-                    <div className="card-enterprise" style={{ padding: "25px" }}>
-                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Conversión de Prospectos</span>
-                      <h2 style={{ fontSize: "1.9rem", color: "#FFF", margin: "10px 0 0 0", fontWeight: "400" }}>
+                    </Card>
+                    <Card style={{ padding: "25px" }}>
+                      <span style={lbStyle}>Valor Total Ganado</span>
+                      <h2 style={{ fontSize: "1.9rem", color: theme.gold, margin: "10px 0 0 0", fontWeight: 400 }}>${(metricas?.valorGanado || 0).toLocaleString()}</h2>
+                    </Card>
+                    <Card style={{ padding: "25px" }}>
+                      <span style={lbStyle}>Conversión de Prospectos</span>
+                      <h2 style={{ fontSize: "1.9rem", color: theme.textLight, margin: "10px 0 0 0", fontWeight: 400 }}>
                         {metricas && metricas.prospectosTotalHistorico > 0
                           ? `${((metricas.prospectosConvertidos / metricas.prospectosTotalHistorico) * 100).toFixed(0)}%`
                           : "N/D"}
                       </h2>
-                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>
+                      <span style={{ fontSize: "0.7rem", color: theme.textMuted }}>
                         {metricas?.prospectosConvertidos || 0} de {metricas?.prospectosTotalHistorico || 0} prospectos
                       </span>
-                    </div>
-                    <div className="card-enterprise" style={{ padding: "25px" }}>
-                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", textTransform: "uppercase" }}>Cotizaciones — Cobrado / Total</span>
-                      <h2 style={{ fontSize: "1.6rem", color: "#FFF", margin: "10px 0 0 0", fontWeight: "400" }}>
-                        ${(metricas?.cotizacionesAbonadoTotal || 0).toLocaleString()} <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "1rem" }}>/ ${(metricas?.cotizacionesValorTotal || 0).toLocaleString()}</span>
+                    </Card>
+                    <Card style={{ padding: "25px" }}>
+                      <span style={lbStyle}>Cotizaciones — Cobrado / Total</span>
+                      <h2 style={{ fontSize: "1.6rem", color: theme.textLight, margin: "10px 0 0 0", fontWeight: 400 }}>
+                        ${(metricas?.cotizacionesAbonadoTotal || 0).toLocaleString()} <span style={{ color: theme.textMuted, fontSize: "1rem" }}>/ ${(metricas?.cotizacionesValorTotal || 0).toLocaleString()}</span>
                       </h2>
-                      <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.4)" }}>{metricas?.cotizacionesTotal || 0} cotizaciones registradas</span>
-                    </div>
+                      <span style={{ fontSize: "0.7rem", color: theme.textMuted }}>{metricas?.cotizacionesTotal || 0} cotizaciones registradas</span>
+                    </Card>
                   </div>
 
                   {/* Bitácora de auditoría */}
-                  <div className="card-enterprise" style={{ padding: "35px" }}>
+                  <Card style={{ padding: "35px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-                      <h2 style={{ color: "#DAA520", fontSize: "1.1rem", fontWeight: "500", textTransform: "uppercase", margin: 0 }}>
+                      <Heading style={{ fontSize: "1.1rem", textTransform: "uppercase", margin: 0 }}>
                         Bitácora de Auditoría (Últimos 20 movimientos)
-                      </h2>
-                      <button onClick={fetchMetricasYAuditoria} className="custom-btn" style={{ padding: "8px 16px", fontSize: "0.7rem" }}>
+                      </Heading>
+                      <Button variant="outline-gold" onClick={fetchMetricasYAuditoria} style={{ padding: "8px 16px", fontSize: "0.7rem" }}>
                         ↻ Actualizar
-                      </button>
+                      </Button>
                     </div>
 
                     {bitacoraAuditoria.length === 0 ? (
                       <div style={{ textAlign: "center", padding: "20px" }}>
-                        <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", marginBottom: "8px" }}>
+                        <p style={{ color: theme.textMuted, fontStyle: "italic", marginBottom: "8px" }}>
                           Todavía no hay movimientos registrados en la bitácora de auditoría.
                         </p>
-                        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.75rem" }}>
+                        <p style={{ color: theme.textMuted, fontSize: "0.75rem" }}>
                           Si esperabas ver datos aquí, revisa que la tabla <code>audit_log</code> exista en Supabase (ver instrucciones SQL entregadas).
                         </p>
                       </div>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         {bitacoraAuditoria.map((entrada) => (
-                          <div key={entrada.id} style={{ background: "#050505", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", padding: "13px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" }}>
+                          <div key={entrada.id} style={{ background: theme.inputBg, border: `1px solid ${theme.borderGoldLight}`, borderRadius: theme.radiusSm, padding: "13px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "20px" }}>
                             <div>
-                              <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "0.65rem", background: "rgba(218,165,32,0.15)", color: "#DAA520", border: "1px solid rgba(218,165,32,0.3)", marginRight: "10px", textTransform: "uppercase" }}>
-                                {entrada.entidad}
-                              </span>
-                              <span style={{ color: "#FFF", fontSize: "0.85rem" }}>{entrada.detalle || entrada.accion}</span>
+                              <Badge tone="gold">{entrada.entidad}</Badge>
+                              <span style={{ color: theme.textLight, fontSize: "0.85rem", marginLeft: "10px" }}>{entrada.detalle || entrada.accion}</span>
                             </div>
                             <div style={{ textAlign: "right", flexShrink: 0 }}>
-                              <div style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.7rem" }}>{new Date(entrada.created_at).toLocaleString()}</div>
-                              {entrada.autor && <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem" }}>por {entrada.autor}</div>}
+                              <div style={{ color: theme.textMuted, fontSize: "0.7rem" }}>{new Date(entrada.created_at).toLocaleString()}</div>
+                              {entrada.autor && <div style={{ color: theme.textMuted, fontSize: "0.7rem" }}>por {entrada.autor}</div>}
                             </div>
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </Card>
 
                   {/* Nota de gobernanza (informativa) */}
-                  <div className="card-enterprise" style={{ padding: "25px", marginTop: "30px" }}>
-                    <h4 style={{ color: "#DAA520", margin: "0 0 10px 0", fontSize: "0.9rem", textTransform: "uppercase" }}>Control de Permisos RLS</h4>
-                    <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.8rem", margin: 0, lineHeight: "1.5" }}>
+                  <Card style={{ padding: "25px", marginTop: "30px" }}>
+                    <Heading style={{ fontSize: "0.9rem", textTransform: "uppercase", marginBottom: "10px" }}>Control de Permisos RLS</Heading>
+                    <p style={{ color: theme.textMuted, fontSize: "0.8rem", margin: 0, lineHeight: "1.5" }}>
                       Aislamiento seguro por perfiles de cuenta (ISP, Mayorista, Integrador) y visibilidad gerencial global.
                     </p>
-                  </div>
+                  </Card>
                 </>
               )}
             </div>
           )}
         </div>
-      </main>
 
-      {/* MODAL DE CONVERSIÓN A CLIENTE REAL */}
-      {modalConversion.isOpen && modalConversion.prospecto && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#111111", border: "1px solid rgba(46, 204, 113, 0.5)", borderRadius: "12px", padding: "30px", width: "100%", maxWidth: "500px", boxShadow: "0 10px 40px rgba(0,0,0,0.8)" }}>
-            <h2 style={{ color: "#2ecc71", marginTop: 0, fontSize: "1.2rem", letterSpacing: "1px" }}>
-              CONVERTIR A CLIENTE REAL
-            </h2>
-            <p style={{ fontSize: "0.9rem", color: "#CCC", marginBottom: "20px" }}>
-              Esto va a crear a <strong style={{ color: "#DAA520" }}>{modalConversion.prospecto.razon_social}</strong> como cliente activo en el portal y le va a enviar el correo para crear su contraseña. Definí la forma de pago acordada:
-            </p>
+        {/* MODAL DE CONVERSIÓN A CLIENTE REAL */}
+        {modalConversion.isOpen && modalConversion.prospecto && (
+          <div style={overlayStyle}>
+            <Card style={{ width: "100%", maxWidth: "500px", marginBottom: 0, border: `1px solid ${theme.greenBorder}` }}>
+              <h2 style={{ color: theme.green, marginTop: 0, fontSize: "1.2rem", letterSpacing: "1px" }}>
+                CONVERTIR A CLIENTE REAL
+              </h2>
+              <p style={{ fontSize: "0.9rem", color: theme.textMuted, marginBottom: "20px" }}>
+                Esto va a crear a <strong style={{ color: theme.gold }}>{modalConversion.prospecto.razon_social}</strong> como cliente activo en el portal y le va a enviar el correo para crear su contraseña. Definí la forma de pago acordada:
+              </p>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "15px" }}>
-              <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>FORMA DE PAGO:</label>
-              <select value={tipoPagoConversion} onChange={(e) => setTipoPagoConversion(e.target.value)} style={{ background: "#1a1a1a", color: "#E0E0E0", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "6px", padding: "10px" }}>
-                <option value="50%">50% Anticipo / 50% antes despacho (3 días antes)</option>
-                <option value="100%">100% a la Orden de Compra</option>
-                <option value="ESPECIAL">ESPECIAL (Negociación Interna)</option>
-              </select>
-            </div>
-
-            {tipoPagoConversion === "ESPECIAL" && (
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(218, 165, 32, 0.05)", padding: "10px", borderRadius: "6px", border: "1px dashed rgba(218, 165, 32, 0.4)", marginBottom: "15px" }}>
-                <label style={{ fontSize: "0.75rem", color: "#DAA520", fontWeight: "600" }}>% A LA ORDEN:</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={porcentajeEspecial}
-                  onChange={(e) => setPorcentajeEspecial(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
-                  style={{ background: "#000", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "4px", padding: "6px 10px", width: "80px", textAlign: "center", fontWeight: "700" }}
-                />
-                <span style={{ fontSize: "0.8rem", color: "#AAA" }}>Saldo: <strong style={{ color: "#2ecc71" }}>{100 - porcentajeEspecial}%</strong></span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "15px" }}>
+                <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>FORMA DE PAGO:</label>
+                <select value={tipoPagoConversion} onChange={(e) => setTipoPagoConversion(e.target.value)} style={inputStyle}>
+                  <option value="50%">50% Anticipo / 50% antes despacho (3 días antes)</option>
+                  <option value="100%">100% a la Orden de Compra</option>
+                  <option value="ESPECIAL">ESPECIAL (Negociación Interna)</option>
+                </select>
               </div>
-            )}
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-              <button
-                onClick={cerrarModalConversion}
-                disabled={convirtiendo}
-                style={{ padding: "11px 22px", cursor: "pointer", borderRadius: "6px", fontWeight: 600, fontSize: "0.8rem", background: "transparent", color: "#AAA", border: "1px solid #555" }}
-              >
-                CANCELAR
-              </button>
-              <button
-                onClick={confirmarConversion}
-                disabled={convirtiendo}
-                style={{ padding: "11px 22px", cursor: "pointer", borderRadius: "6px", fontWeight: 600, fontSize: "0.8rem", background: "rgba(46, 204, 113, 0.2)", color: "#2ecc71", border: "1px solid #2ecc71", opacity: convirtiendo ? 0.5 : 1 }}
-              >
-                {convirtiendo ? "CONVIRTIENDO..." : "CONFIRMAR CONVERSIÓN"}
-              </button>
-            </div>
+              {tipoPagoConversion === "ESPECIAL" && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", background: theme.goldSoft, padding: "10px", borderRadius: theme.radiusSm, border: `1px dashed ${theme.borderGold}`, marginBottom: "15px" }}>
+                  <label style={{ fontSize: "0.75rem", color: theme.gold, fontWeight: 600 }}>% A LA ORDEN:</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={porcentajeEspecial}
+                    onChange={(e) => setPorcentajeEspecial(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                    style={{ ...inputStyle, width: "80px", textAlign: "center", fontWeight: 700 }}
+                  />
+                  <span style={{ fontSize: "0.8rem", color: theme.textMuted }}>Saldo: <strong style={{ color: theme.green }}>{100 - porcentajeEspecial}%</strong></span>
+                </div>
+              )}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
+                <Button variant="ghost" onClick={cerrarModalConversion} disabled={convirtiendo}>
+                  CANCELAR
+                </Button>
+                <Button variant="outline-green" onClick={confirmarConversion} disabled={convirtiendo}>
+                  {convirtiendo ? "CONVIRTIENDO..." : "CONFIRMAR CONVERSIÓN"}
+                </Button>
+              </div>
+            </Card>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

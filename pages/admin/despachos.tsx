@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
+import type { CSSProperties } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import { Card, PageHeader, Button, Badge, inputStyle } from "../../lib/ui";
 
 /* ============================================================
    CENTRO DE DESPACHOS EXW — TRULINK FIBER LLC
@@ -461,100 +464,106 @@ export default function DespachosDashboard() {
 
   const acento = pestana === "fabrica" ? "#3498db" : "#9b59b6";
 
+  const lbStyle: CSSProperties = {
+    display: "block",
+    fontSize: "0.66rem",
+    color: theme.textMuted,
+    marginBottom: 5,
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  };
+
   /* ========================================================
      RENDER
      ======================================================== */
 
   return (
-    <div style={{ display: "flex", backgroundColor: "#000", minHeight: "100vh", fontFamily: "sans-serif" }}>
+    <div style={{ display: "flex" }}>
       <Sidebar currentActive="despachos" />
 
-      <main style={{ flex: 1, padding: "35px 30px", color: "#DAA520", boxSizing: "border-box", overflowX: "auto" }}>
+      <div style={pageWrapStyle()}>
         <style jsx global>{`
-          .dp-card { background:#080808; border:1px solid rgba(218,165,32,0.3); border-radius:12px; padding:22px; }
-          .dp-kpi { background:#0d0d0d; border:1px solid rgba(218,165,32,0.25); border-radius:10px; padding:16px 18px; }
-          .dp-in { background:#050505; color:#DAA520; border:1px solid rgba(218,165,32,0.4);
-                   padding:9px 11px; border-radius:6px; outline:none; font-size:0.82rem;
-                   box-sizing:border-box; font-family:inherit; width:100%; }
-          .dp-lb { display:block; font-size:0.66rem; color:rgba(255,255,255,0.55); margin-bottom:5px;
-                   text-transform:uppercase; letter-spacing:0.5px; }
-          .dp-gold { background:#DAA520; color:#000; border:none; padding:9px 16px; border-radius:6px;
-                     font-weight:700; font-size:0.76rem; cursor:pointer; }
-          .dp-gold:disabled { opacity:.5; cursor:not-allowed; }
-          .dp-ghost { background:transparent; color:#aaa; border:1px solid #444; padding:9px 18px;
-                      border-radius:6px; cursor:pointer; font-size:0.78rem; }
-          .dp-chip { padding:3px 9px; border-radius:10px; font-size:0.66rem; font-weight:600; white-space:nowrap; }
-          .dp-tabla { width:100%; border-collapse:collapse; font-size:0.82rem; }
-          .dp-tabla th { background:#0a0a0a; color:#DAA520; text-transform:uppercase; font-size:0.66rem;
-                         letter-spacing:1px; padding:11px 10px; text-align:left;
-                         border-bottom:1px solid rgba(218,165,32,0.35); }
-          .dp-tabla td { padding:11px 10px; color:#fff; border-bottom:1px solid #141414; }
-          .dp-ov { position:fixed; inset:0; background:rgba(0,0,0,0.85); display:flex; align-items:center;
-                   justify-content:center; z-index:1000; padding:20px; }
-          .dp-md { background:#0a0a0a; border:1px solid rgba(218,165,32,0.5); border-radius:12px;
-                   padding:26px; width:100%; max-height:90vh; overflow-y:auto; }
+          .dp-tabla { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+          .dp-tabla th {
+            background: ${theme.background}; color: ${theme.gold}; text-transform: uppercase;
+            font-size: 0.66rem; letter-spacing: 1px; padding: 11px 10px; text-align: left;
+            border-bottom: 1px solid ${theme.borderGoldCounter};
+          }
+          .dp-tabla td { padding: 11px 10px; color: ${theme.textLight}; border-bottom: 1px solid #141414; }
+          .dp-ov {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center;
+            justify-content: center; z-index: 1000; padding: 20px;
+          }
         `}</style>
 
         <div style={{ marginBottom: "22px" }}>
-          <span style={{ fontSize: "0.68rem", color: "rgba(218,165,32,0.7)", letterSpacing: "3px", textTransform: "uppercase", display: "block", marginBottom: "5px" }}>
+          <span
+            style={{
+              fontSize: "0.68rem", color: theme.gold, opacity: 0.7, letterSpacing: "3px",
+              textTransform: "uppercase", display: "block", marginBottom: "5px",
+            }}
+          >
             Trulink Fiber LLC — Logística Global
           </span>
-          <h1 style={{ color: "#DAA520", fontSize: "1.5rem", fontWeight: 300, letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 6px 0" }}>
-            Centro de Despachos EXW Panamá
-          </h1>
-          <p style={{ color: "#888", fontSize: "0.8rem", margin: 0 }}>
-            La salida solo se autoriza con el pago verificado contra las cuentas por cobrar reales.
-          </p>
+          <PageHeader
+            title="Centro de Despachos EXW Panamá"
+            subtitle="La salida solo se autoriza con el pago verificado contra las cuentas por cobrar reales."
+          />
         </div>
 
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "14px", marginBottom: "22px" }}>
-          <div className="dp-kpi">
-            <span className="dp-lb">Listos para Despachar</span>
-            <h2 style={{ color: "#2ecc71", fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.listos}</h2>
+          <Card style={{ padding: "16px 18px", marginBottom: 0 }}>
+            <span style={lbStyle}>Listos para Despachar</span>
+            <h2 style={{ color: theme.green, fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.listos}</h2>
             <span style={{ fontSize: "0.68rem", color: "#666" }}>Pago verificado al 100%</span>
-          </div>
-          <div className="dp-kpi">
-            <span className="dp-lb">Bloqueados por Pago</span>
-            <h2 style={{ color: kpis.bloqueados > 0 ? "#e74c3c" : "#666", fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.bloqueados}</h2>
+          </Card>
+          <Card style={{ padding: "16px 18px", marginBottom: 0 }}>
+            <span style={lbStyle}>Bloqueados por Pago</span>
+            <h2 style={{ color: kpis.bloqueados > 0 ? theme.red : "#666", fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.bloqueados}</h2>
             <span style={{ fontSize: "0.68rem", color: "#666" }}>Con saldo o sin facturar</span>
-          </div>
-          <div className="dp-kpi">
-            <span className="dp-lb">Despachados</span>
-            <h2 style={{ color: "#DAA520", fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.despachados}</h2>
-          </div>
-          <div className="dp-kpi">
-            <span className="dp-lb">Total en esta Línea</span>
-            <h2 style={{ color: "#fff", fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.total}</h2>
-          </div>
+          </Card>
+          <Card style={{ padding: "16px 18px", marginBottom: 0 }}>
+            <span style={lbStyle}>Despachados</span>
+            <h2 style={{ color: theme.gold, fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.despachados}</h2>
+          </Card>
+          <Card style={{ padding: "16px 18px", marginBottom: 0 }}>
+            <span style={lbStyle}>Total en esta Línea</span>
+            <h2 style={{ color: theme.textLight, fontSize: "1.5rem", margin: "5px 0 0 0", fontWeight: 400 }}>{kpis.total}</h2>
+          </Card>
         </div>
 
-        {/* Pestañas */}
-        <div style={{ display: "flex", gap: "10px", marginBottom: "22px", borderBottom: "1px solid rgba(218,165,32,0.2)", paddingBottom: "15px", flexWrap: "wrap" }}>
-          <button onClick={() => { setPestana("fabrica"); setSel(null); }}
+        {/* Pestañas — colores de acento (#3498db / #9b59b6) distinguen las dos líneas de negocio;
+            no calzan con ningún variant del sistema de diseño, se mantienen literales a propósito. */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "22px", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "15px", flexWrap: "wrap" }}>
+          <button
+            onClick={() => { setPestana("fabrica"); setSel(null); }}
             style={{
-              padding: "12px 22px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold",
+              padding: "12px 22px", borderRadius: theme.radiusSm, cursor: "pointer", fontWeight: "bold",
               fontSize: "0.82rem", letterSpacing: "1px", textTransform: "uppercase",
-              border: pestana === "fabrica" ? "1px solid #3498db" : "1px solid rgba(218,165,32,0.3)",
-              background: pestana === "fabrica" ? "rgba(52,152,219,0.15)" : "#080808",
-              color: pestana === "fabrica" ? "#3498db" : "rgba(255,255,255,0.6)",
+              border: pestana === "fabrica" ? "1px solid #3498db" : `1px solid ${theme.borderGold}`,
+              background: pestana === "fabrica" ? "rgba(52,152,219,0.15)" : theme.inputBg,
+              color: pestana === "fabrica" ? "#3498db" : theme.textMuted,
               display: "flex", alignItems: "center", gap: "8px",
-            }}>
+            }}
+          >
             🏭 Línea de Fábrica
             <span style={{ fontSize: "0.68rem", background: "rgba(52,152,219,0.2)", padding: "2px 6px", borderRadius: "4px" }}>
               Cable fabricado
             </span>
           </button>
 
-          <button onClick={() => { setPestana("producto"); setSel(null); }}
+          <button
+            onClick={() => { setPestana("producto"); setSel(null); }}
             style={{
-              padding: "12px 22px", borderRadius: "8px", cursor: "pointer", fontWeight: "bold",
+              padding: "12px 22px", borderRadius: theme.radiusSm, cursor: "pointer", fontWeight: "bold",
               fontSize: "0.82rem", letterSpacing: "1px", textTransform: "uppercase",
-              border: pestana === "producto" ? "1px solid #9b59b6" : "1px solid rgba(218,165,32,0.3)",
-              background: pestana === "producto" ? "rgba(155,89,182,0.15)" : "#080808",
-              color: pestana === "producto" ? "#9b59b6" : "rgba(255,255,255,0.6)",
+              border: pestana === "producto" ? "1px solid #9b59b6" : `1px solid ${theme.borderGold}`,
+              background: pestana === "producto" ? "rgba(155,89,182,0.15)" : theme.inputBg,
+              color: pestana === "producto" ? "#9b59b6" : theme.textMuted,
               display: "flex", alignItems: "center", gap: "8px",
-            }}>
+            }}
+          >
             📦 Productos Terminados
             <span style={{ fontSize: "0.68rem", background: "rgba(155,89,182,0.2)", padding: "2px 6px", borderRadius: "4px" }}>
               Bodega comercial
@@ -562,31 +571,37 @@ export default function DespachosDashboard() {
           </button>
         </div>
 
-        <div className="dp-card">
-          <div style={{
-            backgroundColor: `${acento}0d`, border: `1px solid ${acento}4d`,
-            padding: "15px 20px", borderRadius: "8px", marginBottom: "20px",
-            display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px",
-          }}>
+        <Card>
+          <div
+            style={{
+              backgroundColor: `${acento}0d`, border: `1px solid ${acento}4d`,
+              padding: "15px 20px", borderRadius: theme.radiusSm, marginBottom: "20px",
+              display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px",
+            }}
+          >
             <div>
               <h2 style={{ fontSize: "0.92rem", color: acento, margin: "0 0 4px 0", textTransform: "uppercase", letterSpacing: "1px" }}>
                 {pestana === "fabrica" ? "⚙️ Despachos de Cable Fabricado" : "📦 Despachos desde Bodega"}
               </h2>
-              <p style={{ fontSize: "0.74rem", color: "rgba(255,255,255,0.6)", margin: 0 }}>
+              <p style={{ fontSize: "0.74rem", color: theme.textMuted, margin: 0 }}>
                 {pestana === "fabrica"
                   ? "Exige una orden de producción completada. Al despachar, sale de bodega el cable que la producción había ingresado."
                   : "Verifica existencias en los tres catálogos y descuenta el stock al autorizar la salida."}
               </p>
             </div>
             <div style={{ display: "flex", gap: "10px" }}>
-              <select className="dp-in" style={{ width: "auto" }} value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
+              <select style={{ ...inputStyle, width: "auto" }} value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)}>
                 <option value="PENDIENTES">Pendientes</option>
                 <option value="LISTOS">Solo listos (pagados)</option>
                 <option value="DESPACHADOS">Despachados</option>
                 <option value="TODOS">Todos</option>
               </select>
-              <input className="dp-in" style={{ width: "230px" }} placeholder="Referencia, empresa o guía..."
-                value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+              <input
+                style={{ ...inputStyle, width: "230px" }}
+                placeholder="Referencia, empresa o guía..."
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
             </div>
           </div>
 
@@ -620,7 +635,7 @@ export default function DespachosDashboard() {
                     return (
                       <tr key={q.id}>
                         <td>
-                          <span style={{ color: "#DAA520", fontWeight: 700 }}>{q.referencia}</span>
+                          <span style={{ color: theme.gold, fontWeight: 700 }}>{q.referencia}</span>
                           <div style={{ fontSize: "0.68rem", color: "#777" }}>
                             {q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"} · {fmt(q.total)}
                           </div>
@@ -631,21 +646,15 @@ export default function DespachosDashboard() {
                         </td>
                         <td>
                           {pago.estado === "pagado" ? (
-                            <span className="dp-chip" style={{ background: "rgba(46,204,113,0.15)", color: "#2ecc71", border: "1px solid rgba(46,204,113,0.35)" }}>
-                              ✓ CANCELADO 100%
-                            </span>
+                            <Badge tone="success">✓ CANCELADO 100%</Badge>
                           ) : pago.estado === "parcial" ? (
                             <>
-                              <span className="dp-chip" style={{ background: "rgba(231,76,60,0.15)", color: "#e74c3c", border: "1px solid rgba(231,76,60,0.35)" }}>
-                                SALDO PENDIENTE
-                              </span>
-                              <div style={{ fontSize: "0.7rem", color: "#e74c3c", marginTop: "3px" }}>{fmt(pago.saldo)}</div>
+                              <Badge tone="danger">SALDO PENDIENTE</Badge>
+                              <div style={{ fontSize: "0.7rem", color: theme.red, marginTop: "3px" }}>{fmt(pago.saldo)}</div>
                             </>
                           ) : (
                             <>
-                              <span className="dp-chip" style={{ background: "rgba(230,126,34,0.15)", color: "#e67e22", border: "1px solid rgba(230,126,34,0.35)" }}>
-                                SIN FACTURAR
-                              </span>
+                              <Badge tone="gold">SIN FACTURAR</Badge>
                               <div style={{ fontSize: "0.66rem", color: "#777", marginTop: "3px" }}>Genera la CxC primero</div>
                             </>
                           )}
@@ -654,7 +663,7 @@ export default function DespachosDashboard() {
                           {pestana === "fabrica" ? (
                             prod ? (
                               <>
-                                <span style={{ color: "#2ecc71" }}>✓ {prod.numero}</span>
+                                <span style={{ color: theme.green }}>✓ {prod.numero}</span>
                                 <div style={{ fontSize: "0.66rem", color: "#777" }}>{prod.carretes} carrete(s)</div>
                               </>
                             ) : (
@@ -669,30 +678,27 @@ export default function DespachosDashboard() {
                           <div><span style={{ color: "#777" }}>Sup:</span> {q.supervisor || "—"}</div>
                         </td>
                         <td>
-                          <div style={{ fontFamily: "monospace", fontSize: "0.72rem", color: "#DAA520" }}>
+                          <div style={{ fontFamily: "monospace", fontSize: "0.72rem", color: theme.gold }}>
                             {q.guia_envio || "S/G"}
                           </div>
-                          <span className="dp-chip" style={{
-                            background: desp ? "rgba(46,204,113,0.15)" : "rgba(241,196,15,0.15)",
-                            color: desp ? "#2ecc71" : "#f1c40f",
-                            border: `1px solid ${desp ? "rgba(46,204,113,0.35)" : "rgba(241,196,15,0.35)"}`,
-                          }}>
-                            {desp ? "despachado" : q.status || "pendiente"}
-                          </span>
+                          <Badge tone={desp ? "success" : "gold"}>{desp ? "despachado" : q.status || "pendiente"}</Badge>
                           {q.autorizacion_excepcional && (
                             <div style={{ fontSize: "0.64rem", color: "#e67e22", marginTop: "3px" }}>⚠ excepcional</div>
                           )}
                         </td>
                         <td style={{ textAlign: "right" }}>
                           {desp ? (
-                            <span style={{ color: "#2ecc71", fontSize: "0.72rem" }}>
+                            <span style={{ color: theme.green, fontSize: "0.72rem" }}>
                               ✓ {q.fecha_despacho ? new Date(q.fecha_despacho).toLocaleDateString() : ""}
                             </span>
                           ) : (
-                            <button className="dp-gold" style={{ padding: "6px 12px", fontSize: "0.72rem" }}
-                              onClick={() => abrirDespacho(q)}>
+                            <Button
+                              variant="gold"
+                              style={{ padding: "6px 12px", fontSize: "0.72rem" }}
+                              onClick={() => abrirDespacho(q)}
+                            >
                               Autorizar Despacho
-                            </button>
+                            </Button>
                           )}
                         </td>
                       </tr>
@@ -702,8 +708,8 @@ export default function DespachosDashboard() {
               </table>
             </div>
           )}
-        </div>
-      </main>
+        </Card>
+      </div>
 
       {/* ============ MODAL DE DESPACHO ============ */}
       {sel && (() => {
@@ -714,28 +720,30 @@ export default function DespachosDashboard() {
 
         return (
           <div className="dp-ov">
-            <div className="dp-md" style={{ maxWidth: "620px" }}>
-              <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.05rem", textTransform: "uppercase", letterSpacing: "1px" }}>
+            <Card style={{ maxWidth: "620px", width: "100%", maxHeight: "90vh", overflowY: "auto", marginBottom: 0 }}>
+              <h3 style={{ color: theme.gold, marginTop: 0, fontSize: "1.05rem", textTransform: "uppercase", letterSpacing: "1px" }}>
                 📦 Autorización de Salida EXW — {sel.referencia}
               </h3>
               <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.7)", marginBottom: "16px" }}>
-                Cliente: <strong style={{ color: "#fff" }}>{sel.empresa}</strong> · Total {fmt(sel.total)} ·
+                Cliente: <strong style={{ color: theme.textLight }}>{sel.empresa}</strong> · Total {fmt(sel.total)} ·
                 Flujo <span style={{ color: acento, textTransform: "uppercase" }}>{pestana}</span>
               </p>
 
               {/* --- Verificaciones --- */}
-              <div style={{
-                background: pagado ? "rgba(46,204,113,0.06)" : "rgba(231,76,60,0.06)",
-                border: `1px dashed ${pagado ? "rgba(46,204,113,0.4)" : "rgba(231,76,60,0.4)"}`,
-                borderRadius: "8px", padding: "15px 18px", marginBottom: "16px",
-              }}>
-                <p style={{ fontSize: "0.7rem", color: pagado ? "#2ecc71" : "#e74c3c", margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              <div
+                style={{
+                  background: pagado ? theme.greenBg : theme.redBg,
+                  border: `1px dashed ${pagado ? theme.greenBorder : theme.redBorder}`,
+                  borderRadius: "8px", padding: "15px 18px", marginBottom: "16px",
+                }}
+              >
+                <p style={{ fontSize: "0.7rem", color: pagado ? theme.green : theme.red, margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                   Verificación automática
                 </p>
 
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem", marginBottom: "7px" }}>
-                  <span style={{ color: "#aaa" }}>Estado de pago</span>
-                  <strong style={{ color: pagado ? "#2ecc71" : pago.estado === "parcial" ? "#e74c3c" : "#e67e22" }}>
+                  <span style={{ color: theme.textMuted }}>Estado de pago</span>
+                  <strong style={{ color: pagado ? theme.green : pago.estado === "parcial" ? theme.red : "#e67e22" }}>
                     {pagado ? "✓ Cancelado 100%"
                       : pago.estado === "parcial" ? `✗ Saldo ${fmt(pago.saldo)}`
                       : "✗ Sin cuenta por cobrar"}
@@ -744,8 +752,8 @@ export default function DespachosDashboard() {
 
                 {pestana === "fabrica" && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
-                    <span style={{ color: "#aaa" }}>Producción</span>
-                    <strong style={{ color: prod ? "#2ecc71" : "#e67e22" }}>
+                    <span style={{ color: theme.textMuted }}>Producción</span>
+                    <strong style={{ color: prod ? theme.green : "#e67e22" }}>
                       {prod ? `✓ ${prod.numero} completada` : "✗ Sin orden completada"}
                     </strong>
                   </div>
@@ -753,8 +761,8 @@ export default function DespachosDashboard() {
 
                 {pestana === "producto" && (
                   <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.82rem" }}>
-                    <span style={{ color: "#aaa" }}>Existencias</span>
-                    <strong style={{ color: verificando ? "#aaa" : faltantes.length === 0 ? "#2ecc71" : "#e74c3c" }}>
+                    <span style={{ color: theme.textMuted }}>Existencias</span>
+                    <strong style={{ color: verificando ? theme.textMuted : faltantes.length === 0 ? theme.green : theme.red }}>
                       {verificando ? "verificando..." : faltantes.length === 0 ? "✓ Stock suficiente" : `✗ ${faltantes.length} con problema`}
                     </strong>
                   </div>
@@ -763,19 +771,19 @@ export default function DespachosDashboard() {
 
               {/* --- Detalle de ítems (solo productos) --- */}
               {pestana === "producto" && lineas.length > 0 && (
-                <div style={{ maxHeight: "170px", overflowY: "auto", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", marginBottom: "16px" }}>
+                <div style={{ maxHeight: "170px", overflowY: "auto", border: `1px solid ${theme.borderGoldLight}`, borderRadius: "8px", marginBottom: "16px" }}>
                   <table className="dp-tabla">
                     <thead><tr><th>SKU</th><th style={{ textAlign: "right" }}>Pide</th><th style={{ textAlign: "right" }}>Hay</th><th>Estado</th></tr></thead>
                     <tbody>
                       {lineas.map((l, i) => (
                         <tr key={i}>
                           <td style={{ fontSize: "0.74rem" }}>
-                            <span style={{ color: "#DAA520" }}>{l.sku}</span>
+                            <span style={{ color: theme.gold }}>{l.sku}</span>
                             {l.tabla && <div style={{ fontSize: "0.64rem", color: "#666" }}>{l.tabla}</div>}
                           </td>
                           <td style={{ textAlign: "right", fontWeight: 600 }}>{num(l.cantidad)}</td>
                           <td style={{ textAlign: "right", color: "#aaa" }}>{num(l.stockActual)}</td>
-                          <td style={{ fontSize: "0.7rem", color: l.alcanza ? "#2ecc71" : "#e74c3c" }}>
+                          <td style={{ fontSize: "0.7rem", color: l.alcanza ? theme.green : theme.red }}>
                             {!l.tabla ? "no existe" : l.alcanza ? "✓" : `faltan ${num(l.cantidad - l.stockActual)}`}
                           </td>
                         </tr>
@@ -788,40 +796,74 @@ export default function DespachosDashboard() {
               {/* --- Autorización excepcional --- */}
               {!pagado && (
                 <div style={{ marginBottom: "16px" }}>
-                  <label className="dp-lb" style={{ color: "#e67e22" }}>
+                  <label style={{ ...lbStyle, color: "#e67e22" }}>
                     ⚠ Autorización excepcional (obligatoria para despachar con saldo)
                   </label>
-                  <input className="dp-in" placeholder="Quién autorizó y por qué. Queda en la auditoría."
+                  <input
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                    placeholder="Quién autorizó y por qué. Queda en la auditoría."
                     value={autorizacionExcepcional}
-                    onChange={(e) => setAutorizacionExcepcional(e.target.value)} />
+                    onChange={(e) => setAutorizacionExcepcional(e.target.value)}
+                  />
                 </div>
               )}
 
               {/* --- Responsables --- */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
-                <div><label className="dp-lb">Encargado de despacho *</label>
-                  <input className="dp-in" placeholder="Embalaje y logística" value={form.encargado}
-                    onChange={(e) => setForm({ ...form, encargado: e.target.value })} /></div>
-                <div><label className="dp-lb">Supervisor *</label>
-                  <input className="dp-in" placeholder="Control y entrega EXW" value={form.supervisor}
-                    onChange={(e) => setForm({ ...form, supervisor: e.target.value })} /></div>
-                <div><label className="dp-lb">Empresa transportista</label>
-                  <input className="dp-in" value={form.transportista}
-                    onChange={(e) => setForm({ ...form, transportista: e.target.value })} /></div>
-                <div><label className="dp-lb">Guía / comprobante</label>
-                  <input className="dp-in" placeholder="Código de tracking" value={form.guia}
-                    onChange={(e) => setForm({ ...form, guia: e.target.value })} /></div>
+                <div>
+                  <label style={lbStyle}>Encargado de despacho *</label>
+                  <input
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                    placeholder="Embalaje y logística"
+                    value={form.encargado}
+                    onChange={(e) => setForm({ ...form, encargado: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={lbStyle}>Supervisor *</label>
+                  <input
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                    placeholder="Control y entrega EXW"
+                    value={form.supervisor}
+                    onChange={(e) => setForm({ ...form, supervisor: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={lbStyle}>Empresa transportista</label>
+                  <input
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                    value={form.transportista}
+                    onChange={(e) => setForm({ ...form, transportista: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label style={lbStyle}>Guía / comprobante</label>
+                  <input
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                    placeholder="Código de tracking"
+                    value={form.guia}
+                    onChange={(e) => setForm({ ...form, guia: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div style={{ marginBottom: "18px" }}>
-                <label className="dp-lb">Notas del despacho</label>
-                <input className="dp-in" placeholder="Observaciones de embalaje, condiciones de entrega..."
-                  value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} />
+                <label style={lbStyle}>Notas del despacho</label>
+                <input
+                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  placeholder="Observaciones de embalaje, condiciones de entrega..."
+                  value={form.notas}
+                  onChange={(e) => setForm({ ...form, notas: e.target.value })}
+                />
               </div>
 
-              <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)",
-                borderRadius: "8px", padding: "13px 16px", marginBottom: "18px" }}>
-                <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 7px 0", textTransform: "uppercase" }}>Al autorizar</p>
+              <div
+                style={{
+                  background: theme.goldSoft, border: `1px dashed ${theme.borderGold}`,
+                  borderRadius: "8px", padding: "13px 16px", marginBottom: "18px",
+                }}
+              >
+                <p style={{ fontSize: "0.7rem", color: theme.gold, margin: "0 0 7px 0", textTransform: "uppercase" }}>Al autorizar</p>
                 <ul style={{ color: "#ccc", fontSize: "0.76rem", margin: 0, paddingLeft: "18px", lineHeight: 1.7 }}>
                   {pestana === "producto"
                     ? <li>Se descuenta el stock de cada SKU en su catálogo</li>
@@ -840,14 +882,17 @@ export default function DespachosDashboard() {
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-                <button className="dp-ghost" onClick={() => setSel(null)}>Cancelar</button>
-                <button className="dp-gold" disabled={despachando || verificando}
-                  style={{ background: pagado ? "#2ecc71" : "#e67e22", color: "#000" }}
-                  onClick={ejecutarDespacho}>
+                <Button variant="ghost" onClick={() => setSel(null)}>Cancelar</Button>
+                <Button
+                  variant="gold"
+                  disabled={despachando || verificando}
+                  style={{ background: pagado ? theme.green : "#e67e22", color: "#000" }}
+                  onClick={ejecutarDespacho}
+                >
                   {despachando ? "Procesando..." : pagado ? "Validar y Ejecutar Salida" : "⚠ Despachar con Saldo"}
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
           </div>
         );
       })()}

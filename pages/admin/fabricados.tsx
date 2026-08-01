@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { theme } from "../../lib/theme";
+import { Card, Heading, Button, inputStyle } from "../../lib/ui";
 
 interface CotizacionAprobada {
   id: string;
@@ -168,29 +170,29 @@ export default function Fabricados() {
   };
 
   return (
-    <div style={cardBox}>
+    <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
         <div>
-          <h2 style={{ color: "#DAA520", fontSize: "1.1rem", textTransform: "uppercase" }}>
-            INVENTARIO DE FABRICACIÓN (WIP - WORK IN PROGRESS)
-          </h2>
-          <p style={{ color: "#aaa", fontSize: "0.8rem" }}>
+          <Heading style={{ textTransform: "uppercase" }}>
+            Inventario de Fabricación (WIP - Work in Progress)
+          </Heading>
+          <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>
             Lotes en proceso de extrusión, aconectorización y control de calidad en planta.
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <button onClick={() => setMostrarModalOF(true)} style={btnAccion}>
+          <Button variant="gold" onClick={() => setMostrarModalOF(true)}>
             + NUEVA ORDEN DE FABRICACIÓN
-          </button>
-          <button onClick={() => setModalDetalleAjustesOpen(true)} style={btnSecundario}>
+          </Button>
+          <Button variant="outline-gold" onClick={() => setModalDetalleAjustesOpen(true)}>
             Bitácora de Ajustes ({bitacoraAjustesWIP.length})
-          </button>
+          </Button>
         </div>
       </div>
 
-      <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.85rem" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", color: theme.textLight, fontSize: "0.85rem" }}>
         <thead>
-          <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.4)", backgroundColor: "#000", color: "#DAA520" }}>
+          <tr style={{ borderBottom: `1px solid ${theme.borderGoldCounter}`, backgroundColor: theme.background, color: theme.gold }}>
             <th style={thStyle}>ORDEN ENSAMBLADO</th>
             <th style={thStyle}>PRODUCTO / LOTE</th>
             <th style={thStyle}>CANTIDAD EN PROCESO</th>
@@ -203,48 +205,50 @@ export default function Fabricados() {
           {ordenes.length === 0 ? (
             <>
               <tr style={{ borderBottom: "1px solid #111" }}>
-                <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "bold" }}>OF-2026-089</td>
+                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>OF-2026-089</td>
                 <td style={tdStyle}>Drop Flat 2 Hilos 1000m (Inyección Nylon)</td>
                 <td style={tdStyle}>50 Bobinas</td>
                 <td style={tdStyle}>Extrusión de Chaqueta</td>
-                <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "bold" }}>EN PROCESO</td>
+                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>EN PROCESO</td>
                 <td style={tdStyle}>
                   <div style={{ display: "flex", gap: "5px" }}>
-                    <button style={btnAccionSmall}>Ver Progreso</button>
-                    <button 
+                    <Button variant="outline-gold" style={smallBtnStyle}>Ver Progreso</Button>
+                    <Button
+                      variant="outline-gold"
+                      style={smallBtnStyle}
                       onClick={() => {
                         const defaultItem = { orden_ensamblado: "OF-2026-089", producto_lote: "Drop Flat 2 Hilos 1000m (Inyección Nylon)", cantidad_en_proceso: "50 Bobinas" };
                         setItemSeleccionado(defaultItem);
                         setNuevaCantidadWIP("50 Bobinas");
                         setModalAjusteOpen(true);
                       }}
-                      style={adjustBtnStyle}
                     >
                       ⚙️ Ajustar
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
               <tr style={{ borderBottom: "1px solid #111" }}>
-                <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "bold" }}>OF-2026-092</td>
+                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>OF-2026-092</td>
                 <td style={tdStyle}>Patchcord SC/APC-SC/APC 3m</td>
                 <td style={tdStyle}>1,000 Unidades</td>
                 <td style={tdStyle}>Pulido y Test Óptico</td>
-                <td style={{ ...tdStyle, color: "#2ecc71", fontWeight: "bold" }}>CONTROL CALIDAD</td>
+                <td style={{ ...tdStyle, color: theme.green, fontWeight: "bold" }}>CONTROL CALIDAD</td>
                 <td style={tdStyle}>
                   <div style={{ display: "flex", gap: "5px" }}>
-                    <button style={btnAccionSmall}>Ver Progreso</button>
-                    <button 
+                    <Button variant="outline-gold" style={smallBtnStyle}>Ver Progreso</Button>
+                    <Button
+                      variant="outline-gold"
+                      style={smallBtnStyle}
                       onClick={() => {
                         const defaultItem = { orden_ensamblado: "OF-2026-092", producto_lote: "Patchcord SC/APC-SC/APC 3m", cantidad_en_proceso: "1,000 Unidades" };
                         setItemSeleccionado(defaultItem);
                         setNuevaCantidadWIP("1,000 Unidades");
                         setModalAjusteOpen(true);
                       }}
-                      style={adjustBtnStyle}
                     >
                       ⚙️ Ajustar
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -252,26 +256,27 @@ export default function Fabricados() {
           ) : (
             ordenes.map((item, i) => (
               <tr key={i} style={{ borderBottom: "1px solid #111" }}>
-                <td style={{ ...tdStyle, color: "#DAA520", fontWeight: "bold" }}>{item.orden_ensamblado || item.ordenEnsamblado}</td>
+                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>{item.orden_ensamblado || item.ordenEnsamblado}</td>
                 <td style={tdStyle}>{item.producto_lote || item.productoLote}</td>
                 <td style={tdStyle}>{item.cantidad_en_proceso || item.cantidadEnProceso}</td>
                 <td style={tdStyle}>{item.etapa_planta || item.etapaPlanta || "Extrusión y Preparación"}</td>
-                <td style={{ ...tdStyle, color: item.estado === "CONTROL CALIDAD" ? "#f1c40f" : "#2ecc71", fontWeight: "bold" }}>
+                <td style={{ ...tdStyle, color: item.estado === "CONTROL CALIDAD" ? "#f1c40f" : theme.green, fontWeight: "bold" }}>
                   {item.estado}
                 </td>
                 <td style={tdStyle}>
                   <div style={{ display: "flex", gap: "5px" }}>
-                    <button style={btnAccionSmall}>Ver Progreso</button>
-                    <button 
+                    <Button variant="outline-gold" style={smallBtnStyle}>Ver Progreso</Button>
+                    <Button
+                      variant="outline-gold"
+                      style={smallBtnStyle}
                       onClick={() => {
                         setItemSeleccionado(item);
                         setNuevaCantidadWIP(item.cantidad_en_proceso || item.cantidadEnProceso || "");
                         setModalAjusteOpen(true);
                       }}
-                      style={adjustBtnStyle}
                     >
                       ⚙️ Ajustar
-                    </button>
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -283,11 +288,11 @@ export default function Fabricados() {
       {/* MODAL NUEVA ORDEN DE FABRICACIÓN VINCULADA A COTIZACIÓN Y % PAGO */}
       {mostrarModalOF && (
         <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px", textTransform: "uppercase" }}>
+          <Card style={{ width: "100%", maxWidth: "550px", marginBottom: 0 }}>
+            <Heading style={{ textTransform: "uppercase" }}>
               Nueva Orden de Fabricación
-            </h3>
-            
+            </Heading>
+
             <div style={{ marginBottom: "15px" }}>
               <label style={labelStyle}>1. Seleccionar Cotización / Orden de Compra *</label>
               <select
@@ -296,7 +301,7 @@ export default function Fabricados() {
                   setCotizacionSeleccionada(sel || null);
                   if (sel) setProductoLote(sel.detalles);
                 }}
-                style={inputStyleFull}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
               >
                 <option value="">-- Selecciona Cotización Aprobada --</option>
                 {cotizacionesAprobadas.map((c) => (
@@ -308,10 +313,10 @@ export default function Fabricados() {
             </div>
 
             {cotizacionSeleccionada && (
-              <div style={{ padding: "10px", backgroundColor: "#111", borderRadius: "4px", marginBottom: "15px", border: "1px solid #333" }}>
-                <p style={{ color: "#fff", fontSize: "0.8rem" }}><b>Cliente:</b> {cotizacionSeleccionada.cliente}</p>
-                <p style={{ color: "#fff", fontSize: "0.8rem" }}><b>Total:</b> ${cotizacionSeleccionada.monto_total}</p>
-                <p style={{ color: cotizacionSeleccionada.porcentaje_pago >= porcentajeRequerido ? "#2ecc71" : "#e74c3c", fontSize: "0.85rem", fontWeight: "bold" }}>
+              <div style={{ padding: "10px", backgroundColor: theme.inputBg, borderRadius: theme.radiusSm, marginBottom: "15px", border: `1px solid ${theme.borderGoldLight}` }}>
+                <p style={{ color: theme.textLight, fontSize: "0.8rem" }}><b>Cliente:</b> {cotizacionSeleccionada.cliente}</p>
+                <p style={{ color: theme.textLight, fontSize: "0.8rem" }}><b>Total:</b> ${cotizacionSeleccionada.monto_total}</p>
+                <p style={{ color: cotizacionSeleccionada.porcentaje_pago >= porcentajeRequerido ? theme.green : theme.red, fontSize: "0.85rem", fontWeight: "bold" }}>
                   <b>Estado Pago:</b> {cotizacionSeleccionada.porcentaje_pago}% Pagado {cotizacionSeleccionada.porcentaje_pago < porcentajeRequerido ? "(Insuficiente para liberar)" : "(Aprobado para producción)"}
                 </p>
               </div>
@@ -323,7 +328,7 @@ export default function Fabricados() {
                 type="number"
                 value={porcentajeRequerido}
                 onChange={(e) => setPorcentajeRequerido(Number(e.target.value))}
-                style={inputStyleFull}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
               />
             </div>
 
@@ -334,7 +339,7 @@ export default function Fabricados() {
                 value={productoLote}
                 onChange={(e) => setProductoLote(e.target.value)}
                 placeholder="Ej. Cable ADSS 24 hilos Spool 4km"
-                style={inputStyleFull}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
               />
             </div>
 
@@ -345,69 +350,69 @@ export default function Fabricados() {
                 value={cantidadProceso}
                 onChange={(e) => setCantidadProceso(e.target.value)}
                 placeholder="Ej. 10 Bobinas de 4000m"
-                style={inputStyleFull}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
               />
             </div>
 
             <div style={{ display: "flex", gap: "10px" }}>
-              <button onClick={handleCrearOrdenFabricacion} style={btnAccion}>LIBERAR ORDEN DE FABRICACIÓN</button>
-              <button onClick={() => setMostrarModalOF(false)} style={btnSecundario}>CANCELAR</button>
+              <Button variant="gold" onClick={handleCrearOrdenFabricacion}>LIBERAR ORDEN DE FABRICACIÓN</Button>
+              <Button variant="outline-gold" onClick={() => setMostrarModalOF(false)}>CANCELAR</Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* MODAL AJUSTE DE LOTE WIP */}
       {modalAjusteOpen && itemSeleccionado && (
         <div style={modalOverlay}>
-          <div style={modalContent}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px" }}>Ajustar Lote: {itemSeleccionado.orden_ensamblado || itemSeleccionado.ordenEnsamblado}</h3>
-            <p style={{ color: "#aaa", fontSize: "0.8rem", marginBottom: "15px" }}>
+          <Card style={{ width: "100%", maxWidth: "550px", marginBottom: 0 }}>
+            <Heading>Ajustar Lote: {itemSeleccionado.orden_ensamblado || itemSeleccionado.ordenEnsamblado}</Heading>
+            <p style={{ color: theme.textMuted, fontSize: "0.8rem", marginBottom: "15px" }}>
               Producto: {itemSeleccionado.producto_lote || itemSeleccionado.productoLote} <br />
-              Cantidad Actual: <strong style={{ color: "#2ecc71" }}>{itemSeleccionado.cantidad_en_proceso || itemSeleccionado.cantidadEnProceso}</strong>
+              Cantidad Actual: <strong style={{ color: theme.green }}>{itemSeleccionado.cantidad_en_proceso || itemSeleccionado.cantidadEnProceso}</strong>
             </p>
             <form onSubmit={handleGuardarAjusteWIP}>
               <div style={{ marginBottom: "15px" }}>
                 <label style={labelStyle}>Nueva Cantidad / Unidades:</label>
-                <input 
-                  type="text" 
-                  value={nuevaCantidadWIP} 
+                <input
+                  type="text"
+                  value={nuevaCantidadWIP}
                   onChange={e => setNuevaCantidadWIP(e.target.value)}
-                  style={inputStyleFull}
+                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                   required
                 />
               </div>
               <div style={{ marginBottom: "15px" }}>
                 <label style={labelStyle}>Motivo del Ajuste (Bitácora):</label>
-                <input 
-                  type="text" 
-                  placeholder="Ej. Merma por corte de prueba / Reasignación de lote" 
-                  value={motivoWIP} 
+                <input
+                  type="text"
+                  placeholder="Ej. Merma por corte de prueba / Reasignación de lote"
+                  value={motivoWIP}
                   onChange={e => setMotivoWIP(e.target.value)}
-                  style={inputStyleFull}
+                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                   required
                 />
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
-                <button type="button" onClick={() => setModalAjusteOpen(false)} style={btnSecundario}>Cancelar</button>
-                <button type="submit" style={btnAccion}>Guardar Ajuste</button>
+                <Button type="button" variant="outline-gold" onClick={() => setModalAjusteOpen(false)}>Cancelar</Button>
+                <Button type="submit" variant="gold">Guardar Ajuste</Button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* MODAL BITÁCORA DE AJUSTES WIP */}
       {modalDetalleAjustesOpen && (
         <div style={modalOverlay}>
-          <div style={{ ...modalContent, width: "750px", maxWidth: "90%" }}>
-            <h3 style={{ color: "#DAA520", marginBottom: "15px" }}>Detalle de Ajustes de Fabricación (WIP)</h3>
+          <Card style={{ width: "750px", maxWidth: "90%", marginBottom: 0 }}>
+            <Heading>Detalle de Ajustes de Fabricación (WIP)</Heading>
             {bitacoraAjustesWIP.length === 0 ? (
-              <p style={{ color: "#aaa", fontSize: "0.85rem", padding: "10px 0" }}>No hay registros de ajustes en lotes WIP en esta sesión.</p>
+              <p style={{ color: theme.textMuted, fontSize: "0.85rem", padding: "10px 0" }}>No hay registros de ajustes en lotes WIP en esta sesión.</p>
             ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", color: "#fff", fontSize: "0.8rem", marginBottom: "20px" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", color: theme.textLight, fontSize: "0.8rem", marginBottom: "20px" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid rgba(218, 165, 32, 0.4)", color: "#DAA520" }}>
+                  <tr style={{ borderBottom: `1px solid ${theme.borderGoldCounter}`, color: theme.gold }}>
                     <th style={thStyle}>Fecha</th>
                     <th style={thStyle}>Orden</th>
                     <th style={thStyle}>Producto</th>
@@ -423,7 +428,7 @@ export default function Fabricados() {
                       <td style={tdStyle}>{adj.orden}</td>
                       <td style={tdStyle}>{adj.producto}</td>
                       <td style={tdStyle}>{adj.cantidadAnterior}</td>
-                      <td style={{ ...tdStyle, color: "#2ecc71", fontWeight: "bold" }}>{adj.cantidadNueva}</td>
+                      <td style={{ ...tdStyle, color: theme.green, fontWeight: "bold" }}>{adj.cantidadNueva}</td>
                       <td style={tdStyle}>{adj.motivo}</td>
                     </tr>
                   ))}
@@ -431,23 +436,17 @@ export default function Fabricados() {
               </table>
             )}
             <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => setModalDetalleAjustesOpen(false)} style={btnSecundario}>Cerrar</button>
+              <Button variant="outline-gold" onClick={() => setModalDetalleAjustesOpen(false)}>Cerrar</Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
-const cardBox: React.CSSProperties = { backgroundColor: "#080808", border: "1px solid rgba(218, 165, 32, 0.3)", borderRadius: "8px", padding: "20px" };
-const btnAccion: React.CSSProperties = { backgroundColor: "#DAA520", color: "#000", border: "none", borderRadius: "4px", padding: "8px 16px", fontWeight: "bold", cursor: "pointer", fontSize: "0.75rem" };
-const btnSecundario: React.CSSProperties = { backgroundColor: "transparent", color: "#aaa", border: "1px solid #444", borderRadius: "4px", padding: "8px 16px", cursor: "pointer", fontSize: "0.75rem" };
-const btnAccionSmall: React.CSSProperties = { backgroundColor: "transparent", color: "#DAA520", border: "1px solid #DAA520", borderRadius: "3px", padding: "3px 6px", fontSize: "0.7rem", cursor: "pointer" };
-const adjustBtnStyle: React.CSSProperties = { backgroundColor: "transparent", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.5)", borderRadius: "3px", padding: "3px 6px", fontSize: "0.7rem", cursor: "pointer" };
 const thStyle: React.CSSProperties = { padding: "10px", fontSize: "0.75rem", textTransform: "uppercase", textAlign: "left" };
 const tdStyle: React.CSSProperties = { padding: "10px", textAlign: "left" };
-const inputStyleFull: React.CSSProperties = { width: "100%", backgroundColor: "#000", border: "1px solid rgba(218, 165, 32, 0.4)", borderRadius: "4px", padding: "8px 12px", color: "#fff", boxSizing: "border-box", fontSize: "0.85rem" };
-const labelStyle: React.CSSProperties = { fontSize: "0.75rem", color: "#DAA520", display: "block", marginBottom: "4px", textTransform: "uppercase" };
+const smallBtnStyle: React.CSSProperties = { padding: "3px 6px", fontSize: "0.7rem" };
+const labelStyle: React.CSSProperties = { fontSize: "0.75rem", color: theme.gold, display: "block", marginBottom: "4px", textTransform: "uppercase" };
 const modalOverlay: React.CSSProperties = { position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", backgroundColor: "rgba(0,0,0,0.85)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 };
-const modalContent: React.CSSProperties = { backgroundColor: "#0a0a0a", border: "1px solid #DAA520", borderRadius: "8px", padding: "25px", width: "100%", maxWidth: "550px", boxShadow: "0 4px 20px rgba(218, 165, 32, 0.2)" };
