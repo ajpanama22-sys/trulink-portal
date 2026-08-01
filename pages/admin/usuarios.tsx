@@ -2,8 +2,63 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 
+// ─────────────────────────────────────────────────────────────
+// CONFIGURACIÓN DE ROLES, JERARQUÍAS Y PERMISOS
+// Ajusta este objeto para agregar/quitar roles o cambiar su nivel.
+// Nivel más bajo = más privilegios (1 = máximo).
+// ─────────────────────────────────────────────────────────────
+const ROLES_CONFIG: Record<string, { jerarquia: number; permisos: string[]; descripcion: string }> = {
+  "Super Administrador": {
+    jerarquia: 1,
+    permisos: ["gestionar_usuarios", "gestionar_roles", "ver_auditoria", "acceso_total"],
+    descripcion: "Acceso total, incluida la gestión de otros administradores",
+  },
+  "Administrador": {
+    jerarquia: 2,
+    permisos: ["gestionar_usuarios", "ver_auditoria", "gestionar_pedidos", "gestionar_cotizaciones"],
+    descripcion: "Gestión operativa completa: usuarios, pedidos, cotizaciones y reportes",
+  },
+  "Ventas": {
+    jerarquia: 3,
+    permisos: ["ver_pedidos", "gestionar_cotizaciones"],
+    descripcion: "Cotizaciones, pedidos y seguimiento de clientes",
+  },
+  "Soporte Técnico": {
+    jerarquia: 3,
+    permisos: ["ver_pedidos", "soporte_clientes"],
+    descripcion: "Atención a clientes y resolución de incidencias",
+  },
+  "Producción": {
+    jerarquia: 3,
+    permisos: ["ver_manufactura", "actualizar_manufactura"],
+    descripcion: "Órdenes de manufactura y estado de producción",
+  },
+  "Bodega": {
+    jerarquia: 3,
+    permisos: ["ver_despachos", "actualizar_despachos"],
+    descripcion: "Despachos e inventario",
+  },
+  "Utility": {
+    jerarquia: 4,
+    permisos: ["acceso_basico"],
+    descripcion: "Acceso básico de solo lectura",
+  },
+};
+
+const TIPOS_CLIENTE = ["Integrador", "Distribuidor", "Directo", "Inversionista"];
+
+type Vista = "clientes" | "inversionistas" | "equipo" | "auditoria";
+
+const ACCIONES_LABEL: Record<string, string> = {
+  creacion: "Creación",
+  edicion: "Edición",
+  suspension: "Suspensión",
+  reactivacion: "Reactivación",
+  invitacion: "Invitación enviada",
+};
+
 export default function AdminUsuarios() {
-  const [vistaActiva, setVistaActiva] = useState<"clientes" | "equipo">("clientes");
+  const [vistaActiva, setVistaActiva] = useState<Vista>("clientes");
   const [usuarios, setUsuarios] = useState<any[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -16,49 +71,130 @@ export default function AdminUsuarios() {
   const [nuevoPassword, setNuevoPassword] = useState("");
   const [nuevoRol, setNuevoRol] = useState("Administrador");
 
+  // Estados para edición (clientes, inversionistas o equipo)
+  const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
+  const [editando, setEditando] = useState<any>(null);
+
+  // Estados para auditoría
+  const [registrosAuditoria, setRegistrosAuditoria] = useState<any[]>([]);
+  const [cargandoAuditoria, setCargandoAuditoria] = useState(false);
+  const [filtroAccion, setFiltroAccion] = useState("todas");
+
   useEffect(() => {
-    cargarUsuarios(vistaActiva);
+    if (vistaActiva === "auditoria") {
+      cargarAuditoria();
+    } else {
+      cargarUsuarios(vistaActiva);
+    }
   }, [vistaActiva]);
 
-  const cargarUsuarios = async (vista: "clientes" | "equipo") => {
+  // ── Identidad de quien ejecuta la acción (para auditoría) ──
+  const obtenerAdminActual = async (): Promise<string> => {
+    if (!supabase) return "Sistema";
+    const { data } = await supabase.auth.getUser();
+    return data?.user?.email || "Sistema";
+  };
+
+  const registrarAuditoria = async (
+    accion: string,
+    tablaOrigen: string,
+    usuarioAfectadoId: string,
+    usuarioAfectadoNombre: string,
+    detalle: string
+  ) => {
+    if (!supabase) return;
+    const realizadoPor = await obtenerAdminActual();
+    const { error } = await supabase.from("auditoria").insert([
+      {
+        usuario_afectado_id: usuarioAfectadoId,
+        usuario_afectado_nombre: usuarioAfectadoNombre,
+        tabla_origen: tablaOrigen,
+        accion,
+        detalle,
+        realizado_por: realizadoPor,
+      },
+    ]);
+    if (error) console.error("Error registrando auditoría:", error);
+  };
+
+  const tablaDe = (vista: Vista) => (vista === "equipo" ? "colaboradores" : "clientes");
+
+  // ── Carga de usuarios (clientes / inversionistas / equipo) ──
+  const cargarUsuarios = async (vista: Vista) => {
     if (!supabase) return;
     setCargando(true);
     setUsuarios([]);
 
-    const tabla = vista === "clientes" ? "clientes" : "colaboradores"; 
+    let query;
+    if (vista === "equipo") {
+      query = supabase.from("colaboradores").select("*").order("created_at", { ascending: false });
+    } else if (vista === "inversionistas") {
+      query = supabase
+        .from("clientes")
+        .select("*")
+        .eq("tipo_cliente", "Inversionista")
+        .order("created_at", { ascending: false });
+    } else {
+      // clientes: todo lo que NO sea inversionista (incluye tipo_cliente nulo)
+      query = supabase
+        .from("clientes")
+        .select("*")
+        .or("tipo_cliente.neq.Inversionista,tipo_cliente.is.null")
+        .order("created_at", { ascending: false });
+    }
 
-    const { data, error } = await supabase
-      .from(tabla)
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error } = await query;
 
     if (error) {
       console.error(`Error al cargar ${vista}:`, error);
     } else {
       setUsuarios(data || []);
     }
-    
+
     setCargando(false);
   };
 
-  const toggleEstadoUsuario = async (id: string, estadoActual: boolean, vista: "clientes" | "equipo") => {
+  // ── Auditoría ──
+  const cargarAuditoria = async () => {
+    if (!supabase) return;
+    setCargandoAuditoria(true);
+    const { data, error } = await supabase
+      .from("auditoria")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    if (error) {
+      console.error("Error al cargar auditoría:", error);
+    } else {
+      setRegistrosAuditoria(data || []);
+    }
+    setCargandoAuditoria(false);
+  };
+
+  // ── Suspender / reactivar ──
+  const toggleEstadoUsuario = async (id: string, estadoActual: boolean, vista: Vista, nombreUsuario: string) => {
     if (!supabase) return;
     const nuevoEstado = !estadoActual;
-    const tabla = vista === "clientes" ? "clientes" : "colaboradores";
+    const tabla = tablaDe(vista);
 
-    const { error } = await supabase
-      .from(tabla)
-      .update({ activo: nuevoEstado })
-      .eq("id", id);
+    const { error } = await supabase.from(tabla).update({ activo: nuevoEstado }).eq("id", id);
 
     if (error) {
       alert("Error al actualizar el estado: " + error.message);
     } else {
-      setUsuarios(usuarios.map(u => u.id === id ? { ...u, activo: nuevoEstado } : u));
+      setUsuarios(usuarios.map((u) => (u.id === id ? { ...u, activo: nuevoEstado } : u)));
+      await registrarAuditoria(
+        nuevoEstado ? "reactivacion" : "suspension",
+        tabla,
+        id,
+        nombreUsuario,
+        `Usuario ${nuevoEstado ? "reactivado" : "suspendido"} desde el panel de administración`
+      );
     }
   };
 
-  const enviarInvitacionCliente = async (emailCliente: string) => {
+  const enviarInvitacionCliente = async (emailCliente: string, id: string, nombreUsuario: string) => {
     if (!supabase) return;
     const { error } = await supabase.auth.resetPasswordForEmail(emailCliente, {
       redirectTo: `${window.location.origin}/auth/update-password`,
@@ -69,6 +205,7 @@ export default function AdminUsuarios() {
     } else {
       setMensajeModal(`¡Correo de admisión e invitación enviado exitosamente a ${emailCliente}!`);
       setTimeout(() => setMensajeModal(""), 4000);
+      await registrarAuditoria("invitacion", "clientes", id, nombreUsuario, `Invitación reenviada a ${emailCliente}`);
     }
   };
 
@@ -89,23 +226,32 @@ export default function AdminUsuarios() {
     // auth_id vincula esta fila con el usuario real de Supabase Auth
     // (columna agregada vía SQL: ALTER TABLE colaboradores ADD COLUMN
     // auth_id uuid REFERENCES auth.users(id)).
-    const { error: dbError } = await supabase
+    const { data: nuevaFila, error: dbError } = await supabase
       .from("colaboradores")
       .insert([
-        { 
-          nombre: nuevoNombre, 
-          email: nuevoEmail, 
+        {
+          nombre: nuevoNombre,
+          email: nuevoEmail,
           rol: nuevoRol,
           auth_id: authData.user?.id,
-          activo: true 
-        }
-      ]);
+          activo: true,
+        },
+      ])
+      .select()
+      .single();
 
     if (dbError) {
       alert("Usuario creado en Auth pero hubo un error en la tabla colaboradores: " + dbError.message);
     } else {
       setMensajeModal("¡Colaborador creado y registrado exitosamente!");
       setMostrarModalColaborador(false);
+      await registrarAuditoria(
+        "creacion",
+        "colaboradores",
+        nuevaFila?.id || "",
+        nuevoNombre,
+        `Colaborador creado con rol "${nuevoRol}" (nivel ${ROLES_CONFIG[nuevoRol]?.jerarquia ?? "N/A"})`
+      );
       setNuevoNombre("");
       setNuevoEmail("");
       setNuevoPassword("");
@@ -115,10 +261,60 @@ export default function AdminUsuarios() {
     }
   };
 
-  const usuariosFiltrados = usuarios.filter((user) =>
-    user.razon_social?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    user.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    user.email?.toLowerCase().includes(busqueda.toLowerCase())
+  // ── Edición de perfiles ──
+  const abrirModalEditar = (user: any, vista: Vista) => {
+    setEditando({ ...user, _vista: vista });
+    setMostrarModalEditar(true);
+  };
+
+  const guardarEdicion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !editando) return;
+
+    const vista: Vista = editando._vista;
+    const tabla = tablaDe(vista);
+    const cambios: any = {};
+
+    if (vista === "equipo") {
+      cambios.nombre = editando.nombre;
+      cambios.email = editando.email;
+      cambios.rol = editando.rol;
+    } else {
+      cambios.razon_social = editando.razon_social;
+      cambios.email = editando.email;
+      cambios.tipo_cliente = editando.tipo_cliente;
+      cambios.price_list = editando.price_list;
+    }
+
+    const { error } = await supabase.from(tabla).update(cambios).eq("id", editando.id);
+
+    if (error) {
+      alert("Error al guardar los cambios: " + error.message);
+    } else {
+      await registrarAuditoria(
+        "edicion",
+        tabla,
+        editando.id,
+        editando.nombre || editando.razon_social || "Sin nombre",
+        "Datos de perfil modificados desde el panel de administración"
+      );
+      setMostrarModalEditar(false);
+      setEditando(null);
+      setMensajeModal("¡Datos actualizados exitosamente!");
+      cargarUsuarios(vista);
+      setTimeout(() => setMensajeModal(""), 4000);
+    }
+  };
+
+  const usuariosFiltrados = usuarios.filter(
+    (user) =>
+      user.razon_social?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      user.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      user.email?.toLowerCase().includes(busqueda.toLowerCase())
+  );
+
+  const registrosAuditoriaFiltrados = registrosAuditoria.filter(
+    (r) => filtroAccion === "todas" || r.accion === filtroAccion
   );
 
   return (
@@ -126,7 +322,6 @@ export default function AdminUsuarios() {
       <Sidebar currentActive="usuarios" />
 
       <div style={{ flex: 1, padding: "40px 50px", overflowY: "auto", boxSizing: "border-box" }}>
-        
         {/* Header Superior con Estilo Premium Black & Gold */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "35px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "20px" }}>
           <div>
@@ -134,26 +329,14 @@ export default function AdminUsuarios() {
               GESTIÓN DE USUARIOS
             </h1>
             <p style={{ fontSize: "0.9rem", color: "#888", margin: 0, letterSpacing: "0.5px" }}>
-              Administra el acceso, credenciales y estados de clientes integradores y del equipo corporativo.
+              Administra el acceso, credenciales, roles y estados de clientes, inversionistas y equipo corporativo.
             </p>
           </div>
-          
+
           {vistaActiva === "equipo" && (
             <button
               onClick={() => setMostrarModalColaborador(true)}
-              style={{
-                backgroundColor: "#DAA520",
-                color: "#000",
-                border: "none",
-                borderRadius: "8px",
-                padding: "12px 22px",
-                fontWeight: "700",
-                cursor: "pointer",
-                fontSize: "0.9rem",
-                letterSpacing: "1px",
-                boxShadow: "0 4px 15px rgba(218, 165, 32, 0.2)",
-                transition: "all 0.2s ease"
-              }}
+              style={botonPrimario}
               onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "#e6b835"; }}
               onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "#DAA520"; }}
             >
@@ -170,114 +353,170 @@ export default function AdminUsuarios() {
 
         {/* CONTROLES DE FILTRADO Y VISTAS */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", flexWrap: "wrap", gap: "20px" }}>
-          
-          {/* Selector de Vistas */}
-          <div style={{ display: "flex", gap: "15px" }}>
-            <button
-              onClick={() => setVistaActiva("clientes")}
-              style={{
-                padding: "12px 22px",
-                borderRadius: "8px",
-                border: `1px solid ${vistaActiva === "clientes" ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`,
-                backgroundColor: vistaActiva === "clientes" ? "#DAA520" : "#111111",
-                color: vistaActiva === "clientes" ? "#000" : "#DAA520",
-                fontWeight: "700",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                letterSpacing: "1px",
-                transition: "all 0.2s ease"
-              }}
-            >
-              CLIENTES E INTEGRADORES
-            </button>
-            <button
-              onClick={() => setVistaActiva("equipo")}
-              style={{
-                padding: "12px 22px",
-                borderRadius: "8px",
-                border: `1px solid ${vistaActiva === "equipo" ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`,
-                backgroundColor: vistaActiva === "equipo" ? "#DAA520" : "#111111",
-                color: vistaActiva === "equipo" ? "#000" : "#DAA520",
-                fontWeight: "700",
-                cursor: "pointer",
-                fontSize: "0.85rem",
-                letterSpacing: "1px",
-                transition: "all 0.2s ease"
-              }}
-            >
-              EQUIPO ADMINISTRATIVO
-            </button>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+            <TabButton label="CLIENTES" activo={vistaActiva === "clientes"} onClick={() => setVistaActiva("clientes")} />
+            <TabButton label="INVERSIONISTAS" activo={vistaActiva === "inversionistas"} onClick={() => setVistaActiva("inversionistas")} />
+            <TabButton label="EQUIPO ADMINISTRATIVO" activo={vistaActiva === "equipo"} onClick={() => setVistaActiva("equipo")} />
+            <TabButton label="AUDITORÍA" activo={vistaActiva === "auditoria"} onClick={() => setVistaActiva("auditoria")} />
           </div>
 
-          {/* Buscador */}
-          <div style={{ flex: "1", maxWidth: "350px", minWidth: "250px" }}>
-            <input
-              type="text"
-              placeholder={`Buscar en ${vistaActiva}...`}
-              value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
+          {vistaActiva !== "auditoria" && (
+            <div style={{ flex: "1", maxWidth: "350px", minWidth: "250px" }}>
+              <input
+                type="text"
+                placeholder={`Buscar en ${vistaActiva}...`}
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+          )}
 
+          {vistaActiva === "auditoria" && (
+            <div style={{ minWidth: "220px" }}>
+              <select value={filtroAccion} onChange={(e) => setFiltroAccion(e.target.value)} style={inputStyle}>
+                <option value="todas" style={optionStyle}>Todas las acciones</option>
+                {Object.keys(ACCIONES_LABEL).map((a) => (
+                  <option key={a} value={a} style={optionStyle}>{ACCIONES_LABEL[a]}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Modal Crear Colaborador */}
         {mostrarModalColaborador && (
-          <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.85)", backdropFilter: "blur(5px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
-            <form onSubmit={crearColaborador} style={{ backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.5)", padding: "40px", borderRadius: "12px", width: "100%", maxWidth: "450px", boxShadow: "0 10px 30px rgba(0,0,0,0.8)" }}>
-              <h2 style={{ color: "#DAA520", marginBottom: "25px", fontSize: "1.2rem", letterSpacing: "1px", textTransform: "uppercase", borderLeft: "3px solid #DAA520", paddingLeft: "12px" }}>
-                Nuevo Colaborador
-              </h2>
-              
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.85rem", color: "#aaa" }}>Nombre Completo</label>
+          <div style={overlayModal}>
+            <form onSubmit={crearColaborador} style={cajaModal}>
+              <h2 style={tituloModal}>Nuevo Colaborador</h2>
+
+              <Campo label="Nombre Completo">
                 <input type="text" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required style={inputStyle} />
-              </div>
+              </Campo>
 
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.85rem", color: "#aaa" }}>Correo Electrónico</label>
+              <Campo label="Correo Electrónico">
                 <input type="email" value={nuevoEmail} onChange={(e) => setNuevoEmail(e.target.value)} required style={inputStyle} />
-              </div>
+              </Campo>
 
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.85rem", color: "#aaa" }}>Contraseña Inicial</label>
+              <Campo label="Contraseña Inicial">
                 <input type="password" value={nuevoPassword} onChange={(e) => setNuevoPassword(e.target.value)} required style={inputStyle} />
-              </div>
+              </Campo>
 
-              <div style={{ marginBottom: "30px" }}>
-                <label style={{ display: "block", marginBottom: "8px", fontSize: "0.85rem", color: "#aaa" }}>Rol / Permisos</label>
+              <div style={{ marginBottom: "10px" }}>
+                <label style={labelStyle}>Rol / Jerarquía</label>
                 <select value={nuevoRol} onChange={(e) => setNuevoRol(e.target.value)} style={inputStyle}>
-                  <option value="Administrador" style={{ backgroundColor: "#111", color: "#DAA520" }}>Administrador</option>
-                  <option value="Ventas" style={{ backgroundColor: "#111", color: "#DAA520" }}>Ventas</option>
-                  <option value="Soporte Técnico" style={{ backgroundColor: "#111", color: "#DAA520" }}>Soporte Técnico</option>
-                  <option value="Producción" style={{ backgroundColor: "#111", color: "#DAA520" }}>Producción</option>
-                  <option value="Bodega" style={{ backgroundColor: "#111", color: "#DAA520" }}>Bodega</option>
-                  <option value="Utility" style={{ backgroundColor: "#111", color: "#DAA520" }}>Utility</option>
+                  {Object.entries(ROLES_CONFIG).map(([rol, cfg]) => (
+                    <option key={rol} value={rol} style={optionStyle}>
+                      {rol} — Nivel {cfg.jerarquia}
+                    </option>
+                  ))}
                 </select>
+                <p style={{ fontSize: "0.75rem", color: "#888", marginTop: "8px" }}>
+                  {ROLES_CONFIG[nuevoRol]?.descripcion}
+                </p>
               </div>
 
-              <div style={{ display: "flex", gap: "15px" }}>
-                <button type="submit" style={{ flex: 1, padding: "14px", backgroundColor: "#DAA520", color: "#000", border: "none", fontWeight: "700", borderRadius: "8px", cursor: "pointer", letterSpacing: "1px" }}>Guardar</button>
-                <button type="button" onClick={() => setMostrarModalColaborador(false)} style={{ flex: 1, padding: "14px", backgroundColor: "transparent", color: "#DAA520", border: "1px solid rgba(218, 165, 32, 0.4)", fontWeight: "700", borderRadius: "8px", cursor: "pointer", letterSpacing: "1px" }}>Cancelar</button>
+              <div style={{ display: "flex", gap: "15px", marginTop: "20px" }}>
+                <button type="submit" style={botonGuardar}>Guardar</button>
+                <button type="button" onClick={() => setMostrarModalColaborador(false)} style={botonCancelar}>Cancelar</button>
               </div>
             </form>
           </div>
         )}
 
-        {/* Listado de Usuarios */}
-        {cargando ? (
-          <div style={{ backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-            <p style={{ color: "#888", fontStyle: "italic", margin: 0, letterSpacing: "0.5px" }}>Cargando registros de {vistaActiva}...</p>
+        {/* Modal Editar Perfil (clientes, inversionistas o equipo) */}
+        {mostrarModalEditar && editando && (
+          <div style={overlayModal}>
+            <form onSubmit={guardarEdicion} style={cajaModal}>
+              <h2 style={tituloModal}>
+                Modificar {editando._vista === "equipo" ? "Colaborador" : "Perfil"}
+              </h2>
+
+              {editando._vista === "equipo" ? (
+                <>
+                  <Campo label="Nombre Completo">
+                    <input type="text" value={editando.nombre || ""} onChange={(e) => setEditando({ ...editando, nombre: e.target.value })} required style={inputStyle} />
+                  </Campo>
+                  <Campo label="Correo Electrónico">
+                    <input type="email" value={editando.email || ""} onChange={(e) => setEditando({ ...editando, email: e.target.value })} required style={inputStyle} />
+                  </Campo>
+                  <div style={{ marginBottom: "10px" }}>
+                    <label style={labelStyle}>Rol / Jerarquía</label>
+                    <select value={editando.rol || "Administrador"} onChange={(e) => setEditando({ ...editando, rol: e.target.value })} style={inputStyle}>
+                      {Object.entries(ROLES_CONFIG).map(([rol, cfg]) => (
+                        <option key={rol} value={rol} style={optionStyle}>{rol} — Nivel {cfg.jerarquia}</option>
+                      ))}
+                    </select>
+                    <p style={{ fontSize: "0.75rem", color: "#888", marginTop: "8px" }}>
+                      {ROLES_CONFIG[editando.rol]?.descripcion}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Campo label="Razón Social / Nombre">
+                    <input type="text" value={editando.razon_social || ""} onChange={(e) => setEditando({ ...editando, razon_social: e.target.value })} required style={inputStyle} />
+                  </Campo>
+                  <Campo label="Correo Electrónico">
+                    <input type="email" value={editando.email || ""} onChange={(e) => setEditando({ ...editando, email: e.target.value })} required style={inputStyle} />
+                  </Campo>
+                  <div style={{ marginBottom: "20px" }}>
+                    <label style={labelStyle}>Tipo de Cliente</label>
+                    <select value={editando.tipo_cliente || "Integrador"} onChange={(e) => setEditando({ ...editando, tipo_cliente: e.target.value })} style={inputStyle}>
+                      {TIPOS_CLIENTE.map((t) => (
+                        <option key={t} value={t} style={optionStyle}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <Campo label="Lista de Precios">
+                    <input type="text" value={editando.price_list || ""} onChange={(e) => setEditando({ ...editando, price_list: e.target.value })} style={inputStyle} />
+                  </Campo>
+                </>
+              )}
+
+              <div style={{ display: "flex", gap: "15px", marginTop: "10px" }}>
+                <button type="submit" style={botonGuardar}>Guardar Cambios</button>
+                <button type="button" onClick={() => { setMostrarModalEditar(false); setEditando(null); }} style={botonCancelar}>Cancelar</button>
+              </div>
+            </form>
           </div>
+        )}
+
+        {/* ── VISTA: AUDITORÍA ── */}
+        {vistaActiva === "auditoria" ? (
+          cargandoAuditoria ? (
+            <EstadoVacio texto="Cargando registros de auditoría..." />
+          ) : registrosAuditoriaFiltrados.length === 0 ? (
+            <EstadoVacio texto="No hay registros de auditoría para este filtro." />
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {registrosAuditoriaFiltrados.map((r) => (
+                <div key={r.id} style={tarjetaAuditoria}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div style={{ fontWeight: 700, color: "#fff", fontSize: "0.95rem" }}>
+                      {ACCIONES_LABEL[r.accion] || r.accion} — {r.usuario_afectado_nombre || "N/A"}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#999" }}>{r.detalle}</div>
+                    <div style={{ fontSize: "0.75rem", color: "#666" }}>
+                      Realizado por: <span style={{ color: "#DAA520" }}>{r.realizado_por}</span> · Tabla: {r.tabla_origen}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#888", whiteSpace: "nowrap" }}>
+                    {new Date(r.created_at).toLocaleString("es-PA")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )
+        ) : cargando ? (
+          <EstadoVacio texto={`Cargando registros de ${vistaActiva}...`} />
         ) : usuariosFiltrados.length === 0 ? (
-          <div style={{ backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
-            <p style={{ color: "#666", fontStyle: "italic", margin: 0, letterSpacing: "0.5px" }}>No se encontraron registros en la categoría {vistaActiva}.</p>
-          </div>
+          <EstadoVacio texto={`No se encontraron registros en la categoría ${vistaActiva}.`} atenuado />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
             {usuariosFiltrados.map((user: any) => {
-              const estaActivo = user.activo !== false; 
+              const estaActivo = user.activo !== false;
+              const nombreMostrado = user.razon_social || user.nombre || "Usuario Sin Nombre";
               return (
                 <div
                   key={user.id}
@@ -290,49 +529,39 @@ export default function AdminUsuarios() {
                     justifyContent: "space-between",
                     alignItems: "center",
                     boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
-                    transition: "all 0.2s ease"
+                    transition: "all 0.2s ease",
                   }}
                   onMouseOver={(e) => { e.currentTarget.style.borderColor = estaActivo ? "rgba(218, 165, 32, 0.6)" : "rgba(255, 0, 0, 0.7)"; }}
                   onMouseOut={(e) => { e.currentTarget.style.borderColor = estaActivo ? "rgba(218, 165, 32, 0.25)" : "rgba(255, 0, 0, 0.4)"; }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                     <div style={{ fontWeight: "700", fontSize: "1.05rem", color: "#fff", letterSpacing: "0.5px" }}>
-                      {user.razon_social || user.nombre || "Usuario Sin Nombre"}
+                      {nombreMostrado}
                     </div>
                     <div style={{ fontSize: "0.85rem", color: "#aaa", letterSpacing: "0.5px" }}>Email: {user.email || "N/A"}</div>
-                    
-                    {vistaActiva === "clientes" && (
+
+                    {(vistaActiva === "clientes" || vistaActiva === "inversionistas") && (
                       <div style={{ fontSize: "0.8rem", color: "#888", display: "flex", gap: "12px", alignItems: "center", marginTop: "2px" }}>
-                        <span>Tipo: <strong style={{ color: "#ccc" }}>{user.tipo_cliente || "Integrador"}</strong></span> | 
-                        <span>Lista: <strong style={{ color: "#DAA520" }}>{user.price_list || "C"}</strong></span> | 
+                        <span>Tipo: <strong style={{ color: "#ccc" }}>{user.tipo_cliente || "Integrador"}</strong></span> |
+                        <span>Lista: <strong style={{ color: "#DAA520" }}>{user.price_list || "C"}</strong></span> |
                         <span>Estado: <strong style={{ color: estaActivo ? "#00FF00" : "#FF5555" }}>{estaActivo ? "Activo" : "Inactivo"}</strong></span>
                       </div>
                     )}
 
                     {vistaActiva === "equipo" && (
                       <div style={{ fontSize: "0.8rem", color: "#888", display: "flex", gap: "12px", alignItems: "center", marginTop: "2px" }}>
-                        <span>Rol: <strong style={{ color: "#DAA520" }}>{user.rol || "Administrador"}</strong></span> | 
-                        <span>Estado: <strong style={{ color: estaActivo ? "#00FF00" : "#FF5555" }}>{estaActivo ? "Activo" : "Inactivo"}</strong></span>
+                        <span>Rol: <strong style={{ color: "#DAA520" }}>{user.rol || "Administrador"}</strong></span> |
+                        <span>Jerarquía: <strong style={{ color: "#ccc" }}>Nivel {ROLES_CONFIG[user.rol]?.jerarquia ?? "N/A"}</strong></span> |
+                        <span>Estado: <strong style={{ color: estaActivo ? "#00FF00" : "#FF5555" }}>{estaActivo ? "Activo" : "Suspendido"}</strong></span>
                       </div>
                     )}
                   </div>
 
                   <div style={{ display: "flex", gap: "12px" }}>
-                    {vistaActiva === "clientes" && (
+                    {vistaActiva !== "equipo" && (
                       <button
-                        onClick={() => enviarInvitacionCliente(user.email)}
-                        style={{
-                          padding: "10px 16px",
-                          backgroundColor: "transparent",
-                          border: "1px solid rgba(218, 165, 32, 0.5)",
-                          color: "#DAA520",
-                          borderRadius: "8px",
-                          cursor: "pointer",
-                          fontWeight: "700",
-                          fontSize: "0.75rem",
-                          letterSpacing: "1px",
-                          transition: "all 0.2s ease"
-                        }}
+                        onClick={() => enviarInvitacionCliente(user.email, user.id, nombreMostrado)}
+                        style={botonSecundario}
                         onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.1)"; }}
                         onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
                       >
@@ -341,7 +570,16 @@ export default function AdminUsuarios() {
                     )}
 
                     <button
-                      onClick={() => toggleEstadoUsuario(user.id, estaActivo, vistaActiva)}
+                      onClick={() => abrirModalEditar(user, vistaActiva)}
+                      style={botonSecundario}
+                      onMouseOver={(e) => { e.currentTarget.style.backgroundColor = "rgba(218, 165, 32, 0.1)"; }}
+                      onMouseOut={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                    >
+                      MODIFICAR
+                    </button>
+
+                    <button
+                      onClick={() => toggleEstadoUsuario(user.id, estaActivo, vistaActiva, nombreMostrado)}
                       style={{
                         padding: "10px 16px",
                         backgroundColor: estaActivo ? "rgba(100, 0, 0, 0.3)" : "rgba(0, 80, 0, 0.3)",
@@ -352,10 +590,12 @@ export default function AdminUsuarios() {
                         fontWeight: "700",
                         fontSize: "0.75rem",
                         letterSpacing: "1px",
-                        transition: "all 0.2s ease"
+                        transition: "all 0.2s ease",
                       }}
                     >
-                      {estaActivo ? "INACTIVAR" : "ACTIVAR"}
+                      {vistaActiva === "equipo"
+                        ? estaActivo ? "SUSPENDER" : "REACTIVAR"
+                        : estaActivo ? "INACTIVAR" : "ACTIVAR"}
                     </button>
                   </div>
                 </div>
@@ -363,12 +603,56 @@ export default function AdminUsuarios() {
             })}
           </div>
         )}
-
       </div>
     </div>
   );
 }
 
+// ─────────────────────────────────────────────────────────────
+// Subcomponentes de apoyo
+// ─────────────────────────────────────────────────────────────
+function TabButton({ label, activo, onClick }: { label: string; activo: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "12px 20px",
+        borderRadius: "8px",
+        border: `1px solid ${activo ? "#DAA520" : "rgba(218, 165, 32, 0.3)"}`,
+        backgroundColor: activo ? "#DAA520" : "#111111",
+        color: activo ? "#000" : "#DAA520",
+        fontWeight: "700",
+        cursor: "pointer",
+        fontSize: "0.8rem",
+        letterSpacing: "1px",
+        transition: "all 0.2s ease",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: "20px" }}>
+      <label style={labelStyle}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function EstadoVacio({ texto, atenuado }: { texto: string; atenuado?: boolean }) {
+  return (
+    <div style={{ backgroundColor: "#111111", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "12px", padding: "40px", textAlign: "center" }}>
+      <p style={{ color: atenuado ? "#666" : "#888", fontStyle: "italic", margin: 0, letterSpacing: "0.5px" }}>{texto}</p>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// Estilos reutilizables
+// ─────────────────────────────────────────────────────────────
 const inputStyle = {
   width: "100%",
   backgroundColor: "#0b0b0b",
@@ -379,5 +663,107 @@ const inputStyle = {
   outline: "none",
   fontSize: "0.9rem",
   letterSpacing: "0.5px",
-  boxSizing: "border-box" as const
+  boxSizing: "border-box" as const,
 };
+
+const optionStyle = { backgroundColor: "#111", color: "#DAA520" };
+
+const labelStyle = { display: "block", marginBottom: "8px", fontSize: "0.85rem", color: "#aaa" };
+
+const botonPrimario = {
+  backgroundColor: "#DAA520",
+  color: "#000",
+  border: "none",
+  borderRadius: "8px",
+  padding: "12px 22px",
+  fontWeight: "700",
+  cursor: "pointer",
+  fontSize: "0.9rem",
+  letterSpacing: "1px",
+  boxShadow: "0 4px 15px rgba(218, 165, 32, 0.2)",
+  transition: "all 0.2s ease",
+} as const;
+
+const botonSecundario = {
+  padding: "10px 16px",
+  backgroundColor: "transparent",
+  border: "1px solid rgba(218, 165, 32, 0.5)",
+  color: "#DAA520",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontWeight: "700",
+  fontSize: "0.75rem",
+  letterSpacing: "1px",
+  transition: "all 0.2s ease",
+} as const;
+
+const botonGuardar = {
+  flex: 1,
+  padding: "14px",
+  backgroundColor: "#DAA520",
+  color: "#000",
+  border: "none",
+  fontWeight: "700",
+  borderRadius: "8px",
+  cursor: "pointer",
+  letterSpacing: "1px",
+} as const;
+
+const botonCancelar = {
+  flex: 1,
+  padding: "14px",
+  backgroundColor: "transparent",
+  color: "#DAA520",
+  border: "1px solid rgba(218, 165, 32, 0.4)",
+  fontWeight: "700",
+  borderRadius: "8px",
+  cursor: "pointer",
+  letterSpacing: "1px",
+} as const;
+
+const overlayModal = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "100%",
+  backgroundColor: "rgba(0,0,0,0.85)",
+  backdropFilter: "blur(5px)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 1000,
+} as const;
+
+const cajaModal = {
+  backgroundColor: "#111111",
+  border: "1px solid rgba(218, 165, 32, 0.5)",
+  padding: "40px",
+  borderRadius: "12px",
+  width: "100%",
+  maxWidth: "450px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.8)",
+  maxHeight: "85vh",
+  overflowY: "auto",
+} as const;
+
+const tituloModal = {
+  color: "#DAA520",
+  marginBottom: "25px",
+  fontSize: "1.2rem",
+  letterSpacing: "1px",
+  textTransform: "uppercase",
+  borderLeft: "3px solid #DAA520",
+  paddingLeft: "12px",
+} as const;
+
+const tarjetaAuditoria = {
+  backgroundColor: "#111111",
+  border: "1px solid rgba(218, 165, 32, 0.2)",
+  borderRadius: "10px",
+  padding: "16px 22px",
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: "20px",
+} as const;
