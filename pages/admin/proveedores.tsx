@@ -1,19 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
+import { useRequiereRol } from "../../lib/useRequiereRol";
 import Sidebar from "./Sidebar";
 
 /* ============================================================
    PROVEEDORES Y ABASTECIMIENTO — TRULINK FIBER LLC
-   ------------------------------------------------------------
-   Pestañas:
-     1. Directorio        — ficha maestra + crédito y saldo vivo
-     2. Órdenes de compra — del pedido a la recepción
-     3. Cuentas por pagar — deuda real y antigüedad de saldos
-     4. Estado de cuenta  — todo lo de un proveedor en un lugar
-
-   Regla de oro contable: crear un proveedor NO genera deuda.
-   La deuda nace al recibir la mercancía, que es cuando se
-   crea la cuenta por pagar y entra el stock al inventario.
    ============================================================ */
 
 type Proveedor = {
@@ -119,7 +110,6 @@ const fmt = (n: any) =>
 
 const hoyISO = () => new Date().toISOString().slice(0, 10);
 
-/** Días transcurridos desde el vencimiento. Negativo = aún no vence. */
 const diasVencido = (fechaVenc?: string | null): number => {
   if (!fechaVenc) return 0;
   const hoy = new Date(hoyISO()).getTime();
@@ -127,7 +117,6 @@ const diasVencido = (fechaVenc?: string | null): number => {
   return Math.floor((hoy - venc) / 86400000);
 };
 
-/** Cubeta de antigüedad de saldos, el reporte clave de cuentas por pagar. */
 const cubetaAging = (fechaVenc?: string | null): string => {
   const d = diasVencido(fechaVenc);
   if (d <= 0) return "Corriente";
@@ -146,9 +135,9 @@ const COLOR_AGING: Record<string, string> = {
 };
 
 export default function Proveedores() {
-  // Cliente singleton: es el que sí lleva la sesión autenticada.
-  // Usar la instancia suelta "supabase" hace que las tablas con RLS
-  // devuelvan cero filas y que los inserts respondan 401.
+  // ── Guard de página: solo Super Administrador y Administrador ──
+  const { cargando: cargandoAuth, autorizado } = useRequiereRol(["Super Administrador", "Administrador"]);
+
   const supabase = getSupabase();
 
   const [tab, setTab] = useState<"directorio" | "ordenes" | "cxp" | "estado">("directorio");
@@ -161,12 +150,10 @@ export default function Proveedores() {
   const [pagos, setPagos] = useState<PagoProveedor[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  // --- Modal de proveedor ---
   const [modalProv, setModalProv] = useState(false);
   const [editandoProv, setEditandoProv] = useState<string | null>(null);
   const [formProv, setFormProv] = useState<any>({});
 
-  // --- Nueva orden de compra ---
   const [modalOC, setModalOC] = useState(false);
   const [formOC, setFormOC] = useState({
     proveedor_id: "", fecha: hoyISO(), fecha_estimada_entrega: "",
@@ -179,25 +166,22 @@ export default function Proveedores() {
   });
   const [guardandoOC, setGuardandoOC] = useState(false);
 
-  // --- Recepción ---
   const [modalRecepcion, setModalRecepcion] = useState<{ open: boolean; orden: OrdenCompra | null }>({ open: false, orden: null });
   const [numeroFactura, setNumeroFactura] = useState("");
   const [recibiendo, setRecibiendo] = useState(false);
 
-  // --- Pago ---
   const [modalPago, setModalPago] = useState<{ open: boolean; cuenta: CuentaPorPagar | null }>({ open: false, cuenta: null });
   const [formPago, setFormPago] = useState({ monto: 0, metodo_pago: "Transferencia", referencia: "", fecha: hoyISO(), autor: "" });
 
-  // --- Filtros ---
   const [buscarProv, setBuscarProv] = useState("");
   const [filtroEstadoCxp, setFiltroEstadoCxp] = useState("PENDIENTES");
   const [provEstadoCuenta, setProvEstadoCuenta] = useState("");
 
-  useEffect(() => { cargarTodo(); }, []);
-
-  /* ========================================================
-     CARGA
-     ======================================================== */
+  useEffect(() => {
+    if (!autorizado) return;
+    cargarTodo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autorizado]);
 
   const cargarTodo = async () => {
     if (!supabase) { setCargando(false); return; }
@@ -245,10 +229,6 @@ export default function Proveedores() {
     } catch { /* la auditoría nunca debe frenar la operación */ }
   };
 
-  /* ========================================================
-     SALDOS POR PROVEEDOR
-     ======================================================== */
-
   const saldoPorProveedor = useMemo(() => {
     const m: Record<string, { saldo: number; vencido: number; facturas: number }> = {};
     cuentas.forEach((c) => {
@@ -277,10 +257,6 @@ export default function Proveedores() {
     });
     return cubetas;
   }, [cuentas]);
-
-  /* ========================================================
-     PROVEEDORES
-     ======================================================== */
 
   const abrirNuevoProv = () => {
     setEditandoProv(null);
@@ -346,10 +322,6 @@ export default function Proveedores() {
     auditar("proveedor_eliminado", "proveedor", p.id, `Se eliminó el proveedor ${p.nombre}.`);
     cargarTodo();
   };
-
-  /* ========================================================
-     ÓRDENES DE COMPRA
-     ======================================================== */
 
   const agregarItemBorrador = () => {
     const b = itemBorrador;
@@ -450,14 +422,6 @@ export default function Proveedores() {
     auditar("oc_estado", "orden_compra", orden.id, `${orden.numero} pasó a "${estado}".`);
   };
 
-  /**
-   * RECEPCIÓN — el momento clave de toda la cadena.
-   * Un solo evento produce tres efectos:
-   *   1. Suma el stock en materia prima o en la tabla de bodega
-   *   2. Deja el movimiento registrado para auditoría
-   *   3. Crea la cuenta por pagar con su fecha de vencimiento,
-   *      calculada según los días de crédito del proveedor
-   */
   const recibirOrden = async () => {
     const orden = modalRecepcion.orden;
     if (!orden || !supabase) return;
@@ -522,7 +486,6 @@ export default function Proveedores() {
           .update({ cantidad_recibida: cantidad }).eq("id", item.id);
       }
 
-      // Fecha de vencimiento según los días de crédito pactados
       const prov = proveedores.find((p) => String(p.id) === String(orden.proveedor_id));
       const dias = Number(prov?.dias_credito || 0);
       const venc = new Date();
@@ -566,10 +529,6 @@ export default function Proveedores() {
     }
   };
 
-  /* ========================================================
-     PAGOS
-     ======================================================== */
-
   const abrirPago = (c: CuentaPorPagar) => {
     setModalPago({ open: true, cuenta: c });
     setFormPago({ monto: Number(c.saldo_pendiente || 0), metodo_pago: "Transferencia", referencia: "", fecha: hoyISO(), autor: "" });
@@ -610,10 +569,6 @@ export default function Proveedores() {
     }
   };
 
-  /* ========================================================
-     DERIVADOS
-     ======================================================== */
-
   const proveedoresFiltrados = proveedores.filter((p) => {
     const q = buscarProv.toLowerCase().trim();
     if (!q) return true;
@@ -642,9 +597,17 @@ export default function Proveedores() {
     return c;
   }, [cuentasProvSel]);
 
-  /* ========================================================
-     RENDER
-     ======================================================== */
+  // ── Guard de acceso ──
+  if (cargandoAuth) {
+    return (
+      <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#DAA520" }}>
+        Verificando acceso...
+      </div>
+    );
+  }
+  if (!autorizado) {
+    return null;
+  }
 
   return (
     <div style={{ backgroundColor: "#000", minHeight: "100vh", display: "flex", color: "#DAA520", fontFamily: "sans-serif" }}>
@@ -697,7 +660,6 @@ export default function Proveedores() {
           </div>
         </div>
 
-        {/* KPIs globales */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "15px", marginBottom: "25px" }}>
           <div className="pv-kpi">
             <span className="pv-lb">Total por Pagar</span>
@@ -727,7 +689,6 @@ export default function Proveedores() {
           </div>
         ) : (
           <>
-            {/* ============ DIRECTORIO ============ */}
             {tab === "directorio" && (
               <div className="pv-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
@@ -808,7 +769,6 @@ export default function Proveedores() {
               </div>
             )}
 
-            {/* ============ ÓRDENES DE COMPRA ============ */}
             {tab === "ordenes" && (
               <div className="pv-card">
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -879,10 +839,8 @@ export default function Proveedores() {
               </div>
             )}
 
-            {/* ============ CUENTAS POR PAGAR ============ */}
             {tab === "cxp" && (
               <div>
-                {/* Antigüedad de saldos */}
                 <div className="pv-card" style={{ marginBottom: "22px" }}>
                   <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
                     Antigüedad de Saldos
@@ -979,7 +937,6 @@ export default function Proveedores() {
               </div>
             )}
 
-            {/* ============ ESTADO DE CUENTA ============ */}
             {tab === "estado" && (
               <div>
                 <div className="pv-card" style={{ marginBottom: "22px" }}>
@@ -1106,7 +1063,6 @@ export default function Proveedores() {
         )}
       </div>
 
-      {/* ============ MODAL: PROVEEDOR ============ */}
       {modalProv && (
         <div className="pv-ov">
           <div className="pv-md" style={{ maxWidth: "760px" }}>
@@ -1210,7 +1166,6 @@ export default function Proveedores() {
         </div>
       )}
 
-      {/* ============ MODAL: NUEVA ORDEN DE COMPRA ============ */}
       {modalOC && (
         <div className="pv-ov">
           <div className="pv-md" style={{ maxWidth: "880px" }}>
@@ -1237,7 +1192,6 @@ export default function Proveedores() {
                 </select></div>
             </div>
 
-            {/* Agregar renglón */}
             <div style={{ background: "#050505", border: "1px dashed rgba(218,165,32,0.35)", borderRadius: "8px", padding: "16px", marginBottom: "16px" }}>
               <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 12px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 Agregar renglón
@@ -1287,7 +1241,6 @@ export default function Proveedores() {
               )}
             </div>
 
-            {/* Renglones cargados */}
             {itemsNuevaOC.length > 0 && (
               <div style={{ marginBottom: "16px", border: "1px solid rgba(218,165,32,0.2)", borderRadius: "8px", overflow: "hidden" }}>
                 <table className="pv-tabla">
@@ -1346,7 +1299,6 @@ export default function Proveedores() {
         </div>
       )}
 
-      {/* ============ MODAL: RECEPCIÓN ============ */}
       {modalRecepcion.open && modalRecepcion.orden && (() => {
         const o = modalRecepcion.orden!;
         const items = itemsPorOrden[o.id] || [];
@@ -1417,7 +1369,6 @@ export default function Proveedores() {
         );
       })()}
 
-      {/* ============ MODAL: PAGO ============ */}
       {modalPago.open && modalPago.cuenta && (
         <div className="pv-ov">
           <div className="pv-md" style={{ maxWidth: "460px" }}>

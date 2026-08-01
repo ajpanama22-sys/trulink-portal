@@ -1,6 +1,7 @@
 // pages/admin/planilla-dispersion.tsx
 import { useEffect, useState } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
+import { useRequiereRol } from "../../lib/useRequiereRol";
 import Sidebar from "./Sidebar";
 
 type Periodo = {
@@ -169,6 +170,9 @@ const styles = {
 };
 
 export default function PlanillaDispersionPage() {
+  // ── Guard de página: solo Super Administrador y Administrador ──
+  const { cargando: cargandoAuth, autorizado } = useRequiereRol(["Super Administrador", "Administrador"]);
+
   const supabase = getSupabase();
   const [periodosAprobados, setPeriodosAprobados] = useState<Periodo[]>([]);
   const [dispersiones, setDispersiones] = useState<Dispersion[]>([]);
@@ -201,9 +205,10 @@ export default function PlanillaDispersionPage() {
   }
 
   useEffect(() => {
+    if (!autorizado) return;
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [autorizado]);
 
   async function crearDispersion(periodo: Periodo) {
     if (!supabase) return;
@@ -236,6 +241,18 @@ export default function PlanillaDispersionPage() {
   const periodosSinDispersion = periodosAprobados.filter(
     (p) => !dispersiones.some((d) => d.periodo_id === p.id)
   );
+
+  // ── Guard de acceso ──
+  if (cargandoAuth) {
+    return (
+      <div style={{ ...styles.page, alignItems: "center", justifyContent: "center" }}>
+        <span style={{ color: GOLD }}>Verificando acceso...</span>
+      </div>
+    );
+  }
+  if (!autorizado) {
+    return null;
+  }
 
   return (
     <div style={styles.page}>

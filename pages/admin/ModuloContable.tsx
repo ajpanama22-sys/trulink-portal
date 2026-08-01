@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Sidebar from './Sidebar';
+import { useRequiereRol } from '../../lib/useRequiereRol';
 
 // Sub-módulos contables
 import ResumenTesoreria from '../../components/admin/contable/ResumenTesoreria';
@@ -15,6 +16,9 @@ import RegistrarGastoModal from '../../components/admin/contable/RegistrarGastoM
 type TabType = 'resumen' | 'cxc' | 'cxp' | 'gastos' | 'comisiones';
 
 export default function ModuloContable() {
+  // ── Guard de página: solo Super Administrador y Administrador ──
+  const { cargando: cargandoAuth, autorizado } = useRequiereRol(["Super Administrador", "Administrador"]);
+
   const [activeTab, setActiveTab] = useState<TabType>('resumen');
   const [mostrarModalIngreso, setMostrarModalIngreso] = useState(false);
   const [mostrarModalGasto, setMostrarModalGasto] = useState(false);
@@ -26,6 +30,18 @@ export default function ModuloContable() {
     { key: 'gastos', label: 'Gastos & Servicios', icon: '⚡' },
     { key: 'comisiones', label: 'Comisiones & Bonos', icon: '💰' },
   ];
+
+  // ── Guard de acceso ──
+  if (cargandoAuth) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#000000", color: "#DAA520" }}>
+        Verificando acceso...
+      </div>
+    );
+  }
+  if (!autorizado) {
+    return null;
+  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", width: "100%", backgroundColor: "#000000", color: "#ffffff" }}>
