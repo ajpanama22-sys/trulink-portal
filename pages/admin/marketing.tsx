@@ -1,6 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import {
+  Card,
+  Heading,
+  PageHeader,
+  Button,
+  Badge,
+  inputStyle,
+} from "../../lib/ui";
 
 /* ============================================================
    MARKETING ENTERPRISE SUITE — TRULINK FIBER LLC
@@ -741,92 +750,36 @@ export default function MarketingEnterprise() {
      ========================================================== */
 
   return (
-    <div style={{ display: "flex", backgroundColor: "#000", color: "#DAA520", minHeight: "100vh", fontFamily: "sans-serif", boxSizing: "border-box" }}>
+    <div style={{ display: "flex" }}>
       <Sidebar currentActive="marketing" />
 
-      <main style={{ flex: 1, padding: "50px 30px", boxSizing: "border-box", overflowX: "auto" }}>
+      <div style={pageWrapStyle()}>
         <style jsx global>{`
-          html, body { margin: 0; padding: 0; background-color: #000 !important; color: #DAA520; }
-          .card-enterprise {
-            background-color: #080808;
-            border: 1px solid rgba(218, 165, 32, 0.35);
-            border-radius: 14px;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
-          }
-          .card-enterprise:hover {
-            border-color: #DAA520;
-            box-shadow: 0 15px 40px rgba(0,0,0,1), 0 0 25px rgba(218,165,32,0.25);
-            transform: translateY(-3px);
-          }
-          .kpi-card { background-color: #080808; border: 1px solid rgba(218,165,32,0.3); border-radius: 12px; padding: 22px; }
-          .custom-btn {
-            background-color: transparent; color: #DAA520;
-            border: 1px solid rgba(218,165,32,0.5);
-            padding: 10px 20px; border-radius: 8px; font-weight: 600;
-            font-size: 0.8rem; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease;
-          }
-          .custom-btn:hover, .custom-btn.active {
-            background-color: #DAA520 !important; color: #000 !important;
-            box-shadow: 0 0 20px rgba(218,165,32,0.5);
-          }
-          .gold-btn {
-            background-color: #DAA520; color: #000; border: none;
-            padding: 12px 24px; border-radius: 8px; font-weight: bold;
-            font-size: 0.85rem; letter-spacing: 1px; cursor: pointer; transition: all 0.3s ease;
-          }
-          .gold-btn:hover { background-color: #f1c40f; box-shadow: 0 0 25px rgba(218,165,32,0.6); }
-          .gold-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
-          .mini-btn {
-            background-color: transparent; color: #DAA520;
-            border: 1px solid rgba(218,165,32,0.45);
-            padding: 6px 12px; border-radius: 6px; font-size: 0.7rem;
-            font-weight: 600; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;
-          }
-          .mini-btn:hover { background-color: rgba(218,165,32,0.15); }
-          .verde-btn {
-            background-color: transparent; color: #2ecc71;
-            border: 1px solid rgba(46,204,113,0.5);
-            padding: 6px 12px; border-radius: 6px; font-size: 0.7rem;
-            font-weight: 600; cursor: pointer; transition: all 0.2s ease; white-space: nowrap;
-          }
-          .verde-btn:hover { background-color: rgba(46,204,113,0.15); }
-          .verde-btn:disabled { opacity: 0.4; cursor: not-allowed; }
           table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-          th, td { border: 1px solid rgba(218,165,32,0.25); padding: 12px; text-align: center; color: #FFF; font-size: 0.85rem; }
-          th { background-color: #0a0a0a; color: #DAA520; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1.2px; }
-          input, select, textarea {
-            background-color: #050505; color: #DAA520;
-            border: 1px solid rgba(218,165,32,0.4);
-            padding: 11px; border-radius: 8px; outline: none; width: 100%;
-            font-size: 0.85rem; font-family: inherit; box-sizing: border-box;
-          }
-          input[type="checkbox"] { width: 16px; height: 16px; accent-color: #DAA520; padding: 0; }
+          th, td { border: 1px solid ${theme.borderGold}; padding: 12px; text-align: center; color: ${theme.textLight}; font-size: 0.85rem; }
+          th { background-color: #0a0a0a; color: ${theme.gold}; font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 1.2px; }
+          input[type="checkbox"] { width: 16px; height: 16px; accent-color: ${theme.gold}; padding: 0; }
           .lbl { display: block; font-size: 0.68rem; color: rgba(255,255,255,0.6); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
-          .chip { padding: 3px 9px; border-radius: 12px; font-size: 0.68rem; background: rgba(218,165,32,0.15); color: #DAA520; border: 1px solid rgba(218,165,32,0.3); }
+          .chip { padding: 3px 9px; border-radius: 12px; font-size: 0.68rem; background: ${theme.goldSoft}; color: ${theme.gold}; border: 1px solid ${theme.borderGoldLight}; }
           .barra-fondo { background: #141414; border-radius: 6px; height: 22px; overflow: hidden; flex: 1; }
-          .barra-relleno { background: linear-gradient(90deg, #8a6914, #DAA520); height: 100%; border-radius: 6px; transition: width 0.5s ease; }
+          .barra-relleno { background: linear-gradient(90deg, #8a6914, ${theme.gold}); height: 100%; border-radius: 6px; transition: width 0.5s ease; }
         `}</style>
 
         {/* NAVEGACIÓN — sin botón duplicado de "Volver": ya vive en el Sidebar */}
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "40px", maxWidth: "1400px", margin: "0 auto 40px auto" }}>
           <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <button onClick={() => setSeccion("dashboard")} className={`custom-btn ${seccion === "dashboard" ? "active" : ""}`}>📊 Dashboard Ejecutivo</button>
-            <button onClick={() => setSeccion("campanas")} className={`custom-btn ${seccion === "campanas" ? "active" : ""}`}>🎯 Campañas</button>
-            <button onClick={() => setSeccion("leads")} className={`custom-btn ${seccion === "leads" ? "active" : ""}`}>💼 Pipeline de Leads</button>
-            <button onClick={() => setSeccion("comunicaciones")} className={`custom-btn ${seccion === "comunicaciones" ? "active" : ""}`}>📣 Comunicaciones</button>
-            <button onClick={() => setSeccion("analitica")} className={`custom-btn ${seccion === "analitica" ? "active" : ""}`}>📈 Analítica</button>
+            <Button variant={seccion === "dashboard" ? "gold" : "outline-gold"} onClick={() => setSeccion("dashboard")}>📊 Dashboard Ejecutivo</Button>
+            <Button variant={seccion === "campanas" ? "gold" : "outline-gold"} onClick={() => setSeccion("campanas")}>🎯 Campañas</Button>
+            <Button variant={seccion === "leads" ? "gold" : "outline-gold"} onClick={() => setSeccion("leads")}>💼 Pipeline de Leads</Button>
+            <Button variant={seccion === "comunicaciones" ? "gold" : "outline-gold"} onClick={() => setSeccion("comunicaciones")}>📣 Comunicaciones</Button>
+            <Button variant={seccion === "analitica" ? "gold" : "outline-gold"} onClick={() => setSeccion("analitica")}>📈 Analítica</Button>
           </div>
         </div>
 
-        <div style={{ textAlign: "center", marginBottom: "45px" }}>
-          <h1 style={{ color: "#DAA520", fontSize: "1.8rem", fontWeight: 300, letterSpacing: "3px", textTransform: "uppercase", margin: 0 }}>
-            ENTERPRISE MARKETING SUITE
-          </h1>
-          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem", letterSpacing: "1px", marginTop: "8px" }}>
-            INTELIGENCIA COMERCIAL, ADQUISICIÓN Y COMUNICACIONES • TRULINK FIBER LLC
-          </p>
-        </div>
+        <PageHeader
+          title="ENTERPRISE MARKETING SUITE"
+          subtitle="INTELIGENCIA COMERCIAL, ADQUISICIÓN Y COMUNICACIONES • TRULINK FIBER LLC"
+        />
 
         <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
 
@@ -834,51 +787,51 @@ export default function MarketingEnterprise() {
           {seccion === "dashboard" && (
             <div>
               {loading ? (
-                <div className="card-enterprise" style={{ padding: "40px", textAlign: "center" }}>
-                  <p style={{ color: "rgba(255,255,255,0.5)" }}>Cargando indicadores...</p>
-                </div>
+                <Card style={{ padding: "40px", textAlign: "center" }}>
+                  <p style={{ color: theme.textMuted }}>Cargando indicadores...</p>
+                </Card>
               ) : (
                 <>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "18px", marginBottom: "35px" }}>
-                    <div className="kpi-card">
+                    <Card style={{ padding: "22px", marginBottom: 0 }}>
                       <span className="lbl">Campañas Activas</span>
-                      <h2 style={{ fontSize: "2rem", color: "#DAA520", margin: "6px 0 0 0", fontWeight: 400 }}>{campanasActivas.length}</h2>
+                      <h2 style={{ fontSize: "2rem", color: theme.gold, margin: "6px 0 0 0", fontWeight: 400 }}>{campanasActivas.length}</h2>
                       <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>{campanas.length} en total</span>
-                    </div>
-                    <div className="kpi-card">
+                    </Card>
+                    <Card style={{ padding: "22px", marginBottom: 0 }}>
                       <span className="lbl">Inversión Ejecutada</span>
-                      <h2 style={{ fontSize: "2rem", color: "#FFF", margin: "6px 0 0 0", fontWeight: 400 }}>{fmtMoneda(totalGasto)}</h2>
+                      <h2 style={{ fontSize: "2rem", color: theme.textLight, margin: "6px 0 0 0", fontWeight: 400 }}>{fmtMoneda(totalGasto)}</h2>
                       <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>de {fmtMoneda(totalPresupuesto)} presupuestado</span>
-                    </div>
-                    <div className="kpi-card">
+                    </Card>
+                    <Card style={{ padding: "22px", marginBottom: 0 }}>
                       <span className="lbl">ROI Global</span>
                       <h2 style={{ fontSize: "2rem", color: colorRoi(roiGlobal), margin: "6px 0 0 0", fontWeight: 400 }}>
                         {totalGasto > 0 ? `${roiGlobal.toFixed(1)}%` : "N/D"}
                       </h2>
                       <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>{fmtMoneda(totalIngresos)} atribuidos</span>
-                    </div>
-                    <div className="kpi-card">
+                    </Card>
+                    <Card style={{ padding: "22px", marginBottom: 0 }}>
                       <span className="lbl">Leads Generados</span>
-                      <h2 style={{ fontSize: "2rem", color: "#DAA520", margin: "6px 0 0 0", fontWeight: 400 }}>{leads.length}</h2>
+                      <h2 style={{ fontSize: "2rem", color: theme.gold, margin: "6px 0 0 0", fontWeight: 400 }}>{leads.length}</h2>
                       <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>{leadsConvertidos} convertidos</span>
-                    </div>
-                    <div className="kpi-card">
+                    </Card>
+                    <Card style={{ padding: "22px", marginBottom: 0 }}>
                       <span className="lbl">Costo por Lead</span>
-                      <h2 style={{ fontSize: "2rem", color: "#FFF", margin: "6px 0 0 0", fontWeight: 400 }}>
+                      <h2 style={{ fontSize: "2rem", color: theme.textLight, margin: "6px 0 0 0", fontWeight: 400 }}>
                         {costoPorLead > 0 ? fmtMoneda(costoPorLead) : "N/D"}
                       </h2>
                       <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>inversión / leads</span>
-                    </div>
-                    <div className="kpi-card">
+                    </Card>
+                    <Card style={{ padding: "22px", marginBottom: 0 }}>
                       <span className="lbl">Tasa de Conversión</span>
-                      <h2 style={{ fontSize: "2rem", color: "#2ecc71", margin: "6px 0 0 0", fontWeight: 400 }}>{tasaConversion.toFixed(1)}%</h2>
+                      <h2 style={{ fontSize: "2rem", color: theme.green, margin: "6px 0 0 0", fontWeight: 400 }}>{tasaConversion.toFixed(1)}%</h2>
                       <span style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.4)" }}>lead → prospecto CRM</span>
-                    </div>
+                    </Card>
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
-                    <div className="card-enterprise" style={{ padding: "30px" }}>
-                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Embudo de Leads</h3>
+                    <Card style={{ padding: "30px", marginBottom: 0 }}>
+                      <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "20px" }}>Embudo de Leads</Heading>
                       {leads.length === 0 ? (
                         <p style={{ color: "rgba(255,255,255,0.4)", fontStyle: "italic", fontSize: "0.85rem" }}>Todavía no hay leads registrados.</p>
                       ) : (
@@ -889,25 +842,25 @@ export default function MarketingEnterprise() {
                               <div className="barra-fondo">
                                 <div className="barra-relleno" style={{ width: `${(e.cantidad / maxEmbudo) * 100}%` }} />
                               </div>
-                              <span style={{ fontSize: "0.8rem", color: "#DAA520", fontWeight: 600, width: "35px", textAlign: "right" }}>{e.cantidad}</span>
+                              <span style={{ fontSize: "0.8rem", color: theme.gold, fontWeight: 600, width: "35px", textAlign: "right" }}>{e.cantidad}</span>
                             </div>
                           ))}
                         </div>
                       )}
-                    </div>
+                    </Card>
 
-                    <div className="card-enterprise" style={{ padding: "30px" }}>
-                      <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Valor en Pipeline de Leads</h3>
-                      <h2 style={{ fontSize: "2.6rem", color: "#DAA520", margin: "0 0 6px 0", fontWeight: 400 }}>{fmtMoneda(pipelineLeads)}</h2>
+                    <Card style={{ padding: "30px", marginBottom: 0 }}>
+                      <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "20px" }}>Valor en Pipeline de Leads</Heading>
+                      <h2 style={{ fontSize: "2.6rem", color: theme.gold, margin: "0 0 6px 0", fontWeight: 400 }}>{fmtMoneda(pipelineLeads)}</h2>
                       <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.8rem", lineHeight: 1.6, margin: 0 }}>
                         Suma del valor estimado de todos los leads que aún no se han descartado ni cerrado.
                         Este monto alimenta el pipeline del CRM a medida que los leads se convierten en prospectos.
                       </p>
-                    </div>
+                    </Card>
                   </div>
 
-                  <div className="card-enterprise" style={{ padding: "30px" }}>
-                    <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>Campañas con Mejor Retorno</h3>
+                  <Card style={{ padding: "30px" }}>
+                    <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "10px" }}>Campañas con Mejor Retorno</Heading>
                     {campanas.length === 0 ? (
                       <p style={{ color: "rgba(255,255,255,0.4)", fontStyle: "italic", fontSize: "0.85rem" }}>No hay campañas registradas todavía.</p>
                     ) : (
@@ -929,7 +882,7 @@ export default function MarketingEnterprise() {
                         </tbody>
                       </table>
                     )}
-                  </div>
+                  </Card>
                 </>
               )}
             </div>
@@ -938,17 +891,17 @@ export default function MarketingEnterprise() {
           {/* ================= CAMPAÑAS ================= */}
           {seccion === "campanas" && (
             <div>
-              <div className="card-enterprise" style={{ padding: "35px", marginBottom: "35px" }}>
-                <h3 style={{ color: "#DAA520", fontSize: "1.05rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Lanzar Nueva Campaña</h3>
+              <Card style={{ padding: "35px", marginBottom: "35px" }}>
+                <Heading style={{ fontSize: "1.05rem", textTransform: "uppercase", marginBottom: "20px" }}>Lanzar Nueva Campaña</Heading>
                 <form onSubmit={handleCrearCampana} style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px", alignItems: "end" }}>
                   <div>
                     <label className="lbl">Nombre de Campaña</label>
-                    <input type="text" placeholder="Ej: Expansión Asia-Panamá Hub" value={nuevaCampana.nombre}
+                    <input type="text" placeholder="Ej: Expansión Asia-Panamá Hub" value={nuevaCampana.nombre} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevaCampana({ ...nuevaCampana, nombre: e.target.value })} />
                   </div>
                   <div>
                     <label className="lbl">Canal</label>
-                    <select value={nuevaCampana.tipo} onChange={(e) => setNuevaCampana({ ...nuevaCampana, tipo: e.target.value })}>
+                    <select value={nuevaCampana.tipo} onChange={(e) => setNuevaCampana({ ...nuevaCampana, tipo: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
                       <option value="B2B Outbound">B2B Outbound</option>
                       <option value="Email Automation">Email Automation (Brevo SMTP)</option>
                       <option value="SMS Campaign">SMS Campaign</option>
@@ -960,35 +913,35 @@ export default function MarketingEnterprise() {
                   </div>
                   <div>
                     <label className="lbl">Presupuesto ($ USD)</label>
-                    <input type="number" min={0} value={nuevaCampana.presupuesto}
+                    <input type="number" min={0} value={nuevaCampana.presupuesto} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevaCampana({ ...nuevaCampana, presupuesto: parseFloat(e.target.value) || 0 })} />
                   </div>
                   <div>
                     <label className="lbl">Fecha de Inicio</label>
-                    <input type="date" value={nuevaCampana.fecha_inicio}
+                    <input type="date" value={nuevaCampana.fecha_inicio} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevaCampana({ ...nuevaCampana, fecha_inicio: e.target.value })} />
                   </div>
                   <div>
                     <label className="lbl">Fecha de Cierre</label>
-                    <input type="date" value={nuevaCampana.fecha_fin}
+                    <input type="date" value={nuevaCampana.fecha_fin} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevaCampana({ ...nuevaCampana, fecha_fin: e.target.value })} />
                   </div>
                   <div>
                     <label className="lbl">Meta de Leads</label>
-                    <input type="number" min={0} value={nuevaCampana.meta_leads}
+                    <input type="number" min={0} value={nuevaCampana.meta_leads} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevaCampana({ ...nuevaCampana, meta_leads: parseInt(e.target.value) || 0 })} />
                   </div>
                   <div style={{ gridColumn: "1 / 3" }}>
                     <label className="lbl">Objetivo Comercial</label>
-                    <input type="text" placeholder="Ej: captar 20 ISP regionales para el Q4" value={nuevaCampana.objetivo}
+                    <input type="text" placeholder="Ej: captar 20 ISP regionales para el Q4" value={nuevaCampana.objetivo} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevaCampana({ ...nuevaCampana, objetivo: e.target.value })} />
                   </div>
-                  <button type="submit" className="gold-btn" style={{ height: "44px" }}>Lanzar Campaña</button>
+                  <Button type="submit" style={{ height: "44px" }}>Lanzar Campaña</Button>
                 </form>
-              </div>
+              </Card>
 
-              <div className="card-enterprise" style={{ padding: "35px", overflowX: "auto" }}>
-                <h2 style={{ color: "#DAA520", fontSize: "1.05rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>Portafolio de Campañas</h2>
+              <Card style={{ padding: "35px", overflowX: "auto" }}>
+                <Heading style={{ fontSize: "1.05rem", textTransform: "uppercase", marginBottom: "10px" }}>Portafolio de Campañas</Heading>
                 {campanas.length === 0 ? (
                   <p style={{ color: "rgba(255,255,255,0.5)", fontStyle: "italic", textAlign: "center" }}>No hay campañas registradas.</p>
                 ) : (
@@ -1014,7 +967,7 @@ export default function MarketingEnterprise() {
                             <td style={{ fontSize: "0.78rem" }}>{c.tipo}</td>
                             <td>
                               <select value={c.estado} onChange={(e) => handleCambiarEstadoCampana(c.id, e.target.value)}
-                                style={{ width: "auto", padding: "5px 8px", fontSize: "0.72rem" }}>
+                                style={{ ...inputStyle, width: "auto", padding: "5px 8px", fontSize: "0.72rem" }}>
                                 {ESTADOS_CAMPANA.map((s) => <option key={s} value={s}>{s}</option>)}
                               </select>
                             </td>
@@ -1025,12 +978,12 @@ export default function MarketingEnterprise() {
                             <td>{fmtMoneda(c.presupuesto)}</td>
                             <td>
                               {fmtMoneda(c.gasto)}
-                              <div style={{ fontSize: "0.65rem", color: consumo > 100 ? "#e74c3c" : "#777", marginTop: "2px" }}>
+                              <div style={{ fontSize: "0.65rem", color: consumo > 100 ? theme.red : "#777", marginTop: "2px" }}>
                                 {consumo.toFixed(0)}% consumido
                               </div>
                             </td>
                             <td>{fmtMoneda(c.ingresos_generados || 0)}</td>
-                            <td style={{ color: "#DAA520", fontWeight: 600 }}>
+                            <td style={{ color: theme.gold, fontWeight: 600 }}>
                               {nLeads}
                               {c.meta_leads ? <div style={{ fontSize: "0.65rem", color: "#777" }}>meta {c.meta_leads}</div> : null}
                             </td>
@@ -1038,8 +991,8 @@ export default function MarketingEnterprise() {
                             <td style={{ color: colorRoi(Number(c.roi || 0)), fontWeight: 700 }}>{Number(c.roi || 0).toFixed(1)}%</td>
                             <td>
                               <div style={{ display: "flex", gap: "6px", justifyContent: "center", flexWrap: "wrap" }}>
-                                <button className="mini-btn" onClick={() => abrirModalGasto(c)}>+ Gasto</button>
-                                <button className="verde-btn" onClick={() => abrirModalIngreso(c)}>$ Ingresos</button>
+                                <Button variant="outline-gold" onClick={() => abrirModalGasto(c)} style={{ padding: "6px 12px", fontSize: "0.7rem" }}>+ Gasto</Button>
+                                <Button variant="outline-green" onClick={() => abrirModalIngreso(c)} style={{ padding: "6px 12px", fontSize: "0.7rem" }}>$ Ingresos</Button>
                               </div>
                             </td>
                           </tr>
@@ -1048,11 +1001,11 @@ export default function MarketingEnterprise() {
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
 
               {gastos.length > 0 && (
-                <div className="card-enterprise" style={{ padding: "30px", marginTop: "30px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>Libro de Gastos (últimos movimientos)</h3>
+                <Card style={{ padding: "30px", marginTop: "30px" }}>
+                  <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "10px" }}>Libro de Gastos (últimos movimientos)</Heading>
                   <table>
                     <thead><tr><th>Fecha</th><th>Campaña</th><th>Concepto</th><th>Monto</th></tr></thead>
                     <tbody>
@@ -1061,12 +1014,12 @@ export default function MarketingEnterprise() {
                           <td style={{ fontSize: "0.78rem", color: "#aaa" }}>{new Date(g.fecha).toLocaleDateString()}</td>
                           <td style={{ textAlign: "left" }}>{campanas.find((c) => c.id === g.campana_id)?.nombre || `#${g.campana_id}`}</td>
                           <td style={{ textAlign: "left", color: "#ccc" }}>{g.concepto}</td>
-                          <td style={{ color: "#e74c3c", fontWeight: 600 }}>-{fmtMoneda(g.monto)}</td>
+                          <td style={{ color: theme.red, fontWeight: 600 }}>-{fmtMoneda(g.monto)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </Card>
               )}
             </div>
           )}
@@ -1074,23 +1027,23 @@ export default function MarketingEnterprise() {
           {/* ================= PIPELINE DE LEADS ================= */}
           {seccion === "leads" && (
             <div>
-              <div className="card-enterprise" style={{ padding: "35px", marginBottom: "30px" }}>
-                <h3 style={{ color: "#DAA520", fontSize: "1.05rem", textTransform: "uppercase", marginTop: 0, marginBottom: "20px" }}>Registrar Lead Manualmente</h3>
+              <Card style={{ padding: "35px", marginBottom: "30px" }}>
+                <Heading style={{ fontSize: "1.05rem", textTransform: "uppercase", marginBottom: "20px" }}>Registrar Lead Manualmente</Heading>
                 <form onSubmit={handleCrearLead} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "15px", alignItems: "end" }}>
                   <div><label className="lbl">Contacto</label>
-                    <input type="text" placeholder="Nombre de la persona" value={nuevoLead.nombre_contacto}
+                    <input type="text" placeholder="Nombre de la persona" value={nuevoLead.nombre_contacto} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevoLead({ ...nuevoLead, nombre_contacto: e.target.value })} /></div>
                   <div><label className="lbl">Empresa</label>
-                    <input type="text" placeholder="Razón social" value={nuevoLead.empresa}
+                    <input type="text" placeholder="Razón social" value={nuevoLead.empresa} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevoLead({ ...nuevoLead, empresa: e.target.value })} /></div>
                   <div><label className="lbl">Email</label>
-                    <input type="email" placeholder="contacto@empresa.com" value={nuevoLead.email}
+                    <input type="email" placeholder="contacto@empresa.com" value={nuevoLead.email} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevoLead({ ...nuevoLead, email: e.target.value })} /></div>
                   <div><label className="lbl">Teléfono Celular</label>
-                    <input type="text" placeholder="+507 6640 3720" value={nuevoLead.telefono_celular}
+                    <input type="text" placeholder="+507 6640 3720" value={nuevoLead.telefono_celular} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevoLead({ ...nuevoLead, telefono_celular: e.target.value })} /></div>
                   <div><label className="lbl">Origen</label>
-                    <select value={nuevoLead.origen} onChange={(e) => setNuevoLead({ ...nuevoLead, origen: e.target.value })}>
+                    <select value={nuevoLead.origen} onChange={(e) => setNuevoLead({ ...nuevoLead, origen: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
                       <option value="Manual">Manual</option>
                       <option value="Web">Formulario Web</option>
                       <option value="Referido">Referido</option>
@@ -1100,28 +1053,28 @@ export default function MarketingEnterprise() {
                       <option value="Redes Sociales">Redes Sociales</option>
                     </select></div>
                   <div><label className="lbl">Campaña Atribuida</label>
-                    <select value={nuevoLead.campana_id} onChange={(e) => setNuevoLead({ ...nuevoLead, campana_id: e.target.value })}>
+                    <select value={nuevoLead.campana_id} onChange={(e) => setNuevoLead({ ...nuevoLead, campana_id: e.target.value })} style={{ ...inputStyle, width: "100%" }}>
                       <option value="">— Sin campaña —</option>
                       {campanas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                     </select></div>
                   <div><label className="lbl">Valor Estimado ($)</label>
-                    <input type="number" min={0} value={nuevoLead.valor_estimado}
+                    <input type="number" min={0} value={nuevoLead.valor_estimado} style={{ ...inputStyle, width: "100%" }}
                       onChange={(e) => setNuevoLead({ ...nuevoLead, valor_estimado: parseFloat(e.target.value) || 0 })} /></div>
-                  <button type="submit" className="gold-btn" style={{ height: "44px" }}>Registrar Lead</button>
+                  <Button type="submit" style={{ height: "44px" }}>Registrar Lead</Button>
                 </form>
-              </div>
+              </Card>
 
-              <div className="card-enterprise" style={{ padding: "35px", overflowX: "auto" }}>
+              <Card style={{ padding: "35px", overflowX: "auto" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px", marginBottom: "15px" }}>
-                  <h2 style={{ color: "#DAA520", fontSize: "1.05rem", textTransform: "uppercase", margin: 0 }}>Pipeline de Prospectos Potenciales</h2>
+                  <Heading style={{ fontSize: "1.05rem", textTransform: "uppercase", margin: 0 }}>Pipeline de Prospectos Potenciales</Heading>
                   <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
                     <input type="text" placeholder="Buscar contacto, empresa, email..." value={busquedaLead}
-                      onChange={(e) => setBusquedaLead(e.target.value)} style={{ width: "260px" }} />
-                    <select value={filtroEstadoLeadTabla} onChange={(e) => setFiltroEstadoLeadTabla(e.target.value)} style={{ width: "auto" }}>
+                      onChange={(e) => setBusquedaLead(e.target.value)} style={{ ...inputStyle, width: "260px" }} />
+                    <select value={filtroEstadoLeadTabla} onChange={(e) => setFiltroEstadoLeadTabla(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
                       <option value="TODOS">Todos los estados</option>
                       {ESTADOS_LEAD.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
-                    <select value={filtroCampanaTabla} onChange={(e) => setFiltroCampanaTabla(e.target.value)} style={{ width: "auto" }}>
+                    <select value={filtroCampanaTabla} onChange={(e) => setFiltroCampanaTabla(e.target.value)} style={{ ...inputStyle, width: "auto" }}>
                       <option value="TODAS">Todas las campañas</option>
                       {campanas.map((c) => <option key={c.id} value={String(c.id)}>{c.nombre}</option>)}
                     </select>
@@ -1144,7 +1097,7 @@ export default function MarketingEnterprise() {
                           <tr key={l.id}>
                             <td style={{ textAlign: "left", fontWeight: 600 }}>{l.nombre_contacto || "—"}</td>
                             <td style={{ textAlign: "left" }}>{l.empresa || "—"}</td>
-                            <td style={{ fontSize: "0.78rem", color: "#DAA520" }}>{l.email || "—"}</td>
+                            <td style={{ fontSize: "0.78rem", color: theme.gold }}>{l.email || "—"}</td>
                             <td style={{ fontSize: "0.78rem" }}>{l.telefono_celular || "—"}</td>
                             <td style={{ fontSize: "0.75rem" }}>
                               {camp ? <span className="chip">{camp.nombre}</span> : <span style={{ color: "#777" }}>Sin campaña</span>}
@@ -1153,18 +1106,18 @@ export default function MarketingEnterprise() {
                             <td>{Number(l.valor_estimado || 0) > 0 ? fmtMoneda(l.valor_estimado || 0) : "—"}</td>
                             <td>
                               <select value={l.estado} onChange={(e) => handleCambiarEstadoLead(l.id, e.target.value)}
-                                style={{ width: "auto", padding: "5px 8px", fontSize: "0.72rem" }}>
+                                style={{ ...inputStyle, width: "auto", padding: "5px 8px", fontSize: "0.72rem" }}>
                                 {ESTADOS_LEAD.map((s) => <option key={s} value={s}>{s}</option>)}
                               </select>
                             </td>
                             <td>
                               {yaConvertido ? (
-                                <span style={{ fontSize: "0.7rem", color: "#2ecc71" }}>✓ En el CRM</span>
+                                <Badge tone="success">✓ En el CRM</Badge>
                               ) : (
-                                <button className="verde-btn" disabled={convirtiendoLead === l.id}
+                                <Button variant="outline-green" disabled={convirtiendoLead === l.id} style={{ padding: "6px 12px", fontSize: "0.7rem" }}
                                   onClick={() => handleConvertirLeadAProspecto(l)}>
                                   {convirtiendoLead === l.id ? "Enviando..." : "→ Enviar al CRM"}
-                                </button>
+                                </Button>
                               )}
                             </td>
                           </tr>
@@ -1173,7 +1126,7 @@ export default function MarketingEnterprise() {
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
             </div>
           )}
 
@@ -1183,11 +1136,11 @@ export default function MarketingEnterprise() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "30px" }}>
 
                 {/* --- Constructor de audiencia --- */}
-                <div className="card-enterprise" style={{ padding: "30px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", marginTop: 0, marginBottom: "18px" }}>1 · Definir Audiencia</h3>
+                <Card style={{ padding: "30px", marginBottom: 0 }}>
+                  <Heading style={{ fontSize: "1rem", textTransform: "uppercase", marginBottom: "18px" }}>1 · Definir Audiencia</Heading>
 
                   {cargandoAudiencias ? (
-                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Cargando contactos...</p>
+                    <p style={{ color: theme.textMuted, fontSize: "0.85rem" }}>Cargando contactos...</p>
                   ) : (
                     <>
                       <label className="lbl">Fuentes de contactos</label>
@@ -1198,7 +1151,7 @@ export default function MarketingEnterprise() {
                           ["leads", `Leads (${leads.length})`],
                           ["prospectos", `Prospectos CRM (${prospectosRaw.length})`],
                         ] as [keyof typeof fuentes, string][]).map(([k, label]) => (
-                          <label key={k} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: fuentes[k] ? "#DAA520" : "rgba(255,255,255,0.55)", fontSize: "0.8rem" }}>
+                          <label key={k} style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: fuentes[k] ? theme.gold : "rgba(255,255,255,0.55)", fontSize: "0.8rem" }}>
                             <input type="checkbox" checked={fuentes[k]}
                               onChange={(e) => setFuentes({ ...fuentes, [k]: e.target.checked })} />
                             {label}
@@ -1208,21 +1161,21 @@ export default function MarketingEnterprise() {
 
                       {fuentes.clientes && (
                         <div style={{ background: "#050505", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "8px", padding: "14px", marginBottom: "14px" }}>
-                          <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>Afinar clientes</p>
+                          <p style={{ fontSize: "0.7rem", color: theme.gold, margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>Afinar clientes</p>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                             <div><label className="lbl">Perfil</label>
-                              <select value={fPerfilCliente} onChange={(e) => setFPerfilCliente(e.target.value)} style={{ fontSize: "0.75rem", padding: "8px" }}>
+                              <select value={fPerfilCliente} onChange={(e) => setFPerfilCliente(e.target.value)} style={{ ...inputStyle, width: "100%", fontSize: "0.75rem", padding: "8px" }}>
                                 <option value="TODOS">Todos</option>
                                 {PERFILES_CLIENTE.map((p) => <option key={p} value={p}>{p}</option>)}
                               </select></div>
                             <div><label className="lbl">Lista Precio</label>
-                              <select value={fPriceList} onChange={(e) => setFPriceList(e.target.value)} style={{ fontSize: "0.75rem", padding: "8px" }}>
+                              <select value={fPriceList} onChange={(e) => setFPriceList(e.target.value)} style={{ ...inputStyle, width: "100%", fontSize: "0.75rem", padding: "8px" }}>
                                 <option value="TODAS">Todas</option>
                                 <option value="A">A</option><option value="B">B</option>
                                 <option value="C">C</option><option value="D">D</option>
                               </select></div>
                             <div><label className="lbl">Estado</label>
-                              <select value={fStatusCliente} onChange={(e) => setFStatusCliente(e.target.value)} style={{ fontSize: "0.75rem", padding: "8px" }}>
+                              <select value={fStatusCliente} onChange={(e) => setFStatusCliente(e.target.value)} style={{ ...inputStyle, width: "100%", fontSize: "0.75rem", padding: "8px" }}>
                                 <option value="TODOS">Todos</option>
                                 <option value="activo">Activo</option>
                                 <option value="pendiente_password">Pendiente contraseña</option>
@@ -1233,15 +1186,15 @@ export default function MarketingEnterprise() {
 
                       {fuentes.leads && (
                         <div style={{ background: "#050505", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "8px", padding: "14px", marginBottom: "14px" }}>
-                          <p style={{ fontSize: "0.7rem", color: "#DAA520", margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>Afinar leads</p>
+                          <p style={{ fontSize: "0.7rem", color: theme.gold, margin: "0 0 10px 0", textTransform: "uppercase", letterSpacing: "0.5px" }}>Afinar leads</p>
                           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                             <div><label className="lbl">Estado</label>
-                              <select value={fEstadoLead} onChange={(e) => setFEstadoLead(e.target.value)} style={{ fontSize: "0.75rem", padding: "8px" }}>
+                              <select value={fEstadoLead} onChange={(e) => setFEstadoLead(e.target.value)} style={{ ...inputStyle, width: "100%", fontSize: "0.75rem", padding: "8px" }}>
                                 <option value="TODOS">Todos</option>
                                 {ESTADOS_LEAD.map((s) => <option key={s} value={s}>{s}</option>)}
                               </select></div>
                             <div><label className="lbl">Campaña</label>
-                              <select value={fCampanaLead} onChange={(e) => setFCampanaLead(e.target.value)} style={{ fontSize: "0.75rem", padding: "8px" }}>
+                              <select value={fCampanaLead} onChange={(e) => setFCampanaLead(e.target.value)} style={{ ...inputStyle, width: "100%", fontSize: "0.75rem", padding: "8px" }}>
                                 <option value="TODAS">Todas</option>
                                 {campanas.map((c) => <option key={c.id} value={String(c.id)}>{c.nombre}</option>)}
                               </select></div>
@@ -1251,18 +1204,18 @@ export default function MarketingEnterprise() {
 
                       <label className="lbl">Buscar dentro de la audiencia</label>
                       <input type="text" placeholder="Nombre, email, teléfono o etiqueta..." value={buscarDest}
-                        onChange={(e) => setBuscarDest(e.target.value)} style={{ marginBottom: "14px" }} />
+                        onChange={(e) => setBuscarDest(e.target.value)} style={{ ...inputStyle, width: "100%", marginBottom: "14px", boxSizing: "border-box" }} />
 
-                      <label style={{ display: "flex", alignItems: "center", gap: "9px", cursor: "pointer", color: "#DAA520", fontSize: "0.82rem", marginBottom: "12px" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "9px", cursor: "pointer", color: theme.gold, fontSize: "0.82rem", marginBottom: "12px" }}>
                         <input type="checkbox" checked={enviarATodos} onChange={(e) => setEnviarATodos(e.target.checked)} />
                         Enviar a todos los que cumplen el filtro ({candidatos.length})
                       </label>
 
                       {!enviarATodos && (
                         <p style={{ fontSize: "0.72rem", color: "#888", margin: "0 0 10px 0" }}>
-                          Marca uno por uno a quién le llega. Seleccionados: <strong style={{ color: "#DAA520" }}>{seleccionados.size}</strong>
+                          Marca uno por uno a quién le llega. Seleccionados: <strong style={{ color: theme.gold }}>{seleccionados.size}</strong>
                           {seleccionados.size > 0 && (
-                            <button className="mini-btn" style={{ marginLeft: "10px" }} onClick={() => setSeleccionados(new Set())}>Limpiar</button>
+                            <Button variant="outline-gold" style={{ marginLeft: "10px", padding: "6px 12px", fontSize: "0.7rem" }} onClick={() => setSeleccionados(new Set())}>Limpiar</Button>
                           )}
                         </p>
                       )}
@@ -1292,7 +1245,7 @@ export default function MarketingEnterprise() {
                                   </div>
                                 </div>
                                 <div style={{ textAlign: "right", flexShrink: 0 }}>
-                                  <div style={{ fontSize: "0.62rem", color: "#DAA520" }}>{d.fuenteLabel}</div>
+                                  <div style={{ fontSize: "0.62rem", color: theme.gold }}>{d.fuenteLabel}</div>
                                   <div style={{ fontSize: "0.62rem", color: "#666" }}>{d.etiqueta}</div>
                                 </div>
                               </div>
@@ -1302,19 +1255,19 @@ export default function MarketingEnterprise() {
                       </div>
                     </>
                   )}
-                </div>
+                </Card>
 
                 {/* --- Redacción y envío --- */}
-                <div className="card-enterprise" style={{ padding: "30px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "1rem", textTransform: "uppercase", marginTop: 0, marginBottom: "18px" }}>2 · Redactar y Enviar</h3>
+                <Card style={{ padding: "30px", marginBottom: 0 }}>
+                  <Heading style={{ fontSize: "1rem", textTransform: "uppercase", marginBottom: "18px" }}>2 · Redactar y Enviar</Heading>
 
                   <form onSubmit={handleEnviarComunicacion}>
                     <label className="lbl">Canales</label>
                     <div style={{ display: "flex", gap: "24px", marginBottom: "16px" }}>
-                      <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: canalEmail ? "#DAA520" : "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: canalEmail ? theme.gold : "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>
                         <input type="checkbox" checked={canalEmail} onChange={(e) => setCanalEmail(e.target.checked)} /> Email
                       </label>
-                      <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: canalSms ? "#DAA520" : "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>
+                      <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", color: canalSms ? theme.gold : "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>
                         <input type="checkbox" checked={canalSms} onChange={(e) => setCanalSms(e.target.checked)} /> SMS
                       </label>
                     </div>
@@ -1322,14 +1275,14 @@ export default function MarketingEnterprise() {
                     {canalEmail && (
                       <div style={{ marginBottom: "14px" }}>
                         <label className="lbl">Asunto del correo</label>
-                        <input type="text" placeholder="Ej: Nueva lista de precios vigente" value={asunto}
+                        <input type="text" placeholder="Ej: Nueva lista de precios vigente" value={asunto} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                           onChange={(e) => setAsunto(e.target.value)} />
                       </div>
                     )}
 
                     <label className="lbl">Mensaje</label>
                     <textarea rows={7} placeholder="Escribe el comunicado..." value={mensaje}
-                      onChange={(e) => setMensaje(e.target.value)} style={{ resize: "vertical", marginBottom: "6px" }} />
+                      onChange={(e) => setMensaje(e.target.value)} style={{ ...inputStyle, width: "100%", resize: "vertical", marginBottom: "6px", boxSizing: "border-box" }} />
                     {canalSms && (
                       <p style={{ fontSize: "0.7rem", color: "#888", margin: "0 0 12px 0" }}>
                         📱 SMS: {mensaje.length} caracteres ({Math.max(1, Math.ceil(mensaje.length / 160))} segmento{mensaje.length > 160 ? "s" : ""}). Mientras más corto, mejor.
@@ -1338,14 +1291,14 @@ export default function MarketingEnterprise() {
 
                     <div style={{ marginBottom: "16px" }}>
                       <label className="lbl">Enviado por (queda en el historial)</label>
-                      <input type="text" placeholder="Tu nombre" value={autorEnvio} onChange={(e) => setAutorEnvio(e.target.value)} />
+                      <input type="text" placeholder="Tu nombre" value={autorEnvio} onChange={(e) => setAutorEnvio(e.target.value)} style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }} />
                     </div>
 
                     {/* Resumen antes de disparar */}
                     <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.35)", borderRadius: "8px", padding: "15px 18px", marginBottom: "18px" }}>
                       <p style={{ fontSize: "0.68rem", color: "#888", textTransform: "uppercase", margin: "0 0 8px 0", letterSpacing: "0.5px" }}>Resumen del envío</p>
                       <p style={{ color: "#FFF", fontSize: "0.85rem", margin: "0 0 8px 0" }}>
-                        Llegará a <strong style={{ color: "#DAA520", fontSize: "1.15rem" }}>{destinatariosFinales.length}</strong> destinatario(s)
+                        Llegará a <strong style={{ color: theme.gold, fontSize: "1.15rem" }}>{destinatariosFinales.length}</strong> destinatario(s)
                       </p>
                       <p style={{ color: "rgba(255,255,255,0.55)", fontSize: "0.74rem", margin: "0 0 6px 0", lineHeight: 1.5 }}>
                         Segmento: {descripcionSegmento}
@@ -1363,13 +1316,13 @@ export default function MarketingEnterprise() {
                       )}
                     </div>
 
-                    <button type="submit" className="gold-btn" disabled={enviando || destinatariosFinales.length === 0} style={{ width: "100%", padding: "15px" }}>
+                    <Button type="submit" disabled={enviando || destinatariosFinales.length === 0} style={{ width: "100%", padding: "15px" }}>
                       {enviando ? "ENVIANDO..." : `ENVIAR A ${destinatariosFinales.length} DESTINATARIO(S)`}
-                    </button>
+                    </Button>
 
                     {resultadoEnvio && (
                       <p style={{ fontSize: "0.82rem", textAlign: "center", marginTop: "14px", marginBottom: 0,
-                        color: resultadoEnvio.startsWith("Error") ? "#e74c3c" : "#2ecc71" }}>
+                        color: resultadoEnvio.startsWith("Error") ? theme.red : theme.green }}>
                         {resultadoEnvio}
                       </p>
                     )}
@@ -1377,17 +1330,17 @@ export default function MarketingEnterprise() {
 
                   <div style={{ marginTop: "20px", padding: "13px 16px", backgroundColor: "rgba(218,165,32,0.04)", border: "1px dashed rgba(218,165,32,0.25)", borderRadius: "8px" }}>
                     <p style={{ fontSize: "0.75rem", color: "#888", margin: 0 }}>
-                      📌 <strong style={{ color: "#DAA520" }}>Push móvil</strong> aún no está conectado — se habilita cuando se publique la app.
+                      📌 <strong style={{ color: theme.gold }}>Push móvil</strong> aún no está conectado — se habilita cuando se publique la app.
                     </p>
                   </div>
-                </div>
+                </Card>
               </div>
 
               {/* --- Historial --- */}
-              <div className="card-enterprise" style={{ padding: "30px" }}>
+              <Card style={{ padding: "30px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", margin: 0 }}>Historial de Comunicaciones</h3>
-                  <button className="mini-btn" onClick={fetchHistorialEnvios}>↻ Actualizar</button>
+                  <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", margin: 0 }}>Historial de Comunicaciones</Heading>
+                  <Button variant="outline-gold" style={{ padding: "6px 12px", fontSize: "0.7rem" }} onClick={fetchHistorialEnvios}>↻ Actualizar</Button>
                 </div>
                 {historialEnvios.length === 0 ? (
                   <p style={{ color: "rgba(255,255,255,0.45)", fontStyle: "italic", fontSize: "0.82rem", textAlign: "center", padding: "12px" }}>
@@ -1412,25 +1365,25 @@ export default function MarketingEnterprise() {
                         </p>
                         <div style={{ display: "flex", gap: "18px", fontSize: "0.7rem", color: "#777", flexWrap: "wrap" }}>
                           <span>👥 {h.total_destinatarios}</span>
-                          {h.enviados_email > 0 && <span style={{ color: "#2ecc71" }}>✉ {h.enviados_email} enviados</span>}
-                          {h.fallidos_email > 0 && <span style={{ color: "#e74c3c" }}>✉ {h.fallidos_email} fallaron</span>}
-                          {h.enviados_sms > 0 && <span style={{ color: "#2ecc71" }}>📱 {h.enviados_sms} enviados</span>}
-                          {h.fallidos_sms > 0 && <span style={{ color: "#e74c3c" }}>📱 {h.fallidos_sms} fallaron</span>}
+                          {h.enviados_email > 0 && <span style={{ color: theme.green }}>✉ {h.enviados_email} enviados</span>}
+                          {h.fallidos_email > 0 && <span style={{ color: theme.red }}>✉ {h.fallidos_email} fallaron</span>}
+                          {h.enviados_sms > 0 && <span style={{ color: theme.green }}>📱 {h.enviados_sms} enviados</span>}
+                          {h.fallidos_sms > 0 && <span style={{ color: theme.red }}>📱 {h.fallidos_sms} fallaron</span>}
                           {h.segmento_descripcion && <span style={{ color: "#666" }}>🎯 {h.segmento_descripcion}</span>}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
+              </Card>
             </div>
           )}
 
           {/* ================= ANALÍTICA ================= */}
           {seccion === "analitica" && (
             <div>
-              <div className="card-enterprise" style={{ padding: "35px", marginBottom: "30px", overflowX: "auto" }}>
-                <h3 style={{ color: "#DAA520", fontSize: "1.05rem", textTransform: "uppercase", marginTop: 0, marginBottom: "10px" }}>Rendimiento por Canal</h3>
+              <Card style={{ padding: "35px", marginBottom: "30px", overflowX: "auto" }}>
+                <Heading style={{ fontSize: "1.05rem", textTransform: "uppercase", marginBottom: "10px" }}>Rendimiento por Canal</Heading>
                 {rendimientoPorCanal.length === 0 ? (
                   <p style={{ color: "rgba(255,255,255,0.45)", fontStyle: "italic", textAlign: "center" }}>Sin campañas para analizar todavía.</p>
                 ) : (
@@ -1448,7 +1401,7 @@ export default function MarketingEnterprise() {
                             <td>{r.campanas}</td>
                             <td>{fmtMoneda(r.gasto)}</td>
                             <td>{fmtMoneda(r.ingresos)}</td>
-                            <td style={{ color: "#DAA520", fontWeight: 600 }}>{r.leads}</td>
+                            <td style={{ color: theme.gold, fontWeight: 600 }}>{r.leads}</td>
                             <td>{cpl > 0 ? fmtMoneda(cpl) : "—"}</td>
                             <td style={{ color: colorRoi(roi), fontWeight: 700 }}>{r.gasto > 0 ? `${roi.toFixed(1)}%` : "N/D"}</td>
                           </tr>
@@ -1457,11 +1410,11 @@ export default function MarketingEnterprise() {
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px" }}>
-                <div className="card-enterprise" style={{ padding: "30px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "18px" }}>Leads por Origen</h3>
+                <Card style={{ padding: "30px", marginBottom: 0 }}>
+                  <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "18px" }}>Leads por Origen</Heading>
                   {leadsPorOrigen.length === 0 ? (
                     <p style={{ color: "rgba(255,255,255,0.4)", fontStyle: "italic", fontSize: "0.85rem" }}>Sin leads registrados.</p>
                   ) : (
@@ -1472,15 +1425,15 @@ export default function MarketingEnterprise() {
                           <div className="barra-fondo">
                             <div className="barra-relleno" style={{ width: `${(o.cantidad / maxOrigen) * 100}%` }} />
                           </div>
-                          <span style={{ fontSize: "0.8rem", color: "#DAA520", fontWeight: 600, width: "32px", textAlign: "right" }}>{o.cantidad}</span>
+                          <span style={{ fontSize: "0.8rem", color: theme.gold, fontWeight: 600, width: "32px", textAlign: "right" }}>{o.cantidad}</span>
                         </div>
                       ))}
                     </div>
                   )}
-                </div>
+                </Card>
 
-                <div className="card-enterprise" style={{ padding: "30px" }}>
-                  <h3 style={{ color: "#DAA520", fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "18px" }}>Eficiencia de Adquisición</h3>
+                <Card style={{ padding: "30px", marginBottom: 0 }}>
+                  <Heading style={{ fontSize: "0.95rem", textTransform: "uppercase", marginBottom: "18px" }}>Eficiencia de Adquisición</Heading>
                   <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #161616", paddingBottom: "11px" }}>
                       <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.82rem" }}>Inversión total ejecutada</span>
@@ -1488,7 +1441,7 @@ export default function MarketingEnterprise() {
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #161616", paddingBottom: "11px" }}>
                       <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.82rem" }}>Presupuesto sin ejecutar</span>
-                      <strong style={{ color: "#DAA520", fontSize: "0.9rem" }}>{fmtMoneda(Math.max(0, totalPresupuesto - totalGasto))}</strong>
+                      <strong style={{ color: theme.gold, fontSize: "0.9rem" }}>{fmtMoneda(Math.max(0, totalPresupuesto - totalGasto))}</strong>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid #161616", paddingBottom: "11px" }}>
                       <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.82rem" }}>Costo por lead</span>
@@ -1507,64 +1460,63 @@ export default function MarketingEnterprise() {
                       </strong>
                     </div>
                   </div>
-                </div>
+                </Card>
               </div>
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       {/* ============ MODAL: REGISTRAR GASTO ============ */}
       {modalGasto.open && modalGasto.campana && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#111", border: "1px solid rgba(218,165,32,0.5)", borderRadius: "12px", padding: "30px", width: "100%", maxWidth: "440px" }}>
-            <h2 style={{ color: "#DAA520", marginTop: 0, fontSize: "1.1rem", letterSpacing: "1px" }}>REGISTRAR GASTO</h2>
-            <p style={{ fontSize: "0.85rem", color: "#BBB", marginBottom: "20px" }}>
-              Campaña: <strong style={{ color: "#DAA520" }}>{modalGasto.campana.nombre}</strong><br />
+          <Card style={{ maxWidth: "440px", width: "100%", marginBottom: 0 }}>
+            <Heading style={{ fontSize: "1.1rem", letterSpacing: "1px", marginBottom: 4 }}>REGISTRAR GASTO</Heading>
+            <p style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "20px" }}>
+              Campaña: <strong style={{ color: theme.gold }}>{modalGasto.campana.nombre}</strong><br />
               <span style={{ fontSize: "0.78rem", color: "#777" }}>
                 Gasto acumulado actual: {fmtMoneda(modalGasto.campana.gasto)} de {fmtMoneda(modalGasto.campana.presupuesto)}
               </span>
             </p>
             <div style={{ marginBottom: "14px" }}>
               <label className="lbl">Monto ($ USD)</label>
-              <input type="number" min={0} value={nuevoGasto.monto}
+              <input type="number" min={0} value={nuevoGasto.monto} style={{ ...inputStyle, width: "100%" }}
                 onChange={(e) => setNuevoGasto({ ...nuevoGasto, monto: parseFloat(e.target.value) || 0 })} />
             </div>
             <div style={{ marginBottom: "14px" }}>
               <label className="lbl">Concepto</label>
-              <input type="text" placeholder="Ej: pauta digital octubre" value={nuevoGasto.concepto}
+              <input type="text" placeholder="Ej: pauta digital octubre" value={nuevoGasto.concepto} style={{ ...inputStyle, width: "100%" }}
                 onChange={(e) => setNuevoGasto({ ...nuevoGasto, concepto: e.target.value })} />
             </div>
             <div style={{ marginBottom: "22px" }}>
               <label className="lbl">Fecha</label>
-              <input type="date" value={nuevoGasto.fecha}
+              <input type="date" value={nuevoGasto.fecha} style={{ ...inputStyle, width: "100%" }}
                 onChange={(e) => setNuevoGasto({ ...nuevoGasto, fecha: e.target.value })} />
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setModalGasto({ open: false, campana: null })}
-                style={{ padding: "11px 22px", cursor: "pointer", borderRadius: "6px", fontWeight: 600, fontSize: "0.8rem", background: "transparent", color: "#AAA", border: "1px solid #555" }}>
+              <Button variant="ghost" onClick={() => setModalGasto({ open: false, campana: null })}>
                 CANCELAR
-              </button>
-              <button onClick={handleRegistrarGasto} className="gold-btn">GUARDAR GASTO</button>
+              </Button>
+              <Button onClick={handleRegistrarGasto}>GUARDAR GASTO</Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* ============ MODAL: INGRESOS ATRIBUIDOS ============ */}
       {modalIngreso.open && modalIngreso.campana && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, backdropFilter: "blur(4px)" }}>
-          <div style={{ background: "#111", border: "1px solid rgba(46,204,113,0.5)", borderRadius: "12px", padding: "30px", width: "100%", maxWidth: "440px" }}>
-            <h2 style={{ color: "#2ecc71", marginTop: 0, fontSize: "1.1rem", letterSpacing: "1px" }}>INGRESOS ATRIBUIDOS</h2>
-            <p style={{ fontSize: "0.85rem", color: "#BBB", marginBottom: "20px" }}>
-              Campaña: <strong style={{ color: "#DAA520" }}>{modalIngreso.campana.nombre}</strong><br />
+          <Card style={{ maxWidth: "440px", width: "100%", marginBottom: 0, border: `1px solid ${theme.greenBorder}` }}>
+            <Heading style={{ fontSize: "1.1rem", letterSpacing: "1px", marginBottom: 4, color: theme.green }}>INGRESOS ATRIBUIDOS</Heading>
+            <p style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "20px" }}>
+              Campaña: <strong style={{ color: theme.gold }}>{modalIngreso.campana.nombre}</strong><br />
               <span style={{ fontSize: "0.78rem", color: "#777" }}>
                 Ventas cerradas que se le atribuyen a esta campaña. Con esto se recalcula el ROI.
               </span>
             </p>
             <div style={{ marginBottom: "16px" }}>
               <label className="lbl">Ingresos totales ($ USD)</label>
-              <input type="number" min={0} value={montoIngreso}
+              <input type="number" min={0} value={montoIngreso} style={{ ...inputStyle, width: "100%" }}
                 onChange={(e) => setMontoIngreso(parseFloat(e.target.value) || 0)} />
             </div>
             <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)", borderRadius: "8px", padding: "13px 16px", marginBottom: "22px", fontSize: "0.8rem" }}>
@@ -1582,16 +1534,14 @@ export default function MarketingEnterprise() {
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
-              <button onClick={() => setModalIngreso({ open: false, campana: null })}
-                style={{ padding: "11px 22px", cursor: "pointer", borderRadius: "6px", fontWeight: 600, fontSize: "0.8rem", background: "transparent", color: "#AAA", border: "1px solid #555" }}>
+              <Button variant="ghost" onClick={() => setModalIngreso({ open: false, campana: null })}>
                 CANCELAR
-              </button>
-              <button onClick={handleRegistrarIngreso}
-                style={{ padding: "11px 22px", cursor: "pointer", borderRadius: "6px", fontWeight: 600, fontSize: "0.8rem", background: "rgba(46,204,113,0.2)", color: "#2ecc71", border: "1px solid #2ecc71" }}>
+              </Button>
+              <Button variant="outline-green" onClick={handleRegistrarIngreso}>
                 GUARDAR
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>

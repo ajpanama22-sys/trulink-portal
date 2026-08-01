@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
+import { theme, pageWrapStyle } from "../../lib/theme";
+import { Card, PageHeader, Button, Badge, estadoToTone, inputStyle } from "../../lib/ui";
 
 type CategoriaReporte = "ventas" | "contable" | "inventario" | "proveedores" | "clientes" | "proyecciones";
 
@@ -554,7 +556,7 @@ export default function Reportes() {
   };
 
   return (
-    <div style={{ backgroundColor: "#030303", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ display: "flex" }}>
       <style>{`
         @media print {
           .no-imprimir { display: none !important; }
@@ -562,147 +564,139 @@ export default function Reportes() {
       `}</style>
       <Sidebar currentActive="reportes" />
 
-      <div style={{ flex: 1, padding: "40px", overflowY: "auto", background: "radial-gradient(circle at 50% 0%, #16130b 0%, #030303 70%)" }}>
+      <div style={pageWrapStyle()}>
 
         {/* ENCABEZADO EXECUTIVE */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", borderBottom: "1px solid rgba(218, 165, 32, 0.25)", paddingBottom: "22px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "18px" }}>
-            <img src="/images/logo.png" alt="Trulink Fiber" style={{ height: "48px", objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(255,215,0,0.5))" }} />
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <h1 style={{ fontSize: "2rem", background: "linear-gradient(135deg, #FFF099 0%, #FFD700 40%, #DAA520 70%, #997300 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: "2px", fontWeight: "900", textTransform: "uppercase", margin: 0 }}>
-                  Auditoría & Contabilidad
-                </h1>
-                <span style={{ backgroundColor: "rgba(255,215,0,0.1)", border: "1px solid #FFD700", color: "#FFD700", fontSize: "0.65rem", padding: "2px 8px", borderRadius: "12px", textTransform: "uppercase", fontWeight: "bold", letterSpacing: "1px" }}>
-                  Enterprise Edition
-                </span>
-              </div>
-              <span style={{ fontSize: "0.8rem", color: "#888", letterSpacing: "0.5px" }}>Consola de Estados Financieros y Reportes Consolidados • Trulink Fiber LLC</span>
-            </div>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, marginBottom: 4 }}>
+          <img src="/images/logo.png" alt="Trulink Fiber" style={{ height: "48px", objectFit: "contain", filter: "drop-shadow(0 0 12px rgba(255,215,0,0.5))" }} />
+          <Badge tone="gold">Enterprise Edition</Badge>
+        </div>
 
-          <div className="no-imprimir" style={{ display: "flex", gap: "14px", alignItems: "center" }}>
-            <div style={{ textAlign: "right", background: "rgba(20, 20, 20, 0.8)", border: "1px solid rgba(218,165,32,0.3)", padding: "8px 16px", borderRadius: "8px" }}>
-              <span style={{ display: "block", fontSize: "0.65rem", color: "#888", textTransform: "uppercase", letterSpacing: "1px" }}>Sincronización Fiscal</span>
-              <strong style={{ fontSize: "0.85rem", color: "#FFD700", fontFamily: "monospace" }}>{fechaHoraActual || "Cargando..."}</strong>
-            </div>
-            <button onClick={exportarExcel} style={btnExportStyle}>📊 Excel (.xlsx)</button>
-            <button onClick={exportarCSV} style={btnExportStyle}>📄 CSV</button>
-            <button onClick={exportarJSON} style={btnExportStyle}>🗂️ JSON</button>
-            <button onClick={exportarPDF} style={btnPrimaryStyle}>📄 PDF</button>
-          </div>
+        <PageHeader
+          title="Auditoría & Contabilidad"
+          subtitle="Consola de Estados Financieros y Reportes Consolidados • Trulink Fiber LLC"
+          counterLabel={fechaHoraActual || "Cargando..."}
+        />
+
+        <div className="no-imprimir" style={{ display: "flex", gap: 14, alignItems: "center", justifyContent: "flex-end", marginBottom: 25 }}>
+          <Button variant="outline-gold" onClick={exportarExcel}>📊 Excel (.xlsx)</Button>
+          <Button variant="outline-gold" onClick={exportarCSV}>📄 CSV</Button>
+          <Button variant="outline-gold" onClick={exportarJSON}>🗂️ JSON</Button>
+          <Button variant="gold" onClick={exportarPDF}>📄 PDF</Button>
         </div>
 
         {/* SELECTOR DE PESTAÑAS (INCLUYENDO PROYECCIONES IA) */}
         <div className="no-imprimir" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "12px", marginBottom: "25px" }}>
-          <CategoryTab title="Reportes Contables" subtitle="Libro Mayor y P&L" active={categoria === "contable"} onClick={() => setCategoria("contable")} icon="⚖️" highlight={true} />
+          <CategoryTab title="Reportes Contables" subtitle="Libro Mayor y P&L" active={categoria === "contable"} onClick={() => setCategoria("contable")} icon="⚖️" />
           <CategoryTab title="Ventas & Cobros" subtitle="Tabla quotes" active={categoria === "ventas"} onClick={() => setCategoria("ventas")} icon="📈" />
           <CategoryTab title="Inventario SKUs" subtitle="Cables, Herrajes, Acc." active={categoria === "inventario"} onClick={() => setCategoria("inventario")} icon="📦" />
           <CategoryTab title="Proveedores" subtitle="Tabla proveedores" active={categoria === "proveedores"} onClick={() => setCategoria("proveedores")} icon="🏭" />
           <CategoryTab title="Clientes CRM" subtitle="Tabla clientes" active={categoria === "clientes"} onClick={() => setCategoria("clientes")} icon="👥" />
-          <CategoryTab title="Proyecciones IA" subtitle="Regresión predictiva" active={categoria === "proyecciones"} onClick={() => setCategoria("proyecciones")} icon="🤖" highlight={true} />
+          <CategoryTab title="Proyecciones IA" subtitle="Regresión predictiva" active={categoria === "proyecciones"} onClick={() => setCategoria("proyecciones")} icon="🤖" />
         </div>
 
         {/* BARRA DE FILTROS Y BÚSQUEDA */}
         {categoria !== "proyecciones" && (
-          <div className="no-imprimir" style={{ ...glassCardStyle, marginBottom: "25px", padding: "18px 24px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "15px", flex: 1, minWidth: "300px" }}>
-                <span style={{ color: "#FFD700", fontSize: "1.1rem" }}>🔍</span>
-                <input
-                  type="text"
-                  placeholder={`Filtrar en ${categoria}... (Cuenta, Asiento, Cliente, SKU)`}
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                  style={{ ...inputStyle, width: "100%" }}
-                />
-              </div>
+          <div className="no-imprimir">
+            <Card style={{ marginBottom: 25, padding: "18px 24px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "15px", flex: 1, minWidth: "300px" }}>
+                  <span style={{ color: theme.gold, fontSize: "1.1rem" }}>🔍</span>
+                  <input
+                    type="text"
+                    placeholder={`Filtrar en ${categoria}... (Cuenta, Asiento, Cliente, SKU)`}
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    style={{ ...inputStyle, width: "100%" }}
+                  />
+                </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ fontSize: "0.78rem", color: "#AAA", textTransform: "uppercase", letterSpacing: "0.8px" }}>Ventana Contable:</span>
-                <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} style={inputStyle} />
-                <span style={{ color: "#FFD700", fontWeight: "bold" }}>→</span>
-                <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} style={inputStyle} />
-                <button onClick={aplicarFiltroFecha} style={btnPrimaryStyle}>Actualizar</button>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "0.78rem", color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.8px" }}>Ventana Contable:</span>
+                  <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} style={inputStyle} />
+                  <span style={{ color: theme.gold, fontWeight: "bold" }}>→</span>
+                  <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} style={inputStyle} />
+                  <Button variant="gold" onClick={aplicarFiltroFecha}>Actualizar</Button>
+                </div>
               </div>
-            </div>
+            </Card>
           </div>
         )}
 
         {/* TOP METRICS KPI CARDS */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px", marginBottom: "25px" }}>
-          <MetricKpiCard title={resumenMétricas.label1} value={resumenMétricas.kpi1} border="#FFD700" />
+          <MetricKpiCard title={resumenMétricas.label1} value={resumenMétricas.kpi1} border={theme.gold} />
           <MetricKpiCard title={resumenMétricas.label2} value={resumenMétricas.kpi2} border="#29B6F6" />
-          <MetricKpiCard title={resumenMétricas.label3} value={resumenMétricas.kpi3} border="#00E676" />
+          <MetricKpiCard title={resumenMétricas.label3} value={resumenMétricas.kpi3} border={theme.green} />
         </div>
 
         {/* SI ES CONTABLE: MOSTRAR BALANCE FISCAL RAPIDO */}
         {categoria === "contable" && (
-          <div style={{ ...glassCardStyle, marginBottom: "25px", padding: "20px" }}>
+          <Card style={{ marginBottom: 25, padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
-              <h3 style={{ color: "#FFF", fontSize: "0.95rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>
+              <h3 style={{ color: theme.textLight, fontSize: "0.95rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>
                 🏛️ Desglose Fiscal & Impuestos Estimados (ITBMS 7%)
               </h3>
-              <span style={{ color: "#FFD700", fontSize: "0.75rem", border: "1px solid rgba(255,215,0,0.3)", padding: "2px 8px", borderRadius: "4px" }}>
+              <span style={{ color: theme.gold, fontSize: "0.75rem", border: `1px solid ${theme.borderGold}`, padding: "2px 8px", borderRadius: "4px" }}>
                 Moneda: USD ($)
               </span>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "15px", fontSize: "0.82rem" }}>
               <div style={subCardStyle}>
-                <span style={{ color: "#888", display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Ingresos Brutos Facturados</span>
-                <strong style={{ color: "#FFF", fontSize: "1.1rem" }}>${(resumenFinanciero.ingresosPagados + resumenFinanciero.cuentasPorCobrar).toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                <span style={{ color: theme.textMuted, display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Ingresos Brutos Facturados</span>
+                <strong style={{ color: theme.textLight, fontSize: "1.1rem" }}>${(resumenFinanciero.ingresosPagados + resumenFinanciero.cuentasPorCobrar).toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
               </div>
               <div style={subCardStyle}>
-                <span style={{ color: "#888", display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Costo Fabril Total (COGS)</span>
-                <strong style={{ color: "#FF5252", fontSize: "1.1rem" }}>${resumenFinanciero.costosOperativos.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                <span style={{ color: theme.textMuted, display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Costo Fabril Total (COGS)</span>
+                <strong style={{ color: theme.red, fontSize: "1.1rem" }}>${resumenFinanciero.costosOperativos.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
               </div>
               <div style={subCardStyle}>
-                <span style={{ color: "#888", display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Retención Impuesto ITBMS (7%)</span>
+                <span style={{ color: theme.textMuted, display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Retención Impuesto ITBMS (7%)</span>
                 <strong style={{ color: "#29B6F6", fontSize: "1.1rem" }}>${resumenFinanciero.impuestosRetenidos.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
               </div>
               <div style={subCardStyle}>
-                <span style={{ color: "#888", display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Margen Operativo Bruto</span>
-                <strong style={{ color: "#00E676", fontSize: "1.1rem" }}>{resumenFinanciero.margenPromedio}%</strong>
+                <span style={{ color: theme.textMuted, display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Margen Operativo Bruto</span>
+                <strong style={{ color: theme.green, fontSize: "1.1rem" }}>{resumenFinanciero.margenPromedio}%</strong>
               </div>
             </div>
-          </div>
+          </Card>
         )}
 
         {/* SI ES PROYECCIONES: NOTA METODOLÓGICA */}
         {categoria === "proyecciones" && (
-          <div style={{ ...glassCardStyle, marginBottom: "25px", padding: "20px", border: "1px solid rgba(179,136,255,0.35)" }}>
-            <h3 style={{ color: "#FFF", fontSize: "0.9rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>🤖 Metodología Predictiva</h3>
-            <p style={{ color: "#AAA", fontSize: "0.8rem", marginTop: "8px", lineHeight: 1.6 }}>
+          <Card style={{ marginBottom: 25, padding: 20, border: "1px solid rgba(179,136,255,0.35)" }}>
+            <h3 style={{ color: theme.textLight, fontSize: "0.9rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>🤖 Metodología Predictiva</h3>
+            <p style={{ color: theme.textMuted, fontSize: "0.8rem", marginTop: "8px", lineHeight: 1.6 }}>
               El modelo aplica regresión lineal simple sobre los últimos 6 meses reales de cotizaciones y cobros de la tabla <code>quotes</code>, y proyecta los próximos 3 meses. La confianza (R²) indica qué tan bien la tendencia lineal explica el comportamiento histórico: valores cercanos a 100% indican una tendencia estable, mientras que valores bajos sugieren mayor volatilidad y menor certeza en la proyección.
             </p>
-          </div>
+          </Card>
         )}
 
         {/* TABLA PRINCIPAL - LIBRO AUXILIAR CONTABLE Y REPORTES */}
-        <div style={glassCardStyle}>
+        <Card>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <h3 style={{ color: "#FFF", fontSize: "1.05rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>
+            <h3 style={{ color: theme.textLight, fontSize: "1.05rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>
               {categoria === "contable" ? "📖 Libro Auxiliar de Asientos Contables" : categoria === "proyecciones" ? "🔮 Proyección Financiera a 3 Meses" : `📑 Matriz Consolidada de ${categoria.toUpperCase()}`}
             </h3>
-            <span style={{ fontSize: "0.75rem", color: "#888" }}>
+            <span style={{ fontSize: "0.75rem", color: theme.textMuted }}>
               {datasetActivo.length} registros {categoria === "proyecciones" ? "proyectados" : "auditados"}
             </span>
           </div>
 
           {cargando && categoria !== "proyecciones" ? (
             <div style={{ padding: "60px", textAlign: "center" }}>
-              <div style={{ width: "40px", height: "40px", border: "3px solid rgba(255,215,0,0.1)", borderTop: "3px solid #FFD700", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 15px auto" }} />
-              <p style={{ color: "#FFD700", letterSpacing: "1px", fontSize: "0.8rem", textTransform: "uppercase" }}>Cargando Libros Contables desde Supabase...</p>
+              <div style={{ width: "40px", height: "40px", border: `3px solid ${theme.goldSoft}`, borderTop: `3px solid ${theme.gold}`, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 15px auto" }} />
+              <p style={{ color: theme.gold, letterSpacing: "1px", fontSize: "0.8rem", textTransform: "uppercase" }}>Cargando Libros Contables desde Supabase...</p>
             </div>
           ) : datasetActivo.length === 0 ? (
-            <div style={{ padding: "50px", textAlign: "center", color: "#777", fontSize: "0.9rem" }}>
+            <div style={{ padding: "50px", textAlign: "center", color: theme.textMuted, fontSize: "0.9rem" }}>
               No se encontraron asientos ni registros para este período.
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.82rem" }}>
                 <thead>
-                  <tr style={{ borderBottom: "2px solid rgba(218, 165, 32, 0.4)", color: "#FFD700", textTransform: "uppercase", letterSpacing: "1px", fontSize: "0.72rem" }}>
+                  <tr style={{ borderBottom: `2px solid ${theme.borderGoldCounter}`, color: theme.gold, textTransform: "uppercase", letterSpacing: "1px", fontSize: "0.72rem" }}>
                     {categoria === "contable" && (
                       <>
                         <th style={thStyle}>Nº Asiento</th>
@@ -769,44 +763,40 @@ export default function Reportes() {
                 </thead>
                 <tbody>
                   {datasetActivo.map((row, idx) => (
-                    <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", transition: "background 0.2s" }} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(255,215,0,0.04)")} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
+                    <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.05)", transition: "background 0.2s" }} onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = theme.goldSoft)} onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}>
                       {categoria === "contable" && (
                         <>
-                          <td style={tdStyle}><strong style={{ color: "#FFD700", fontFamily: "monospace" }}>{row.asiento}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.gold, fontFamily: "monospace" }}>{row.asiento}</strong></td>
                           <td style={tdStyle}>{row.fecha}</td>
                           <td style={tdStyle}><span style={{ color: "#29B6F6", fontSize: "0.75rem" }}>{row.cuenta}</span></td>
-                          <td style={tdStyle}><strong style={{ color: "#FFF" }}>{row.concepto}</strong></td>
-                          <td style={tdStyle}><strong style={{ color: row.debito > 0 ? "#00E676" : "#666" }}>{row.debito > 0 ? `$${row.debito.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "-"}</strong></td>
-                          <td style={tdStyle}><strong style={{ color: row.credito > 0 ? "#FF5252" : "#666" }}>{row.credito > 0 ? `$${row.credito.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "-"}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.textLight }}>{row.concepto}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: row.debito > 0 ? theme.green : "#666" }}>{row.debito > 0 ? `$${row.debito.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "-"}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: row.credito > 0 ? theme.red : "#666" }}>{row.credito > 0 ? `$${row.credito.toLocaleString("en-US", { minimumFractionDigits: 2 })}` : "-"}</strong></td>
                           <td style={tdStyle}>${row.impuestoItbms.toFixed(2)}</td>
-                          <td style={tdStyle}><strong style={{ color: row.utilidad >= 0 ? "#00E676" : "#FF5252" }}>${row.utilidad.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: row.utilidad >= 0 ? theme.green : theme.red }}>${row.utilidad.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></td>
                           <td style={tdStyle}>
-                            <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "0.68rem", fontWeight: "bold", textTransform: "uppercase", backgroundColor: row.estadoFiscal === "Liquidado" ? "rgba(0,230,118,0.15)" : "rgba(255,215,0,0.15)", color: row.estadoFiscal === "Liquidado" ? "#00E676" : "#FFD700", border: `1px solid ${row.estadoFiscal === "Liquidado" ? "#00E676" : "#FFD700"}` }}>
-                              {row.estadoFiscal}
-                            </span>
+                            <Badge tone={estadoToTone(row.estadoFiscal)}>{row.estadoFiscal}</Badge>
                           </td>
                         </>
                       )}
                       {categoria === "ventas" && (
                         <>
-                          <td style={tdStyle}><strong style={{ color: "#FFD700" }}>{row.codigo}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.gold }}>{row.codigo}</strong></td>
                           <td style={tdStyle}>{row.fecha}</td>
-                          <td style={tdStyle}><strong style={{ color: "#FFF" }}>{row.cliente}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.textLight }}>{row.cliente}</strong></td>
                           <td style={tdStyle}>{row.pais}</td>
                           <td style={tdStyle}>{row.resumenItem}</td>
                           <td style={tdStyle}>{row.metodoPago}</td>
-                          <td style={tdStyle}><strong style={{ color: "#00E676" }}>${row.monto.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.green }}>${row.monto.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong></td>
                           <td style={tdStyle}>
-                            <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "0.68rem", fontWeight: "bold", textTransform: "uppercase", backgroundColor: row.estadoPago === "pagado" ? "rgba(0,230,118,0.15)" : "rgba(255,215,0,0.15)", color: row.estadoPago === "pagado" ? "#00E676" : "#FFD700", border: `1px solid ${row.estadoPago === "pagado" ? "#00E676" : "#FFD700"}` }}>
-                              {row.estadoPago}
-                            </span>
+                            <Badge tone={estadoToTone(row.estadoPago)}>{row.estadoPago}</Badge>
                           </td>
                         </>
                       )}
                       {categoria === "inventario" && (
                         <>
-                          <td style={tdStyle}><strong style={{ color: "#FFD700" }}>{row.sku}</strong></td>
-                          <td style={tdStyle}><strong style={{ color: "#FFF" }}>{row.descripcion}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.gold }}>{row.sku}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.textLight }}>{row.descripcion}</strong></td>
                           <td style={tdStyle}>{row.categoria}</td>
                           <td style={tdStyle}><span style={{ fontFamily: "monospace", color: "#29B6F6" }}>{row.tablaOrigen}</span></td>
                           <td style={tdStyle}>{row.especificacion}</td>
@@ -815,29 +805,29 @@ export default function Reportes() {
                       {categoria === "proveedores" && (
                         <>
                           <td style={tdStyle}>#{row.id}</td>
-                          <td style={tdStyle}><strong style={{ color: "#FFF" }}>{row.nombre}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.textLight }}>{row.nombre}</strong></td>
                           <td style={tdStyle}>{row.region}</td>
                           <td style={tdStyle}>{row.categoria}</td>
-                          <td style={tdStyle}><strong style={{ color: "#FFD700" }}>{row.ordenesActivas} órdenes</strong></td>
-                          <td style={tdStyle}><span style={{ color: "#00E676", fontWeight: "bold" }}>✓ {row.estatus}</span></td>
+                          <td style={tdStyle}><strong style={{ color: theme.gold }}>{row.ordenesActivas} órdenes</strong></td>
+                          <td style={tdStyle}><span style={{ color: theme.green, fontWeight: "bold" }}>✓ {row.estatus}</span></td>
                         </>
                       )}
                       {categoria === "clientes" && (
                         <>
                           <td style={tdStyle}>#{row.id}</td>
-                          <td style={tdStyle}><strong style={{ color: "#FFF" }}>{row.nombre}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.textLight }}>{row.nombre}</strong></td>
                           <td style={tdStyle}>{row.empresa}</td>
                           <td style={tdStyle}><span style={{ color: "#29B6F6" }}>{row.email}</span></td>
                           <td style={tdStyle}>{row.pais}</td>
-                          <td style={tdStyle}><span style={{ border: "1px solid rgba(255,215,0,0.4)", color: "#FFD700", padding: "2px 6px", borderRadius: "4px", fontSize: "0.68rem" }}>{row.rol}</span></td>
+                          <td style={tdStyle}><Badge tone="gold">{row.rol}</Badge></td>
                         </>
                       )}
                       {categoria === "proyecciones" && (
                         <>
                           <td style={tdStyle}><strong style={{ color: "#B388FF" }}>{row.mes}</strong></td>
-                          <td style={tdStyle}><span style={{ color: "#FFD700" }}>${row.cotizadoProyectado.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span></td>
+                          <td style={tdStyle}><span style={{ color: theme.gold }}>${row.cotizadoProyectado.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span></td>
                           <td style={tdStyle}><span style={{ color: "#29B6F6" }}>${row.facturadoProyectado.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span></td>
-                          <td style={tdStyle}><strong style={{ color: "#00E676" }}>${row.cobradoProyectado.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong></td>
+                          <td style={tdStyle}><strong style={{ color: theme.green }}>${row.cobradoProyectado.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong></td>
                         </>
                       )}
                     </tr>
@@ -846,108 +836,44 @@ export default function Reportes() {
               </table>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );
 }
 
 // COMPONENTES SECUNDARIOS DE NAVEGACIÓN Y ESTILO
-function CategoryTab({ title, subtitle, active, onClick, icon, highlight }: any) {
+function CategoryTab({ title, subtitle, active, onClick, icon }: any) {
   return (
-    <div
+    <Button
+      variant={active ? "gold" : "outline-gold"}
       onClick={onClick}
-      style={{
-        background: active
-          ? "linear-gradient(135deg, rgba(255,215,0,0.22) 0%, rgba(20,20,20,0.95) 100%)"
-          : highlight
-          ? "rgba(255,215,0,0.06)"
-          : "rgba(15,15,15,0.7)",
-        border: active ? "1px solid #FFD700" : highlight ? "1px solid rgba(255,215,0,0.3)" : "1px solid rgba(255,255,255,0.08)",
-        borderRadius: "10px",
-        padding: "14px",
-        cursor: "pointer",
-        transition: "all 0.2s ease",
-        boxShadow: active ? "0 0 15px rgba(255,215,0,0.25)" : "none",
-      }}
+      style={{ width: "100%", boxSizing: "border-box", padding: "14px", textAlign: "left" }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "3px" }}>
         <span style={{ fontSize: "1.1rem" }}>{icon}</span>
-        <h4 style={{ margin: 0, fontSize: "0.82rem", color: active ? "#FFD700" : highlight ? "#FFF099" : "#FFF", fontWeight: "800" }}>{title}</h4>
+        <h4 style={{ margin: 0, fontSize: "0.82rem", fontWeight: "800" }}>{title}</h4>
       </div>
-      <span style={{ fontSize: "0.68rem", color: "#888", display: "block" }}>{subtitle}</span>
-    </div>
+      <span style={{ fontSize: "0.68rem", opacity: 0.75, display: "block" }}>{subtitle}</span>
+    </Button>
   );
 }
 
 function MetricKpiCard({ title, value, border }: any) {
   return (
-    <div style={{
-      background: "linear-gradient(145deg, rgba(20,20,20,0.9) 0%, rgba(10,10,10,0.95) 100%)",
-      border: `1px solid ${border}44`,
-      borderRadius: "10px",
-      padding: "18px 22px",
-      borderLeft: `4px solid ${border}`,
-    }}>
-      <span style={{ fontSize: "0.72rem", color: "#888", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>{title}</span>
-      <strong style={{ fontSize: "1.5rem", color: "#FFF", fontWeight: "900" }}>{value}</strong>
-    </div>
+    <Card style={{ padding: "18px 22px", marginBottom: 0, borderLeft: `4px solid ${border}` }}>
+      <span style={{ fontSize: "0.72rem", color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>{title}</span>
+      <strong style={{ fontSize: "1.5rem", color: theme.textLight, fontWeight: "900" }}>{value}</strong>
+    </Card>
   );
 }
 
-// ESTILOS DE REUTILIZACIÓN CORPORATIVA
-const glassCardStyle = {
-  background: "linear-gradient(135deg, rgba(18,18,18,0.85) 0%, rgba(8,8,8,0.95) 100%)",
-  border: "1px solid rgba(218, 165, 32, 0.35)",
-  borderRadius: "14px",
-  padding: "24px",
-  boxShadow: "0 12px 35px rgba(0,0,0,0.6)",
-  backdropFilter: "blur(12px)",
-};
-
+// ESTILOS DE REUTILIZACIÓN CORPORATIVA (paneles internos sin componente equivalente)
 const subCardStyle = {
   background: "rgba(12,12,12,0.8)",
-  border: "1px solid rgba(218, 165, 32, 0.2)",
-  borderRadius: "8px",
+  border: `1px solid ${theme.borderGoldLight}`,
+  borderRadius: theme.radiusSm,
   padding: "12px 16px",
-};
-
-const inputStyle = {
-  backgroundColor: "#080808",
-  border: "1px solid rgba(218, 165, 32, 0.5)",
-  color: "#FFD700",
-  padding: "9px 14px",
-  borderRadius: "8px",
-  outline: "none",
-  fontSize: "0.82rem",
-  fontWeight: "600",
-};
-
-const btnPrimaryStyle = {
-  background: "linear-gradient(135deg, #FFF099 0%, #FFD700 50%, #DAA520 100%)",
-  color: "#000",
-  border: "none",
-  padding: "10px 18px",
-  borderRadius: "8px",
-  fontWeight: "800",
-  cursor: "pointer",
-  textTransform: "uppercase" as const,
-  fontSize: "0.75rem",
-  letterSpacing: "1px",
-  boxShadow: "0 0 15px rgba(255,215,0,0.3)",
-};
-
-const btnExportStyle = {
-  background: "rgba(20,20,20,0.8)",
-  color: "#FFD700",
-  border: "1px solid rgba(218, 165, 32, 0.6)",
-  padding: "10px 18px",
-  borderRadius: "8px",
-  fontWeight: "bold",
-  cursor: "pointer",
-  textTransform: "uppercase" as const,
-  fontSize: "0.75rem",
-  letterSpacing: "0.8px",
 };
 
 const thStyle = {
@@ -956,5 +882,5 @@ const thStyle = {
 
 const tdStyle = {
   padding: "12px 14px",
-  color: "#CCC",
+  color: theme.textMuted,
 };

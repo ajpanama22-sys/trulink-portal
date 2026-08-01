@@ -256,13 +256,13 @@ export function Badge({ children, tone = "gold" }: { children: React.ReactNode; 
 // nuevos valores de `estado` en otras tablas/módulos.
 export function estadoToTone(estado: string | undefined | null): Tone {
   const e = (estado ?? "").toLowerCase().trim();
-  if (["aprobado", "aprobada", "completado", "activo", "aceptado", "activado"].includes(e)) {
+  if (["aprobado", "aprobada", "completado", "activo", "aceptado", "activado", "pagado", "confirmado", "liquidado"].includes(e)) {
     return "success";
   }
-  if (["rechazado", "rechazada", "cancelado", "cancelada", "vencido", "inactivo"].includes(e)) {
+  if (["rechazado", "rechazada", "cancelado", "cancelada", "vencido", "inactivo", "anulado"].includes(e)) {
     return "danger";
   }
-  if (["pendiente", "en_progreso", "en progreso", "en curso"].includes(e)) {
+  if (["pendiente", "en_progreso", "en progreso", "en curso", "por cobrar", "pasivo operativo"].includes(e)) {
     return "gold";
   }
   return "neutral";

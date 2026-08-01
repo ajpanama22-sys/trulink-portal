@@ -2,6 +2,16 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Sidebar from './Sidebar';
 import { supabase } from '../../lib/supabaseClient';
+import { theme, pageWrapStyle } from '../../lib/theme';
+import {
+  Card,
+  Heading,
+  PageHeader,
+  Button,
+  Badge,
+  estadoToTone,
+  inputStyle,
+} from '../../lib/ui';
 
 /**
  * Módulo de RMA y Garantías
@@ -315,98 +325,37 @@ export default function RmasAdmin() {
     return { total, pendientes, enRevision, cambios, notasCredito, montoTotalCredito };
   }, [rmas]);
 
-  const estadoColor = (estado: Estado) => {
-    switch (estado) {
-      case 'Finalizado':
-        return { bg: 'rgba(46, 204, 113, 0.2)', fg: '#2ecc71' };
-      case 'Rechazado':
-        return { bg: 'rgba(231, 76, 60, 0.2)', fg: '#e74c3c' };
-      case 'En Revisión':
-        return { bg: 'rgba(52, 152, 219, 0.2)', fg: '#3498db' };
-      default:
-        return { bg: 'rgba(241, 196, 15, 0.2)', fg: '#f1c40f' };
-    }
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '10px',
-    borderRadius: '6px',
-    backgroundColor: '#000',
-    border: '1px solid rgba(218,165,32,0.5)',
-    color: '#fff',
-    boxSizing: 'border-box',
-  };
-
   const labelStyle: React.CSSProperties = {
     display: 'block',
     marginBottom: '5px',
     fontSize: '0.85rem',
-    color: '#DAA520',
+    color: theme.gold,
   };
 
-  const statCard = (titulo: string, valor: string | number, color = '#FFD700') => (
-    <div
-      style={{
-        flex: 1,
-        minWidth: '140px',
-        backgroundColor: '#111',
-        border: '1px solid rgba(218,165,32,0.25)',
-        borderRadius: '10px',
-        padding: '16px 18px',
-      }}
-    >
-      <p style={{ color: '#888', fontSize: '0.75rem', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+  const statCard = (titulo: string, valor: string | number, color: string = theme.goldBright) => (
+    <Card style={{ flex: 1, minWidth: '140px', padding: '16px 18px', marginBottom: 0 }}>
+      <p style={{ color: theme.textMuted, fontSize: '0.75rem', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
         {titulo}
       </p>
       <p style={{ color, fontSize: '1.5rem', fontWeight: 800 }}>{valor}</p>
-    </div>
+    </Card>
   );
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#000', color: '#DAA520', fontFamily: 'sans-serif' }}>
+    <div style={{ display: 'flex' }}>
       <Sidebar currentActive="rmas" />
 
-      <main style={{ flex: 1, padding: '40px', boxSizing: 'border-box', overflowY: 'auto' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '25px',
-            borderBottom: '1px solid rgba(218,165,32,0.3)',
-            paddingBottom: '20px',
-          }}
-        >
-          <div>
-            <h1 style={{ fontSize: '1.8rem', color: '#FFD700', marginBottom: '5px', fontWeight: '800', letterSpacing: '1px' }}>
-              RMA y Garantías
-            </h1>
-            <p style={{ color: '#aaa', fontSize: '0.9rem' }}>
-              Solo se abren sobre <strong style={{ color: '#DAA520' }}>facturas ya pagadas y despachadas</strong> (EXW).
-              Toda garantía se resuelve por <strong style={{ color: '#DAA520' }}>cambio de producto</strong> o{' '}
-              <strong style={{ color: '#DAA520' }}>nota de crédito</strong> — no se realizan reparaciones.
-            </p>
+      <div style={pageWrapStyle()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20 }}>
+          <div style={{ flex: 1 }}>
+            <PageHeader
+              title="RMA y Garantías"
+              subtitle="Solo se abren sobre facturas ya pagadas y despachadas (EXW). Toda garantía se resuelve por cambio de producto o nota de crédito — no se realizan reparaciones."
+            />
           </div>
-          <button
-            onClick={abrirRegistro}
-            style={{
-              padding: '12px 20px',
-              backgroundColor: '#DAA520',
-              color: '#000',
-              border: 'none',
-              borderRadius: '8px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 0 15px rgba(218,165,32,0.4)',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#FFD700')}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#DAA520')}
-          >
+          <Button onClick={abrirRegistro} style={{ whiteSpace: 'nowrap', marginTop: 4 }}>
             + Registrar Nuevo RMA
-          </button>
+          </Button>
         </div>
 
         {/* Estadísticas rápidas */}
@@ -414,9 +363,9 @@ export default function RmasAdmin() {
           {statCard('Total RMA', stats.total)}
           {statCard('Pendientes', stats.pendientes, '#f1c40f')}
           {statCard('En Revisión', stats.enRevision, '#3498db')}
-          {statCard('Cambios de Producto', stats.cambios, '#2ecc71')}
-          {statCard('Notas de Crédito', stats.notasCredito, '#2ecc71')}
-          {statCard('Monto Total en Créditos', `$${stats.montoTotalCredito.toFixed(2)}`, '#FFD700')}
+          {statCard('Cambios de Producto', stats.cambios, theme.green)}
+          {statCard('Notas de Crédito', stats.notasCredito, theme.green)}
+          {statCard('Monto Total en Créditos', `$${stats.montoTotalCredito.toFixed(2)}`, theme.goldBright)}
         </div>
 
         {/* Buscador + filtro estado */}
@@ -427,27 +376,23 @@ export default function RmasAdmin() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
+              ...inputStyle,
               flex: 1,
               minWidth: '260px',
               padding: '12px 18px',
-              borderRadius: '8px',
-              backgroundColor: '#111',
-              border: '1px solid rgba(218,165,32,0.5)',
-              color: '#FFD700',
-              outline: 'none',
+              borderRadius: theme.radiusMd,
+              color: theme.goldBright,
               fontSize: '0.95rem',
-              boxSizing: 'border-box',
             }}
           />
           <select
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
             style={{
+              ...inputStyle,
               padding: '12px 18px',
-              borderRadius: '8px',
-              backgroundColor: '#111',
-              border: '1px solid rgba(218,165,32,0.5)',
-              color: '#FFD700',
+              borderRadius: theme.radiusMd,
+              color: theme.goldBright,
               fontSize: '0.95rem',
             }}
           >
@@ -462,29 +407,28 @@ export default function RmasAdmin() {
 
         {/* Tabla de Registros */}
         {loading ? (
-          <p style={{ color: '#DAA520', textAlign: 'center', marginTop: '50px' }}>Cargando registros de RMA...</p>
+          <p style={{ color: theme.gold, textAlign: 'center', marginTop: '50px' }}>Cargando registros de RMA...</p>
         ) : filteredRmas.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '50px', backgroundColor: '#111', borderRadius: '12px', border: '1px solid rgba(218,165,32,0.2)' }}>
-            <p style={{ color: '#888', fontSize: '1.1rem' }}>No se encontraron registros de RMA o garantías.</p>
-          </div>
+          <Card style={{ textAlign: 'center', padding: '50px' }}>
+            <p style={{ color: theme.textMuted, fontSize: '1.1rem' }}>No se encontraron registros de RMA o garantías.</p>
+          </Card>
         ) : (
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#111', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(218,165,32,0.3)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: theme.panelBg, borderRadius: theme.radiusLg, overflow: 'hidden', border: `1px solid ${theme.borderGold}` }}>
               <thead>
                 <tr style={{ backgroundColor: '#1a1a1a', borderBottom: '1px solid rgba(218,165,32,0.4)', textAlign: 'left' }}>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>N° RMA</th>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>Factura Despachada</th>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>Cliente</th>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>Producto</th>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>Motivo / Falla</th>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>Estado</th>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>Resolución</th>
-                  <th style={{ padding: '15px', color: '#FFD700', fontSize: '0.85rem' }}>Acciones</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>N° RMA</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>Factura Despachada</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>Cliente</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>Producto</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>Motivo / Falla</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>Estado</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>Resolución</th>
+                  <th style={{ padding: '15px', color: theme.goldBright, fontSize: '0.85rem' }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredRmas.map((item) => {
-                  const colors = estadoColor(item.estado);
                   return (
                     <tr key={item.id} style={{ borderBottom: '1px solid rgba(218,165,32,0.1)' }}>
                       <td style={{ padding: '15px', color: '#ccc', fontFamily: 'monospace', fontSize: '0.85rem' }}>
@@ -497,7 +441,7 @@ export default function RmasAdmin() {
                           style={{
                             background: 'transparent',
                             border: 'none',
-                            color: '#FFD700',
+                            color: theme.goldBright,
                             textDecoration: 'underline',
                             cursor: 'pointer',
                             padding: 0,
@@ -511,25 +455,13 @@ export default function RmasAdmin() {
                       <td style={{ padding: '15px', color: '#eee' }}>
                         {item.cliente_nombre}
                         {item.cliente_email && (
-                          <div style={{ fontSize: '0.75rem', color: '#888', marginTop: '2px' }}>{item.cliente_email}</div>
+                          <div style={{ fontSize: '0.75rem', color: theme.textMuted, marginTop: '2px' }}>{item.cliente_email}</div>
                         )}
                       </td>
                       <td style={{ padding: '15px', color: '#ccc' }}>{item.descripcion}</td>
                       <td style={{ padding: '15px', color: '#bbb', maxWidth: '220px' }}>{item.motivo}</td>
                       <td style={{ padding: '15px' }}>
-                        <span
-                          style={{
-                            padding: '6px 12px',
-                            borderRadius: '20px',
-                            fontSize: '0.8rem',
-                            fontWeight: 'bold',
-                            backgroundColor: colors.bg,
-                            color: colors.fg,
-                            border: `1px solid ${colors.fg}`,
-                          }}
-                        >
-                          {item.estado}
-                        </span>
+                        <Badge tone={estadoToTone(item.estado)}>{item.estado}</Badge>
                       </td>
                       <td style={{ padding: '15px', color: '#ccc', fontSize: '0.85rem' }}>
                         {item.tipo_resolucion === 'Cambio de Producto' && (
@@ -540,7 +472,7 @@ export default function RmasAdmin() {
                             💳 NC {item.numero_nota_credito} — ${item.monto_nota_credito?.toFixed(2)}
                           </span>
                         )}
-                        {!item.tipo_resolucion && <span style={{ color: '#555' }}>—</span>}
+                        {!item.tipo_resolucion && <span style={{ color: theme.textMuted }}>—</span>}
                       </td>
                       <td style={{ padding: '15px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '160px' }}>
@@ -550,11 +482,9 @@ export default function RmasAdmin() {
                                 value={item.estado}
                                 onChange={(e) => handleUpdateEstadoSimple(item, e.target.value as Estado)}
                                 style={{
+                                  ...inputStyle,
                                   padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#000',
-                                  color: '#DAA520',
-                                  border: '1px solid rgba(218,165,32,0.5)',
+                                  borderRadius: theme.radiusSm,
                                   cursor: 'pointer',
                                   fontSize: '0.8rem',
                                 }}
@@ -563,37 +493,22 @@ export default function RmasAdmin() {
                                 <option value="En Revisión">En Revisión</option>
                                 <option value="Rechazado">Rechazado</option>
                               </select>
-                              <button
+                              <Button
+                                variant="outline-green"
                                 onClick={() => abrirResolucion(item)}
-                                style={{
-                                  padding: '6px 10px',
-                                  borderRadius: '6px',
-                                  backgroundColor: 'rgba(46,204,113,0.15)',
-                                  color: '#2ecc71',
-                                  border: '1px solid #2ecc71',
-                                  cursor: 'pointer',
-                                  fontSize: '0.8rem',
-                                  fontWeight: 'bold',
-                                }}
+                                style={{ padding: '6px 10px', fontSize: '0.8rem' }}
                               >
                                 Finalizar (Cambio / NC)
-                              </button>
+                              </Button>
                             </>
                           )}
-                          <button
+                          <Button
+                            variant="ghost"
                             onClick={() => setVerLogId(item.id)}
-                            style={{
-                              padding: '6px 10px',
-                              borderRadius: '6px',
-                              backgroundColor: 'transparent',
-                              color: '#888',
-                              border: '1px solid #444',
-                              cursor: 'pointer',
-                              fontSize: '0.75rem',
-                            }}
+                            style={{ padding: '6px 10px', fontSize: '0.75rem' }}
                           >
                             Ver bitácora
-                          </button>
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -607,15 +522,15 @@ export default function RmasAdmin() {
         {/* Modal: Registrar nuevo RMA */}
         {showModal && (
           <div style={overlayStyle}>
-            <div style={modalStyle}>
-              <h2 style={{ color: '#FFD700', marginBottom: '20px', fontSize: '1.3rem' }}>Registrar RMA / Garantía</h2>
+            <Card style={{ border: `1px solid ${theme.gold}`, boxShadow: '0 0 30px rgba(218,165,32,0.3)', padding: 30, maxWidth: 500, width: '100%', marginBottom: 0, boxSizing: 'border-box' }}>
+              <Heading style={{ fontSize: '1.3rem', marginBottom: 20 }}>Registrar RMA / Garantía</Heading>
               <form onSubmit={handleCreateRma} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                 <div>
                   <label style={labelStyle}>Factura Despachada (EXW — pago verificado)</label>
                   {cargandoFacturas ? (
-                    <p style={{ color: '#DAA520', fontSize: '0.85rem', fontStyle: 'italic' }}>Cargando facturas despachadas...</p>
+                    <p style={{ color: theme.gold, fontSize: '0.85rem', fontStyle: 'italic' }}>Cargando facturas despachadas...</p>
                   ) : facturasDespachadas.length === 0 ? (
-                    <p style={{ color: '#e74c3c', fontSize: '0.8rem', fontStyle: 'italic' }}>
+                    <p style={{ color: theme.red, fontSize: '0.8rem', fontStyle: 'italic' }}>
                       No hay ninguna factura en estado "despachado_exw" todavía. Un RMA solo puede abrirse sobre una
                       factura ya pagada y despachada — genera primero el despacho en el módulo de Despachos.
                     </p>
@@ -624,7 +539,7 @@ export default function RmasAdmin() {
                       required
                       value={referenciaSel}
                       onChange={(e) => handleSeleccionarFactura(e.target.value)}
-                      style={{ ...inputStyle, color: '#DAA520' }}
+                      style={{ ...inputStyle, color: theme.gold }}
                     >
                       <option value="">Selecciona la factura despachada...</option>
                       {facturasDespachadas.map((f) => (
@@ -684,32 +599,28 @@ export default function RmasAdmin() {
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button
+                  <Button
                     type="submit"
-                    style={{
-                      ...primaryButtonStyle,
-                      opacity: facturasDespachadas.length === 0 ? 0.5 : 1,
-                      cursor: facturasDespachadas.length === 0 ? 'not-allowed' : 'pointer',
-                    }}
                     disabled={facturasDespachadas.length === 0}
+                    style={{ flex: 1 }}
                   >
                     Guardar
-                  </button>
-                  <button type="button" onClick={() => setShowModal(false)} style={secondaryButtonStyle}>
+                  </Button>
+                  <Button variant="outline-gold" onClick={() => setShowModal(false)} style={{ flex: 1 }}>
                     Cancelar
-                  </button>
+                  </Button>
                 </div>
               </form>
-            </div>
+            </Card>
           </div>
         )}
 
         {/* Modal: Resolver RMA (Cambio o Nota de Crédito) */}
         {resolviendoId && (
           <div style={overlayStyle}>
-            <div style={modalStyle}>
-              <h2 style={{ color: '#FFD700', marginBottom: '10px', fontSize: '1.3rem' }}>Finalizar Garantía</h2>
-              <p style={{ color: '#999', fontSize: '0.85rem', marginBottom: '20px' }}>
+            <Card style={{ border: `1px solid ${theme.gold}`, boxShadow: '0 0 30px rgba(218,165,32,0.3)', padding: 30, maxWidth: 500, width: '100%', marginBottom: 0, boxSizing: 'border-box' }}>
+              <Heading style={{ fontSize: '1.3rem', marginBottom: 10 }}>Finalizar Garantía</Heading>
+              <p style={{ color: theme.textMuted, fontSize: '0.85rem', marginBottom: 20 }}>
                 Selecciona cómo se resuelve esta garantía. No se registran reparaciones.
               </p>
               <form onSubmit={handleResolver} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -718,7 +629,7 @@ export default function RmasAdmin() {
                   <select
                     value={tipoResolucion}
                     onChange={(e) => setTipoResolucion(e.target.value as TipoResolucion)}
-                    style={{ ...inputStyle, color: '#DAA520' }}
+                    style={{ ...inputStyle, color: theme.gold }}
                   >
                     <option value="Cambio de Producto">Cambio de Producto</option>
                     <option value="Nota de Crédito">Nota de Crédito</option>
@@ -767,28 +678,28 @@ export default function RmasAdmin() {
                 )}
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                  <button type="submit" style={primaryButtonStyle}>
+                  <Button type="submit" style={{ flex: 1 }}>
                     Confirmar y Finalizar
-                  </button>
-                  <button type="button" onClick={() => setResolviendoId(null)} style={secondaryButtonStyle}>
+                  </Button>
+                  <Button variant="outline-gold" onClick={() => setResolviendoId(null)} style={{ flex: 1 }}>
                     Cancelar
-                  </button>
+                  </Button>
                 </div>
               </form>
-            </div>
+            </Card>
           </div>
         )}
 
         {/* Modal: Ver bitácora / log */}
         {verLogId && (
           <div style={overlayStyle}>
-            <div style={{ ...modalStyle, maxWidth: '600px' }}>
-              <h2 style={{ color: '#FFD700', marginBottom: '15px', fontSize: '1.3rem' }}>Bitácora del RMA</h2>
+            <Card style={{ border: `1px solid ${theme.gold}`, boxShadow: '0 0 30px rgba(218,165,32,0.3)', padding: 30, maxWidth: 600, width: '100%', marginBottom: 0, boxSizing: 'border-box' }}>
+              <Heading style={{ fontSize: '1.3rem', marginBottom: 15 }}>Bitácora del RMA</Heading>
               <div
                 style={{
-                  backgroundColor: '#000',
-                  border: '1px solid rgba(218,165,32,0.3)',
-                  borderRadius: '8px',
+                  backgroundColor: theme.inputBg,
+                  border: `1px solid ${theme.borderGold}`,
+                  borderRadius: theme.radiusSm,
                   padding: '15px',
                   maxHeight: '350px',
                   overflowY: 'auto',
@@ -801,14 +712,14 @@ export default function RmasAdmin() {
                 {rmas.find((r) => r.id === verLogId)?.notas_seguimiento || 'Sin registros de bitácora.'}
               </div>
               <div style={{ marginTop: '20px' }}>
-                <button onClick={() => setVerLogId(null)} style={secondaryButtonStyle}>
+                <Button variant="outline-gold" onClick={() => setVerLogId(null)}>
                   Cerrar
-                </button>
+                </Button>
               </div>
-            </div>
+            </Card>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }
@@ -826,35 +737,3 @@ const overlayStyle: React.CSSProperties = {
   zIndex: 1000,
 };
 
-const modalStyle: React.CSSProperties = {
-  backgroundColor: '#111',
-  padding: '30px',
-  borderRadius: '12px',
-  border: '1px solid #DAA520',
-  width: '100%',
-  maxWidth: '500px',
-  boxShadow: '0 0 30px rgba(218,165,32,0.3)',
-  boxSizing: 'border-box',
-};
-
-const primaryButtonStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '12px',
-  backgroundColor: '#DAA520',
-  color: '#000',
-  border: 'none',
-  borderRadius: '6px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-};
-
-const secondaryButtonStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '12px',
-  backgroundColor: 'transparent',
-  color: '#DAA520',
-  border: '1px solid #DAA520',
-  borderRadius: '6px',
-  fontWeight: 'bold',
-  cursor: 'pointer',
-};
