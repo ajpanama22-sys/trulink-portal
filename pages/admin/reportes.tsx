@@ -53,6 +53,33 @@ function agregarPorMes(quotes: any[], mesesHistoria: number) {
   return buckets;
 }
 
+// Carga el logo público como base64 para incrustarlo en el PDF generado (con fecha y hora)
+function cargarLogoBase64(): Promise<{ data: string; width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(img, 0, 0);
+          resolve({ data: canvas.toDataURL("image/png"), width: img.naturalWidth, height: img.naturalHeight });
+        } catch (e) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = "/images/logo.png";
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
 export default function Reportes() {
   const [cargando, setCargando] = useState(true);
   const [categoria, setCategoria] = useState<CategoriaReporte>("contable");
@@ -462,6 +489,70 @@ export default function Reportes() {
     }
   };
 
+  // Exportación PDF real (jsPDF + autoTable) con logo, fecha y hora impresos en el documento
+  const exportarPDF = async () => {
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+      const logo = await cargarLogoBase64();
+
+      const doc = new jsPDF({ orientation: "landscape" });
+      let xTexto = 14;
+
+      if (logo) {
+        const anchoLogo = 26;
+        const altoLogo = anchoLogo * (logo.height / logo.width);
+        doc.addImage(logo.data, "PNG", 14, 8, anchoLogo, altoLogo);
+        xTexto = 14 + anchoLogo + 8;
+      }
+
+      doc.setFontSize(13);
+      doc.setTextColor(20, 20, 20);
+      doc.text(`Trulink Fiber LLC - Reporte de ${categoria.toUpperCase()}`, xTexto, 15);
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Generado: ${fechaHoraActual}`, xTexto, 20);
+      doc.text(`Rango: ${fechaDesde} a ${fechaHasta}`, xTexto, 25);
+
+      let head: string[][] = [];
+      let body: any[][] = [];
+
+      if (categoria === "contable") {
+        head = [["Asiento", "Fecha", "Cuenta", "Concepto", "Débito", "Crédito", "ITBMS", "Utilidad", "Estado"]];
+        body = datasetActivo.map((r) => [r.asiento, r.fecha, r.cuenta, r.concepto, `$${r.debito.toFixed(2)}`, `$${r.credito.toFixed(2)}`, `$${r.impuestoItbms.toFixed(2)}`, `$${r.utilidad.toFixed(2)}`, r.estadoFiscal]);
+      } else if (categoria === "ventas") {
+        head = [["Código", "Fecha", "Cliente", "País", "Producto", "Método", "Monto", "Estado"]];
+        body = datasetActivo.map((r) => [r.codigo, r.fecha, r.cliente, r.pais, r.resumenItem, r.metodoPago, `$${r.monto.toFixed(2)}`, r.estadoPago]);
+      } else if (categoria === "inventario") {
+        head = [["SKU", "Descripción", "Categoría", "Tabla", "Especificación"]];
+        body = datasetActivo.map((r) => [r.sku, r.descripcion, r.categoria, r.tablaOrigen, r.especificacion]);
+      } else if (categoria === "proveedores") {
+        head = [["ID", "Nombre", "Región", "Categoría", "Órdenes", "Estatus"]];
+        body = datasetActivo.map((r) => [r.id, r.nombre, r.region, r.categoria, r.ordenesActivas, r.estatus]);
+      } else if (categoria === "proyecciones") {
+        head = [["Mes", "Cotizado Proyectado", "Facturado Proyectado", "Cobrado Proyectado"]];
+        body = datasetActivo.map((r) => [r.mes, `$${r.cotizadoProyectado.toFixed(2)}`, `$${r.facturadoProyectado.toFixed(2)}`, `$${r.cobradoProyectado.toFixed(2)}`]);
+      } else {
+        head = [["ID", "Nombre", "Empresa", "Email", "País", "Rol"]];
+        body = datasetActivo.map((r) => [r.id, r.nombre, r.empresa, r.email, r.pais, r.rol]);
+      }
+
+      autoTable(doc, {
+        startY: 32,
+        head,
+        body,
+        theme: "grid",
+        headStyles: { fillColor: [20, 20, 20], textColor: [255, 215, 0] },
+        styles: { fontSize: 8 },
+      });
+
+      doc.save(`Trulink_Reporte_${categoria}_${fechaDesde}_${fechaHasta}.pdf`);
+    } catch (err) {
+      console.error("Error generando PDF, usando impresión del navegador como respaldo:", err);
+      window.print();
+    }
+  };
+
   return (
     <div style={{ backgroundColor: "#030303", minHeight: "100vh", display: "flex", color: "#E0E0E0", fontFamily: "'Inter', sans-serif" }}>
       <style>{`
@@ -498,7 +589,7 @@ export default function Reportes() {
             <button onClick={exportarExcel} style={btnExportStyle}>📊 Excel (.xlsx)</button>
             <button onClick={exportarCSV} style={btnExportStyle}>📄 CSV</button>
             <button onClick={exportarJSON} style={btnExportStyle}>🗂️ JSON</button>
-            <button onClick={() => window.print()} style={btnPrimaryStyle}>🖨️ PDF</button>
+            <button onClick={exportarPDF} style={btnPrimaryStyle}>📄 PDF</button>
           </div>
         </div>
 

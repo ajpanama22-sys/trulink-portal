@@ -67,6 +67,33 @@ function agregarPorMes(quotes: any[], mesesHistoria: number): PuntoTendencia[] {
   return buckets;
 }
 
+// Carga el logo público como base64 para incrustarlo en el PDF generado (con fecha y hora)
+function cargarLogoBase64(): Promise<{ data: string; width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) { resolve(null); return; }
+          ctx.drawImage(img, 0, 0);
+          resolve({ data: canvas.toDataURL("image/png"), width: img.naturalWidth, height: img.naturalHeight });
+        } catch (e) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = "/images/logo.png";
+    } catch (e) {
+      resolve(null);
+    }
+  });
+}
+
 export default function Analitica() {
   const [cargando, setCargando] = useState(true);
   const [tipoFiltro, setTipoFiltro] = useState("mes_actual");
@@ -418,6 +445,81 @@ export default function Analitica() {
     document.body.removeChild(link);
   };
 
+  // Exportación PDF real (jsPDF + autoTable) con logo, fecha y hora impresos en el documento
+  const exportarPDF = async () => {
+    try {
+      const { default: jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+      const logo = await cargarLogoBase64();
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      let xTexto = 14;
+
+      if (logo) {
+        const anchoLogo = 30;
+        const altoLogo = anchoLogo * (logo.height / logo.width);
+        doc.addImage(logo.data, "PNG", 14, 10, anchoLogo, altoLogo);
+        xTexto = 14 + anchoLogo + 8;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(20, 20, 20);
+      doc.text("Trulink Fiber LLC - Enterprise Intelligence & Accounting BI", xTexto, 17);
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Generado: ${fechaHoraActual}`, xTexto, 23);
+      doc.text(`Periodo: ${fechaDesde} a ${fechaHasta}`, xTexto, 28);
+
+      autoTable(doc, {
+        startY: 38,
+        head: [["Métrica Financiera", "Valor"]],
+        body: [
+          ["Pipeline Cotizado", `$${montoCotizaciones.toFixed(2)}`],
+          ["Cobros Realizados", `$${montoTotalCobrado.toFixed(2)}`],
+          ["Cuentas por Cobrar (CXC)", `$${cuentasPorCobrarMonto.toFixed(2)}`],
+          ["Cuentas por Pagar (CXP)", `$${cuentasPorPagarMonto.toFixed(2)}`],
+          ["Flujo Neto Operativo", `$${flujoNetoOperativo.toFixed(2)}`],
+          ["Tasa de Conversión", `${tasaConversion.toFixed(1)}%`],
+          ["Ticket Promedio", `$${ticketPromedio.toFixed(2)}`],
+          ["Crecimiento Mensual (MoM)", `${crecimientoMoM.toFixed(1)}%`],
+        ],
+        theme: "grid",
+        headStyles: { fillColor: [20, 20, 20], textColor: [255, 215, 0] },
+        styles: { fontSize: 9 },
+      });
+
+      const finalY1 = (doc as any).lastAutoTable?.finalY || 38;
+
+      autoTable(doc, {
+        startY: finalY1 + 10,
+        head: [["Mes", "Cobrado (Real / Proyección IA)"]],
+        body: historicoVentas.map((p) => [`${p.mes}${p.esProyeccion ? " (Proyección IA)" : ""}`, `$${p.cobrado.toFixed(2)}`]),
+        theme: "grid",
+        headStyles: { fillColor: [20, 20, 20], textColor: [179, 136, 255] },
+        styles: { fontSize: 9 },
+      });
+
+      const finalY2 = (doc as any).lastAutoTable?.finalY || finalY1 + 10;
+      doc.setFontSize(10);
+      doc.setTextColor(20, 20, 20);
+      doc.text("Insights Automáticos:", 14, finalY2 + 10);
+      doc.setFontSize(8.5);
+      doc.setTextColor(80, 80, 80);
+      let cursorY = finalY2 + 16;
+      insights.forEach((texto) => {
+        const lineas = doc.splitTextToSize(`• ${texto}`, pageWidth - 28);
+        doc.text(lineas, 14, cursorY);
+        cursorY += lineas.length * 4.5 + 2;
+      });
+
+      doc.save(`Trulink_Analitica_${fechaHoraActual.split(" ")[0]}.pdf`);
+    } catch (err) {
+      console.error("Error generando PDF, usando impresión del navegador como respaldo:", err);
+      window.print();
+    }
+  };
+
   const totalPagosGlobal = pagosStripe + pagosPaypal + pagosWise + pagosTransferencia || 1;
   const pctStripe = Number(((pagosStripe / totalPagosGlobal) * 100).toFixed(1));
   const pctPaypal = Number(((pagosPaypal / totalPagosGlobal) * 100).toFixed(1));
@@ -481,7 +583,7 @@ export default function Analitica() {
             </div>
             <button onClick={exportarReporteXLS} style={btnExportStyle}>📊 CSV</button>
             <button onClick={exportarJSON} style={btnExportStyle}>🗂️ JSON</button>
-            <button onClick={() => window.print()} style={btnPrimaryStyle}>📄 PDF</button>
+            <button onClick={exportarPDF} style={btnPrimaryStyle}>📄 PDF</button>
           </div>
         </div>
 
