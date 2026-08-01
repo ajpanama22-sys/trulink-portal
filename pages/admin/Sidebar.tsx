@@ -109,23 +109,20 @@ export default function Sidebar({ currentActive }: SidebarProps) {
     }))
     .filter((block) => block.items.length > 0);
 
-  const [openCategories, setOpenCategories] = useState<{ [key: string]: boolean }>({});
+  // ── Acordeón real: solo una categoría abierta a la vez ──
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
 
-  // Reabrir todas las categorías visibles cada vez que cambia el set filtrado
+  // Al cargar (o cambiar de rol), abre automáticamente la categoría de la página actual
   useEffect(() => {
-    const initial: { [key: string]: boolean } = {};
-    menuBlocks.forEach((block) => {
-      initial[block.category] = true;
-    });
-    setOpenCategories(initial);
+    const activeBlock = menuBlocks.find((block) =>
+      block.items.some((item) => item.key === currentActive)
+    );
+    setOpenCategory(activeBlock ? activeBlock.category : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rolActual, rolCargado]);
 
   const toggleCategory = (category: string) => {
-    setOpenCategories((prev) => ({
-      ...prev,
-      [category]: !prev[category],
-    }));
+    setOpenCategory((prev) => (prev === category ? null : category));
   };
 
   const handleCerrarSesion = async () => {
@@ -171,7 +168,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
           ) : (
             <nav style={{ display: "flex", flexDirection: "column", gap: "15px", paddingBottom: "15px" }}>
               {menuBlocks.map((block) => {
-                const isOpen = openCategories[block.category];
+                const isOpen = openCategory === block.category;
                 const hasActiveChild = block.items.some((item) => item.key === currentActive);
                 return (
                   <div key={block.category} style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
