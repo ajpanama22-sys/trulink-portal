@@ -2,111 +2,17 @@ import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient"; // ajusta esta ruta si tu cliente vive en otro lado
 import Sidebar from "./Sidebar";
 import jsPDF from "jspdf";
-
-// ============================================================
-// Tema visual — navy + circuitos + dorado metálico (portal Trulink)
-// ============================================================
-const theme = {
-  navyDark: "#0a1526",
-  navyMid: "#0f1f3d",
-  navyCard: "rgba(13, 27, 51, 0.88)",
-  navyCardHover: "rgba(18, 35, 64, 0.95)",
-  gold: "#DAA520",
-  goldBright: "#FFD700",
-  goldGlow: "rgba(218, 165, 32, 0.35)",
-  textLight: "#E8ECF5",
-  textMuted: "#9FB0C9",
-  green: "#2ecc71",
-  red: "#e74c3c",
-};
-
-const circuitPatternSVG = `<svg xmlns='http://www.w3.org/2000/svg' width='120' height='104' viewBox='0 0 120 104'><g fill='none' stroke='rgba(218,165,32,0.10)' stroke-width='1'><path d='M30 0 L60 17.3 L60 51.9 L30 69.2 L0 51.9 L0 17.3 Z'/><path d='M90 0 L120 17.3 L120 51.9 L90 69.2 L60 51.9 L60 17.3 Z'/><path d='M30 69.2 L60 86.5 L60 121 L30 138 L0 121 L0 86.5 Z'/></g></svg>`;
-const circuitBg = `url("data:image/svg+xml,${encodeURIComponent(circuitPatternSVG)}")`;
-
-function pageWrapStyle(): React.CSSProperties {
-  return {
-    flex: 1,
-    minHeight: "100vh",
-    background: `linear-gradient(160deg, ${theme.navyDark} 0%, ${theme.navyMid} 100%)`,
-    backgroundImage: `${circuitBg}, linear-gradient(160deg, ${theme.navyDark} 0%, ${theme.navyMid} 100%)`,
-    backgroundRepeat: "repeat, no-repeat",
-    color: theme.textLight,
-    padding: "36px 40px",
-    boxSizing: "border-box",
-  };
-}
-
-const cardStyle: React.CSSProperties = {
-  background: theme.navyCard,
-  border: `1.5px solid ${theme.gold}`,
-  borderRadius: 14,
-  padding: "22px 24px",
-  boxShadow: `0 0 18px ${theme.goldGlow}`,
-};
-
-const inputStyle: React.CSSProperties = {
-  background: "rgba(6, 14, 28, 0.8)",
-  border: `1px solid ${theme.gold}`,
-  borderRadius: 8,
-  padding: "9px 12px",
-  color: theme.textLight,
-  fontSize: 13,
-  outline: "none",
-};
-
-function goldButtonStyle(disabled?: boolean): React.CSSProperties {
-  return {
-    background: disabled
-      ? "linear-gradient(180deg, #8a752f, #5f4f1f)"
-      : `linear-gradient(180deg, ${theme.goldBright}, ${theme.gold})`,
-    color: "#1a1200",
-    border: `1px solid ${theme.gold}`,
-    borderRadius: 10,
-    padding: "11px 18px",
-    fontWeight: 800,
-    fontSize: 13,
-    letterSpacing: "0.4px",
-    cursor: disabled ? "not-allowed" : "pointer",
-    boxShadow: disabled ? "none" : `0 0 14px ${theme.goldGlow}`,
-    textTransform: "uppercase",
-  };
-}
-
-function outlineButtonStyle(color: string): React.CSSProperties {
-  return {
-    background: "transparent",
-    border: `1.5px solid ${color}`,
-    color,
-    borderRadius: 10,
-    padding: "10px 18px",
-    fontWeight: 800,
-    fontSize: 13,
-    letterSpacing: "0.4px",
-    cursor: "pointer",
-    textTransform: "uppercase",
-  };
-}
-
-function pillStyle(color: string): React.CSSProperties {
-  return {
-    display: "inline-block",
-    border: `1px solid ${color}`,
-    color,
-    borderRadius: 999,
-    padding: "4px 12px",
-    fontSize: 11,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.3px",
-  };
-}
-
-const goldHeading: React.CSSProperties = {
-  color: theme.goldBright,
-  textShadow: `0 0 12px ${theme.goldGlow}`,
-  fontWeight: 900,
-  letterSpacing: "0.5px",
-};
+import { theme, pageWrapStyle } from "../../lib/theme"; // ⚠️ ajusta la ruta si guardas theme.ts en otro lugar
+import {
+  Card,
+  Heading,
+  PageHeader,
+  Button,
+  Badge,
+  estadoToTone,
+  inputStyle,
+  DataRow,
+} from "../../lib/ui"; // ⚠️ ajusta la ruta si guardas ui.tsx en otro lugar
 
 // ============================================================
 // Tipos
@@ -200,6 +106,11 @@ export default function RRHH() {
 
   async function cargarTodo() {
     setLoading(true);
+    if (!supabase) {
+      setLoading(false);
+      setMsg("No se pudo conectar con Supabase.");
+      return;
+    }
     const { data: authData } = await supabase.auth.getUser();
     const authId = authData?.user?.id;
     if (!authId) {
@@ -223,7 +134,6 @@ export default function RRHH() {
     }
     setColaborador(colab);
 
-    // Traer puesto / salario / fecha de ingreso real desde planilla_empleados, vinculado por email
     const { data: plan } = await supabase
       .from("planilla_empleados")
       .select("email, identificacion, puesto, salario_base, moneda, fecha_ingreso")
@@ -296,25 +206,21 @@ export default function RRHH() {
       <Sidebar currentActive="rrhh" />
       <div style={pageWrapStyle()}>
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <h1 style={{ ...goldHeading, fontSize: 30, marginBottom: 4 }}>MI RRHH</h1>
-          <p style={{ color: theme.textMuted, marginBottom: 28 }}>
-            {colaborador.nombre} — {colaborador.rol ?? "Colaborador"}
-          </p>
+          <PageHeader
+            title="Mi RRHH"
+            subtitle={`${colaborador.nombre} — ${colaborador.rol ?? "Colaborador"}`}
+          />
 
-          {/* Navegación de pestañas */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 28 }}>
-            {TABS.map((t) => {
-              const active = tab === t;
-              return (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  style={active ? goldButtonStyle() : outlineButtonStyle(theme.gold)}
-                >
-                  {t}
-                </button>
-              );
-            })}
+            {TABS.map((t) => (
+              <Button
+                key={t}
+                variant={tab === t ? "gold" : "outline-gold"}
+                onClick={() => setTab(t)}
+              >
+                {t}
+              </Button>
+            ))}
           </div>
 
           {msg && (
@@ -367,18 +273,18 @@ function PerfilTab({
   planilla: Planilla | null;
 }) {
   return (
-    <div style={{ ...cardStyle, display: "flex", flexDirection: "column", gap: 12 }}>
-      <Campo label="Nombre" valor={colaborador.nombre} />
-      <Campo label="Email" valor={colaborador.email} />
-      <Campo label="Rol (sistema)" valor={colaborador.rol ?? "—"} />
-      <Campo label="Departamento" valor={colaborador.departamento ?? "—"} />
-      <Campo label="Puesto" valor={planilla?.puesto ?? "No disponible en planilla"} />
-      <Campo label="Cédula" valor={colaborador.cedula ?? "No disponible"} />
-      <Campo
+    <Card style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <DataRow label="Nombre" valor={colaborador.nombre} />
+      <DataRow label="Email" valor={colaborador.email} />
+      <DataRow label="Rol (sistema)" valor={colaborador.rol ?? "—"} />
+      <DataRow label="Departamento" valor={colaborador.departamento ?? "—"} />
+      <DataRow label="Puesto" valor={planilla?.puesto ?? "No disponible en planilla"} />
+      <DataRow label="Cédula" valor={colaborador.cedula ?? "No disponible"} />
+      <DataRow
         label="Fecha de ingreso"
         valor={planilla?.fecha_ingreso ?? "No disponible en planilla"}
       />
-      <Campo
+      <DataRow
         label="Salario"
         valor={
           planilla?.salario_base != null
@@ -388,23 +294,7 @@ function PerfilTab({
             : "No disponible en planilla"
         }
       />
-    </div>
-  );
-}
-
-function Campo({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        borderBottom: "1px solid rgba(218,165,32,0.2)",
-        paddingBottom: 10,
-      }}
-    >
-      <span style={{ color: theme.textMuted, fontSize: 13 }}>{label}</span>
-      <span style={{ color: theme.textLight, fontWeight: 700, fontSize: 13 }}>{valor}</span>
-    </div>
+    </Card>
   );
 }
 
@@ -429,15 +319,12 @@ function DocumentosTab({
     try {
       const doc = new jsPDF({ unit: "pt", format: "letter" });
 
-      // Logo — esquina superior izquierda
       try {
         const logoResp = await fetch("/images/logo.png");
         const logoBlob = await logoResp.blob();
         const logoDataUrl = await blobToDataURL(logoBlob);
         doc.addImage(logoDataUrl, "PNG", 40, 30, 100, 50);
-      } catch {
-        // si el logo no carga, seguimos sin bloquear la generación del PDF
-      }
+      } catch {}
 
       const hoy = new Date().toLocaleDateString("es-PA", {
         year: "numeric",
@@ -473,35 +360,30 @@ Se extiende la presente carta a solicitud del interesado(a) para los fines que e
 
       const lineas = doc.splitTextToSize(cuerpo, 500);
       doc.text(lineas, 60, 160);
-
       doc.text(`Panamá, ${hoy}.`, 60, 340);
-
       doc.text("_______________________________", 60, 420);
       doc.text("Recursos Humanos", 60, 435);
 
-      // Sello — esquina inferior derecha, tamaño normal y sin deformar
       try {
         const selloResp = await fetch("/images/firmaco.png");
         const selloBlob = await selloResp.blob();
         const selloDataUrl = await blobToDataURL(selloBlob);
         const { width: naturalW, height: naturalH } = await getImageDimensions(selloDataUrl);
 
-        const anchoDeseado = 70; // pt — tamaño "normal" de un sello
+        const anchoDeseado = 70;
         const alto = (naturalH / naturalW) * anchoDeseado;
-
         const margenDerecho = 60;
         const margenInferior = 60;
         const x = 612 - margenDerecho - anchoDeseado;
         const y = 792 - margenInferior - alto;
 
         doc.addImage(selloDataUrl, "PNG", x, y, anchoDeseado, alto);
-      } catch {
-        // si el sello no carga, seguimos sin bloquear la generación del PDF
-      }
+      } catch {}
 
       const nombreArchivo = `carta_trabajo_${colaborador.nombre.replace(/\s+/g, "_")}_${Date.now()}.pdf`;
       doc.save(nombreArchivo);
 
+      if (!supabase) return;
       await supabase.from("documentos_colaborador").insert({
         colaborador_id: colaborador.id,
         tipo: "carta_trabajo",
@@ -517,23 +399,19 @@ Se extiende la presente carta a solicitud del interesado(a) para los fines que e
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={cardStyle}>
-        <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 6 }}>CARTA DE TRABAJO</h2>
+      <Card>
+        <Heading>Carta de Trabajo</Heading>
         <p style={{ color: theme.textMuted, fontSize: 13, marginBottom: 16 }}>
           Genera tu carta de trabajo en PDF con tu puesto, fecha de ingreso y salario
           actual según planilla.
         </p>
-        <button
-          onClick={generarCartaTrabajo}
-          disabled={generando}
-          style={goldButtonStyle(generando)}
-        >
+        <Button onClick={generarCartaTrabajo} disabled={generando}>
           {generando ? "Generando..." : "Generar Carta de Trabajo (PDF)"}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <div style={cardStyle}>
-        <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 14 }}>DOCUMENTOS GENERADOS</h2>
+      <Card>
+        <Heading>Documentos generados</Heading>
         {documentos.length === 0 ? (
           <p style={{ color: theme.textMuted, fontSize: 13 }}>Aún no has generado documentos.</p>
         ) : (
@@ -557,7 +435,7 @@ Se extiende la presente carta a solicitud del interesado(a) para los fines que e
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -599,7 +477,7 @@ function VacacionesTab({
   const [enviando, setEnviando] = useState(false);
 
   async function enviar() {
-    if (!inicio || !fin) return;
+    if (!inicio || !fin || !supabase) return;
     setEnviando(true);
     await supabase.from("solicitudes_ausencia").insert({
       colaborador_id: colaborador.id,
@@ -617,14 +495,10 @@ function VacacionesTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={cardStyle}>
-        <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 14 }}>NUEVA SOLICITUD</h2>
+      <Card>
+        <Heading>Nueva solicitud</Heading>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-            style={inputStyle}
-          >
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)} style={inputStyle}>
             <option value="vacaciones">Vacaciones</option>
             <option value="permiso">Permiso</option>
             <option value="incapacidad">Incapacidad</option>
@@ -649,17 +523,17 @@ function VacacionesTab({
             style={{ ...inputStyle, gridColumn: "1 / -1", minHeight: 60, resize: "vertical" }}
           />
         </div>
-        <button
+        <Button
           onClick={enviar}
           disabled={enviando || !inicio || !fin}
-          style={{ ...goldButtonStyle(enviando || !inicio || !fin), marginTop: 14 }}
+          style={{ marginTop: 14 }}
         >
           {enviando ? "Enviando..." : "Enviar solicitud"}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <div style={cardStyle}>
-        <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 14 }}>MIS SOLICITUDES</h2>
+      <Card>
+        <Heading>Mis solicitudes</Heading>
         {solicitudes.length === 0 ? (
           <p style={{ color: theme.textMuted, fontSize: 13 }}>No tienes solicitudes registradas.</p>
         ) : (
@@ -679,26 +553,14 @@ function VacacionesTab({
                 <span style={{ color: theme.textLight }}>
                   {s.tipo} — {s.fecha_inicio} a {s.fecha_fin}
                 </span>
-                <EstadoBadge estado={s.estado} />
+                <Badge tone={estadoToTone(s.estado)}>{s.estado}</Badge>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
-}
-
-function EstadoBadge({ estado }: { estado: string }) {
-  const colores: Record<string, string> = {
-    pendiente: theme.gold,
-    aprobado: theme.green,
-    rechazado: theme.red,
-    completado: theme.green,
-    en_progreso: theme.gold,
-  };
-  const color = colores[estado] ?? theme.textMuted;
-  return <span style={pillStyle(color)}>{estado}</span>;
 }
 
 // ============================================================
@@ -718,6 +580,7 @@ function MarcajeTab({
   const siguienteTipo = ultimo?.tipo === "entrada" ? "salida" : "entrada";
 
   async function marcar() {
+    if (!supabase) return;
     setMarcando(true);
     await supabase.from("marcajes").insert({
       colaborador_id: colaborador.id,
@@ -729,18 +592,9 @@ function MarcajeTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div
-        style={{
-          ...cardStyle,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
+      <Card style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div>
-          <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 4 }}>
-            MARCAR {siguienteTipo.toUpperCase()}
-          </h2>
+          <Heading style={{ marginBottom: 4 }}>Marcar {siguienteTipo}</Heading>
           <p style={{ color: theme.textMuted, fontSize: 13 }}>
             Último marcaje:{" "}
             {ultimo
@@ -748,17 +602,17 @@ function MarcajeTab({
               : "sin registros"}
           </p>
         </div>
-        <button
+        <Button
           onClick={marcar}
           disabled={marcando}
-          style={outlineButtonStyle(siguienteTipo === "entrada" ? theme.green : theme.red)}
+          variant={siguienteTipo === "entrada" ? "outline-green" : "outline-red"}
         >
           {marcando ? "Marcando..." : `Marcar ${siguienteTipo}`}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <div style={cardStyle}>
-        <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 14 }}>HISTORIAL RECIENTE</h2>
+      <Card>
+        <Heading>Historial reciente</Heading>
         {marcajes.length === 0 ? (
           <p style={{ color: theme.textMuted, fontSize: 13 }}>Sin marcajes registrados.</p>
         ) : (
@@ -784,7 +638,7 @@ function MarcajeTab({
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -806,7 +660,7 @@ function DesempenoTab({
   const [enviando, setEnviando] = useState(false);
 
   async function enviar() {
-    if (!periodo || !texto) return;
+    if (!periodo || !texto || !supabase) return;
     setEnviando(true);
     await supabase.from("evaluaciones_desempeno").insert({
       colaborador_id: colaborador.id,
@@ -821,8 +675,8 @@ function DesempenoTab({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      <div style={cardStyle}>
-        <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 14 }}>NUEVA AUTOEVALUACIÓN</h2>
+      <Card>
+        <Heading>Nueva autoevaluación</Heading>
         <input
           placeholder="Periodo (ej. 2026-Q3)"
           value={periodo}
@@ -836,17 +690,13 @@ function DesempenoTab({
           rows={4}
           style={{ ...inputStyle, width: "100%", marginBottom: 14, boxSizing: "border-box", resize: "vertical" }}
         />
-        <button
-          onClick={enviar}
-          disabled={enviando || !periodo || !texto}
-          style={goldButtonStyle(enviando || !periodo || !texto)}
-        >
+        <Button onClick={enviar} disabled={enviando || !periodo || !texto}>
           {enviando ? "Guardando..." : "Guardar autoevaluación"}
-        </button>
-      </div>
+        </Button>
+      </Card>
 
-      <div style={cardStyle}>
-        <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 14 }}>HISTORIAL</h2>
+      <Card>
+        <Heading>Historial</Heading>
         {evaluaciones.length === 0 ? (
           <p style={{ color: theme.textMuted, fontSize: 13 }}>Sin autoevaluaciones registradas.</p>
         ) : (
@@ -871,7 +721,7 @@ function DesempenoTab({
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
@@ -887,6 +737,7 @@ function CapacitacionTab({
   onCambio: () => void;
 }) {
   async function marcarCompletado(id: string) {
+    if (!supabase) return;
     await supabase
       .from("capacitaciones")
       .update({ estado: "completado", fecha_completado: new Date().toISOString().slice(0, 10) })
@@ -895,8 +746,8 @@ function CapacitacionTab({
   }
 
   return (
-    <div style={cardStyle}>
-      <h2 style={{ ...goldHeading, fontSize: 15, marginBottom: 14 }}>MIS CAPACITACIONES</h2>
+    <Card>
+      <Heading>Mis capacitaciones</Heading>
       {capacitaciones.length === 0 ? (
         <p style={{ color: theme.textMuted, fontSize: 13 }}>No tienes capacitaciones asignadas.</p>
       ) : (
@@ -915,28 +766,17 @@ function CapacitacionTab({
             >
               <span style={{ color: theme.textLight }}>{c.curso_nombre}</span>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <EstadoBadge estado={c.estado} />
+                <Badge tone={estadoToTone(c.estado)}>{c.estado}</Badge>
                 {c.estado !== "completado" && (
-                  <button
-                    onClick={() => marcarCompletado(c.id)}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: theme.goldBright,
-                      fontSize: 12,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      textDecoration: "underline",
-                    }}
-                  >
+                  <Button variant="ghost" onClick={() => marcarCompletado(c.id)}>
                     Marcar completado
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
