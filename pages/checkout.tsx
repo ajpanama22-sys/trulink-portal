@@ -215,18 +215,56 @@ export default function Checkout() {
 
       const comprobanteUrl = publicURLData.publicUrl || filePath;
 
+      // NOTA: antes esto escribía en "monto_pagado", columna que nunca
+      // existió en quotes -- se usa "monto_abonado" (la columna real,
+      // confirmada en el schema) para que quede consistente con lo que
+      // manufactura.tsx y analitica.tsx van a leer.
       const { error: updateError } = await supabase
         .from('quotes')
         .update({
           status: 'Pendiente de Verificación Bancaria',
+          estado_pago: 'en_verificacion',
           comprobante_url: comprobanteUrl,
-          monto_pagado: valorIngresado,
+          monto_abonado: valorIngresado,
+          saldo_pendiente: Math.max(0, granTotal - valorIngresado),
+          metodo_pago: 'transferencia',
           updated_at: new Date().toISOString()
         })
         .eq('id', order?.id || id);
 
       if (updateError) {
         console.error('Advertencia al actualizar la tabla quotes:', updateError);
+      }
+
+      // Registro en el libro de pagos (mismo mecanismo que pago-exitoso.tsx
+      // usa para Stripe/PayPal). Queda como "pendiente_verificacion" porque
+      // el departamento financiero todavía tiene que confirmar el comprobante;
+      // no se cuenta como cobro confirmado hasta ese paso.
+      try {
+        const esFull = valorIngresado >= granTotal;
+        const tipoDocumento: 'FACTURA' | 'RECIBO' = esFull ? 'FACTURA' : 'RECIBO';
+
+        const { data: numData, error: numError } = await supabase.rpc(
+          'generar_numero_documento',
+          { p_tipo: tipoDocumento }
+        );
+        if (numError) console.error('Error generando número de documento:', numError);
+        const numDoc = numError ? null : (numData as string);
+
+        await supabase.from('pagos').insert([{
+          numero_documento: numDoc || `${tipoDocumento === 'FACTURA' ? 'FT' : 'RT'}-SIN-NUM-${Date.now()}`,
+          tipo_documento: tipoDocumento,
+          quote_id: order?.id || null,
+          quote_referencia: refLabel,
+          cliente_email: (await supabase.auth.getUser()).data.user?.email || null,
+          monto: valorIngresado,
+          monto_total_cotizacion: granTotal,
+          saldo_pendiente: Math.max(0, granTotal - valorIngresado),
+          metodo_pago: 'transferencia',
+          status: 'pendiente_verificacion',
+        }]);
+      } catch (pagoErr) {
+        console.error('Error registrando la transferencia en el libro de pagos:', pagoErr);
       }
 
       const emailResponse = await fetch('/api/send-transfer-notification', {

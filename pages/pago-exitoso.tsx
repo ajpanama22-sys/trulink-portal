@@ -13,11 +13,13 @@ export default function PagoExitoso() {
   const { session_id, order_id, method, amount } = router.query;
   const [loading, setLoading] = useState(true);
   const [orderInfo, setOrderInfo] = useState<any>(null);
+  const [numeroDocumento, setNumeroDocumento] = useState<string | null>(null);
   const emailSentRef = useRef(false);
 
   const methodStr = Array.isArray(method) ? method[0] : method;
   const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
   const rawAmount = Array.isArray(amount) ? amount[0] : amount;
+  const singleSessionId = Array.isArray(session_id) ? session_id[0] : session_id;
 
   useEffect(() => {
     if (singleOrderId) {
@@ -28,9 +30,6 @@ export default function PagoExitoso() {
 
           // Buscamos la cotización aceptando tanto el UUID real (id) como
           // la referencia (QT-XXXXXX / ESP-XXXXXX), igual que checkout.tsx.
-          // Antes esto buscaba solo por "id" y como Stripe/PayPal reciben
-          // la referencia, nunca encontraba la fila -> caía en datos vacíos
-          // y el correo se enviaba al fallback en vez de al cliente real.
           let query = supabase.from('quotes').select('*');
           if (typeof singleOrderId === 'string' && isNaN(Number(singleOrderId))) {
             query = query.eq('referencia', singleOrderId);
@@ -47,46 +46,109 @@ export default function PagoExitoso() {
           const activeData = data || {};
           setOrderInfo(activeData);
 
-          // Actualizamos el status usando el id real (UUID) de la fila
-          // encontrada, no el valor crudo de la URL.
-          if (activeData.id) {
-            const { error: updateError } = await supabase
-              .from('quotes')
-              .update({ status: newStatus })
-              .eq('id', activeData.id);
-
-            if (updateError) {
-              console.error("Error al actualizar status de la orden:", updateError);
-            }
-          } else {
-            console.warn("No se encontró ninguna cotización con el identificador:", singleOrderId);
-          }
-
           const dbTotal = Number(activeData.total || activeData.monto || activeData.subtotal || 0);
           const currentTotal = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
           const currentPaid = rawAmount ? Number(rawAmount) : currentTotal;
           const balance = Math.max(0, currentTotal - currentPaid);
           const fullPay = balance === 0;
           const docType = fullPay ? "FACTURA" : "RECIBO DE PAGO";
+          const tipoDocumento: 'FACTURA' | 'RECIBO' = fullPay ? 'FACTURA' : 'RECIBO';
+          const metodoNormalizado = isTransferencia ? 'transferencia' : (methodStr || 'pasarela');
 
+          // --- Registro contable: se hace UNA sola vez por carga de página,
+          // junto con el envío de correo, para no duplicar filas en el
+          // libro de pagos si el efecto se vuelve a disparar. ---
           if (!emailSentRef.current) {
             emailSentRef.current = true;
 
+            let numDoc: string | null = null;
+
+            if (activeData.id) {
+              // 1. Generar el número secuencial RT-/FT- (atómico, vía función
+              //    de Postgres — ver 001_crear_tabla_pagos.sql).
+              const { data: numData, error: numError } = await supabase.rpc(
+                'generar_numero_documento',
+                { p_tipo: tipoDocumento }
+              );
+              if (numError) {
+                console.error("Error generando número de documento:", numError);
+              } else {
+                numDoc = numData as string;
+                setNumeroDocumento(numDoc);
+              }
+
+              // 2. Insertar el movimiento en el libro de pagos. Esta tabla es
+              //    la que después va a alimentar manufactura.tsx, analitica.tsx,
+              //    el módulo contable y el estado de cuenta por cliente.
+              const { error: pagoError } = await supabase.from('pagos').insert([{
+                numero_documento: numDoc || `${tipoDocumento === 'FACTURA' ? 'FT' : 'RT'}-SIN-NUM-${Date.now()}`,
+                tipo_documento: tipoDocumento,
+                quote_id: activeData.id,
+                quote_referencia: activeData.referencia || singleOrderId,
+                cliente_email: activeData.client_email || activeData.email || activeData.correo || null,
+                cliente_nombre: activeData.client_name || activeData.representante || activeData.nombre || null,
+                monto: currentPaid,
+                monto_total_cotizacion: currentTotal,
+                saldo_pendiente: balance,
+                metodo_pago: metodoNormalizado,
+                session_id: singleSessionId || null,
+                status: isTransferencia ? 'pendiente_verificacion' : 'confirmado',
+              }]);
+              if (pagoError) console.error("Error registrando el pago en el libro:", pagoError);
+
+              // 3. Recalcular el abonado acumulado real sumando TODOS los pagos
+              //    confirmados de esta cotización (puede haber más de uno: ej.
+              //    50% + 50%), y dejarlo en quotes.monto_abonado (nombre real
+              //    de la columna) para que manufactura.tsx quede sincronizado.
+              //    También se actualizan estado_pago y pagado_total, que son
+              //    los campos que analitica.tsx ya usa para sus cálculos.
+              const { data: pagosDeLaOrden } = await supabase
+                .from('pagos')
+                .select('monto')
+                .eq('quote_id', activeData.id)
+                .neq('status', 'anulado');
+
+              const abonadoTotal = (pagosDeLaOrden || []).reduce(
+                (acc: number, p: any) => acc + Number(p.monto || 0), 0
+              );
+              const saldoRestante = Math.max(0, currentTotal - abonadoTotal);
+
+              const { error: updateError } = await supabase
+                .from('quotes')
+                .update({
+                  status: newStatus,
+                  estado_pago: newStatus,
+                  monto_abonado: abonadoTotal,
+                  saldo_pendiente: saldoRestante,
+                  metodo_pago: metodoNormalizado,
+                  pagado_total: saldoRestante <= 0,
+                })
+                .eq('id', activeData.id);
+
+              if (updateError) {
+                console.error("Error al actualizar status de la orden:", updateError);
+              }
+            } else {
+              console.warn("No se encontró ninguna cotización con el identificador:", singleOrderId);
+            }
+
             const clientEmail = activeData.client_email || activeData.email || activeData.correo || "ajpanama22@gmail.com";
             const clientName = activeData.client_name || activeData.representante || activeData.nombre || "Alfredo Abdel Jurado Madrigal";
+            const refDocumento = numDoc ? `${numDoc} (Cotización #${singleOrderId})` : `#${singleOrderId}`;
 
             const emailRes = await fetch('/api/send-email', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 to: clientEmail,
-                subject: `${docType} #${singleOrderId} - Trulink Fiber LLC`,
+                subject: `${docType} ${numDoc || ''} - Trulink Fiber LLC`,
                 htmlContent: `
                   <div style="background-color:#000; color:#DAA520; padding:30px; font-family:sans-serif; border-radius:10px;">
                     <h2 style="color:#DAA520; border-bottom:1px solid #DAA520; padding-bottom:10px;">Trulink Fiber LLC - Notificación de Pago</h2>
                     <p style="color:#fff; font-size:16px;">Estimado/a <strong>${clientName}</strong>,</p>
-                    <p style="color:#fff; font-size:15px;">Hemos registrado exitosamente su pago correspondiente a la referencia <strong style="color:#DAA520;">#${singleOrderId}</strong>.</p>
+                    <p style="color:#fff; font-size:15px;">Hemos registrado exitosamente su pago correspondiente a ${refDocumento}.</p>
                     <div style="background:#111; border:1px solid #DAA520; padding:15px; border-radius:8px; margin:20px 0; color:#fff;">
+                      <p><strong>N° de Documento:</strong> ${numDoc || "Pendiente de asignar"}</p>
                       <p><strong>Tipo de Documento:</strong> ${docType}</p>
                       <p><strong>Monto Total Cotización:</strong> $${currentTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</p>
                       <p><strong>Monto Pagado:</strong> <span style="color:#2b7a0b; font-weight:bold;">$${currentPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span></p>
@@ -209,8 +271,9 @@ export default function PagoExitoso() {
           </div>
 
           <div style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "20px", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "15px", lineHeight: "1.6" }}>
+            <DataRow label="N° de Documento" valor={<strong style={{ color: theme.gold }}>{numeroDocumento || "Generando..."}</strong>} />
             <DataRow label="Fecha" valor={currentDate} />
-            <DataRow label="Referencia / ID" valor={<strong style={{ color: theme.gold }}>{`#${singleOrderId || "N/D"}`}</strong>} />
+            <DataRow label="Referencia Cotización" valor={<strong style={{ color: theme.gold }}>{`#${singleOrderId || "N/D"}`}</strong>} />
             <DataRow label="Cliente" valor={orderInfo?.client_name || orderInfo?.representante || orderInfo?.nombre || "Alfredo Abdel Jurado Madrigal"} />
             <DataRow label="Correo Electrónico" valor={orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"} />
             <DataRow label="Método de Pago" valor={methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"} />
