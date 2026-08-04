@@ -18,9 +18,23 @@ interface MenuBlock {
   items: MenuItem[];
 }
 
+const CACHE_KEY_ROL = 'trulink_admin_rol_cache';
+
 export default function Sidebar({ currentActive }: SidebarProps) {
   const router = useRouter();
-  const [rolActual, setRolActual] = useState<string | null>(null);
+  // Se inicializa leyendo el último rol conocido de sessionStorage, en vez
+  // de arrancar siempre en null. Así, si la consulta a "colaboradores"
+  // falla transitoriamente (red lenta, carrera con las queries pesadas de
+  // analitica.tsx, etc.), el menú no colapsa a solo "Recursos Humanos" --
+  // sigue mostrando el último menú correcto mientras se refresca en segundo plano.
+  const [rolActual, setRolActual] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return sessionStorage.getItem(CACHE_KEY_ROL);
+    } catch {
+      return null;
+    }
+  });
   const [rolCargado, setRolCargado] = useState(false);
 
   // ── Cargar el rol real del colaborador logueado, para filtrar el menú ──
@@ -31,15 +45,32 @@ export default function Sidebar({ currentActive }: SidebarProps) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user?.email) { setRolCargado(true); return; }
 
-        const { data } = await supabase
+        // maybeSingle() en vez de single(): single() lanza una excepción si
+        // la consulta devuelve 0 filas o más de 1, y ese error terminaba en
+        // el catch de abajo sin volver a fijar rolActual -- dejando el menú
+        // colapsado a rolActual=null (solo "*", o sea solo RRHH).
+        const { data, error } = await supabase
           .from('colaboradores')
           .select('rol')
           .eq('email', user.email)
-          .single();
+          .maybeSingle();
 
-        setRolActual(data?.rol ?? null);
+        if (error) {
+          console.error('Error consultando el rol del colaborador:', error.message);
+          // No pisamos rolActual: se queda con el valor cacheado (si había)
+          // en vez de colapsar el menú por una falla puntual de red.
+          return;
+        }
+
+        if (data?.rol) {
+          setRolActual(data.rol);
+          try { sessionStorage.setItem(CACHE_KEY_ROL, data.rol); } catch { /* no-op */ }
+        } else {
+          console.warn('El colaborador no tiene rol asignado o no existe en la tabla colaboradores:', user.email);
+        }
       } catch (err) {
-        console.warn('No se pudo determinar el rol del colaborador:', err);
+        console.error('No se pudo determinar el rol del colaborador:', err);
+        // Igual que arriba: se conserva el rol cacheado en vez de resetear.
       } finally {
         setRolCargado(true);
       }
@@ -69,6 +100,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
       category: 'FINANZAS',
       items: [
         { key: 'modulo-contable', label: 'Módulo Contable', path: '/admin/ModuloContable' },
+        { key: 'estado-cuenta', label: 'Estado de Cuenta por Cliente', path: '/admin/estado-cuenta' },
         { key: 'planilla', label: 'Planilla', path: '/admin/planilla' },
         { key: 'planilla-empleados', label: 'Planilla — Empleados', path: '/admin/planilla-empleados' },
         { key: 'planilla-dispersion', label: 'Planilla — Dispersión', path: '/admin/planilla-dispersion' },
@@ -163,7 +195,7 @@ export default function Sidebar({ currentActive }: SidebarProps) {
             <h2 style={{ color: "#DAA520", fontSize: "1.1rem", letterSpacing: "1px", margin: 0 }}>ADMIN PANEL</h2>
           </div>
 
-          {!rolCargado ? (
+          {!rolCargado && !rolActual ? (
             <p style={{ color: "#666", fontSize: "0.78rem", textAlign: "center" }}>Cargando menú...</p>
           ) : (
             <nav style={{ display: "flex", flexDirection: "column", gap: "15px", paddingBottom: "15px" }}>

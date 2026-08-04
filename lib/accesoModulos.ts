@@ -24,6 +24,7 @@ export const ACCESO_ITEMS: Record<string, string[] | "*"> = {
 
   // FINANZAS (solo administración)
   "modulo-contable": ["Super Administrador", "Administrador"],
+  "estado-cuenta": ["Super Administrador", "Administrador"],
   planilla: ["Super Administrador", "Administrador"],
   "planilla-empleados": ["Super Administrador", "Administrador"],
   "planilla-dispersion": ["Super Administrador", "Administrador"],
