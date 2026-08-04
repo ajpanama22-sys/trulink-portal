@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
 import { createClient } from "@supabase/supabase-js";
+import { theme } from "../lib/theme";
+import { Card, Badge, Button, DataRow, estadoToTone } from "../lib/ui";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -125,59 +127,21 @@ export default function PagoExitoso() {
   const currentDate = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div style={{ backgroundColor: "#000000", color: "#DAA520", minHeight: "100vh", padding: "50px 20px", fontFamily: "'Inter', system-ui, -apple-system, sans-serif", display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", boxSizing: "border-box" }}>
+    <div style={{ backgroundColor: theme.background, color: theme.gold, minHeight: "100vh", padding: "50px 20px", fontFamily: theme.fontFamily, display: "flex", justifyContent: "center", alignItems: "center", flexDirection: "column", boxSizing: "border-box" }}>
       <style jsx global>{`
         html, body {
           margin: 0;
           padding: 0;
-          background-color: #000000 !important;
-          color: #DAA520;
+          background-color: ${theme.background} !important;
+          color: ${theme.gold};
         }
         @keyframes pulse-border {
           0% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
           50% { box-shadow: 0 0 35px rgba(218, 165, 32, 0.35), inset 0 0 25px rgba(218, 165, 32, 0.1); }
           100% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
         }
-        .container-pulse { 
-          animation: pulse-border 4s infinite ease-in-out; 
-        }
-        .btn-gold { 
-          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
-          color: #000000 !important;
-          padding: 14px 28px; 
-          border-radius: 12px; 
-          border: none; 
-          cursor: pointer; 
-          font-weight: 600; 
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          text-decoration: none;
-          display: inline-block;
-          font-size: 0.95rem;
-          box-shadow: 0 4px 15px rgba(218, 165, 32, 0.2);
-        }
-        .btn-gold:hover { 
-          filter: brightness(1.15);
-          transform: translateY(-2px); 
-          box-shadow: 0 6px 20px rgba(218, 165, 32, 0.4); 
-        }
-        .btn-outline-gold {
-          background-color: transparent;
-          color: #DAA520;
-          border: 1px solid rgba(218, 165, 32, 0.5);
-          padding: 12px 28px;
-          border-radius: 12px;
-          cursor: pointer;
-          font-weight: 600;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          text-decoration: none;
-          display: inline-block;
-          font-size: 0.95rem;
-        }
-        .btn-outline-gold:hover {
-          background-color: rgba(218, 165, 32, 0.1);
-          border-color: #DAA520;
-          transform: translateY(-2px);
-          box-shadow: 0 0 15px rgba(218, 165, 32, 0.2);
+        .container-pulse {
+          animation: pulse-border 4s infinite ease-in-out;
         }
         @media print {
           body, html {
@@ -188,126 +152,128 @@ export default function PagoExitoso() {
           }
           .printable-card {
             background-color: #ffffff !important;
-            border: 1px solid #DAA520 !important;
+            border: 1px solid ${theme.gold} !important;
             box-shadow: none !important;
             color: #111111 !important;
           }
         }
       `}</style>
 
-      <div className="container-pulse printable-card" style={{ maxWidth: "720px", width: "100%", backgroundColor: "#060606", border: "1px solid rgba(218, 165, 32, 0.3)", padding: "45px 35px", borderRadius: "24px", textAlign: "center", boxSizing: "border-box" }}>
-        
+      <div className="container-pulse printable-card" style={{ maxWidth: "720px", width: "100%", boxSizing: "border-box" }}>
+        <Card style={{ padding: "45px 35px", textAlign: "center" }}>
+
         <div className="no-print">
           <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "130px", marginBottom: "20px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
-          
+
           {loading ? (
             <div style={{ padding: "30px 0" }}>
-              <p style={{ color: "#C0C0C0", fontSize: "1.1rem", fontStyle: "italic" }}>Procesando transacción y enviando comprobante...</p>
+              <p style={{ color: theme.textMuted, fontSize: "1.1rem", fontStyle: "italic" }}>Procesando transacción y enviando comprobante...</p>
             </div>
           ) : isTransferencia ? (
             <div style={{ marginBottom: "30px" }}>
-              <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "10px", fontWeight: "700", letterSpacing: "1px" }}>¡Instrucciones Registradas!</h1>
-              <div style={{ width: "50px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 15px auto", opacity: "0.8" }}></div>
-              <p style={{ color: "#C0C0C0", fontSize: "1rem", lineHeight: "1.6", margin: 0 }}>
-                Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
+              <h1 style={{ color: theme.gold, fontSize: "1.8rem", marginBottom: "10px", fontWeight: 700, letterSpacing: "1px" }}>¡Instrucciones Registradas!</h1>
+              <div style={{ width: "50px", height: "2px", backgroundColor: theme.gold, margin: "0 auto 15px auto", opacity: 0.8 }}></div>
+              <p style={{ color: theme.textMuted, fontSize: "1rem", lineHeight: "1.6", margin: 0 }}>
+                Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: theme.gold }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
               </p>
+              <div style={{ marginTop: "16px" }}>
+                <Badge tone={estadoToTone("en_verificacion")}>EN VERIFICACIÓN</Badge>
+              </div>
             </div>
           ) : (
             <div style={{ marginBottom: "30px" }}>
-              <h1 style={{ color: "#DAA520", fontSize: "1.8rem", marginBottom: "10px", fontWeight: "700", letterSpacing: "1px" }}>¡Transacción Exitosa!</h1>
-              <div style={{ width: "50px", height: "2px", backgroundColor: "#DAA520", margin: "0 auto 15px auto", opacity: "0.8" }}></div>
-              <p style={{ color: "#C0C0C0", fontSize: "1rem", lineHeight: "1.6", margin: 0 }}>
-                Su pago se ha procesado con éxito y se ha enviado la {documentType.toLowerCase()} a <strong style={{ color: "#DAA520" }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
+              <h1 style={{ color: theme.green, fontSize: "1.8rem", marginBottom: "10px", fontWeight: 700, letterSpacing: "1px" }}>¡Transacción Exitosa!</h1>
+              <div style={{ width: "50px", height: "2px", backgroundColor: theme.green, margin: "0 auto 15px auto", opacity: 0.8 }}></div>
+              <p style={{ color: theme.textMuted, fontSize: "1rem", lineHeight: "1.6", margin: 0 }}>
+                Su pago se ha procesado con éxito y se ha enviado la {documentType.toLowerCase()} a <strong style={{ color: theme.gold }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
               </p>
+              <div style={{ marginTop: "16px" }}>
+                <Badge tone="success">PAGADO</Badge>
+              </div>
             </div>
           )}
         </div>
 
         {/* Voucher Document Box */}
-        <div style={{ width: "100%", backgroundColor: "#0a0a0a", border: "1px solid rgba(218, 165, 32, 0.4)", padding: "30px", borderRadius: "16px", textAlign: "left", color: "#DAA520", margin: "10px 0 30px 0", boxSizing: "border-box", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.8)" }}>
-          
-          <div style={{ textAlign: "center", borderBottom: "1px solid rgba(218, 165, 32, 0.25)", paddingBottom: "18px", marginBottom: "20px" }}>
+        <div style={{ width: "100%", backgroundColor: theme.background, border: `1px solid ${theme.borderGold}`, padding: "30px", borderRadius: theme.radiusLg, textAlign: "left", color: theme.gold, margin: "10px 0 30px 0", boxSizing: "border-box", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.8)" }}>
+
+          <div style={{ textAlign: "center", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "18px", marginBottom: "20px" }}>
             <img src="/images/logo.png" alt="Trulink Fiber LLC" style={{ width: "100px", height: "auto", marginBottom: "8px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.2))" }} />
-            <div style={{ fontSize: "0.75rem", color: "#A0A0A0", margin: "2px 0" }}>5203 Juan Tabo Blvd. NE Suite 2a</div>
-            <div style={{ fontSize: "0.75rem", color: "#A0A0A0", margin: "2px 0" }}>Albuquerque, NM, 87111, USA</div>
-            <div style={{ fontSize: "0.75rem", color: "#A0A0A0", margin: "2px 0" }}>info@trulinkfiber.com</div>
+            <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>5203 Juan Tabo Blvd. NE Suite 2a</div>
+            <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>Albuquerque, NM, 87111, USA</div>
+            <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>info@trulinkfiber.com</div>
           </div>
 
-          <div style={{ background: "linear-gradient(135deg, rgba(218, 165, 32, 0.15) 0%, rgba(184, 134, 11, 0.05) 100%)", color: "#DAA520", fontSize: "0.95rem", fontWeight: "700", textAlign: "center", padding: "10px", margin: "0 0 20px 0", borderRadius: "8px", border: "1px solid rgba(218, 165, 32, 0.3)", letterSpacing: "1px" }}>
+          <div style={{ background: theme.goldGradient, color: "#1A1400", fontSize: "0.95rem", fontWeight: 700, textAlign: "center", padding: "10px", margin: "0 0 20px 0", borderRadius: theme.radiusSm, border: `1px solid ${theme.gold}`, letterSpacing: "1px" }}>
             {documentType} {isFullPayment ? "(100% - CONTADO)" : "(ANTICIPO / PARCIAL)"}
           </div>
 
-          <div style={{ fontSize: "0.85rem", color: "#C0C0C0", marginBottom: "20px", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "15px", lineHeight: "1.6" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}><span><strong>Fecha:</strong></span> <span>{currentDate}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}><span><strong>Referencia / ID:</strong></span> <span style={{ color: "#DAA520", fontWeight: "700" }}>#{singleOrderId || "N/D"}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}><span><strong>Cliente:</strong></span> <span>{orderInfo?.client_name || orderInfo?.representante || orderInfo?.nombre || "Alfredo Abdel Jurado Madrigal"}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}><span><strong>Correo Electrónico:</strong></span> <span>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</span></div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><span><strong>Método de Pago:</strong></span> <span>{methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"}</span></div>
+          <div style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "20px", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "15px", lineHeight: "1.6" }}>
+            <DataRow label="Fecha" valor={currentDate} />
+            <DataRow label="Referencia / ID" valor={<strong style={{ color: theme.gold }}>{`#${singleOrderId || "N/D"}`}</strong>} />
+            <DataRow label="Cliente" valor={orderInfo?.client_name || orderInfo?.representante || orderInfo?.nombre || "Alfredo Abdel Jurado Madrigal"} />
+            <DataRow label="Correo Electrónico" valor={orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"} />
+            <DataRow label="Método de Pago" valor={methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"} />
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px", borderRadius: "8px", overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px", borderRadius: theme.radiusSm, overflow: "hidden" }}>
             <thead>
-              <tr style={{ backgroundColor: "#141414", borderBottom: "1px solid rgba(218, 165, 32, 0.3)" }}>
-                <th style={{ color: "#DAA520", fontSize: "0.85rem", padding: "12px", textAlign: "left", width: "70%", fontWeight: "600" }}>Concepto / Descripción</th>
-                <th style={{ color: "#DAA520", fontSize: "0.85rem", padding: "12px", textAlign: "right", width: "30%", fontWeight: "600" }}>Subtotal</th>
+              <tr style={{ backgroundColor: theme.panelBg, borderBottom: `1px solid ${theme.borderGold}` }}>
+                <th style={{ color: theme.gold, fontSize: "0.85rem", padding: "12px", textAlign: "left", width: "70%", fontWeight: 600 }}>Concepto / Descripción</th>
+                <th style={{ color: theme.gold, fontSize: "0.85rem", padding: "12px", textAlign: "right", width: "30%", fontWeight: 600 }}>Subtotal</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style={{ padding: "14px 12px", fontSize: "0.85rem", borderBottom: "1px solid rgba(218, 165, 32, 0.1)", backgroundColor: "#050505", verticalAlign: "top", color: "#FFFFFF" }}>
-                  <strong style={{ color: "#DAA520" }}>{isFullPayment ? "FACTURA COMERCIAL - PAGO TOTAL" : "RECIBO DE ANTICIPO / PAGO PARCIAL"}</strong><br />
-                  <span style={{ color: "#A0A0A0", fontSize: "0.75rem", lineHeight: "1.4", display: "inline-block", marginTop: "4px" }}>
+                <td style={{ padding: "14px 12px", fontSize: "0.85rem", borderBottom: `1px solid ${theme.borderGoldLight}`, backgroundColor: theme.sidebarBg, verticalAlign: "top", color: theme.textLight }}>
+                  <strong style={{ color: theme.gold }}>{isFullPayment ? "FACTURA COMERCIAL - PAGO TOTAL" : "RECIBO DE ANTICIPO / PAGO PARCIAL"}</strong><br />
+                  <span style={{ color: theme.textMuted, fontSize: "0.75rem", lineHeight: "1.4", display: "inline-block", marginTop: "4px" }}>
                     {orderInfo?.descripcion || orderInfo?.description || (isFullPayment ? "Liquidación total de orden para suministro y fabricación." : "Monto parcial transferido para la orden.")}
                   </span>
                 </td>
-                <td style={{ padding: "14px 12px", fontSize: "0.9rem", borderBottom: "1px solid rgba(218, 165, 32, 0.1)", backgroundColor: "#050505", textAlign: "right", verticalAlign: "middle", fontWeight: "700", color: "#DAA520" }}>
+                <td style={{ padding: "14px 12px", fontSize: "0.9rem", borderBottom: `1px solid ${theme.borderGoldLight}`, backgroundColor: theme.sidebarBg, textAlign: "right", verticalAlign: "middle", fontWeight: 700, color: theme.gold }}>
                   ${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </td>
               </tr>
             </tbody>
           </table>
 
-          <div style={{ backgroundColor: "#050505", border: "1px solid rgba(218, 165, 32, 0.25)", borderRadius: "10px", padding: "15px", marginBottom: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "8px", color: "#C0C0C0" }}>
-              <span>Monto Total Cotización:</span>
-              <span style={{ fontWeight: "600" }}>${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", marginBottom: "10px", color: "#4bb543" }}>
-              <span>Monto Recibido:</span>
-              <span style={{ fontWeight: "700" }}>${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem", fontWeight: "700", paddingTop: "10px", borderTop: "1px solid rgba(218, 165, 32, 0.2)", color: "#DAA520" }}>
+          <div style={{ backgroundColor: theme.sidebarBg, border: `1px solid ${theme.borderGoldLight}`, borderRadius: theme.radiusMd, padding: "15px", marginBottom: "20px" }}>
+            <DataRow label="Monto Total Cotización" valor={`$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`} />
+            <DataRow label="Monto Recibido" valor={<strong style={{ color: theme.green }}>{`$${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}</strong>} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem", fontWeight: 700, paddingTop: "10px", borderTop: `1px solid ${theme.borderGoldLight}`, color: theme.gold }}>
               <span>Saldo Pendiente:</span>
               <span>${balanceAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span>
             </div>
           </div>
 
-          <div style={{ fontSize: "0.75rem", color: "#B0B0B0", backgroundColor: "#050505", border: "1px solid rgba(218, 165, 32, 0.2)", borderLeft: "3px solid #DAA520", padding: "12px", borderRadius: "8px", marginBottom: "20px", lineHeight: "1.5", textAlign: "justify" }}>
-            <strong style={{ color: "#DAA520" }}>Condiciones:</strong>{" "}
-            {isFullPayment 
+          <div style={{ fontSize: "0.75rem", color: theme.textMuted, backgroundColor: theme.sidebarBg, border: `1px solid ${theme.borderGoldLight}`, borderLeft: `3px solid ${theme.gold}`, padding: "12px", borderRadius: theme.radiusSm, marginBottom: "20px", lineHeight: "1.5", textAlign: "justify" }}>
+            <strong style={{ color: theme.gold }}>Condiciones:</strong>{" "}
+            {isFullPayment
               ? "Esta orden ha sido pagada al 100%. Factura emitida para efectos fiscales y de garantía."
               : `El saldo pendiente de $${balanceAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD debe ser liquidado previo a la entrega final.`}
           </div>
 
-          <div style={{ textAlign: "center", fontSize: "0.75rem", color: "#909090", borderTop: "1px dashed rgba(218, 165, 32, 0.2)", paddingTop: "12px", lineHeight: "1.4" }}>
-            <strong style={{ color: "#DAA520", fontSize: "0.8rem", letterSpacing: "0.5px" }}>¡GRACIAS POR SU CONFIANZA!</strong><br />
+          <div style={{ textAlign: "center", fontSize: "0.75rem", color: theme.textMuted, borderTop: `1px dashed ${theme.borderGoldLight}`, paddingTop: "12px", lineHeight: "1.4" }}>
+            <strong style={{ color: theme.gold, fontSize: "0.8rem", letterSpacing: "0.5px" }}>¡GRACIAS POR SU CONFIANZA!</strong><br />
             www.trulinkfiber.com
           </div>
 
         </div>
 
         <div className="no-print" style={{ display: "flex", gap: "15px", justifyContent: "center", flexWrap: "wrap", marginTop: "10px" }}>
-          <button className="btn-gold" onClick={() => window.print()}>
+          <Button variant="gold" onClick={() => window.print()}>
             Imprimir / Guardar Comprobante
-          </button>
-          <button className="btn-outline-gold" onClick={() => router.push('/')}>
+          </Button>
+          <Button variant="outline-gold" onClick={() => router.push('/')}>
             Volver al Inicio
-          </button>
+          </Button>
         </div>
 
+        </Card>
       </div>
 
-      <p className="no-print" style={{ marginTop: "35px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.7)", textAlign: "center", letterSpacing: "0.5px" }}>
+      <p className="no-print" style={{ marginTop: "35px", fontSize: "0.75rem", color: theme.borderGoldCounter, textAlign: "center", letterSpacing: "0.5px" }}>
         © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
       </p>
     </div>

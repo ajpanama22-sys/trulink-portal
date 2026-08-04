@@ -1,5 +1,8 @@
 import { useState } from "react";
+import type { CSSProperties } from "react";
 import { getSupabase } from "../lib/supabaseClient";
+import { theme } from "../lib/theme";
+import { Card, Heading, Button, inputStyle } from "../lib/ui";
 
 export const dynamic = 'force-dynamic';
 
@@ -156,190 +159,141 @@ export default function Clientes() {
     }
   };
 
-  const inputStyle: React.CSSProperties = {
+  const fieldStyle: CSSProperties = {
+    ...inputStyle,
     width: "100%",
     marginBottom: "18px",
-    padding: "14px 16px",
-    backgroundColor: "#0a0a0a",
-    color: "#DAA520",
-    border: "1px solid rgba(218, 165, 32, 0.4)",
-    borderRadius: "14px",
-    outline: "none",
     boxSizing: "border-box",
-    fontSize: "0.95rem",
-    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-    boxShadow: "inset 0 1px 3px rgba(0,0,0,0.8)"
   };
 
-  const selectStyle: React.CSSProperties = {
-    ...inputStyle,
+  const selectFieldStyle: CSSProperties = {
+    ...fieldStyle,
     cursor: "pointer",
   };
 
-  const sectionHeaderStyle: React.CSSProperties = {
-    color: "#DAA520",
-    fontSize: "1.1rem",
-    fontWeight: "600",
-    margin: "30px 0 15px 0",
-    borderBottom: "1px solid rgba(218, 165, 32, 0.2)",
-    paddingBottom: "8px",
-    letterSpacing: "0.5px"
-  };
-
   return (
-    <div style={{ 
-      backgroundColor: "#000000", 
-      color: "#DAA520", 
-      minHeight: "100vh", 
-      padding: "40px 20px", 
-      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+    <div style={{
+      backgroundColor: theme.background,
+      color: theme.gold,
+      minHeight: "100vh",
+      padding: "40px 20px",
+      fontFamily: theme.fontFamily,
       boxSizing: "border-box",
-      width: "100%" 
+      width: "100%"
     }}>
       <style jsx global>{`
         html, body {
           margin: 0;
           padding: 0;
-          background-color: #000000 !important;
-          color: #DAA520;
-        }
-        @keyframes pulse-border {
-          0% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
-          50% { box-shadow: 0 0 35px rgba(218, 165, 32, 0.35), inset 0 0 25px rgba(218, 165, 32, 0.1); }
-          100% { box-shadow: 0 0 15px rgba(218, 165, 32, 0.15), inset 0 0 15px rgba(218, 165, 32, 0.05); }
-        }
-        .container-fiber {
-          animation: pulse-border 4s infinite ease-in-out;
-        }
-        .action-btn {
-          background: linear-gradient(135deg, #DAA520 0%, #B8860B 100%) !important;
-          color: #000000 !important;
-          font-weight: 600;
-          border: none;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .action-btn:hover {
-          filter: brightness(1.15);
-          box-shadow: 0 0 20px rgba(218, 165, 32, 0.4);
-          transform: translateY(-1px);
+          background-color: ${theme.background} !important;
+          color: ${theme.gold};
         }
         input:focus, select:focus, textarea:focus {
-          border-color: #DAA520 !important;
+          border-color: ${theme.gold} !important;
           box-shadow: 0 0 12px rgba(218, 165, 32, 0.3), inset 0 1px 3px rgba(0,0,0,0.8) !important;
         }
         input[type="radio"], input[type="checkbox"] {
-          accent-color: #DAA520;
+          accent-color: ${theme.gold};
           cursor: pointer;
           transform: scale(1.1);
         }
       `}</style>
 
-      <div className="container-fiber" style={{ 
-        display: "flex", 
-        flexDirection: "column",
-        gap: "30px", 
-        padding: "45px", 
-        border: "1px solid rgba(218, 165, 32, 0.3)", 
-        borderRadius: "24px",
-        backgroundColor: "#060606",
-        maxWidth: "900px",
-        margin: "0 auto",
-        boxSizing: "border-box"
-      }}>
-        <div style={{ textAlign: "center", borderBottom: "1px solid rgba(218, 165, 32, 0.2)", paddingBottom: "25px" }}>
+      <Card style={{ maxWidth: "900px", margin: "0 auto" }}>
+        <div style={{ textAlign: "center", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "25px", marginBottom: "20px" }}>
           <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "130px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
-          <h1 style={{ color: "#DAA520", fontSize: "1.8rem", fontWeight: "700", letterSpacing: "1.5px", margin: "0 0 5px 0" }}>
+          <h1 style={{ color: theme.gold, fontSize: "1.8rem", fontWeight: 700, letterSpacing: "1.5px", margin: "0 0 5px 0" }}>
             REGISTRO CORPORATIVO
           </h1>
-          <p style={{ color: "#C0C0C0", fontSize: "0.95rem", margin: 0, letterSpacing: "0.5px" }}>
+          <p style={{ color: theme.textMuted, fontSize: "0.95rem", margin: 0, letterSpacing: "0.5px" }}>
             Trulink Fiber LLC — Portal de Acceso y Verificación
           </p>
         </div>
 
         <form onSubmit={handleSubmit} style={{ width: "100%" }}>
-          <div style={{ 
-            display: "flex", 
-            justifyContent: "center", 
-            gap: "40px", 
-            marginBottom: "10px", 
-            padding: "16px", 
-            backgroundColor: "#0a0a0a", 
-            borderRadius: "14px",
-            border: "1px solid rgba(218, 165, 32, 0.2)"
+          <div style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: "40px",
+            marginBottom: "10px",
+            padding: "16px",
+            backgroundColor: theme.inputBg,
+            borderRadius: theme.radiusMd,
+            border: `1px solid ${theme.borderGoldLight}`
           }}>
-            <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: "500", color: "#DAA520" }}>
+            <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 500, color: theme.gold }}>
               <input type="radio" name="tipo_solicitud" value="Cliente B2B" onChange={handleInputChange} defaultChecked style={{ marginRight: "10px" }} /> Cliente B2B
             </label>
-            <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: "500", color: "#DAA520" }}>
+            <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 500, color: theme.gold }}>
               <input type="radio" name="tipo_solicitud" value="Inversor Estratégico" onChange={handleInputChange} style={{ marginRight: "10px" }} /> Inversor Estratégico
             </label>
           </div>
 
-          <h3 style={sectionHeaderStyle}>Perfil del Cliente</h3>
-          <select name="perfil_cliente" style={selectStyle} onChange={handleInputChange} defaultValue="ISP">
+          <Heading>Perfil del Cliente</Heading>
+          <select name="perfil_cliente" style={selectFieldStyle} onChange={handleInputChange} defaultValue="ISP">
             <option value="ISP">ISP</option>
             <option value="MAYORISTA">MAYORISTA</option>
             <option value="INTEGRADOR">INTEGRADOR</option>
             <option value="CLIENTE FINAL">CLIENTE FINAL</option>
           </select>
 
-          <h3 style={sectionHeaderStyle}>Información de la Empresa</h3>
-          <input name="razon_social" type="text" placeholder="Nombre o Razón Social" style={inputStyle} onChange={handleInputChange} required />
-          <input name="identificacion_fiscal" type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={inputStyle} onChange={handleInputChange} required />
-          <input name="sitio_web" type="url" placeholder="Sitio Web Corporativo" style={inputStyle} onChange={handleInputChange} />
-          <input name="industria" type="text" placeholder="Industria / Sector" style={inputStyle} onChange={handleInputChange} />
-          <input name="pais" type="text" placeholder="País" style={inputStyle} onChange={handleInputChange} required />
-          <input name="direccion" type="text" placeholder="Dirección de Facturación" style={inputStyle} onChange={handleInputChange} required />
+          <Heading>Información de la Empresa</Heading>
+          <input name="razon_social" type="text" placeholder="Nombre o Razón Social" style={fieldStyle} onChange={handleInputChange} required />
+          <input name="identificacion_fiscal" type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={fieldStyle} onChange={handleInputChange} required />
+          <input name="sitio_web" type="url" placeholder="Sitio Web Corporativo" style={fieldStyle} onChange={handleInputChange} />
+          <input name="industria" type="text" placeholder="Industria / Sector" style={fieldStyle} onChange={handleInputChange} />
+          <input name="pais" type="text" placeholder="País" style={fieldStyle} onChange={handleInputChange} required />
+          <input name="direccion" type="text" placeholder="Dirección de Facturación" style={fieldStyle} onChange={handleInputChange} required />
 
-          <h3 style={sectionHeaderStyle}>Información del Contacto</h3>
-          <input name="nombre_representante" type="text" placeholder="Nombre Completo del Representante" style={inputStyle} onChange={handleInputChange} required />
-          <input name="cargo" type="text" placeholder="Cargo en la Empresa" style={inputStyle} onChange={handleInputChange} />
-          <input name="email" type="email" placeholder="Correo Electrónico Corporativo" style={inputStyle} onChange={handleInputChange} required />
+          <Heading>Información del Contacto</Heading>
+          <input name="nombre_representante" type="text" placeholder="Nombre Completo del Representante" style={fieldStyle} onChange={handleInputChange} required />
+          <input name="cargo" type="text" placeholder="Cargo en la Empresa" style={fieldStyle} onChange={handleInputChange} />
+          <input name="email" type="email" placeholder="Correo Electrónico Corporativo" style={fieldStyle} onChange={handleInputChange} required />
 
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: "600", color: "#DAA520" }}>Teléfono de Oficina</label>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600, color: theme.gold }}>Teléfono de Oficina</label>
           <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
-            <select name="codigo_pais_oficina" value={formData.codigo_pais_oficina} onChange={handleInputChange} style={{ ...selectStyle, width: "150px", marginBottom: 0 }}>
+            <select name="codigo_pais_oficina" value={formData.codigo_pais_oficina} onChange={handleInputChange} style={{ ...selectFieldStyle, width: "150px", marginBottom: 0 }}>
               {codigosPaises.map((item) => (
                 <option key={item.codigo} value={item.codigo}>{item.pais}</option>
               ))}
             </select>
-            <input name="telefono_oficina" type="tel" placeholder="Número de Oficina" value={formData.telefono_oficina} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} />
+            <input name="telefono_oficina" type="tel" placeholder="Número de Oficina" value={formData.telefono_oficina} onChange={handleInputChange} style={{ ...fieldStyle, marginBottom: 0, flex: 1 }} />
           </div>
 
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: "600", color: "#DAA520" }}>Teléfono Celular / Móvil</label>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600, color: theme.gold }}>Teléfono Celular / Móvil</label>
           <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
-            <select name="codigo_pais_celular" value={formData.codigo_pais_celular} onChange={handleInputChange} style={{ ...selectStyle, width: "150px", marginBottom: 0 }}>
+            <select name="codigo_pais_celular" value={formData.codigo_pais_celular} onChange={handleInputChange} style={{ ...selectFieldStyle, width: "150px", marginBottom: 0 }}>
               {codigosPaises.map((item) => (
                 <option key={item.codigo} value={item.codigo}>{item.pais}</option>
               ))}
             </select>
-            <input name="telefono_celular" type="tel" placeholder="Número Celular" value={formData.telefono_celular} onChange={handleInputChange} style={{ ...inputStyle, marginBottom: 0, flex: 1 }} required />
+            <input name="telefono_celular" type="tel" placeholder="Número Celular" value={formData.telefono_celular} onChange={handleInputChange} style={{ ...fieldStyle, marginBottom: 0, flex: 1 }} required />
           </div>
 
-          <h3 style={sectionHeaderStyle}>Documentación de Soporte (Solo Archivos PDF)</h3>
-          <div style={{ ...inputStyle, padding: "12px", display: "flex", alignItems: "center", backgroundColor: "#0a0a0a" }}>
-            <input 
-              type="file" 
-              multiple 
+          <Heading>Documentación de Soporte (Solo Archivos PDF)</Heading>
+          <div style={{ ...fieldStyle, padding: "12px", display: "flex", alignItems: "center" }}>
+            <input
+              type="file"
+              multiple
               accept="application/pdf"
-              onChange={handleFileChange} 
-              style={{ 
-                color: "#DAA520", 
-                width: "100%", 
-                background: "transparent", 
-                border: "none", 
+              onChange={handleFileChange}
+              style={{
+                color: theme.gold,
+                width: "100%",
+                background: "transparent",
+                border: "none",
                 outline: "none",
                 cursor: "pointer"
-              }} 
+              }}
             />
           </div>
           {selectedFiles.length > 0 && (
-            <div style={{ fontSize: "0.85rem", color: "#DAA520", marginBottom: "15px" }}>
+            <div style={{ fontSize: "0.85rem", color: theme.gold, marginBottom: "15px" }}>
               Archivos PDF seleccionados ({selectedFiles.length}): {selectedFiles.map(f => f.name).join(", ")}
             </div>
           )}
-          <ul style={{ fontSize: "0.85rem", color: "#C0C0C0", marginBottom: "25px", paddingLeft: "20px", lineHeight: "1.6" }}>
-            <li><strong style={{ color: "#DAA520" }}>Nota Obligatoria:</strong> Únicamente se aceptan documentos en formato <strong style={{ color: "#DAA520" }}>PDF</strong>.</li>
+          <ul style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "25px", paddingLeft: "20px", lineHeight: "1.6" }}>
+            <li><strong style={{ color: theme.gold }}>Nota Obligatoria:</strong> Únicamente se aceptan documentos en formato <strong style={{ color: theme.gold }}>PDF</strong>.</li>
             <li>Registro Fiscal vigente</li>
             <li>Certificación Legal (últimos 90 días)</li>
             <li>Identificación Oficial o Pasaporte</li>
@@ -347,46 +301,32 @@ export default function Clientes() {
             <li>Acuerdo de Confidencialidad NDA firmado</li>
           </ul>
 
-          <h3 style={sectionHeaderStyle}>Términos y Condiciones</h3>
-          <textarea rows={6} style={{ ...inputStyle, resize: "vertical", color: "#C0C0C0", fontSize: "0.9rem", lineHeight: "1.5" }} readOnly>
-            El acceso al Portal B2B de Trulink Fiber LLC está sujeto a estricta verificación corporativa. 
-            El solicitante se compromete a entregar documentación válida, vigente y exclusivamente en formato PDF. 
-            El incumplimiento de requisitos legales, fiscales o de formato será motivo de rechazo inmediato. 
-            Toda la información enviada será tratada bajo confidencialidad y protección de datos. 
+          <Heading>Términos y Condiciones</Heading>
+          <textarea rows={6} style={{ ...fieldStyle, resize: "vertical", color: theme.textMuted, fontSize: "0.9rem", lineHeight: "1.5" }} readOnly>
+            El acceso al Portal B2B de Trulink Fiber LLC está sujeto a estricta verificación corporativa.
+            El solicitante se compromete a entregar documentación válida, vigente y exclusivamente en formato PDF.
+            El incumplimiento de requisitos legales, fiscales o de formato será motivo de rechazo inmediato.
+            Toda la información enviada será tratada bajo confidencialidad y protección de datos.
             El acceso approved implica aceptación plena de estas condiciones.
           </textarea>
 
           <div style={{ display: "flex", alignItems: "center", marginBottom: "25px", cursor: "pointer" }}>
-            <input 
-              type="checkbox" 
-              checked={terminosAceptados} 
-              onChange={(e) => setTerminosAceptados(e.target.checked)} 
-              style={{ marginRight: "12px" }} 
-            /> 
-            <span style={{ fontSize: "0.95rem", fontWeight: "500", color: "#DAA520" }}>He leído y acepto los Términos y Condiciones</span>
+            <input
+              type="checkbox"
+              checked={terminosAceptados}
+              onChange={(e) => setTerminosAceptados(e.target.checked)}
+              style={{ marginRight: "12px" }}
+            />
+            <span style={{ fontSize: "0.95rem", fontWeight: 500, color: theme.gold }}>He leído y acepto los Términos y Condiciones</span>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={cargando} 
-            className="action-btn"
-            style={{ 
-              padding: "16px 30px", 
-              fontWeight: "600", 
-              borderRadius: "14px", 
-              cursor: cargando ? "not-allowed" : "pointer",
-              opacity: cargando ? 0.7 : 1,
-              width: "100%",
-              fontSize: "1rem",
-              letterSpacing: "0.5px"
-            }}
-          >
+          <Button type="submit" variant="gold" disabled={cargando} style={{ width: "100%", padding: "16px 30px", borderRadius: theme.radiusMd, fontSize: "1rem", letterSpacing: "0.5px" }}>
             {cargando ? "Procesando y subiendo documentos..." : "Enviar Solicitud"}
-          </button>
+          </Button>
         </form>
-      </div>
+      </Card>
 
-      <p style={{ marginTop: "35px", fontSize: "0.75rem", color: "rgba(218, 165, 32, 0.7)", textAlign: "center", letterSpacing: "0.5px" }}>
+      <p style={{ marginTop: "35px", fontSize: "0.75rem", color: theme.textMuted, textAlign: "center", letterSpacing: "0.5px" }}>
         © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
       </p>
     </div>
