@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import { getSupabase } from "../../lib/supabaseClient";
@@ -11,7 +11,7 @@ const fmt = (n: any) =>
   "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function EstadoDeCuenta() {
-  // ── Guard de página: mismo criterio que el Módulo Contable ──
+  // â”€â”€ Guard de pÃ¡gina: mismo criterio que el MÃ³dulo Contable â”€â”€
   const { cargando: cargandoAuth, autorizado } = useRequiereRol(["Super Administrador", "Administrador"]);
 
   const supabase = getSupabase();
@@ -51,9 +51,9 @@ export default function EstadoDeCuenta() {
    * Al elegir un cliente, se traen sus cotizaciones y sus movimientos de
    * pago. El cruce se hace por email -- es la clave que ya usa todo el
    * proyecto (validaciones.tsx hace upsert onConflict:'email', pagos.
-   * cliente_email se llena con el mismo dato) así que es la más confiable
-   * hoy, aunque quotes también tiene client_id (uuid) por si se quiere
-   * migrar a esa relación más adelante.
+   * cliente_email se llena con el mismo dato) asÃ­ que es la mÃ¡s confiable
+   * hoy, aunque quotes tambiÃ©n tiene client_id (uuid) por si se quiere
+   * migrar a esa relaciÃ³n mÃ¡s adelante.
    */
   const seleccionarCliente = async (cliente: any) => {
     setClienteSeleccionado(cliente);
@@ -67,7 +67,7 @@ export default function EstadoDeCuenta() {
       ]);
 
       if (quotesRes.error) console.error("Error cargando cotizaciones del cliente:", quotesRes.error.message);
-      if (pagosRes.error) console.error("Error cargando pagos del cliente (¿corriste el SQL de pagos?):", pagosRes.error.message);
+      if (pagosRes.error) console.error("Error cargando pagos del cliente (Â¿corriste el SQL de pagos?):", pagosRes.error.message);
 
       setQuotes(quotesRes.data || []);
       setPagos(pagosRes.data || []);
@@ -76,7 +76,7 @@ export default function EstadoDeCuenta() {
     }
   };
 
-  // ── Totales del estado de cuenta ──
+  // â”€â”€ Totales del estado de cuenta â”€â”€
   const totalCotizado = quotes.reduce((acc, q) => acc + Number(q.total || 0), 0);
   const totalAbonado = pagos
     .filter((p) => p.status === "confirmado")
@@ -86,7 +86,7 @@ export default function EstadoDeCuenta() {
     .reduce((acc, p) => acc + Number(p.monto || 0), 0);
   const saldoPendiente = Math.max(0, totalCotizado - totalAbonado);
 
-  // ── Guard de acceso ──
+  // â”€â”€ Guard de acceso â”€â”€
   if (cargandoAuth) {
     return (
       <div style={{ display: "flex" }}>
@@ -111,10 +111,10 @@ export default function EstadoDeCuenta() {
           subtitle="Cotizaciones, abonos y saldo pendiente consolidados por cliente."
         />
 
-        {/* ── Buscador / selector de cliente ── */}
+        {/* â”€â”€ Buscador / selector de cliente â”€â”€ */}
         <Card style={{ marginBottom: "25px" }}>
           <label style={{ display: "block", fontSize: "0.75rem", color: theme.gold, fontWeight: 600, marginBottom: "8px" }}>
-            BUSCAR CLIENTE (razón social, email, perfil o país)
+            BUSCAR CLIENTE (razÃ³n social, email, perfil o paÃ­s)
           </label>
           <input
             style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: "14px" }}
@@ -144,7 +144,7 @@ export default function EstadoDeCuenta() {
                   >
                     <div>
                       <div style={{ color: activo ? theme.gold : theme.textLight, fontWeight: 600, fontSize: "0.85rem" }}>
-                        {c.razon_social || "Sin razón social"}
+                        {c.razon_social || "Sin razÃ³n social"}
                       </div>
                       <div style={{ color: theme.textMuted, fontSize: "0.72rem" }}>{c.email}</div>
                     </div>
@@ -165,7 +165,7 @@ export default function EstadoDeCuenta() {
 
         {!clienteSeleccionado ? (
           <Card style={{ padding: "50px", textAlign: "center" }}>
-            <p style={{ color: theme.textMuted, fontStyle: "italic" }}>Elegí un cliente arriba para ver su estado de cuenta.</p>
+            <p style={{ color: theme.textMuted, fontStyle: "italic" }}>ElegÃ­ un cliente arriba para ver su estado de cuenta.</p>
           </Card>
         ) : cargandoDetalle ? (
           <Card style={{ padding: "50px", textAlign: "center" }}>
@@ -173,25 +173,25 @@ export default function EstadoDeCuenta() {
           </Card>
         ) : (
           <>
-            {/* ── Ficha del cliente ── */}
+            {/* â”€â”€ Ficha del cliente â”€â”€ */}
             <Card style={{ marginBottom: "20px" }}>
               <Heading style={{ marginBottom: "14px" }}>{clienteSeleccionado.razon_social || "Cliente"}</Heading>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 30px", fontSize: "0.85rem" }}>
-                <DataRow label="Correo" valor={clienteSeleccionado.email || "—"} />
-                <DataRow label="Perfil" valor={clienteSeleccionado.perfil_cliente || "—"} />
-                <DataRow label="Teléfono" valor={clienteSeleccionado.telefono_celular || clienteSeleccionado.telefono_oficina || "—"} />
-                <DataRow label="País" valor={clienteSeleccionado.pais || "—"} />
-                <DataRow label="Forma de Pago" valor={clienteSeleccionado.forma_pago || "—"} />
-                <DataRow label="Estado" valor={<Badge tone={estadoToTone(clienteSeleccionado.status || "")}>{clienteSeleccionado.status || "—"}</Badge>} />
+                <DataRow label="Correo" valor={clienteSeleccionado.email || "â€”"} />
+                <DataRow label="Perfil" valor={clienteSeleccionado.perfil_cliente || "â€”"} />
+                <DataRow label="TelÃ©fono" valor={clienteSeleccionado.telefono_celular || clienteSeleccionado.telefono_oficina || "â€”"} />
+                <DataRow label="PaÃ­s" valor={clienteSeleccionado.pais || "â€”"} />
+                <DataRow label="Forma de Pago" valor={clienteSeleccionado.forma_pago || "â€”"} />
+                <DataRow label="Estado" valor={<Badge tone={estadoToTone(clienteSeleccionado.status || "")}>{clienteSeleccionado.status || "â€”"}</Badge>} />
               </div>
             </Card>
 
-            {/* ── KPIs del estado de cuenta ── */}
+            {/* â”€â”€ KPIs del estado de cuenta â”€â”€ */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", marginBottom: "25px" }}>
               <Card style={{ padding: "18px", marginBottom: 0 }}>
                 <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Total Cotizado</span>
                 <h2 style={{ color: theme.gold, fontSize: "1.4rem", margin: "6px 0 0 0", fontWeight: 600 }}>{fmt(totalCotizado)}</h2>
-                <span style={{ fontSize: "0.68rem", color: theme.textMuted }}>{quotes.length} cotización(es)</span>
+                <span style={{ fontSize: "0.68rem", color: theme.textMuted }}>{quotes.length} cotizaciÃ³n(es)</span>
               </Card>
               <Card style={{ padding: "18px", marginBottom: 0 }}>
                 <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Total Abonado (confirmado)</span>
@@ -207,12 +207,12 @@ export default function EstadoDeCuenta() {
                 <Card style={{ padding: "18px", marginBottom: 0, border: "1px dashed #e67e22" }}>
                   <span style={{ fontSize: "0.7rem", color: "#e67e22", textTransform: "uppercase" }}>Transferencias por Verificar</span>
                   <h2 style={{ color: "#e67e22", fontSize: "1.4rem", margin: "6px 0 0 0", fontWeight: 600 }}>{fmt(totalPendienteVerificacion)}</h2>
-                  <span style={{ fontSize: "0.68rem", color: theme.textMuted }}>Aún no cuenta como abonado</span>
+                  <span style={{ fontSize: "0.68rem", color: theme.textMuted }}>AÃºn no cuenta como abonado</span>
                 </Card>
               )}
             </div>
 
-            {/* ── Cotizaciones ── */}
+            {/* â”€â”€ Cotizaciones â”€â”€ */}
             <Card style={{ marginBottom: "20px" }}>
               <Heading style={{ fontSize: "1rem", marginBottom: "12px" }}>Cotizaciones</Heading>
               {quotes.length === 0 ? (
@@ -236,14 +236,14 @@ export default function EstadoDeCuenta() {
                       {quotes.map((q) => (
                         <tr key={q.id} style={{ borderBottom: "1px solid #141414" }}>
                           <td style={{ padding: "8px", color: theme.gold, fontWeight: 600 }}>{q.referencia || q.id}</td>
-                          <td style={{ padding: "8px", color: theme.textMuted }}>{q.created_at ? new Date(q.created_at).toLocaleDateString() : "—"}</td>
+                          <td style={{ padding: "8px", color: theme.textMuted }}>{q.created_at ? new Date(q.created_at).toLocaleDateString() : "â€”"}</td>
                           <td style={{ padding: "8px", textAlign: "right", color: theme.textLight }}>{fmt(q.total)}</td>
                           <td style={{ padding: "8px", textAlign: "right", color: theme.green }}>{fmt(q.monto_abonado)}</td>
                           <td style={{ padding: "8px", textAlign: "right", color: Number(q.saldo_pendiente) > 0 ? theme.red : theme.textMuted }}>
                             {fmt(q.saldo_pendiente ?? Math.max(0, Number(q.total || 0) - Number(q.monto_abonado || 0)))}
                           </td>
                           <td style={{ padding: "8px" }}>
-                            <Badge tone={estadoToTone(q.estado_pago || q.status || "")}>{q.estado_pago || q.status || "—"}</Badge>
+                            <Badge tone={estadoToTone(q.estado_pago || q.status || "")}>{q.estado_pago || q.status || "â€”"}</Badge>
                           </td>
                         </tr>
                       ))}
@@ -253,7 +253,7 @@ export default function EstadoDeCuenta() {
               )}
             </Card>
 
-            {/* ── Movimientos de pago (libro de pagos) ── */}
+            {/* â”€â”€ Movimientos de pago (libro de pagos) â”€â”€ */}
             <Card>
               <Heading style={{ fontSize: "1rem", marginBottom: "12px" }}>Movimientos de Pago</Heading>
               {pagos.length === 0 ? (
@@ -265,12 +265,12 @@ export default function EstadoDeCuenta() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
                     <thead>
                       <tr style={{ borderBottom: `1px solid ${theme.borderGoldCounter}` }}>
-                        <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>N° Documento</th>
+                        <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>NÂ° Documento</th>
                         <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>Tipo</th>
-                        <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>Cotización</th>
+                        <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>CotizaciÃ³n</th>
                         <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>Fecha</th>
                         <th style={{ textAlign: "right", padding: "8px", color: theme.gold }}>Monto</th>
-                        <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>Método</th>
+                        <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>MÃ©todo</th>
                         <th style={{ textAlign: "left", padding: "8px", color: theme.gold }}>Estado</th>
                       </tr>
                     </thead>
@@ -279,13 +279,13 @@ export default function EstadoDeCuenta() {
                         <tr key={p.id} style={{ borderBottom: "1px solid #141414" }}>
                           <td style={{ padding: "8px", color: theme.gold, fontWeight: 700 }}>{p.numero_documento}</td>
                           <td style={{ padding: "8px", color: theme.textLight }}>{p.tipo_documento}</td>
-                          <td style={{ padding: "8px", color: theme.textMuted }}>{p.quote_referencia || "—"}</td>
-                          <td style={{ padding: "8px", color: theme.textMuted }}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}</td>
+                          <td style={{ padding: "8px", color: theme.textMuted }}>{p.quote_referencia || "â€”"}</td>
+                          <td style={{ padding: "8px", color: theme.textMuted }}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : "â€”"}</td>
                           <td style={{ padding: "8px", textAlign: "right", color: theme.green, fontWeight: 600 }}>{fmt(p.monto)}</td>
-                          <td style={{ padding: "8px", color: theme.textMuted, textTransform: "capitalize" }}>{p.metodo_pago || "—"}</td>
+                          <td style={{ padding: "8px", color: theme.textMuted, textTransform: "capitalize" }}>{p.metodo_pago || "â€”"}</td>
                           <td style={{ padding: "8px" }}>
-                            <Badge tone={p.status === "confirmado" ? "success" : p.status === "anulado" ? "danger" : "warning"}>
-                              {p.status || "—"}
+                            <Badge tone={p.status === "confirmado" ? "success" : p.status === "anulado" ? "danger" : "gold"}>
+                              {p.status || "â€”"}
                             </Badge>
                           </td>
                         </tr>
