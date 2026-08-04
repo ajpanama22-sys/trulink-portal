@@ -29,7 +29,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         },
       ],
       mode: 'payment',
-      success_url: `${req.headers.origin}/pago-exitoso?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`,
+      // IMPORTANTE: se agrega amount y method al success_url. Sin esto,
+      // pago-exitoso.tsx no recibe cuánto pagó realmente el cliente y cae
+      // en el fallback (usa el total de la cotización), mostrando siempre
+      // "pagado al 100%" aunque el cliente haya pagado un anticipo parcial.
+      success_url: `${req.headers.origin}/pago-exitoso?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}&amount=${amount}&method=stripe`,
       cancel_url: `${req.headers.origin}/checkout?id=${orderId}`,
     });
 
