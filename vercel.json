@@ -1,0 +1,1 @@
+﻿{"crons":[{"path":"/api/cron/recordatorio-pagos","schedule":"0 13 * * *"}]}
