@@ -50,6 +50,13 @@ export default function Checkout() {
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [uploadMessage, setUploadMessage] = useState<string>('');
 
+  // Condición comercial real del cliente logueado (viene de clientes.forma_pago / porcentaje_pago,
+  // fijada por el admin en validaciones.tsx). 50 es solo un fallback de seguridad si no hay
+  // sesión activa o no se encuentra al cliente en la tabla.
+  const [formaPagoCliente, setFormaPagoCliente] = useState<string | null>(null);
+  const [porcentajePagoCliente, setPorcentajePagoCliente] = useState<number>(50);
+  const [clienteEncontrado, setClienteEncontrado] = useState<boolean>(false);
+
   useEffect(() => {
     if (id) {
       const fetchOrder = async () => {
@@ -80,17 +87,44 @@ export default function Checkout() {
     }
   }, [id]);
 
+  // Trae la forma de pago / porcentaje asignados al cliente logueado en Supabase Auth.
+  // clientes.email es la clave usada en validaciones.tsx (onConflict: 'email'), así que
+  // se busca por el email del usuario autenticado.
+  useEffect(() => {
+    const fetchClientePago = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('forma_pago, porcentaje_pago')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (!error && data) {
+        setFormaPagoCliente(data.forma_pago || null);
+        setPorcentajePagoCliente(
+          typeof data.porcentaje_pago === 'number' ? data.porcentaje_pago : 50
+        );
+        setClienteEncontrado(true);
+      } else {
+        console.warn('No se encontró condición de pago para el cliente logueado, usando 50% por defecto.');
+      }
+    };
+    fetchClientePago();
+  }, []);
+
   const rawTotal = order?.total ?? order?.total_amount ?? 0;
   const granTotal = typeof rawTotal === 'number' ? rawTotal : Number(rawTotal) || 0;
   const esProducto = order?.type === 'producto';
 
-  const montoMinimo = granTotal * 0.5;
+  const montoMinimo = granTotal * (porcentajePagoCliente / 100);
   const refLabel = order?.referencia || order?.id || "QT-XXXX";
 
   const handleStripeCheckout = async () => {
     const valorIngresado = Number(montoPago);
     if (isNaN(valorIngresado) || valorIngresado < montoMinimo) {
-      setErrorMonto(`El pago no puede procesarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (50%).`);
+      setErrorMonto(`El pago no puede procesarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (${porcentajePagoCliente}%).`);
       return;
     }
     setErrorMonto("");
@@ -118,7 +152,7 @@ export default function Checkout() {
   const handlePayPalCheckout = async () => {
     const valorIngresado = Number(montoPago);
     if (isNaN(valorIngresado) || valorIngresado < montoMinimo) {
-      setErrorMonto(`El pago no puede procesarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (50%).`);
+      setErrorMonto(`El pago no puede procesarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (${porcentajePagoCliente}%).`);
       return;
     }
     setErrorMonto("");
@@ -147,7 +181,7 @@ export default function Checkout() {
     e.preventDefault();
     const valorIngresado = Number(montoPago);
     if (isNaN(valorIngresado) || valorIngresado < montoMinimo) {
-      setErrorMonto(`El comprobante no puede registrarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (50%).`);
+      setErrorMonto(`El comprobante no puede registrarse. El monto mínimo permitido es de $${montoMinimo.toFixed(2)} (${porcentajePagoCliente}%).`);
       return;
     }
     setErrorMonto("");
@@ -309,13 +343,18 @@ export default function Checkout() {
               <Card style={{ marginBottom: "25px" }}>
                 <Heading style={{ fontSize: "1.6rem", margin: "0 0 10px 0" }}>Total a Pagar: ${granTotal.toFixed(2)}</Heading>
                 <p style={{ color: theme.textMuted, fontSize: "0.9rem", margin: 0, lineHeight: "1.5" }}>
-                  Monto mínimo requerido (50%): <strong style={{ color: theme.gold }}>${montoMinimo.toFixed(2)} USD</strong> (Puede pagar desde el 50% hasta el 100% o más de contado)
+                  Monto mínimo requerido ({porcentajePagoCliente}%): <strong style={{ color: theme.gold }}>${montoMinimo.toFixed(2)} USD</strong> (Puede pagar desde el {porcentajePagoCliente}% hasta el 100% de contado)
                 </p>
+                {clienteEncontrado && (
+                  <p style={{ color: theme.textMuted, fontSize: "0.8rem", marginTop: "8px" }}>
+                    Condición de pago asignada a su cuenta: <strong style={{ color: theme.gold }}>{formaPagoCliente}</strong>
+                  </p>
+                )}
               </Card>
 
               <Card style={{ textAlign: "left" }}>
                 <label style={{ display: "block", marginBottom: "10px", color: theme.gold, fontWeight: "600", fontSize: "0.95rem" }}>
-                  Monto que desea pagar (USD) [Mínimo 50% - Sin límite máximo]:
+                  Monto que desea pagar (USD) [Mínimo {porcentajePagoCliente}% - Sin límite máximo]:
                 </label>
                 <input
                   type="number"
