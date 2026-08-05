@@ -8,6 +8,11 @@ type CategoriaReporte = "ventas" | "contable" | "inventario" | "proveedores" | "
 
 const NOMBRES_MES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
+// Tasa oficial de ITBMS en Panamá. Se aplica u omite según el toggle
+// `aplicaItbms`, porque el negocio opera en Zona Franca (exento) pero
+// puede necesitar facturar con ITBMS en otros escenarios (dualidad real).
+const TASA_ITBMS = 0.07;
+
 // -------- Motor de Inteligencia Predictiva (compartido con Analítica) --------
 function regresionLineal(valores: number[]) {
   const n = valores.length;
@@ -90,6 +95,10 @@ export default function Reportes() {
   const [busqueda, setBusqueda] = useState("");
   const [fechaHoraActual, setFechaHoraActual] = useState("");
 
+  // Dualidad ITBMS: false = Zona Franca (exento, default del negocio),
+  // true = aplica el 7% normal. El usuario decide en cada consulta.
+  const [aplicaItbms, setAplicaItbms] = useState(false);
+
   // Datasets consolidados desde Supabase
   const [reporteVentas, setReporteVentas] = useState<any[]>([]);
   const [reporteContable, setReporteContable] = useState<any[]>([]);
@@ -124,6 +133,7 @@ export default function Reportes() {
     cargarProyeccionesIA();
 
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cargarTodosLosReportes = async (desde: string, hasta: string) => {
@@ -177,7 +187,8 @@ export default function Reportes() {
         const montoTotal = Number(q.total || 0);
         const esPagado = q.estado_pago === "pagado" || q.status === "facturado" || !!q.pdf_url;
         const costoEstimado = montoTotal * 0.62;
-        const itbmsImpuesto = montoTotal * 0.07;
+        // ITBMS condicionado: en Zona Franca (aplicaItbms=false) el impuesto es $0.
+        const itbmsImpuesto = aplicaItbms ? montoTotal * TASA_ITBMS : 0;
         const utilidadEfectiva = esPagado ? montoTotal - costoEstimado : 0;
 
         if (esPagado) {
@@ -234,7 +245,7 @@ export default function Reportes() {
         cuentasPorCobrar: cxc,
         costosOperativos: totalCostos,
         utilidadBruta: utilidadTotal,
-        impuestosRetenidos: ingPagados * 0.07,
+        impuestosRetenidos: aplicaItbms ? ingPagados * TASA_ITBMS : 0,
         margenPromedio: Number(margen.toFixed(1)),
       });
 
@@ -250,12 +261,15 @@ export default function Reportes() {
         ...(accesorios || []).map((a) => ({ ...a, categoria: "Accesorios y Empalmes", db: "accesoriosdb" })),
       ].map((item, idx) => ({
         id: item.id || idx,
-        sku: item.sku || `TLK-SKU-${idx + 100}`,
-        descripcion: item.Descripción || item.descripcion || "SKU Fibra Óptica Enterprise",
+        // Fix: las tablas reales (cablesdb/herrajesdb/accesoriosdb) usan
+        // columnas capitalizadas ("SKU", "Item #"), no "sku" en minúscula.
+        // Antes esto siempre caía al fallback inventado TLK-SKU-xxx.
+        sku: item.SKU || item["Item #"] || item.Item || `SIN-SKU-${idx + 1}`,
+        descripcion: item.Descripción || item.descripcion || "Sin descripción",
         categoria: item.categoria,
         tablaOrigen: item.db,
-        especificacion: item.especificacion || item.tipo || "Estándar Nylon 66 / Dieléctrico",
-        precioRef: Number(item.precio || item.price || 0),
+        especificacion: item.Especificaciones || item.especificacion || item.Familia || "—",
+        precioRef: Number(item.precio_a || item.precio || item.price || 0),
       }));
       setReporteInventario(invCombinado);
 
@@ -328,6 +342,20 @@ export default function Reportes() {
   const aplicarFiltroFecha = () => {
     cargarTodosLosReportes(fechaDesde, fechaHasta);
   };
+
+  // Cambia el toggle de ITBMS y recalcula inmediatamente el reporte
+  // vigente con la tasa correspondiente (0% Zona Franca / 7% normal).
+  const alternarItbms = (checked: boolean) => {
+    setAplicaItbms(checked);
+  };
+
+  // Recalcular automáticamente cuando cambia el toggle de ITBMS
+  useEffect(() => {
+    if (fechaDesde && fechaHasta) {
+      cargarTodosLosReportes(fechaDesde, fechaHasta);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aplicaItbms]);
 
   // Filtrado reactivo en memoria por término de búsqueda
   const datasetActivo = useMemo(() => {
@@ -419,7 +447,8 @@ export default function Reportes() {
   const exportarCSV = () => {
     let csvContent = `TRULINK FIBER LLC - REPORTE CONTABLE Y EJECUTIVO DE ${categoria.toUpperCase()}\n`;
     csvContent += `Fecha Emisión: ${fechaHoraActual}\n`;
-    csvContent += `Rango: ${fechaDesde} hasta ${fechaHasta}\n\n`;
+    csvContent += `Rango: ${fechaDesde} hasta ${fechaHasta}\n`;
+    csvContent += `ITBMS aplicado: ${aplicaItbms ? "SÍ (7%)" : "NO (Zona Franca)"}\n\n`;
 
     if (categoria === "contable") {
       csvContent += "Asiento,Fecha,Cuenta Contable,Concepto / Cliente,Débito (Ingreso),Crédito (Pasivo),Costo Fabril Est.,ITBMS (7%),Utilidad Neta,Estado Fiscal\n";
@@ -466,7 +495,7 @@ export default function Reportes() {
 
   // Exportación JSON (estructura completa, útil para integraciones)
   const exportarJSON = () => {
-    const blob = new Blob([JSON.stringify({ categoria, generado: fechaHoraActual, rango: { fechaDesde, fechaHasta }, datos: datasetActivo, resumen: resumenMétricas }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ categoria, generado: fechaHoraActual, rango: { fechaDesde, fechaHasta }, aplicaItbms, datos: datasetActivo, resumen: resumenMétricas }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -514,7 +543,7 @@ export default function Reportes() {
       doc.setFontSize(9);
       doc.setTextColor(120, 120, 120);
       doc.text(`Generado: ${fechaHoraActual}`, xTexto, 20);
-      doc.text(`Rango: ${fechaDesde} a ${fechaHasta}`, xTexto, 25);
+      doc.text(`Rango: ${fechaDesde} a ${fechaHasta}  •  ITBMS: ${aplicaItbms ? "7% aplicado" : "Exento (Zona Franca)"}`, xTexto, 25);
 
       let head: string[][] = [];
       let body: any[][] = [];
@@ -611,12 +640,33 @@ export default function Reportes() {
                   />
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                   <span style={{ fontSize: "0.78rem", color: theme.textMuted, textTransform: "uppercase", letterSpacing: "0.8px" }}>Ventana Contable:</span>
                   <input type="date" value={fechaDesde} onChange={(e) => setFechaDesde(e.target.value)} style={inputStyle} />
                   <span style={{ color: theme.gold, fontWeight: "bold" }}>→</span>
                   <input type="date" value={fechaHasta} onChange={(e) => setFechaHasta(e.target.value)} style={inputStyle} />
                   <Button variant="gold" onClick={aplicarFiltroFecha}>Actualizar</Button>
+
+                  {/* Dualidad ITBMS: el negocio opera en Zona Franca (exento por
+                      defecto) pero puede necesitar aplicar el 7% en otros casos.
+                      Este toggle recalcula todo el reporte al instante. */}
+                  <label
+                    style={{
+                      display: "flex", alignItems: "center", gap: "8px",
+                      fontSize: "0.78rem", color: aplicaItbms ? theme.gold : theme.textMuted,
+                      border: `1px solid ${aplicaItbms ? theme.borderGoldCounter : theme.borderGoldLight}`,
+                      padding: "8px 14px", borderRadius: theme.radiusSm,
+                      background: aplicaItbms ? theme.goldSoft : "transparent",
+                      cursor: "pointer", whiteSpace: "nowrap",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={aplicaItbms}
+                      onChange={(e) => alternarItbms(e.target.checked)}
+                    />
+                    Aplicar ITBMS 7% {aplicaItbms ? "" : "(hoy: Exento — Zona Franca)"}
+                  </label>
                 </div>
               </div>
             </Card>
@@ -635,7 +685,7 @@ export default function Reportes() {
           <Card style={{ marginBottom: 25, padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
               <h3 style={{ color: theme.textLight, fontSize: "0.95rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>
-                🏛️ Desglose Fiscal & Impuestos Estimados (ITBMS 7%)
+                🏛️ Desglose Fiscal & Impuestos Estimados ({aplicaItbms ? "ITBMS 7%" : "Exento — Zona Franca"})
               </h3>
               <span style={{ color: theme.gold, fontSize: "0.75rem", border: `1px solid ${theme.borderGold}`, padding: "2px 8px", borderRadius: "4px" }}>
                 Moneda: USD ($)
@@ -651,7 +701,7 @@ export default function Reportes() {
                 <strong style={{ color: theme.red, fontSize: "1.1rem" }}>${resumenFinanciero.costosOperativos.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
               </div>
               <div style={subCardStyle}>
-                <span style={{ color: theme.textMuted, display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Retención Impuesto ITBMS (7%)</span>
+                <span style={{ color: theme.textMuted, display: "block", fontSize: "0.7rem", textTransform: "uppercase" }}>Retención Impuesto ITBMS ({aplicaItbms ? "7%" : "0% Z.F."})</span>
                 <strong style={{ color: "#29B6F6", fontSize: "1.1rem" }}>${resumenFinanciero.impuestosRetenidos.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
               </div>
               <div style={subCardStyle}>
@@ -705,7 +755,7 @@ export default function Reportes() {
                         <th style={thStyle}>Concepto / Descripción</th>
                         <th style={thStyle}>Débito ($)</th>
                         <th style={thStyle}>Crédito ($)</th>
-                        <th style={thStyle}>ITBMS (7%)</th>
+                        <th style={thStyle}>ITBMS {aplicaItbms ? "(7%)" : "(0%)"}</th>
                         <th style={thStyle}>Utilidad Est.</th>
                         <th style={thStyle}>Estado</th>
                       </>
