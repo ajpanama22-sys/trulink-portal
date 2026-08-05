@@ -53,7 +53,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     ],
     application_context: {
-      return_url: `${req.headers.origin}/api/paypal-capture?order_id=${orderId}`,
+      // IMPORTANTE: se agrega "amount" al return_url para que
+      // /api/paypal-capture.ts lo pueda reenviar a /pago-exitoso.
+      // Sin esto, pago-exitoso.tsx no sabe cuánto pagó realmente el
+      // cliente y cae en el fallback (usa el total de la cotización),
+      // mostrando siempre "pagado al 100%" aunque haya sido un anticipo.
+      return_url: `${req.headers.origin}/api/paypal-capture?order_id=${orderId}&amount=${amount}`,
       cancel_url: `${req.headers.origin}/checkout?id=${orderId}`,
       shipping_preference: 'NO_SHIPPING',
       user_action: 'PAY_NOW',

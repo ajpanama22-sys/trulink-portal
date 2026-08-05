@@ -10,6 +10,7 @@ import {
   Badge,
   inputStyle,
 } from "../../lib/ui";
+import CotizacionManual from "../../components/admin/marketing/CotizacionManual";
 
 /* ============================================================
    MARKETING ENTERPRISE SUITE — TRULINK FIBER LLC
@@ -125,7 +126,7 @@ const fmtMoneda = (n: number) =>
   "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 export default function MarketingEnterprise() {
-  const [seccion, setSeccion] = useState<"dashboard" | "campanas" | "leads" | "comunicaciones" | "analitica">("dashboard");
+  const [seccion, setSeccion] = useState<"dashboard" | "campanas" | "leads" | "comunicaciones" | "analitica" | "cotizaciones">("dashboard");
   const [campanas, setCampanas] = useState<Campana[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [gastos, setGastos] = useState<GastoCampana[]>([]);
@@ -773,6 +774,7 @@ export default function MarketingEnterprise() {
             <Button variant={seccion === "leads" ? "gold" : "outline-gold"} onClick={() => setSeccion("leads")}>💼 Pipeline de Leads</Button>
             <Button variant={seccion === "comunicaciones" ? "gold" : "outline-gold"} onClick={() => setSeccion("comunicaciones")}>📣 Comunicaciones</Button>
             <Button variant={seccion === "analitica" ? "gold" : "outline-gold"} onClick={() => setSeccion("analitica")}>📈 Analítica</Button>
+            <Button variant={seccion === "cotizaciones" ? "gold" : "outline-gold"} onClick={() => setSeccion("cotizaciones")}>📝 Cotizaciones</Button>
           </div>
         </div>
 
@@ -1464,6 +1466,9 @@ export default function MarketingEnterprise() {
               </div>
             </div>
           )}
+
+          {/* ================= COTIZACIONES (Pedidos Especiales, Cable, Producto) ================= */}
+          {seccion === "cotizaciones" && <CotizacionManual />}
         </div>
       </div>
 
