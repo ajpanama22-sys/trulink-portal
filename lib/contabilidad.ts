@@ -184,6 +184,9 @@ export async function procesarPagoConfirmado(params: ProcesarPagoParams): Promis
  * Registra un egreso directo (no viene de una orden de compra con crédito):
  * pago a proveedor, servicio, nómina, comisión, etc. Se crea la cuenta por
  * pagar YA PAGADA para que quede trazabilidad en CxP sin dejar saldo falso.
+ * Incluye la cuenta contable (código + nombre del plan_cuentas) ya
+ * confirmada por el usuario en el modal, con "Otros Gastos Operativos"
+ * como respaldo si no llega ninguna.
  */
 export async function procesarEgreso(params: {
   categoria: string;
@@ -193,8 +196,10 @@ export async function procesarEgreso(params: {
   referenciaBancaria?: string;
   concepto?: string;
   autor?: string;
+  cuentaCodigo?: string;
+  cuentaNombre?: string;
 }) {
-  const { categoria, tercero, monto, bancoOrigen, referenciaBancaria, concepto, autor } = params;
+  const { categoria, tercero, monto, bancoOrigen, referenciaBancaria, concepto, autor, cuentaCodigo, cuentaNombre } = params;
 
   if (!tercero) throw new Error("Falta el beneficiario.");
   if (!monto || monto <= 0) throw new Error("El monto debe ser mayor a cero.");
@@ -212,6 +217,8 @@ export async function procesarEgreso(params: {
       monto_total: monto,
       saldo_pendiente: 0,
       estado: "Pagada",
+      cuenta_codigo: cuentaCodigo || "6299",
+      cuenta_nombre: cuentaNombre || "Otros Gastos Operativos",
       notas: `${categoria}${concepto ? " — " + concepto : ""} (banco: ${bancoOrigen})`,
     }])
     .select()
@@ -234,7 +241,7 @@ export async function procesarEgreso(params: {
       accion: "egreso_registrado",
       entidad: "cuenta_por_pagar",
       entidad_id: String(cuenta.id),
-      detalle: `Egreso de $${monto.toFixed(2)} a ${tercero} (${categoria}). Banco: ${bancoOrigen}.`,
+      detalle: `Egreso de $${monto.toFixed(2)} a ${tercero} (${categoria}). Cuenta: ${cuentaCodigo || "6299"} - ${cuentaNombre || "Otros Gastos Operativos"}. Banco: ${bancoOrigen}.`,
       autor: autor || null,
     }]);
   } catch { /* no frena */ }
@@ -245,5 +252,7 @@ export async function procesarEgreso(params: {
     beneficiario: tercero,
     referencia: referenciaBancaria || "N/A",
     cuentaId: cuenta.id,
+    cuentaCodigo: cuentaCodigo || "6299",
+    cuentaNombre: cuentaNombre || "Otros Gastos Operativos",
   };
 }
