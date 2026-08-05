@@ -10,12 +10,13 @@ import CuentasPorCobrar from '../../components/admin/contable/CuentasPorCobrar';
 import CuentasPorPagar from '../../components/admin/contable/CuentasPorPagar';
 import GastosServicios from '../../components/admin/contable/GastosServicios';
 import Comisiones from '../../components/admin/contable/Comisiones';
+import PlanCuentas from '../../components/admin/contable/PlanCuentas';
 
 // Modales de Registro de Tesorería
 import RegistrarIngresoModal from '../../components/admin/contable/RegistrarIngresoModal';
 import RegistrarGastoModal from '../../components/admin/contable/RegistrarGastoModal';
 
-type TabType = 'resumen' | 'cxc' | 'cxp' | 'gastos' | 'comisiones';
+type TabType = 'resumen' | 'cxc' | 'cxp' | 'gastos' | 'comisiones' | 'plan-cuentas';
 
 export default function ModuloContable() {
   // ── Guard de página: solo Super Administrador y Administrador ──
@@ -31,6 +32,7 @@ export default function ModuloContable() {
     { key: 'cxp', label: 'Cuentas por Pagar (CxP)', icon: '🏷️' },
     { key: 'gastos', label: 'Gastos & Servicios', icon: '⚡' },
     { key: 'comisiones', label: 'Comisiones & Bonos', icon: '💰' },
+    { key: 'plan-cuentas', label: 'Plan de Cuentas', icon: '📚' },
   ];
 
   // ── Guard de acceso ──
@@ -102,6 +104,7 @@ export default function ModuloContable() {
           {activeTab === 'cxp' && <CuentasPorPagar />}
           {activeTab === 'gastos' && <GastosServicios />}
           {activeTab === 'comisiones' && <Comisiones />}
+          {activeTab === 'plan-cuentas' && <PlanCuentas />}
 
         </Card>
       </div>
