@@ -123,6 +123,8 @@ export default function Analitica() {
   const [cuentasPorPagarMonto, setCuentasPorPagarMonto] = useState(0);
   const [montoTotalCobrado, setMontoTotalCobrado] = useState(0);
   const [flujoNetoOperativo, setFlujoNetoOperativo] = useState(0);
+  const [cxcVencidas, setCxcVencidas] = useState<any[]>([]);
+  const [cxpPorCuenta, setCxpPorCuenta] = useState<{ cuenta: string; monto: number }[]>([]);
 
   // KPIs de rendimiento comercial
   const [tasaConversion, setTasaConversion] = useState(0);
@@ -143,11 +145,12 @@ export default function Analitica() {
 
   // 4. Operaciones, Proveedores y Garantías
   const [totalProveedores, setTotalProveedores] = useState(0);
-  const [ordenesProduccionCount, setOrdenesProduccionCount] = useState(0);
   const [totalRmas, setTotalRmas] = useState(0);
 
   // 5. Clientes y Geolocalización
   const [registrosInscripciones, setRegistrosInscripciones] = useState(0);
+  const [segmentacionPerfil, setSegmentacionPerfil] = useState<{ perfil: string; cantidad: number }[]>([]);
+  const [segmentacionListaPrecio, setSegmentacionListaPrecio] = useState<{ lista: string; cantidad: number }[]>([]);
 
   // 6. Rotación de Productos
   const [productosTop, setProductosTop] = useState<any[]>([]);
@@ -164,6 +167,33 @@ export default function Analitica() {
   const [tendenciaPendiente, setTendenciaPendiente] = useState(0);
   const [insights, setInsights] = useState<string[]>([]);
   const [cargandoIA, setCargandoIA] = useState(true);
+
+  // 9. Manufactura (ordenes_produccion + orden_produccion_lineas)
+  const [ordenesPorEstado, setOrdenesPorEstado] = useState<{ estado: string; cantidad: number }[]>([]);
+  const [totalOrdenesProduccion, setTotalOrdenesProduccion] = useState(0);
+  const [kmTotalesProducidos, setKmTotalesProducidos] = useState(0);
+  const [ordenesConFaltantes, setOrdenesConFaltantes] = useState(0);
+
+  // 10. Bodega & Materia Prima
+  const [totalMateriasPrimas, setTotalMateriasPrimas] = useState(0);
+  const [valorInventarioMP, setValorInventarioMP] = useState(0);
+  const [alertasStockBajo, setAlertasStockBajo] = useState<any[]>([]);
+  const [ultimosMovimientos, setUltimosMovimientos] = useState<any[]>([]);
+
+  // 11. Marketing
+  const [campanasActivas, setCampanasActivas] = useState(0);
+  const [presupuestoTotal, setPresupuestoTotal] = useState(0);
+  const [gastoRealMarketing, setGastoRealMarketing] = useState(0);
+  const [ingresosPorCampanas, setIngresosPorCampanas] = useState(0);
+  const [leadsPorEstado, setLeadsPorEstado] = useState<{ estado: string; cantidad: number }[]>([]);
+  const [leadsPorOrigen, setLeadsPorOrigen] = useState<{ origen: string; cantidad: number }[]>([]);
+  const [totalLeads, setTotalLeads] = useState(0);
+
+  // 12. Personal (solo headcount / asistencia, sin montos de planilla)
+  const [totalColaboradores, setTotalColaboradores] = useState(0);
+  const [colaboradoresActivos, setColaboradoresActivos] = useState(0);
+  const [colaboradoresPorDepto, setColaboradoresPorDepto] = useState<{ depto: string; cantidad: number }[]>([]);
+  const [marcajesHoy, setMarcajesHoy] = useState(0);
 
   useEffect(() => {
     const actualizarReloj = () => {
@@ -206,22 +236,38 @@ export default function Analitica() {
         { data: herrajes },
         { data: accesorios },
         { data: provData },
-        { data: prodOrdData },
         { data: rmaData },
         { data: usuariosData },
         cxcRes,
         cxpRes,
+        ordenesProdRes,
+        lineasProdRes,
+        materiaPrimaRes,
+        movimientosInvRes,
+        campanasRes,
+        gastosMktRes,
+        leadsRes,
+        colaboradoresRes,
+        marcajesRes,
       ] = await Promise.all([
         supabase.from("quotes").select("*").gte("created_at", `${desde}T00:00:00`).lte("created_at", `${hasta}T23:59:59`),
         supabase.from("cablesdb").select("*"),
         supabase.from("herrajesdb").select("*"),
         supabase.from("accesoriosdb").select("*"),
         supabase.from("proveedores").select("*"),
-        supabase.from("production_orders").select("*"),
         supabase.from("rmas").select("*"),
         supabase.from("clientes").select("*"),
         supabase.from("cuentas_por_cobrar").select("*").then((res) => res, () => ({ data: [] })),
         supabase.from("cuentas_por_pagar").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("ordenes_produccion").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("orden_produccion_lineas").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("materia_prima").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("movimientos_inventario").select("*").order("created_at", { ascending: false }).limit(10).then((res) => res, () => ({ data: [] })),
+        supabase.from("marketing_campaigns").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("marketing_gastos").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("marketing_leads").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("colaboradores").select("*").then((res) => res, () => ({ data: [] })),
+        supabase.from("marcajes").select("*").gte("marcado_en", `${hasta}T00:00:00`).then((res) => res, () => ({ data: [] })),
       ]);
 
       const quotes = quotesData || [];
@@ -252,14 +298,14 @@ export default function Analitica() {
       let stripe = 0, paypal = 0, wise = 0, trans = 0, cobradoTotal = 0;
       quotes.forEach((item) => {
         const metodo = (item.metodo_pago || "").toLowerCase();
-        const monto = Number(item.total || 0);
+        const monto = Number(item.monto_abonado ?? item.total ?? 0);
         if (item.estado_pago === "pagado" || item.status === "facturado" || item.status === "pagado") {
           cobradoTotal += monto;
         }
         if (metodo.includes("stripe")) stripe += monto;
         else if (metodo.includes("paypal")) paypal += monto;
         else if (metodo.includes("wise")) wise += monto;
-        else trans += monto;
+        else if (metodo) trans += monto;
       });
 
       setPagosStripe(stripe);
@@ -268,11 +314,33 @@ export default function Analitica() {
       setPagosTransferencia(trans);
       setMontoTotalCobrado(cobradoTotal);
 
-      const totalCXC = (cxcData || []).reduce((acc: number, item: any) => acc + Number(item.monto_pendiente || item.saldo || 0), 0) || (totalCot - cobradoTotal);
-      const totalCXP = (cxpData || []).reduce((acc: number, item: any) => acc + Number(item.monto_pendiente || item.saldo || item.total || 0), 0) || 12500;
-      setCuentasPorCobrarMonto(totalCXC > 0 ? totalCXC : 0);
+      // ── CxC / CxP con columnas reales confirmadas (saldo_pendiente) ──
+      const totalCXC = cxcData.reduce((acc: number, item: any) => acc + Number(item.saldo_pendiente || 0), 0);
+      const totalCXP = cxpData.reduce((acc: number, item: any) => acc + Number(item.saldo_pendiente || 0), 0);
+      setCuentasPorCobrarMonto(totalCXC);
       setCuentasPorPagarMonto(totalCXP);
       setFlujoNetoOperativo(cobradoTotal - totalCXP);
+
+      // Cuentas por cobrar vencidas (fecha_vencimiento ya pasó y con saldo)
+      const hoyStr = new Date().toISOString().split("T")[0];
+      const vencidas = cxcData
+        .filter((c: any) => Number(c.saldo_pendiente || 0) > 0 && c.fecha_vencimiento && c.fecha_vencimiento < hoyStr)
+        .sort((a: any, b: any) => Number(b.saldo_pendiente || 0) - Number(a.saldo_pendiente || 0))
+        .slice(0, 8);
+      setCxcVencidas(vencidas);
+
+      // Cuentas por pagar agrupadas por cuenta contable (catálogo nuevo)
+      const cxpAgrupado: { [key: string]: number } = {};
+      cxpData.forEach((c: any) => {
+        const clave = c.cuenta_nombre || c.cuenta_codigo || "Sin Clasificar";
+        cxpAgrupado[clave] = (cxpAgrupado[clave] || 0) + Number(c.monto_total || 0);
+      });
+      setCxpPorCuenta(
+        Object.entries(cxpAgrupado)
+          .map(([cuenta, monto]) => ({ cuenta, monto }))
+          .sort((a, b) => b.monto - a.monto)
+          .slice(0, 8)
+      );
 
       const cCount = cables?.length || 0;
       const hCount = herrajes?.length || 0;
@@ -283,11 +351,26 @@ export default function Analitica() {
       setTotalSkusFabricacion(cCount + hCount + aCount);
 
       setTotalProveedores(provData?.length || 0);
-      setOrdenesProduccionCount(prodOrdData?.length || 0);
       setTotalRmas(rmaData?.length || 0);
 
       const usuarios = usuariosData || [];
       setRegistrosInscripciones(usuarios.length);
+
+      // ── Segmentación de clientes por perfil (ISP / MAYORISTA / INTEGRADOR / USUARIO FINAL) ──
+      const perfilCount: { [key: string]: number } = {};
+      const listaCount: { [key: string]: number } = {};
+      usuarios.forEach((u: any) => {
+        const perfil = u.perfil_cliente || "Sin Perfil";
+        const lista = u.price_list || "Sin Lista";
+        perfilCount[perfil] = (perfilCount[perfil] || 0) + 1;
+        listaCount[lista] = (listaCount[lista] || 0) + 1;
+      });
+      setSegmentacionPerfil(
+        Object.entries(perfilCount).map(([perfil, cantidad]) => ({ perfil, cantidad })).sort((a, b) => b.cantidad - a.cantidad)
+      );
+      setSegmentacionListaPrecio(
+        Object.entries(listaCount).map(([lista, cantidad]) => ({ lista, cantidad })).sort((a, b) => a.lista.localeCompare(b.lista))
+      );
 
       const clientesMapMonto: { [key: string]: { empresa: string; total: number } } = {};
       quotes.forEach((q) => {
@@ -306,20 +389,84 @@ export default function Analitica() {
           itemsList = q.items;
         }
         itemsList.forEach((it: any) => {
-          const nombre = it.Descripción || it.descripcion || it.nombre || it.sku || "Cable / Herraje Trulink";
-          conteoItems[nombre] = (conteoItems[nombre] || 0) + Number(it.cantidad || 1);
+          const clave = it.SKU || it.sku || it.descripcion || it.nombre || "Sin SKU";
+          conteoItems[clave] = (conteoItems[clave] || 0) + Number(it.cantidad || 1);
         });
       });
 
       const todosLosProductos = [
-        ...(cables || []).map((i) => ({ nombre: i.Descripción || i.descripcion || i.sku || "Cable Fibra", tipo: "Cable" })),
-        ...(herrajes || []).map((i) => ({ nombre: i.Descripción || i.descripcion || i.sku || "Herraje", tipo: "Herraje" })),
-        ...(accesorios || []).map((i) => ({ nombre: i.Descripción || i.descripcion || i.sku || "Accesorio", tipo: "Accesorio" })),
+        ...(cables || []).map((i) => ({ sku: i.SKU || "Sin SKU", nombre: i.Descripción || i.SKU || "Cable Fibra", tipo: "Cable" })),
+        ...(herrajes || []).map((i) => ({ sku: i.SKU || "Sin SKU", nombre: i.Descripción || i.SKU || "Herraje", tipo: "Herraje" })),
+        ...(accesorios || []).map((i) => ({ sku: i.SKU || "Sin SKU", nombre: i.Descripción || i.SKU || "Accesorio", tipo: "Accesorio" })),
       ];
       const listaMovimiento = todosLosProductos
-        .map((prod) => ({ nombre: prod.nombre, tipo: prod.tipo, movimientos: conteoItems[prod.nombre] || 0 }))
+        .map((prod) => ({
+          sku: prod.sku,
+          nombre: prod.nombre,
+          tipo: prod.tipo,
+          movimientos: conteoItems[prod.sku] ?? conteoItems[prod.nombre] ?? 0,
+        }))
         .sort((a, b) => b.movimientos - a.movimientos);
       setProductosTop(listaMovimiento.slice(0, 5));
+
+      // ── Manufactura: ordenes_produccion + orden_produccion_lineas (tablas reales) ──
+      const ordenesProd = ordenesProdRes?.data || [];
+      const lineasProd = lineasProdRes?.data || [];
+      setTotalOrdenesProduccion(ordenesProd.length);
+      const estadoCount: { [key: string]: number } = {};
+      ordenesProd.forEach((o: any) => {
+        const est = o.estado || "Sin Estado";
+        estadoCount[est] = (estadoCount[est] || 0) + 1;
+      });
+      setOrdenesPorEstado(Object.entries(estadoCount).map(([estado, cantidad]) => ({ estado, cantidad })).sort((a, b) => b.cantidad - a.cantidad));
+      setKmTotalesProducidos(lineasProd.reduce((acc: number, l: any) => acc + Number(l.km_totales || 0), 0));
+      setOrdenesConFaltantes(ordenesProd.filter((o: any) => o.faltantes && String(o.faltantes).trim() !== "").length);
+
+      // ── Bodega & Materia Prima (tabla real: materia_prima) ──
+      const materiaPrima = materiaPrimaRes?.data || [];
+      setTotalMateriasPrimas(materiaPrima.length);
+      setValorInventarioMP(materiaPrima.reduce((acc: number, m: any) => acc + Number(m.stock_actual || 0) * Number(m.costo_promedio || 0), 0));
+      setAlertasStockBajo(
+        materiaPrima
+          .filter((m: any) => Number(m.stock_actual || 0) <= Number(m.stock_minimo || 0))
+          .sort((a: any, b: any) => Number(a.stock_actual || 0) - Number(b.stock_actual || 0))
+          .slice(0, 8)
+      );
+      setUltimosMovimientos(movimientosInvRes?.data || []);
+
+      // ── Marketing ──
+      const campanas = campanasRes?.data || [];
+      const gastosMkt = gastosMktRes?.data || [];
+      const leads = leadsRes?.data || [];
+      setCampanasActivas(campanas.filter((c: any) => c.estado === "activa" || c.estado === "Activa").length);
+      setPresupuestoTotal(campanas.reduce((acc: number, c: any) => acc + Number(c.presupuesto || 0), 0));
+      setIngresosPorCampanas(campanas.reduce((acc: number, c: any) => acc + Number(c.ingresos_generados || 0), 0));
+      setGastoRealMarketing(gastosMkt.reduce((acc: number, g: any) => acc + Number(g.monto || 0), 0));
+      setTotalLeads(leads.length);
+      const estadoLeadsCount: { [key: string]: number } = {};
+      const origenLeadsCount: { [key: string]: number } = {};
+      leads.forEach((l: any) => {
+        const est = l.estado || "Sin Estado";
+        const org = l.origen || "Sin Origen";
+        estadoLeadsCount[est] = (estadoLeadsCount[est] || 0) + 1;
+        origenLeadsCount[org] = (origenLeadsCount[org] || 0) + 1;
+      });
+      setLeadsPorEstado(Object.entries(estadoLeadsCount).map(([estado, cantidad]) => ({ estado, cantidad })).sort((a, b) => b.cantidad - a.cantidad));
+      setLeadsPorOrigen(Object.entries(origenLeadsCount).map(([origen, cantidad]) => ({ origen, cantidad })).sort((a, b) => b.cantidad - a.cantidad));
+
+      // ── Personal (solo headcount / asistencia — sin datos de planilla) ──
+      const colaboradores = colaboradoresRes?.data || [];
+      setTotalColaboradores(colaboradores.length);
+      setColaboradoresActivos(colaboradores.filter((c: any) => c.activo).length);
+      const deptoCount: { [key: string]: number } = {};
+      colaboradores.forEach((c: any) => {
+        const depto = c.departamento || "Sin Departamento";
+        deptoCount[depto] = (deptoCount[depto] || 0) + 1;
+      });
+      setColaboradoresPorDepto(Object.entries(deptoCount).map(([depto, cantidad]) => ({ depto, cantidad })).sort((a, b) => b.cantidad - a.cantidad));
+      const marcajesHoyData = marcajesRes?.data || [];
+      const colaboradoresConMarcajeHoy = new Set(marcajesHoyData.map((m: any) => m.colaborador_id));
+      setMarcajesHoy(colaboradoresConMarcajeHoy.size);
     } catch (err) {
       console.error("Error generando analítica BI Enterprise:", err);
     } finally {
@@ -369,13 +516,11 @@ export default function Analitica() {
       setProyeccionMes2(proyecciones[1].cobrado);
       setProyeccionMes3(proyecciones[2].cobrado);
 
-      // Crecimiento mes vs mes anterior (sobre datos reales)
       const ultimo = buckets[buckets.length - 1]?.cobrado || 0;
       const anterior = buckets[buckets.length - 2]?.cobrado || 0;
       const crecimiento = anterior > 0 ? ((ultimo - anterior) / anterior) * 100 : ultimo > 0 ? 100 : 0;
       setCrecimientoMoM(crecimiento);
 
-      // -------- Insights automáticos --------
       const nuevosInsights: string[] = [];
       nuevosInsights.push(
         crecimiento >= 0
@@ -414,6 +559,22 @@ export default function Analitica() {
     contenido += `PayPal\t$${pagosPaypal.toFixed(2)}\n`;
     contenido += `Wise\t$${pagosWise.toFixed(2)}\n`;
     contenido += `Transferencias Bancarias\t$${pagosTransferencia.toFixed(2)}\n\n`;
+    contenido += `MANUFACTURA\n`;
+    contenido += `Órdenes de Producción Totales\t${totalOrdenesProduccion}\n`;
+    contenido += `Km Totales Producidos\t${kmTotalesProducidos.toFixed(2)}\n\n`;
+    contenido += `BODEGA / MATERIA PRIMA\n`;
+    contenido += `Materias Primas Registradas\t${totalMateriasPrimas}\n`;
+    contenido += `Valor de Inventario MP\t$${valorInventarioMP.toFixed(2)}\n`;
+    contenido += `Alertas de Stock Bajo\t${alertasStockBajo.length}\n\n`;
+    contenido += `MARKETING\n`;
+    contenido += `Campañas Activas\t${campanasActivas}\n`;
+    contenido += `Presupuesto Total\t$${presupuestoTotal.toFixed(2)}\n`;
+    contenido += `Gasto Real\t$${gastoRealMarketing.toFixed(2)}\n`;
+    contenido += `Leads Totales\t${totalLeads}\n\n`;
+    contenido += `PERSONAL\n`;
+    contenido += `Colaboradores Totales\t${totalColaboradores}\n`;
+    contenido += `Colaboradores Activos\t${colaboradoresActivos}\n`;
+    contenido += `Marcajes Hoy\t${marcajesHoy}\n\n`;
     contenido += `PROYECCIÓN IA (Regresión Lineal, confianza R² ${(confianzaModelo * 100).toFixed(0)}%)\n`;
     contenido += `Mes\tCobrado Real / Proyectado\n`;
     historicoVentas.forEach((p) => {
@@ -439,6 +600,11 @@ export default function Analitica() {
         cuentasPorPagarMonto, flujoNetoOperativo, tasaConversion, ticketPromedio, crecimientoMoM,
       },
       pasarelas: { pagosStripe, pagosPaypal, pagosWise, pagosTransferencia },
+      manufactura: { totalOrdenesProduccion, kmTotalesProducidos, ordenesPorEstado, ordenesConFaltantes },
+      bodega: { totalMateriasPrimas, valorInventarioMP, alertasStockBajo },
+      marketing: { campanasActivas, presupuestoTotal, gastoRealMarketing, ingresosPorCampanas, totalLeads, leadsPorEstado, leadsPorOrigen },
+      personal: { totalColaboradores, colaboradoresActivos, colaboradoresPorDepto, marcajesHoy },
+      segmentacionClientes: { porPerfil: segmentacionPerfil, porListaPrecio: segmentacionListaPrecio },
       proyeccionIA: { confianza: confianzaModelo, historicoVentas },
       insights,
       topClientes,
@@ -573,7 +739,7 @@ export default function Analitica() {
         {/* ENCABEZADO */}
         <PageHeader
           title="Enterprise Intelligence & Accounting BI"
-          subtitle="Consola Financiera Consolidada • Trulink Fiber LLC"
+          subtitle="Consola Financiera, Operativa y de Personal Consolidada • Trulink Fiber LLC"
           counterLabel="Global Edition"
         />
 
@@ -641,7 +807,7 @@ export default function Analitica() {
               <MetricKpiCard title="Pipeline Cotizado" amount={`$${montoCotizaciones.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} count={`${volumenCotizaciones} Cotizaciones`} badge="Demanda Activa" isUp={true} glow="#FFD700" />
               <MetricKpiCard title="Cobros Realizados" amount={`$${montoTotalCobrado.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} count={`${numFacturas} Facturas Pagadas`} badge="Ingreso Real" isUp={true} glow="#00E676" />
               <MetricKpiCard title="Cuentas por Cobrar (CXC)" amount={`$${cuentasPorCobrarMonto.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} count="Pendiente de clientes" badge="CxC Activo" isUp={true} glow="#29B6F6" />
-              <MetricKpiCard title="Cuentas por Pagar (CXP)" amount={`$${cuentasPorPagarMonto.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} count="Compromisos fabriles" badge="CxP Fábricas" isUp={false} glow="#FF5252" />
+              <MetricKpiCard title="Cuentas por Pagar (CXP)" amount={`$${cuentasPorPagarMonto.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} count="Compromisos y gastos" badge="CxP Real" isUp={false} glow="#FF5252" />
               <MetricKpiCard title="Flujo Neto Operativo" amount={`$${flujoNetoOperativo.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} count="Cobros menos CXP" badge="Balance Neto" isUp={flujoNetoOperativo >= 0} glow="#FFD700" />
             </div>
 
@@ -685,14 +851,10 @@ export default function Analitica() {
                         <line x1="0" y1={ALTO_GRAFICO * 0.5} x2={ANCHO_GRAFICO} y2={ALTO_GRAFICO * 0.5} stroke="#1f1f1f" strokeDasharray="4" />
                         <line x1="0" y1={ALTO_GRAFICO * 0.8} x2={ANCHO_GRAFICO} y2={ALTO_GRAFICO * 0.8} stroke="#1f1f1f" strokeDasharray="4" />
 
-                        {/* Cobrado real (sólido) */}
                         <polyline points={generarPolilinea("cobrado", 0, idxCorte)} fill="none" stroke={theme.green} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" filter="drop-shadow(0 0 6px rgba(0,230,118,0.6))" />
-                        {/* Cobrado proyectado (punteado) */}
                         <polyline points={generarPolilinea("cobrado", idxCorte, totalPuntos - 1)} fill="none" stroke={theme.green} strokeWidth="3" strokeDasharray="6 5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
 
-                        {/* Cotizado real (sólido, dorado) */}
                         <polyline points={generarPolilinea("cotizado", 0, idxCorte)} fill="none" stroke={theme.goldBright} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.75" />
-                        {/* Cotizado proyectado (punteado) */}
                         <polyline points={generarPolilinea("cotizado", idxCorte, totalPuntos - 1)} fill="none" stroke={theme.goldBright} strokeWidth="2" strokeDasharray="4 4" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
                       </svg>
                       <div style={{ display: "flex", justifyContent: "space-between", color: "#666", fontSize: "0.7rem", marginTop: "8px" }}>
@@ -720,7 +882,6 @@ export default function Analitica() {
                     </div>
                   </div>
 
-                  {/* INSIGHTS AUTOMÁTICOS */}
                   <div style={{ marginTop: "22px", paddingTop: "18px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                     <h4 style={{ color: theme.textLight, fontSize: "0.82rem", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "12px" }}>💡 Insights Automáticos</h4>
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "10px" }}>
@@ -735,7 +896,7 @@ export default function Analitica() {
               )}
             </Card>
 
-            {/* SECCIÓN 1: PASARELAS DE PAGO Y TOP PRODUCTOS */}
+            {/* SECCIÓN: PASARELAS DE PAGO Y TOP PRODUCTOS */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
 
               <Card style={{ display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
@@ -782,7 +943,12 @@ export default function Analitica() {
                       return (
                         <div key={idx}>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.8rem", marginBottom: "6px" }}>
-                            <span style={{ color: theme.textLight, fontWeight: "600" }}>{idx + 1}. {prod.nombre}</span>
+                            <span style={{ color: theme.textLight, fontWeight: "600" }}>
+                              {idx + 1}. {prod.nombre}
+                              {prod.sku && prod.sku !== "Sin SKU" && (
+                                <span style={{ color: theme.goldBright, fontWeight: 700, marginLeft: "6px" }}>[{prod.sku}]</span>
+                              )}
+                            </span>
                             <strong style={{ color: theme.goldBright }}>{prod.movimientos} uds</strong>
                           </div>
                           <div style={{ width: "100%", backgroundColor: "#111", height: "8px", borderRadius: "4px", overflow: "hidden", border: `1px solid ${theme.borderGoldLight}` }}>
@@ -796,7 +962,7 @@ export default function Analitica() {
               </Card>
             </div>
 
-            {/* SECCIÓN 2: SKUs y CONTROL OPERATIVO */}
+            {/* SECCIÓN: SKUs y CONTROL OPERATIVO */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
               <Card>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -818,7 +984,7 @@ export default function Analitica() {
               </Card>
 
               <Card>
-                <Heading>⚙️ Control Operativo Fabril</Heading>
+                <Heading>⚙️ Control Operativo</Heading>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
                   <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
                     <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Fábricas / Proveedores</span>
@@ -827,8 +993,8 @@ export default function Analitica() {
                   </Card>
                   <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
                     <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Órdenes de Producción</span>
-                    <strong style={{ fontSize: "1.6rem", color: theme.textLight, display: "block", marginTop: "4px" }}>{ordenesProduccionCount}</strong>
-                    <span style={{ fontSize: "0.68rem", color: theme.goldBright }}>En proceso activo</span>
+                    <strong style={{ fontSize: "1.6rem", color: theme.textLight, display: "block", marginTop: "4px" }}>{totalOrdenesProduccion}</strong>
+                    <span style={{ fontSize: "0.68rem", color: theme.goldBright }}>ordenes_produccion</span>
                   </Card>
                   <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
                     <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Garantías / RMAs</span>
@@ -844,19 +1010,258 @@ export default function Analitica() {
               </Card>
             </div>
 
-            {/* SECCIÓN 3: TOP CLIENTES */}
-            <Card style={{ marginBottom: "30px" }}>
-              <Heading>🏆 Top Clientes Corporativos</Heading>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                {topClientes.length === 0 ? (
-                  <p style={{ color: theme.textMuted, fontSize: "0.85rem" }}>Sin clientes facturados aún</p>
+            {/* SECCIÓN NUEVA: MANUFACTURA Y PRODUCCIÓN */}
+            <Card style={{ marginBottom: "35px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h3 style={{ color: theme.textLight, fontSize: "1.05rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>🏭 Manufactura y Producción</h3>
+                <span style={{ fontSize: "0.7rem", color: theme.textMuted }}>ordenes_produccion + orden_produccion_lineas</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "20px" }}>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Órdenes Totales</span>
+                  <strong style={{ fontSize: "1.6rem", color: theme.goldBright, display: "block", marginTop: "4px" }}>{totalOrdenesProduccion}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Km Totales Producidos</span>
+                  <strong style={{ fontSize: "1.6rem", color: theme.green, display: "block", marginTop: "4px" }}>{kmTotalesProducidos.toLocaleString("en-US", { maximumFractionDigits: 1 })}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Órdenes con Faltantes</span>
+                  <strong style={{ fontSize: "1.6rem", color: ordenesConFaltantes > 0 ? theme.red : theme.green, display: "block", marginTop: "4px" }}>{ordenesConFaltantes}</strong>
+                </Card>
+              </div>
+              <h4 style={{ color: theme.textMuted, fontSize: "0.75rem", textTransform: "uppercase", marginBottom: "10px" }}>Distribución por Estado</h4>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                {ordenesPorEstado.length === 0 ? (
+                  <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin órdenes registradas en el período.</p>
                 ) : (
-                  topClientes.map((cli, idx) => (
-                    <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(20,20,20,0.6)", borderRadius: "6px", borderLeft: `3px solid ${theme.goldBright}` }}>
-                      <span style={{ fontSize: "0.85rem", color: theme.textLight, fontWeight: "600" }}>{idx + 1}. {cli.empresa}</span>
-                      <strong style={{ color: theme.goldBright, fontSize: "0.9rem" }}>${cli.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
-                    </div>
+                  ordenesPorEstado.map((o, idx) => (
+                    <Badge key={idx} tone="gold">{o.estado}: {o.cantidad}</Badge>
                   ))
+                )}
+              </div>
+            </Card>
+
+            {/* SECCIÓN NUEVA: BODEGA & MATERIA PRIMA */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
+              <Card>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                  <h3 style={{ color: theme.textLight, fontSize: "1rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>🧵 Bodega & Materia Prima</h3>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted }}>materia_prima</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "18px" }}>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Materias Primas</span>
+                    <strong style={{ fontSize: "1.5rem", color: theme.goldBright, display: "block", marginTop: "4px" }}>{totalMateriasPrimas}</strong>
+                  </Card>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Valor Inventario</span>
+                    <strong style={{ fontSize: "1.5rem", color: theme.green, display: "block", marginTop: "4px" }}>${valorInventarioMP.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong>
+                  </Card>
+                </div>
+                <h4 style={{ color: theme.textMuted, fontSize: "0.75rem", textTransform: "uppercase", marginBottom: "10px" }}>⚠️ Alertas de Stock Bajo</h4>
+                {alertasStockBajo.length === 0 ? (
+                  <p style={{ color: theme.green, fontSize: "0.8rem" }}>✓ Todo el stock está por encima del mínimo.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {alertasStockBajo.map((m, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: "6px", fontSize: "0.78rem" }}>
+                        <span style={{ color: theme.textLight }}>{m.nombre}</span>
+                        <span style={{ color: theme.red, fontWeight: 700 }}>{m.stock_actual} / min {m.stock_minimo} {m.unidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card>
+                <h3 style={{ color: theme.textLight, fontSize: "1rem", margin: "0 0 20px 0", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>📋 Últimos Movimientos de Inventario</h3>
+                {ultimosMovimientos.length === 0 ? (
+                  <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin movimientos registrados.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {ultimosMovimientos.map((m, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "rgba(15,15,15,0.8)", borderRadius: "6px", fontSize: "0.76rem" }}>
+                        <span style={{ color: theme.textLight }}>{m.descripcion || m.tipo}</span>
+                        <span style={{ color: m.tipo === "entrada" || m.tipo === "ingreso" ? theme.green : theme.red, fontWeight: 700 }}>
+                          {m.cantidad} {m.unidad}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            {/* SECCIÓN NUEVA: CxC VENCIDAS Y CxP POR CUENTA */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
+              <Card>
+                <h3 style={{ color: theme.textLight, fontSize: "1rem", margin: "0 0 20px 0", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>⏰ Cuentas por Cobrar Vencidas</h3>
+                {cxcVencidas.length === 0 ? (
+                  <p style={{ color: theme.green, fontSize: "0.8rem" }}>✓ Sin cuentas vencidas.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {cxcVencidas.map((c, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "rgba(231,76,60,0.08)", border: "1px solid rgba(231,76,60,0.3)", borderRadius: "6px", fontSize: "0.78rem" }}>
+                        <div>
+                          <div style={{ color: theme.textLight, fontWeight: 600 }}>{c.cliente_nombre}</div>
+                          <div style={{ color: theme.textMuted, fontSize: "0.7rem" }}>Venció: {c.fecha_vencimiento}</div>
+                        </div>
+                        <strong style={{ color: theme.red }}>${Number(c.saldo_pendiente).toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+
+              <Card>
+                <h3 style={{ color: theme.textLight, fontSize: "1rem", margin: "0 0 20px 0", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>🏷️ Cuentas por Pagar por Categoría</h3>
+                {cxpPorCuenta.length === 0 ? (
+                  <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin egresos registrados en el período.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {cxpPorCuenta.map((c, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: "rgba(15,15,15,0.8)", borderRadius: "6px", fontSize: "0.78rem" }}>
+                        <span style={{ color: theme.textLight }}>{c.cuenta}</span>
+                        <strong style={{ color: theme.goldBright }}>${c.monto.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            {/* SECCIÓN NUEVA: MARKETING */}
+            <Card style={{ marginBottom: "35px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h3 style={{ color: theme.textLight, fontSize: "1.05rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>📣 Marketing</h3>
+                <span style={{ fontSize: "0.7rem", color: theme.textMuted }}>marketing_campaigns, marketing_leads, marketing_gastos</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "20px" }}>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Campañas Activas</span>
+                  <strong style={{ fontSize: "1.5rem", color: theme.goldBright, display: "block", marginTop: "4px" }}>{campanasActivas}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Presupuesto Total</span>
+                  <strong style={{ fontSize: "1.5rem", color: theme.textLight, display: "block", marginTop: "4px" }}>${presupuestoTotal.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Gasto Real</span>
+                  <strong style={{ fontSize: "1.5rem", color: theme.red, display: "block", marginTop: "4px" }}>${gastoRealMarketing.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Ingresos Generados</span>
+                  <strong style={{ fontSize: "1.5rem", color: theme.green, display: "block", marginTop: "4px" }}>${ingresosPorCampanas.toLocaleString("en-US", { maximumFractionDigits: 0 })}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Leads Totales</span>
+                  <strong style={{ fontSize: "1.5rem", color: "#29B6F6", display: "block", marginTop: "4px" }}>{totalLeads}</strong>
+                </Card>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+                <div>
+                  <h4 style={{ color: theme.textMuted, fontSize: "0.75rem", textTransform: "uppercase", marginBottom: "10px" }}>Leads por Estado</h4>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {leadsPorEstado.length === 0 ? (
+                      <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin leads registrados.</p>
+                    ) : (
+                      leadsPorEstado.map((l, idx) => <Badge key={idx} tone="gold">{l.estado}: {l.cantidad}</Badge>)
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h4 style={{ color: theme.textMuted, fontSize: "0.75rem", textTransform: "uppercase", marginBottom: "10px" }}>Leads por Origen</h4>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    {leadsPorOrigen.length === 0 ? (
+                      <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin leads registrados.</p>
+                    ) : (
+                      leadsPorOrigen.map((l, idx) => <Badge key={idx} tone="neutral">{l.origen}: {l.cantidad}</Badge>)
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* SECCIÓN: TOP CLIENTES + SEGMENTACIÓN */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
+              <Card>
+                <Heading>🏆 Top Clientes Corporativos</Heading>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {topClientes.length === 0 ? (
+                    <p style={{ color: theme.textMuted, fontSize: "0.85rem" }}>Sin clientes facturados aún</p>
+                  ) : (
+                    topClientes.map((cli, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "rgba(20,20,20,0.6)", borderRadius: "6px", borderLeft: `3px solid ${theme.goldBright}` }}>
+                        <span style={{ fontSize: "0.85rem", color: theme.textLight, fontWeight: "600" }}>{idx + 1}. {cli.empresa}</span>
+                        <strong style={{ color: theme.goldBright, fontSize: "0.9rem" }}>${cli.total.toLocaleString("en-US", { minimumFractionDigits: 2 })}</strong>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </Card>
+
+              <Card>
+                <Heading>🧭 Segmentación de Clientes</Heading>
+                <h4 style={{ color: theme.textMuted, fontSize: "0.72rem", textTransform: "uppercase", marginBottom: "10px" }}>Por Perfil (ISP / Mayorista / Integrador / Usuario Final)</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "18px" }}>
+                  {segmentacionPerfil.length === 0 ? (
+                    <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin clientes registrados.</p>
+                  ) : (
+                    segmentacionPerfil.map((s, idx) => {
+                      const maxCant = segmentacionPerfil[0]?.cantidad || 1;
+                      const pctBar = Math.max(10, (s.cantidad / maxCant) * 100);
+                      return (
+                        <div key={idx}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.78rem", marginBottom: "4px" }}>
+                            <span style={{ color: theme.textLight }}>{s.perfil}</span>
+                            <strong style={{ color: theme.goldBright }}>{s.cantidad}</strong>
+                          </div>
+                          <div style={{ width: "100%", backgroundColor: "#111", height: "6px", borderRadius: "3px", overflow: "hidden" }}>
+                            <div style={{ width: `${pctBar}%`, height: "100%", background: theme.goldGradient, borderRadius: "3px" }} />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <h4 style={{ color: theme.textMuted, fontSize: "0.72rem", textTransform: "uppercase", marginBottom: "10px" }}>Por Lista de Precios (A/B/C/D)</h4>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  {segmentacionListaPrecio.length === 0 ? (
+                    <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin datos.</p>
+                  ) : (
+                    segmentacionListaPrecio.map((s, idx) => <Badge key={idx} tone="neutral">Lista {s.lista}: {s.cantidad}</Badge>)
+                  )}
+                </div>
+              </Card>
+            </div>
+
+            {/* SECCIÓN NUEVA: PERSONAL (sin montos de planilla) */}
+            <Card style={{ marginBottom: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h3 style={{ color: theme.textLight, fontSize: "1.05rem", margin: 0, fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" }}>👥 Personal</h3>
+                <span style={{ fontSize: "0.7rem", color: theme.textMuted }}>colaboradores, marcajes — solo headcount / asistencia</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "20px" }}>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Colaboradores Totales</span>
+                  <strong style={{ fontSize: "1.6rem", color: theme.goldBright, display: "block", marginTop: "4px" }}>{totalColaboradores}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Activos</span>
+                  <strong style={{ fontSize: "1.6rem", color: theme.green, display: "block", marginTop: "4px" }}>{colaboradoresActivos}</strong>
+                </Card>
+                <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                  <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Con Marcaje Hoy</span>
+                  <strong style={{ fontSize: "1.6rem", color: "#29B6F6", display: "block", marginTop: "4px" }}>{marcajesHoy}</strong>
+                </Card>
+              </div>
+              <h4 style={{ color: theme.textMuted, fontSize: "0.75rem", textTransform: "uppercase", marginBottom: "10px" }}>Por Departamento</h4>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                {colaboradoresPorDepto.length === 0 ? (
+                  <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin colaboradores registrados.</p>
+                ) : (
+                  colaboradoresPorDepto.map((c, idx) => <Badge key={idx} tone="gold">{c.depto}: {c.cantidad}</Badge>)
                 )}
               </div>
             </Card>
