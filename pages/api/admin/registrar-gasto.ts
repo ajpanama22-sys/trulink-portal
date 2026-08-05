@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({ resumen });
   } catch (err: any) {
-    console.error("❌ Error registrando egreso:", err.message);
+    console.error("Error registrando egreso:", err.message);
     return res.status(400).json({ error: err.message });
   }
 }
