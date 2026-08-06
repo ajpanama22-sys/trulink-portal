@@ -17,6 +17,7 @@ interface Bonificacion {
   fecha_programada: string;
   estado: 'PROGRAMADO' | 'APROBADO' | 'PAGADO';
   notas: string;
+  cuenta_por_pagar_id?: number | null;
 }
 
 const TIPOS_BONO = [
@@ -27,6 +28,8 @@ const TIPOS_BONO = [
 ];
 
 const ESTADOS_BONO = ['PROGRAMADO', 'APROBADO', 'PAGADO'] as const;
+
+const BANCOS_PAGO = ['Wise', 'General', 'Global Bank', 'Banistmo', 'BICSA', 'Tarjeta Corporativa'];
 
 const inputSt: React.CSSProperties = {
   background: '#0a0a0a', border: '1px solid rgba(218,165,32,0.3)', borderRadius: '6px',
@@ -59,6 +62,11 @@ export default function Comisiones() {
     fecha_programada: new Date().toISOString().slice(0, 10), notas: '',
   });
   const [guardando, setGuardando] = useState(false);
+  const [pagandoBono, setPagandoBono] = useState<string | null>(null);
+
+  // ── Modal de pago real de bono (banco de salida) ──
+  const [modalPago, setModalPago] = useState<{ open: boolean; bono: Bonificacion | null }>({ open: false, bono: null });
+  const [pagoForm, setPagoForm] = useState({ bancoOrigen: 'General', referenciaBancaria: '', autor: '' });
 
   useEffect(() => { cargarTodo(); }, []);
 
@@ -176,12 +184,57 @@ export default function Comisiones() {
     }
   };
 
+  /**
+   * Cambiar el estado de un bono. Si el nuevo estado es PAGADO, esto ya NO
+   * es solo una etiqueta: dispara un egreso real de tesorería (misma
+   * función que usa "Registrar Gasto"), así que el bono queda reflejado
+   * en Flujo de Efectivo y Estado de Resultados. Para eso primero
+   * preguntamos desde qué banco sale la plata.
+   */
   const cambiarEstadoBono = async (id: string, estado: string) => {
     const supabase = getSupabase();
     if (!supabase) return;
+
+    if (estado === 'PAGADO') {
+      const bono = bonificaciones.find((b) => b.id === id) || null;
+      setPagoForm({ bancoOrigen: 'General', referenciaBancaria: '', autor: '' });
+      setModalPago({ open: true, bono });
+      return;
+    }
+
     const { error } = await supabase.from('bonificaciones').update({ estado }).eq('id', id);
     if (error) return alert('Error: ' + error.message);
     setBonificaciones((prev) => prev.map((b) => (b.id === id ? { ...b, estado: estado as any } : b)));
+  };
+
+  const confirmarPagoBono = async () => {
+    const bono = modalPago.bono;
+    if (!bono) return;
+    if (!pagoForm.bancoOrigen) return alert('Elegí el banco de salida.');
+
+    setPagandoBono(bono.id);
+    try {
+      const r = await fetch('/api/admin/pagar-bono', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bonoId: bono.id,
+          bancoOrigen: pagoForm.bancoOrigen,
+          referenciaBancaria: pagoForm.referenciaBancaria || undefined,
+          autor: pagoForm.autor || undefined,
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Error al pagar el bono.');
+
+      setBonificaciones((prev) => prev.map((b) => (b.id === bono.id ? { ...b, estado: 'PAGADO' as any } : b)));
+      setModalPago({ open: false, bono: null });
+      alert('Bono pagado. Ya quedó reflejado en Tesorería, Flujo de Efectivo y Estado de Resultados.');
+    } catch (err: any) {
+      alert('Error al pagar el bono: ' + (err.message || err));
+    } finally {
+      setPagandoBono(null);
+    }
   };
 
   const eliminarBono = async (id: string) => {
@@ -390,6 +443,7 @@ export default function Comisiones() {
                       <td style={{ padding: "12px 10px", textAlign: "center" }}>
                         <select
                           value={b.estado}
+                          disabled={pagandoBono === b.id}
                           onChange={(e) => cambiarEstadoBono(b.id, e.target.value)}
                           style={{
                             background: '#0a0a0a', border: `1px solid ${colorEstado[b.estado]}55`,
@@ -399,6 +453,9 @@ export default function Comisiones() {
                         >
                           {ESTADOS_BONO.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
+                        {b.estado === 'PAGADO' && b.cuenta_por_pagar_id && (
+                          <div style={{ fontSize: '0.62rem', color: '#666', marginTop: 3 }}>CxP #{b.cuenta_por_pagar_id}</div>
+                        )}
                       </td>
                       <td style={{ padding: "12px 10px", textAlign: "right", whiteSpace: 'nowrap' }}>
                         <button style={{ ...btnOutline, marginRight: 6 }} onClick={() => abrirEditarBono(b)}>Editar</button>
@@ -467,6 +524,53 @@ export default function Comisiones() {
               <button style={btnOutline} onClick={() => setModalBono({ open: false, bono: null })}>Cancelar</button>
               <button style={btnGold} disabled={guardando} onClick={guardarBono}>
                 {guardando ? 'Guardando...' : 'Guardar Bono'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CONFIRMAR PAGO REAL DE BONO */}
+      {modalPago.open && modalPago.bono && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 20 }}>
+          <div style={{ background: '#111', border: '1px solid rgba(46,204,113,0.5)', borderRadius: '10px', padding: '24px', maxWidth: '440px', width: '100%' }}>
+            <h3 style={{ color: '#2ecc71', marginTop: 0, fontSize: '1rem', textTransform: 'uppercase' }}>Pagar Bono</h3>
+            <p style={{ color: '#bbb', fontSize: '0.84rem', marginBottom: '16px' }}>
+              {modalPago.bono.colaborador} — <strong style={{ color: '#DAA520' }}>${Number(modalPago.bono.monto).toFixed(2)}</strong>
+              <br />
+              <span style={{ fontSize: '0.75rem', color: '#888' }}>
+                Esto crea un egreso real: baja de caja y aparece en Flujo de Efectivo y Estado de Resultados.
+              </span>
+            </p>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: '0.68rem', color: '#888', display: 'block', marginBottom: 4 }}>Banco de salida</label>
+              <select style={inputSt} value={pagoForm.bancoOrigen}
+                onChange={(e) => setPagoForm({ ...pagoForm, bancoOrigen: e.target.value })}>
+                {BANCOS_PAGO.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: '0.68rem', color: '#888', display: 'block', marginBottom: 4 }}>Referencia bancaria (opcional)</label>
+              <input style={inputSt} value={pagoForm.referenciaBancaria}
+                onChange={(e) => setPagoForm({ ...pagoForm, referenciaBancaria: e.target.value })}
+                placeholder="Ej. ACH-40912" />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: '0.68rem', color: '#888', display: 'block', marginBottom: 4 }}>Registrado por (opcional)</label>
+              <input style={inputSt} value={pagoForm.autor}
+                onChange={(e) => setPagoForm({ ...pagoForm, autor: e.target.value })}
+                placeholder="Tu nombre" />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button style={btnOutline} onClick={() => setModalPago({ open: false, bono: null })} disabled={!!pagandoBono}>
+                Cancelar
+              </button>
+              <button style={{ ...btnGold, background: '#2ecc71' }} disabled={!!pagandoBono} onClick={confirmarPagoBono}>
+                {pagandoBono ? 'Procesando...' : '💸 Confirmar Pago'}
               </button>
             </div>
           </div>

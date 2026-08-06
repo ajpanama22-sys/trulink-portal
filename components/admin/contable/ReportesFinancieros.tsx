@@ -49,8 +49,8 @@ type CxP = {
   cuenta_nombre: string | null;
 };
 
-type Cobro = { id: number; fecha: string; monto: number };
-type Pago = { id: number; fecha: string; monto: number };
+type Cobro = { id: number; fecha: string; monto: number; cuenta_por_cobrar_id: number };
+type Pago = { id: number; fecha: string; monto: number; cuenta_por_pagar_id: number };
 
 const fmt = (n: any) =>
   "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -89,8 +89,8 @@ export default function ReportesFinancieros() {
       const [cxcRes, cxpRes, coRes, paRes] = await Promise.all([
         supabase.from("cuentas_por_cobrar").select("id, monto_total, saldo_pendiente, fecha_emision, estado"),
         supabase.from("cuentas_por_pagar").select("id, monto_total, saldo_pendiente, fecha_emision, estado, cuenta_codigo, cuenta_nombre"),
-        supabase.from("cobros_cliente").select("id, fecha, monto"),
-        supabase.from("pagos_proveedor").select("id, fecha, monto"),
+        supabase.from("cobros_cliente").select("id, fecha, monto, cuenta_por_cobrar_id"),
+        supabase.from("pagos_proveedor").select("id, fecha, monto, cuenta_por_pagar_id"),
       ]);
       if (cxcRes.error) console.error("cuentas_por_cobrar:", cxcRes.error.message);
       if (cxpRes.error) console.error("cuentas_por_pagar:", cxpRes.error.message);
@@ -160,19 +160,47 @@ export default function ReportesFinancieros() {
 
   /* ========================================================
      BALANCE GENERAL (a la fecha de corte)
+     ------------------------------------------------------------
+     El saldo de CxC/CxP NO se lee del campo saldo_pendiente (ese
+     campo es "vivo": solo refleja el estado actual). En su lugar
+     se reconstruye el saldo exacto que existía en `corte`:
+
+         saldo(cuenta, fecha) = monto_total − Σ pagos con fecha ≤ corte
+
+     Esto es matemáticamente idéntico a como la app ya actualiza
+     saldo_pendiente en tiempo real (ver registrarCobro/registrarPago
+     en CuentasPorCobrar.tsx / CuentasPorPagar.tsx), pero reconstruido
+     para cualquier fecha — no solo "hoy". No hace falta una tabla de
+     snapshots ni un cron: cobros_cliente y pagos_proveedor YA son el
+     libro de movimientos.
      ======================================================== */
   const balance = useMemo(() => {
     const caja = cobros.filter((c) => c.fecha <= corte).reduce((a, c) => a + Number(c.monto || 0), 0)
       - pagos.filter((p) => p.fecha <= corte).reduce((a, p) => a + Number(p.monto || 0), 0);
 
-    // saldo_pendiente es un campo vivo — ver nota de supuestos arriba
+    const cobrosPorCuenta = new Map<number, number>();
+    cobros.filter((c) => c.fecha <= corte).forEach((c) => {
+      cobrosPorCuenta.set(c.cuenta_por_cobrar_id, (cobrosPorCuenta.get(c.cuenta_por_cobrar_id) || 0) + Number(c.monto || 0));
+    });
+
+    const pagosPorCuenta = new Map<number, number>();
+    pagos.filter((p) => p.fecha <= corte).forEach((p) => {
+      pagosPorCuenta.set(p.cuenta_por_pagar_id, (pagosPorCuenta.get(p.cuenta_por_pagar_id) || 0) + Number(p.monto || 0));
+    });
+
     const cxcActivo = cxc
       .filter((c) => c.estado !== "Anulada" && c.fecha_emision <= corte)
-      .reduce((a, c) => a + Number(c.saldo_pendiente || 0), 0);
+      .reduce((a, c) => {
+        const cobrado = cobrosPorCuenta.get(c.id) || 0;
+        return a + Math.max(0, Number(c.monto_total || 0) - cobrado);
+      }, 0);
 
     const cxpPasivo = cxp
       .filter((c) => c.estado !== "Anulada" && c.fecha_emision <= corte)
-      .reduce((a, c) => a + Number(c.saldo_pendiente || 0), 0);
+      .reduce((a, c) => {
+        const pagado = pagosPorCuenta.get(c.id) || 0;
+        return a + Math.max(0, Number(c.monto_total || 0) - pagado);
+      }, 0);
 
     const totalActivos = caja + cxcActivo;
     const totalPasivos = cxpPasivo;
@@ -198,8 +226,9 @@ export default function ReportesFinancieros() {
       <div style={{ background: "rgba(218,165,32,0.06)", border: "1px dashed rgba(218,165,32,0.35)",
         borderRadius: "8px", padding: "12px 16px", marginBottom: "20px", fontSize: "0.76rem", color: "#aaa" }}>
         ⚠️ Estos reportes se calculan desde CxC/CxP/Tesorería, no desde un libro diario formal.
-        El Balance General solo es exacto a la fecha de <strong style={{ color: "#DAA520" }}>hoy</strong>;
-        a fechas pasadas usa el saldo pendiente actual como aproximación.
+        El saldo de CxC/CxP en el Balance General es exacto para cualquier fecha (se reconstruye
+        desde cobros/pagos reales). La <strong style={{ color: "#DAA520" }}>Caja</strong> sigue siendo un
+        proxy (cobros − pagos acumulados), no el saldo bancario real.
       </div>
 
       <div style={{ display: "flex", gap: "10px", marginBottom: "22px" }}>
@@ -262,11 +291,6 @@ export default function ReportesFinancieros() {
           <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px" }}>
             <label style={{ fontSize: "0.72rem", color: "#888" }}>Fecha de corte</label>
             <input className="rf-in" type="date" value={corte} onChange={(e) => setCorte(e.target.value)} />
-            {corte !== hoyISO() && (
-              <span style={{ color: "#e67e22", fontSize: "0.74rem" }}>
-                ⚠️ Fecha pasada: CxC/CxP muestran saldo actual, no histórico.
-              </span>
-            )}
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", maxWidth: "780px" }}>
