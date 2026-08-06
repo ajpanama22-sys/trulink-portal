@@ -408,11 +408,6 @@ export default function ManufacturaDashboard() {
     .reduce((a, l) => a + kmDeLinea(l), 0);
 
   /**
-   * Crea UNA ORDEN POR CADA RENGLÓN incluido.
-   * Antes solo se tomaba el primer ítem de la cotización, así que si el
-   * cliente pedía ASU y FTTX, el segundo cable simplemente no se producía.
-   */
-  /**
    * Crea UNA orden con TODOS sus renglones.
    * Antes solo se leía el primer ítem de la cotización, así que si el
    * cliente pedía ASU y FTTX, el segundo cable nunca se producía.
@@ -813,7 +808,11 @@ export default function ManufacturaDashboard() {
                       </thead>
                       <tbody>
                         {quotesFiltradas.map((q) => {
-                          const abonado = Number(q.monto_abono || 0);
+                          // FIX: el campo real en la tabla `quotes` es "monto_abonado"
+                          // (confirmado en pago-exitoso.tsx). Antes leía "monto_abono",
+                          // que nunca existió, por eso la columna Abonado siempre
+                          // aparecía vacía aunque el cliente ya hubiera pagado.
+                          const abonado = Number(q.monto_abonado ?? q.monto_abono ?? 0);
                           const total = Number(q.total || 0);
                           const yaTieneOP = quotesConOP.has(String(q.id));
                           return (

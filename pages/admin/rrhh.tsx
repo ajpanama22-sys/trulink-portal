@@ -299,7 +299,7 @@ function PerfilTab({
 }
 
 // ============================================================
-// Documentos + Carta de Trabajo (PDF con logo y sello)
+// Documentos + Carta de Trabajo (PDF con membrete corporativo)
 // ============================================================
 function DocumentosTab({
   colaborador,
@@ -318,24 +318,58 @@ function DocumentosTab({
     setGenerando(true);
     try {
       const doc = new jsPDF({ unit: "pt", format: "letter" });
+      const pageWidth = doc.internal.pageSize.getWidth(); // 612pt
 
+      // --- Colores corporativos ---
+      const dorado: [number, number, number] = [180, 140, 40];
+      const negro: [number, number, number] = [20, 20, 20];
+      const gris: [number, number, number] = [110, 110, 110];
+
+      // --- Logo (izquierda) ---
       try {
         const logoResp = await fetch("/images/logo.png");
         const logoBlob = await logoResp.blob();
         const logoDataUrl = await blobToDataURL(logoBlob);
-        doc.addImage(logoDataUrl, "PNG", 40, 30, 100, 50);
+        doc.addImage(logoDataUrl, "PNG", 45, 40, 95, 48);
       } catch {}
 
+      // --- Bloque de contacto (derecha, alineado) ---
+      const xDer = pageWidth - 45;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(...negro);
+      doc.text("TRULINK FIBER LLC", xDer, 46, { align: "right" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.3);
+      doc.setTextColor(...gris);
+      doc.text("5203 Juan Tabo Blvd NE, Suite 2B", xDer, 58, { align: "right" });
+      doc.text("Albuquerque, Nuevo México, 87111, Estados Unidos", xDer, 68, { align: "right" });
+      doc.text("fred.jurado@trulinkfiber.com", xDer, 78, { align: "right" });
+      doc.text("+507 6640 3720", xDer, 88, { align: "right" });
+
+      // --- Línea dorada de separación ---
+      doc.setDrawColor(...dorado);
+      doc.setLineWidth(1.1);
+      doc.line(45, 102, pageWidth - 45, 102);
+
+      // --- Título ---
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(17);
+      doc.setTextColor(...negro);
+      doc.text("CARTA DE TRABAJO", pageWidth / 2, 138, { align: "center" });
+
+      doc.setDrawColor(...dorado);
+      doc.setLineWidth(0.6);
+      doc.line(pageWidth / 2 - 55, 146, pageWidth / 2 + 55, 146);
+
+      // --- Cuerpo ---
       const hoy = new Date().toLocaleDateString("es-PA", {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
 
-      doc.setFontSize(16);
-      doc.text("CARTA DE TRABAJO", 300, 110, { align: "center" });
-
-      doc.setFontSize(11);
       const fechaIngreso = planilla?.fecha_ingreso
         ? new Date(planilla.fecha_ingreso).toLocaleDateString("es-PA", {
             year: "numeric",
@@ -358,19 +392,33 @@ function DocumentosTab({
 
 Se extiende la presente carta a solicitud del interesado(a) para los fines que estime conveniente.`;
 
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(...negro);
       const lineas = doc.splitTextToSize(cuerpo, 500);
-      doc.text(lineas, 60, 160);
-      doc.text(`Panamá, ${hoy}.`, 60, 340);
-      doc.text("_______________________________", 60, 420);
-      doc.text("Recursos Humanos", 60, 435);
+      doc.text(lineas, 56, 185);
 
+      doc.text(`Panamá, ${hoy}.`, 56, 350);
+
+      // --- Firma ---
+      doc.setDrawColor(...gris);
+      doc.setLineWidth(0.6);
+      doc.line(56, 430, 260, 430);
+      doc.setFontSize(10);
+      doc.setTextColor(...negro);
+      doc.text("Recursos Humanos", 56, 444);
+      doc.setFontSize(8.5);
+      doc.setTextColor(...gris);
+      doc.text("Trulink Fiber LLC", 56, 456);
+
+      // --- Sello/firma escaneada (esquina inferior derecha) ---
       try {
         const selloResp = await fetch("/images/firmaco.png");
         const selloBlob = await selloResp.blob();
         const selloDataUrl = await blobToDataURL(selloBlob);
         const { width: naturalW, height: naturalH } = await getImageDimensions(selloDataUrl);
 
-        const anchoDeseado = 70;
+        const anchoDeseado = 75;
         const alto = (naturalH / naturalW) * anchoDeseado;
         const margenDerecho = 60;
         const margenInferior = 60;
@@ -379,6 +427,19 @@ Se extiende la presente carta a solicitud del interesado(a) para los fines que e
 
         doc.addImage(selloDataUrl, "PNG", x, y, anchoDeseado, alto);
       } catch {}
+
+      // --- Pie de página corporativo ---
+      doc.setDrawColor(...dorado);
+      doc.setLineWidth(0.5);
+      doc.line(45, 740, pageWidth - 45, 740);
+      doc.setFontSize(7.5);
+      doc.setTextColor(...gris);
+      doc.text(
+        "5203 Juan Tabo Blvd NE, Suite 2B, Albuquerque, NM 87111, USA  ·  fred.jurado@trulinkfiber.com  ·  +507 6640 3720  ·  www.trulinkfiber.com",
+        pageWidth / 2,
+        752,
+        { align: "center" }
+      );
 
       const nombreArchivo = `carta_trabajo_${colaborador.nombre.replace(/\s+/g, "_")}_${Date.now()}.pdf`;
       doc.save(nombreArchivo);

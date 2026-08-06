@@ -11,6 +11,7 @@ import {
   inputStyle,
 } from "../../lib/ui";
 import CotizacionManual from "../../components/admin/marketing/CotizacionManual";
+import SegmentacionClientes from "../../components/admin/marketing/SegmentacionClientes";
 
 /* ============================================================
    MARKETING ENTERPRISE SUITE — TRULINK FIBER LLC
@@ -23,6 +24,8 @@ import CotizacionManual from "../../components/admin/marketing/CotizacionManual"
      3. Pipeline de Leads    — estados + conversión a prospecto CRM
      4. Comunicaciones       — envío email/SMS con segmentación fina
      5. Analítica            — rendimiento por canal y por origen
+     6. Cotizaciones         — pedidos especiales, cable, producto
+     7. Segmentación         — clientes por país, tipo, compras, atrasos
 
    Nota: usa getSupabase() (cliente singleton), NO createClient
    directo, para evitar los bugs intermitentes de sesión.
@@ -126,7 +129,7 @@ const fmtMoneda = (n: number) =>
   "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 export default function MarketingEnterprise() {
-  const [seccion, setSeccion] = useState<"dashboard" | "campanas" | "leads" | "comunicaciones" | "analitica" | "cotizaciones">("dashboard");
+  const [seccion, setSeccion] = useState<"dashboard" | "campanas" | "leads" | "comunicaciones" | "analitica" | "cotizaciones" | "segmentacion">("dashboard");
   const [campanas, setCampanas] = useState<Campana[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [gastos, setGastos] = useState<GastoCampana[]>([]);
@@ -775,6 +778,7 @@ export default function MarketingEnterprise() {
             <Button variant={seccion === "comunicaciones" ? "gold" : "outline-gold"} onClick={() => setSeccion("comunicaciones")}>📣 Comunicaciones</Button>
             <Button variant={seccion === "analitica" ? "gold" : "outline-gold"} onClick={() => setSeccion("analitica")}>📈 Analítica</Button>
             <Button variant={seccion === "cotizaciones" ? "gold" : "outline-gold"} onClick={() => setSeccion("cotizaciones")}>📝 Cotizaciones</Button>
+            <Button variant={seccion === "segmentacion" ? "gold" : "outline-gold"} onClick={() => setSeccion("segmentacion")}>🌍 Segmentación de Clientes</Button>
           </div>
         </div>
 
@@ -1469,6 +1473,9 @@ export default function MarketingEnterprise() {
 
           {/* ================= COTIZACIONES (Pedidos Especiales, Cable, Producto) ================= */}
           {seccion === "cotizaciones" && <CotizacionManual />}
+
+          {/* ================= SEGMENTACIÓN DE CLIENTES ================= */}
+          {seccion === "segmentacion" && <SegmentacionClientes />}
         </div>
       </div>
 

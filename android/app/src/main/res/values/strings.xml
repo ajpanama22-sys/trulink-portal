@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BiKu v1.0 Biz Intelligent Key Unit</string>
+    <string name="title_activity_main">BiKu v1.0 Biz Intelligent Key Unit</string>
+    <string name="package_name">org.portal.trulink.app</string>
+    <string name="custom_url_scheme">org.portal.trulink.app</string>
+</resources>

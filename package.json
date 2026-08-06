@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@paypal/checkout-server-sdk": "^1.0.3",
     "@supabase/supabase-js": "^2.110.7",
     "@types/formidable": "^3.5.1",

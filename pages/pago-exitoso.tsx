@@ -14,12 +14,27 @@ export default function PagoExitoso() {
   const [loading, setLoading] = useState(true);
   const [orderInfo, setOrderInfo] = useState<any>(null);
   const [numeroDocumento, setNumeroDocumento] = useState<string | null>(null);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
   const emailSentRef = useRef(false);
 
   const methodStr = Array.isArray(method) ? method[0] : method;
   const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
   const rawAmount = Array.isArray(amount) ? amount[0] : amount;
   const singleSessionId = Array.isArray(session_id) ? session_id[0] : session_id;
+
+  // Cierra sesión y redirige al login. Aísla el logout en una función
+  // propia para que el botón nunca quede "colgado" si signOut() falla
+  // por red: igual redirige, porque el usuario ya vio su comprobante.
+  async function handleCerrarSesion() {
+    setCerrandoSesion(true);
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error("Error cerrando sesión:", err);
+    } finally {
+      router.push("/login");
+    }
+  }
 
   useEffect(() => {
     if (singleOrderId) {
@@ -328,8 +343,14 @@ export default function PagoExitoso() {
           <Button variant="gold" onClick={() => window.print()}>
             Imprimir / Guardar Comprobante
           </Button>
+          <Button variant="outline-gold" onClick={() => router.push('/admin')}>
+            Ir al Panel Admin
+          </Button>
           <Button variant="outline-gold" onClick={() => router.push('/')}>
             Volver al Inicio
+          </Button>
+          <Button variant="ghost" disabled={cerrandoSesion} onClick={handleCerrarSesion}>
+            {cerrandoSesion ? "Cerrando..." : "Cerrar Sesión"}
           </Button>
         </div>
 
