@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import jsPDF from "jspdf";
 import { getSupabase } from "../../../lib/supabaseClient";
 
 /* ============================================================
@@ -55,8 +56,128 @@ type Pago = { id: number; fecha: string; monto: number; cuenta_por_pagar_id: num
 const fmt = (n: any) =>
   "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const fmtPdf = (n: any) => {
+  const v = Number(n || 0);
+  return (v < 0 ? "-" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const EMPRESA = {
+  nombre: "TRULINK FIBER LLC",
+  direccion: "5203 Juan Tabo Blvd NE, Suite 2B, Albuquerque, Nuevo México 87111, Estados Unidos",
+  businessId: "Business ID #: 7391960",
+  logoUrl: "/images/logo.png",
+};
+
 const hoyISO = () => new Date().toISOString().slice(0, 10);
 const inicioAno = () => `${new Date().getFullYear()}-01-01`;
+
+const fechaLarga = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-PA", { day: "2-digit", month: "long", year: "numeric" });
+};
+
+/** Convierte el logo público a base64 — jsPDF necesita dataURL, no una ruta. */
+async function cargarLogoBase64(): Promise<string | null> {
+  try {
+    const resp = await fetch(EMPRESA.logoUrl);
+    if (!resp.ok) return null;
+    const blob = await resp.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+type LineaPDF = { label: string; valor: number; bold?: boolean; big?: boolean };
+type SeccionPDF = { titulo?: string; lineas: LineaPDF[] };
+
+/** Genera el PDF con membrete (logo + dirección + Business ID + fecha/hora) y lo descarga. */
+async function generarPDFReporte(opts: {
+  tituloReporte: string;
+  periodoTexto: string;
+  secciones: SeccionPDF[];
+  nombreArchivo: string;
+}) {
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginX = 48;
+  let y = 55;
+
+  const logo = await cargarLogoBase64();
+  const textX = logo ? marginX + 64 : marginX;
+
+  if (logo) {
+    try { doc.addImage(logo, "PNG", marginX, y - 18, 50, 50); } catch { /* si falla, seguimos sin logo */ }
+  }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(20, 20, 20);
+  doc.text(EMPRESA.nombre, textX, y);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(100, 100, 100);
+  doc.text(EMPRESA.direccion, textX, y + 14, { maxWidth: pageWidth - textX - marginX });
+  doc.text(EMPRESA.businessId, textX, y + 26);
+
+  y += 52;
+  doc.setDrawColor(184, 134, 11);
+  doc.setLineWidth(1.2);
+  doc.line(marginX, y, pageWidth - marginX, y);
+  y += 26;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(15);
+  doc.setTextColor(20, 20, 20);
+  doc.text(opts.tituloReporte, marginX, y);
+  y += 16;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9.5);
+  doc.setTextColor(110, 110, 110);
+  doc.text(opts.periodoTexto, marginX, y);
+  y += 12;
+
+  const ahora = new Date();
+  const generadoTexto = `Generado el ${ahora.toLocaleDateString("es-PA")} a las ${ahora.toLocaleTimeString("es-PA")}`;
+  doc.text(generadoTexto, marginX, y);
+  y += 28;
+
+  opts.secciones.forEach((seccion) => {
+    if (y > pageHeight - 90) { doc.addPage(); y = 55; }
+    if (seccion.titulo) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(184, 134, 11);
+      doc.text(seccion.titulo, marginX, y);
+      y += 16;
+    }
+    seccion.lineas.forEach((linea) => {
+      if (y > pageHeight - 70) { doc.addPage(); y = 55; }
+      doc.setFont("helvetica", linea.bold ? "bold" : "normal");
+      doc.setFontSize(linea.big ? 11.5 : linea.bold ? 10 : 9.5);
+      const tono = linea.bold ? 20 : 70;
+      doc.setTextColor(tono, tono, tono);
+      doc.text(linea.label, marginX, y);
+      doc.text(fmtPdf(linea.valor), pageWidth - marginX, y, { align: "right" });
+      y += linea.big ? 18 : 15;
+    });
+    y += 10;
+  });
+
+  doc.setFontSize(7.5);
+  doc.setTextColor(150, 150, 150);
+  doc.text("Reporte generado automáticamente desde el módulo contable — cifras en USD.", marginX, pageHeight - 30);
+
+  doc.save(opts.nombreArchivo);
+}
 
 const COSTO_VENTA_CODIGOS = ["6211", "6212"];
 
@@ -79,6 +200,8 @@ export default function ReportesFinancieros() {
 
   // Fecha de corte para el Balance General
   const [corte, setCorte] = useState(hoyISO());
+
+  const [generandoPDF, setGenerandoPDF] = useState<SubTab | null>(null);
 
   useEffect(() => { cargar(); }, []);
 
@@ -209,6 +332,100 @@ export default function ReportesFinancieros() {
     return { caja, cxcActivo, totalActivos, cxpPasivo, totalPasivos, patrimonio };
   }, [cxc, cxp, cobros, pagos, corte]);
 
+  /* ========================================================
+     DESCARGA DE PDF
+     ======================================================== */
+  const descargarResultadosPDF = async () => {
+    setGenerandoPDF("resultados");
+    try {
+      const secciones: SeccionPDF[] = [
+        {
+          lineas: [
+            { label: "Ingresos por Ventas", valor: resultados.ingresos },
+            { label: "(−) Costo de Ventas (Fábrica + Despacho)", valor: -resultados.costoVenta },
+            { label: "= Utilidad Bruta", valor: resultados.utilidadBruta, bold: true },
+            { label: "(−) Gastos Operativos", valor: -resultados.totalGastosOp },
+            { label: "= Utilidad Neta", valor: resultados.utilidadNeta, bold: true, big: true },
+          ],
+        },
+      ];
+      if (resultados.gastosDetalle.length > 0) {
+        secciones.push({
+          titulo: "Detalle de Gastos Operativos por Cuenta",
+          lineas: resultados.gastosDetalle.map(([nombre, monto]) => ({ label: nombre, valor: monto })),
+        });
+      }
+      await generarPDFReporte({
+        tituloReporte: "Estado de Resultados",
+        periodoTexto: `Del ${fechaLarga(desde)} al ${fechaLarga(hasta)}`,
+        secciones,
+        nombreArchivo: `Estado_de_Resultados_${desde}_a_${hasta}.pdf`,
+      });
+    } finally {
+      setGenerandoPDF(null);
+    }
+  };
+
+  const descargarBalancePDF = async () => {
+    setGenerandoPDF("balance");
+    try {
+      await generarPDFReporte({
+        tituloReporte: "Balance General",
+        periodoTexto: `Al ${fechaLarga(corte)}`,
+        secciones: [
+          {
+            titulo: "Activos",
+            lineas: [
+              { label: "Caja (acumulado cobros − pagos)", valor: balance.caja },
+              { label: "Cuentas por Cobrar", valor: balance.cxcActivo },
+              { label: "Total Activos", valor: balance.totalActivos, bold: true, big: true },
+            ],
+          },
+          {
+            titulo: "Pasivos",
+            lineas: [
+              { label: "Cuentas por Pagar", valor: balance.cxpPasivo },
+              { label: "Total Pasivos", valor: balance.totalPasivos, bold: true },
+            ],
+          },
+          {
+            titulo: "Patrimonio",
+            lineas: [
+              { label: "Utilidad Acumulada (estimada)", valor: balance.patrimonio, bold: true, big: true },
+            ],
+          },
+        ],
+        nombreArchivo: `Balance_General_${corte}.pdf`,
+      });
+    } finally {
+      setGenerandoPDF(null);
+    }
+  };
+
+  const descargarFlujoPDF = async () => {
+    setGenerandoPDF("flujo");
+    try {
+      await generarPDFReporte({
+        tituloReporte: "Estado de Flujo de Efectivo",
+        periodoTexto: `Del ${fechaLarga(desde)} al ${fechaLarga(hasta)}`,
+        secciones: [
+          {
+            lineas: [
+              { label: "Saldo Inicial de Caja", valor: flujo.saldoInicial },
+              { label: "(+) Entradas (cobros de clientes)", valor: flujo.entradas },
+              { label: "(−) Salidas (pagos a proveedores/gastos)", valor: -flujo.salidas },
+              { label: "= Flujo Neto del Período", valor: flujo.flujoNeto, bold: true },
+              { label: "= Saldo Final de Caja", valor: flujo.saldoFinal, bold: true, big: true },
+            ],
+          },
+        ],
+        nombreArchivo: `Flujo_de_Efectivo_${desde}_a_${hasta}.pdf`,
+      });
+    } finally {
+      setGenerandoPDF(null);
+    }
+  };
+
   if (cargando) {
     return <p style={{ color: "#888", padding: "20px" }}>Cargando reportes financieros...</p>;
   }
@@ -247,11 +464,14 @@ export default function ReportesFinancieros() {
       {/* ============ ESTADO DE RESULTADOS ============ */}
       {subTab === "resultados" && (
         <div>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px", flexWrap: "wrap" }}>
             <label style={{ fontSize: "0.72rem", color: "#888" }}>Desde</label>
             <input className="rf-in" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
             <label style={{ fontSize: "0.72rem", color: "#888" }}>Hasta</label>
             <input className="rf-in" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+            <button className="rf-tab" style={{ marginLeft: "auto" }} disabled={generandoPDF === "resultados"} onClick={descargarResultadosPDF}>
+              {generandoPDF === "resultados" ? "Generando..." : "📄 Descargar PDF"}
+            </button>
           </div>
 
           <div style={{ background: "#111", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "10px", padding: "24px", maxWidth: "620px" }}>
@@ -288,9 +508,12 @@ export default function ReportesFinancieros() {
       {/* ============ BALANCE GENERAL ============ */}
       {subTab === "balance" && (
         <div>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px", flexWrap: "wrap" }}>
             <label style={{ fontSize: "0.72rem", color: "#888" }}>Fecha de corte</label>
             <input className="rf-in" type="date" value={corte} onChange={(e) => setCorte(e.target.value)} />
+            <button className="rf-tab" style={{ marginLeft: "auto" }} disabled={generandoPDF === "balance"} onClick={descargarBalancePDF}>
+              {generandoPDF === "balance" ? "Generando..." : "📄 Descargar PDF"}
+            </button>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", maxWidth: "780px" }}>
@@ -318,11 +541,14 @@ export default function ReportesFinancieros() {
       {/* ============ FLUJO DE EFECTIVO ============ */}
       {subTab === "flujo" && (
         <div>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", marginBottom: "20px", flexWrap: "wrap" }}>
             <label style={{ fontSize: "0.72rem", color: "#888" }}>Desde</label>
             <input className="rf-in" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} />
             <label style={{ fontSize: "0.72rem", color: "#888" }}>Hasta</label>
             <input className="rf-in" type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+            <button className="rf-tab" style={{ marginLeft: "auto" }} disabled={generandoPDF === "flujo"} onClick={descargarFlujoPDF}>
+              {generandoPDF === "flujo" ? "Generando..." : "📄 Descargar PDF"}
+            </button>
           </div>
 
           <div style={{ background: "#111", border: "1px solid rgba(218,165,32,0.3)", borderRadius: "10px", padding: "24px", maxWidth: "620px" }}>
