@@ -8,13 +8,12 @@
 // modal "Registrar Gasto", así que el bono queda trazado exactamente igual
 // que cualquier otro egreso.
 //
-// NOTA: ajustá la ruta del import de procesarEgreso si tu archivo no está
-// en lib/procesarEgreso.ts — es el mismo módulo que ya usa
-// /api/admin/registrar-gasto (el que llama RegistrarGastoModal.tsx).
+// NOTA: procesarEgreso vive en lib/contabilidad.ts — mismo módulo que ya
+// usa /api/admin/registrar-gasto (el que llama RegistrarGastoModal.tsx).
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
-import { procesarEgreso } from "../../../lib/procesarEgreso";
+import { procesarEgreso } from "../../../lib/contabilidad";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
