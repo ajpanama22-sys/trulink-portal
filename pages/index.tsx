@@ -19,12 +19,11 @@ export default function Home() {
 
     function draw() {
       if (!ctx || !canvas) return;
-      
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       const yPosition = canvas.height * 0.85;
 
-      // 1. Línea central dorada refinada con menor grosor y resplandor elegante
       ctx.beginPath();
       ctx.moveTo(0, yPosition);
       ctx.lineTo(canvas.width, yPosition);
@@ -34,7 +33,6 @@ export default function Home() {
       ctx.shadowBlur = 6;
       ctx.stroke();
 
-      // 2. Punto de luz / pulso de fibra óptica optimizado
       ctx.beginPath();
       ctx.arc(pulseX, yPosition, 3, 0, Math.PI * 2, false);
       ctx.fillStyle = `rgba(255, 215, 0, ${opacity})`;
@@ -65,9 +63,40 @@ export default function Home() {
       canvas.height = window.innerHeight;
     };
     window.addEventListener("resize", handleResize);
-    
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const sellos = [
+    {
+      icon: "✓",
+      label: "TrustedSite",
+      sub: "Certified Secure",
+      href: "https://www.trustedsite.com/verify?host=portal.trulinkfiber.org",
+      accent: "#4ADE80",
+    },
+    {
+      icon: "🛡",
+      label: "SSL Labs",
+      sub: "Rating A+",
+      href: "https://www.ssllabs.com/ssltest/analyze.html?d=portal.trulinkfiber.org",
+      accent: "#60A5FA",
+    },
+    {
+      icon: "🔒",
+      label: "Mozilla Observatory",
+      sub: "B+ · 80/100",
+      href: "https://developer.mozilla.org/en-US/observatory",
+      accent: "#DAA520",
+    },
+    {
+      icon: "💳",
+      label: "Pagos Protegidos",
+      sub: "Stripe · PayPal",
+      href: undefined,
+      accent: "#C084FC",
+    },
+  ];
 
   return (
     <div
@@ -89,12 +118,12 @@ export default function Home() {
     >
       <canvas
         id="fiber-cable"
-        style={{ 
-          position: "absolute", 
-          top: 0, 
-          left: 0, 
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
           zIndex: 0,
-          pointerEvents: "none" 
+          pointerEvents: "none",
         }}
       ></canvas>
 
@@ -105,14 +134,16 @@ export default function Home() {
           style={{ width: "140px", marginBottom: "25px", filter: "drop-shadow(0 0 12px rgba(218, 165, 32, 0.25))" }}
         />
 
-        <h1 style={{
-          color: theme.gold,
-          marginBottom: "45px",
-          fontSize: "1.8rem", 
-          fontWeight: "300", 
-          letterSpacing: "3px", 
-          textTransform: "uppercase" 
-        }}>
+        <h1
+          style={{
+            color: theme.gold,
+            marginBottom: "45px",
+            fontSize: "1.8rem",
+            fontWeight: "300",
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+          }}
+        >
           Trulink Fiber LLC
         </h1>
 
@@ -121,7 +152,7 @@ export default function Home() {
             display: "flex",
             justifyContent: "center",
             gap: "25px",
-            flexWrap: "wrap"
+            flexWrap: "wrap",
           }}
         >
           <a href="/clientes" style={{ textDecoration: "none" }}>
@@ -135,140 +166,122 @@ export default function Home() {
           </a>
         </div>
 
-        {/* ===== SELLOS DE CONFIANZA — datos reales verificados ===== */}
+        {/* ===== SELLOS DE CONFIANZA ===== */}
         <div
           style={{
-            marginTop: "50px",
+            marginTop: "55px",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: "18px",
+            gap: "22px",
           }}
         >
-          <div
-            style={{
-              width: "60px",
-              height: "1px",
-              backgroundColor: theme.gold,
-              opacity: 0.3,
-            }}
-          ></div>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div
+              style={{
+                width: "40px",
+                height: "1px",
+                background: `linear-gradient(90deg, transparent, ${theme.gold})`,
+                opacity: 0.4,
+              }}
+            />
+            <span
+              style={{
+                fontSize: "0.6rem",
+                letterSpacing: "3px",
+                color: theme.gold,
+                opacity: 0.45,
+                textTransform: "uppercase",
+              }}
+            >
+              Sitio Verificado
+            </span>
+            <div
+              style={{
+                width: "40px",
+                height: "1px",
+                background: `linear-gradient(90deg, ${theme.gold}, transparent)`,
+                opacity: 0.4,
+              }}
+            />
+          </div>
 
           <div
             style={{
               display: "flex",
               flexWrap: "wrap",
               justifyContent: "center",
-              alignItems: "center",
               gap: "16px",
             }}
           >
-            {/* 1. TrustedSite — certificación real, verificada en producción */}
-            <a
-              href="https://www.trustedsite.com/verify?host=portal.trulinkfiber.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "0.68rem",
-                color: theme.gold,
-                opacity: 0.7,
-                letterSpacing: "0.5px",
-                border: `1px solid ${theme.gold}`,
-                borderRadius: "6px",
-                padding: "6px 12px",
-                textDecoration: "none",
-                transition: "opacity 0.3s",
-              }}
-            >
-              ✅ TrustedSite Certified Secure
-            </a>
-
-            {/* 2. SSL Labs — A+ real, verificado 06 Aug 2026 */}
-            <a
-              href="https://www.ssllabs.com/ssltest/analyze.html?d=portal.trulinkfiber.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "0.68rem",
-                color: theme.gold,
-                opacity: 0.7,
-                letterSpacing: "0.5px",
-                border: `1px solid ${theme.gold}`,
-                borderRadius: "6px",
-                padding: "6px 12px",
-                textDecoration: "none",
-              }}
-            >
-              🛡️ SSL Labs — Rating A+
-            </a>
-
-            {/* 3. Mozilla Observatory — B+ (80/100) real, verificado 06 Aug 2026 */}
-            <a
-              href="https://developer.mozilla.org/en-US/observatory"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "0.68rem",
-                color: theme.gold,
-                opacity: 0.7,
-                letterSpacing: "0.5px",
-                border: `1px solid ${theme.gold}`,
-                borderRadius: "6px",
-                padding: "6px 12px",
-                textDecoration: "none",
-              }}
-            >
-              🔒 Mozilla Observatory — B+ (80/100)
-            </a>
-
-            {/* 4. Pasarelas de pago */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "0.68rem",
-                color: theme.gold,
-                opacity: 0.7,
-                letterSpacing: "0.5px",
-                border: `1px solid ${theme.gold}`,
-                borderRadius: "6px",
-                padding: "6px 12px",
-              }}
-            >
-              💳 Pagos vía Stripe / PayPal
-            </div>
+            {sellos.map((s) => {
+              const Wrapper = (s.href ? "a" : "div") as any;
+              return (
+                <Wrapper
+                  key={s.label}
+                  href={s.href}
+                  target={s.href ? "_blank" : undefined}
+                  rel={s.href ? "noopener noreferrer" : undefined}
+                  className="sello-pill"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    textDecoration: "none",
+                    background: "linear-gradient(145deg, rgba(20,20,20,0.9), rgba(8,8,8,0.95))",
+                    border: "1px solid rgba(218, 165, 32, 0.25)",
+                    borderRadius: "999px",
+                    padding: "8px 16px 8px 8px",
+                    cursor: s.href ? "pointer" : "default",
+                  }}
+                >
+                  <span
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: "26px",
+                      height: "26px",
+                      borderRadius: "50%",
+                      background: `${s.accent}22`,
+                      border: `1px solid ${s.accent}66`,
+                      fontSize: "0.75rem",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {s.icon}
+                  </span>
+                  <span style={{ textAlign: "left", lineHeight: 1.25 }}>
+                    <span
+                      style={{
+                        display: "block",
+                        fontSize: "0.7rem",
+                        color: theme.textLight || "#e8e8e8",
+                        fontWeight: 600,
+                        letterSpacing: "0.3px",
+                      }}
+                    >
+                      {s.label}
+                    </span>
+                    <span style={{ display: "block", fontSize: "0.62rem", color: theme.gold, opacity: 0.6 }}>
+                      {s.sub}
+                    </span>
+                  </span>
+                </Wrapper>
+              );
+            })}
           </div>
-
-          <p
-            style={{
-              fontSize: "0.62rem",
-              color: theme.gold,
-              opacity: 0.4,
-              letterSpacing: "0.5px",
-              marginTop: "4px",
-            }}
-          >
-            Sitio verificado y auditado por terceros independientes
-          </p>
         </div>
         {/* ===== FIN SELLOS DE CONFIANZA ===== */}
 
-        <p style={{
-          marginTop: "40px",
-          fontSize: "11px",
-          color: theme.gold,
-          letterSpacing: "1px"
-        }}>
+        <p
+          style={{
+            marginTop: "40px",
+            fontSize: "11px",
+            color: theme.gold,
+            letterSpacing: "1px",
+          }}
+        >
           © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
         </p>
       </div>
@@ -281,6 +294,14 @@ export default function Home() {
           width: 100%;
           height: 100%;
           overflow: hidden;
+        }
+        .sello-pill {
+          transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .sello-pill:hover {
+          transform: translateY(-3px);
+          border-color: rgba(218, 165, 32, 0.7) !important;
+          box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), 0 0 16px rgba(218, 165, 32, 0.15);
         }
       `}</style>
     </div>
