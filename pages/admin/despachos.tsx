@@ -70,6 +70,7 @@ type OrdenProduccion = {
   estado: string;
   carretes: number;
   sku_destino: string | null;
+  configuracion_id: number | null;
 };
 
 type LineaProduccion = {
@@ -145,7 +146,13 @@ export default function DespachosDashboard() {
       const [qRes, cRes, oRes, lRes] = await Promise.all([
         supabase.from("quotes").select("*").order("created_at", { ascending: false }),
         supabase.from("cuentas_por_cobrar").select("id, quote_id, quote_referencia, monto_total, saldo_pendiente, estado"),
-        supabase.from("ordenes_produccion").select("id, numero, quote_id, estado, carretes, sku_destino"),
+        // .not("configuracion_id", "is", null): excluye a propósito las órdenes que
+        // crea Fabricados/WIP (pages/admin/fabricados.tsx), que nunca tienen
+        // configuracion_id porque no pasan por el motor de recetas de Manufactura.
+        // Sin este filtro, una orden de Fabricados vinculada a un quote_id real y
+        // marcada "Completada" podría confundirse acá con una producción real y
+        // dar luz verde a un despacho EXW sin fabricación verificada.
+        supabase.from("ordenes_produccion").select("id, numero, quote_id, estado, carretes, sku_destino, configuracion_id").not("configuracion_id", "is", null),
         supabase.from("orden_produccion_lineas").select("id, orden_produccion_id, posicion, configuracion_id, descripcion, carretes, sku_destino"),
       ]);
       if (qRes.error) console.error("quotes:", qRes.error.message);
@@ -200,9 +207,16 @@ export default function DespachosDashboard() {
     };
   };
 
-  /** Orden de producción completada asociada a la cotización. */
+  /**
+   * Orden de producción completada asociada a la cotización.
+   * `ordenes` ya viene filtrado en `cargar()` para excluir órdenes de
+   * Fabricados/WIP (configuracion_id null), pero se repite la condición acá
+   * como segunda barrera: esta función es el único punto de la app que
+   * decide si "ya se puede despachar", y nunca debe considerar completada
+   * una orden que no pasó por el motor real de recetas de Manufactura.
+   */
   const produccionDe = (q: Quote): OrdenProduccion | undefined =>
-    ordenes.find((o) => String(o.quote_id) === String(q.id) && o.estado === "Completada");
+    ordenes.find((o) => String(o.quote_id) === String(q.id) && o.estado === "Completada" && o.configuracion_id != null);
 
   /**
    * Busca cada SKU de la cotización en las tres tablas de bodega

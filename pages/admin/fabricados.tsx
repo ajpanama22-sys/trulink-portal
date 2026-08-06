@@ -3,9 +3,12 @@ import { supabase } from "@/lib/supabaseClient";
 import { theme } from "../../lib/theme";
 import { Card, Heading, Button, inputStyle } from "../../lib/ui";
 
+const STOCK_INTERNO = "__STOCK_INTERNO__";
+
 interface CotizacionAprobada {
   id: string;
   id_cotizacion?: string;
+  referencia?: string | null;
   cliente: string;
   monto_total: number;
   monto_pagado: number;
@@ -17,10 +20,17 @@ interface AjusteFabricado {
   id: string;
   fecha: string;
   orden: string;
-  producto: string;
-  cantidadAnterior: string;
-  cantidadNueva: string;
+  detalle: string;
+  detalleAnterior: string;
+  detalleNuevo: string;
   motivo: string;
+}
+
+// Color del badge de estado — ordenes_produccion solo maneja estos 4 valores.
+function colorEstado(estado: string) {
+  if (estado === "Completada") return theme.green;
+  if (estado === "Cancelada") return theme.red;
+  return theme.gold; // Planificada / En producción
 }
 
 export default function Fabricados() {
@@ -32,27 +42,36 @@ export default function Fabricados() {
   const [modalAjusteOpen, setModalAjusteOpen] = useState(false);
   const [modalDetalleAjustesOpen, setModalDetalleAjustesOpen] = useState(false);
   const [itemSeleccionado, setItemSeleccionado] = useState<any | null>(null);
-  const [nuevaCantidadWIP, setNuevaCantidadWIP] = useState("");
+  const [nuevoDetalleWIP, setNuevoDetalleWIP] = useState("");
   const [motivoWIP, setMotivoWIP] = useState("");
   const [bitacoraAjustesWIP, setBitacoraAjustesWIP] = useState<AjusteFabricado[]>([]);
 
-  // Lista de cotizaciones aprobadas para amarrar la nueva OF
+  // Lista de cotizaciones aprobadas para amarrar la nueva orden (opcional: puede ser stock interno)
   const [cotizacionesAprobadas, setCotizacionesAprobadas] = useState<CotizacionAprobada[]>([]);
   const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState<CotizacionAprobada | null>(null);
-  const [porcentajeRequerido, setPorcentajeRequerido] = useState<number>(50); // % mínimo para liberar
+  const [stockInterno, setStockInterno] = useState(false);
+  const [porcentajeRequerido, setPorcentajeRequerido] = useState<number>(50); // % mínimo para liberar (solo aplica si hay cliente)
   const [productoLote, setProductoLote] = useState("");
   const [cantidadProceso, setCantidadProceso] = useState("");
+  const [errorOF, setErrorOF] = useState<string | null>(null);
+  const [guardandoOF, setGuardandoOF] = useState(false);
 
   useEffect(() => {
     cargarOrdenesFabricacion();
     cargarCotizacionesAprobadas();
   }, []);
 
+  // Solo muestra lo que esta pantalla crea: configuracion_id null la distingue
+  // de las órdenes reales de Manufactura (que siempre traen configuracion_id).
   const cargarOrdenesFabricacion = async () => {
     if (!supabase) return;
     setCargando(true);
     try {
-      const { data, error } = await supabase.from("ordenes_fabricacion").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("ordenes_produccion")
+        .select("*")
+        .is("configuracion_id", null)
+        .order("created_at", { ascending: false });
       if (!error && data) {
         setOrdenes(data);
       }
@@ -80,6 +99,7 @@ export default function Fabricados() {
           return {
             id: q.id,
             id_cotizacion: q.id_cotizacion || q.sku || `COT-${String(q.id).substring(0, 5)}`,
+            referencia: q.referencia || null,
             cliente: q.cliente || "Cliente General",
             monto_total: total,
             monto_pagado: pagado,
@@ -94,14 +114,43 @@ export default function Fabricados() {
     }
   };
 
+  const elegirCotizacion = (valor: string) => {
+    if (valor === STOCK_INTERNO) {
+      setStockInterno(true);
+      setCotizacionSeleccionada(null);
+      return;
+    }
+    setStockInterno(false);
+    const sel = cotizacionesAprobadas.find((c) => c.id === valor);
+    setCotizacionSeleccionada(sel || null);
+    if (sel) setProductoLote(sel.detalles);
+  };
+
+  const cerrarModalOF = () => {
+    setMostrarModalOF(false);
+    setErrorOF(null);
+  };
+
+  const abrirModalOF = () => {
+    setErrorOF(null);
+    setCotizacionSeleccionada(null);
+    setStockInterno(false);
+    setProductoLote("");
+    setCantidadProceso("");
+    setPorcentajeRequerido(50);
+    setMostrarModalOF(true);
+  };
+
   const handleCrearOrdenFabricacion = async () => {
-    if (!cotizacionSeleccionada) {
-      alert("Debes seleccionar una Cotización Aprobada.");
+    setErrorOF(null);
+
+    if (!cotizacionSeleccionada && !stockInterno) {
+      alert("Elegí una Cotización Aprobada o \"Stock Interno (sin cliente)\".");
       return;
     }
 
-    if (cotizacionSeleccionada.porcentaje_pago < porcentajeRequerido) {
-      alert(`No se puede generar la Orden de Fabricación. El pago actual es del ${cotizacionSeleccionada.porcentaje_pago}% y el mínimo requerido es ${porcentajeRequerido}%.`);
+    if (cotizacionSeleccionada && cotizacionSeleccionada.porcentaje_pago < porcentajeRequerido) {
+      alert(`No se puede generar la orden. El pago actual es del ${cotizacionSeleccionada.porcentaje_pago}% y el mínimo requerido es ${porcentajeRequerido}%.`);
       return;
     }
 
@@ -110,29 +159,44 @@ export default function Fabricados() {
       return;
     }
 
-    const nuevaOF = {
-      orden_ensamblado: `OF-2026-${Math.floor(100 + Math.random() * 900)}`,
-      cotizacion_id: cotizacionSeleccionada.id,
-      producto_lote: productoLote,
-      cantidad_en_proceso: cantidadProceso,
-      etapa_planta: "Extrusión y Preparación",
-      estado: "EN PROCESO",
-      porcentaje_pago_validado: cotizacionSeleccionada.porcentaje_pago
+    if (!supabase) return;
+
+    const notas = [
+      `Producto: ${productoLote.trim()}`,
+      `Cantidad: ${cantidadProceso.trim()}`,
+      cotizacionSeleccionada ? `Pago validado: ${cotizacionSeleccionada.porcentaje_pago}%` : null,
+    ].filter(Boolean).join(" | ");
+
+    const nuevaOrden = {
+      // Mismo criterio robusto de folio que usa manufactura.tsx (timestamp, no
+      // Math.random()), con prefijo "OF-" para distinguir a simple vista que
+      // nació en Fabricados/WIP y no en Manufactura.
+      numero: `OF-${Date.now().toString().slice(-8)}`,
+      quote_id: cotizacionSeleccionada ? String(cotizacionSeleccionada.id) : null,
+      quote_referencia: cotizacionSeleccionada ? (cotizacionSeleccionada.referencia || null) : null,
+      cliente_nombre: cotizacionSeleccionada ? cotizacionSeleccionada.cliente : null,
+      // Nunca se completa: esta pantalla no tiene selector de configuración de
+      // cable, y es justamente lo que la distingue de una orden real de
+      // Manufactura (ver filtro en cargarOrdenesFabricacion y en despachos.tsx).
+      configuracion_id: null,
+      sku_destino: null,
+      notas,
+      // numero_hilos, carretes, km_totales, metros_por_carrete y estado no se
+      // mandan: la tabla ya trae defaults (2, 1, 0, 1000, 'Planificada').
     };
 
-    if (supabase) {
-      try {
-        const { error } = await supabase.from("ordenes_fabricacion").insert([nuevaOF]);
-        if (error) throw error;
-        alert("Orden de Fabricación generada correctamente.");
-        setMostrarModalOF(false);
-        cargarOrdenesFabricacion();
-      } catch (err: any) {
-        // Fallback local si la tabla aún no existe
-        setOrdenes([nuevaOF, ...ordenes]);
-        alert("Orden registrada localmente.");
-        setMostrarModalOF(false);
-      }
+    setGuardandoOF(true);
+    try {
+      const { error } = await supabase.from("ordenes_produccion").insert([nuevaOrden]).select().single();
+      if (error) throw error;
+
+      alert("Orden generada correctamente.");
+      cerrarModalOF();
+      cargarOrdenesFabricacion();
+    } catch (err: any) {
+      setErrorOF(err?.message || "No se pudo guardar la orden en la base de datos. Intenta nuevamente.");
+    } finally {
+      setGuardandoOF(false);
     }
   };
 
@@ -143,30 +207,29 @@ export default function Fabricados() {
     const ajusteRegistro: AjusteFabricado = {
       id: `AJ-WIP-${Math.floor(100 + Math.random() * 900)}`,
       fecha: new Date().toISOString().split("T")[0],
-      orden: itemSeleccionado.orden_ensamblado || itemSeleccionado.ordenEnsamblado,
-      producto: itemSeleccionado.producto_lote || itemSeleccionado.productoLote,
-      cantidadAnterior: itemSeleccionado.cantidad_en_proceso || itemSeleccionado.cantidadEnProceso,
-      cantidadNueva: nuevaCantidadWIP,
+      orden: itemSeleccionado.numero,
+      detalleAnterior: itemSeleccionado.notas || "",
+      detalleNuevo: nuevoDetalleWIP,
+      detalle: nuevoDetalleWIP,
       motivo: motivoWIP || "Ajuste de lote en planta"
     };
 
     setBitacoraAjustesWIP([ajusteRegistro, ...bitacoraAjustesWIP]);
 
-    // Actualizar estado local
-    setOrdenes(ordenes.map(item => {
-      const idOrden = item.orden_ensamblado || item.ordenEnsamblado;
-      const targetId = itemSeleccionado.orden_ensamblado || itemSeleccionado.ordenEnsamblado;
-      if (idOrden === targetId) {
-        return { ...item, cantidad_en_proceso: nuevaCantidadWIP, cantidadEnProceso: nuevaCantidadWIP };
+    // Actualizar estado local — igual que antes, este ajuste queda solo en la
+    // sesión del navegador, no se persiste en Supabase.
+    setOrdenes(ordenes.map((item) => {
+      if (item.numero === itemSeleccionado.numero) {
+        return { ...item, notas: nuevoDetalleWIP };
       }
       return item;
     }));
 
     setModalAjusteOpen(false);
     setItemSeleccionado(null);
-    setNuevaCantidadWIP("");
+    setNuevoDetalleWIP("");
     setMotivoWIP("");
-    alert("Ajuste de inventario WIP guardado exitosamente.");
+    alert("Ajuste de inventario WIP guardado exitosamente (solo en esta sesión).");
   };
 
   return (
@@ -177,11 +240,11 @@ export default function Fabricados() {
             Inventario de Fabricación (WIP - Work in Progress)
           </Heading>
           <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>
-            Lotes en proceso de extrusión, aconectorización y control de calidad en planta.
+            Lotes en proceso de extrusión, conectorización y control de calidad en planta.
           </p>
         </div>
         <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          <Button variant="gold" onClick={() => setMostrarModalOF(true)}>
+          <Button variant="gold" onClick={abrirModalOF}>
             + NUEVA ORDEN DE FABRICACIÓN
           </Button>
           <Button variant="outline-gold" onClick={() => setModalDetalleAjustesOpen(true)}>
@@ -193,74 +256,37 @@ export default function Fabricados() {
       <table style={{ width: "100%", borderCollapse: "collapse", color: theme.textLight, fontSize: "0.85rem" }}>
         <thead>
           <tr style={{ borderBottom: `1px solid ${theme.borderGoldCounter}`, backgroundColor: theme.background, color: theme.gold }}>
-            <th style={thStyle}>ORDEN ENSAMBLADO</th>
-            <th style={thStyle}>PRODUCTO / LOTE</th>
-            <th style={thStyle}>CANTIDAD EN PROCESO</th>
-            <th style={thStyle}>ETAPA DE PLANTA</th>
+            <th style={thStyle}>ORDEN</th>
+            <th style={thStyle}>PRODUCTO / CANTIDAD</th>
+            <th style={thStyle}>ORIGEN</th>
             <th style={thStyle}>ESTADO</th>
             <th style={thStyle}>ACCIONES / AJUSTES</th>
           </tr>
         </thead>
         <tbody>
           {ordenes.length === 0 ? (
-            <>
-              <tr style={{ borderBottom: "1px solid #111" }}>
-                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>OF-2026-089</td>
-                <td style={tdStyle}>Drop Flat 2 Hilos 1000m (Inyección Nylon)</td>
-                <td style={tdStyle}>50 Bobinas</td>
-                <td style={tdStyle}>Extrusión de Chaqueta</td>
-                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>EN PROCESO</td>
-                <td style={tdStyle}>
-                  <div style={{ display: "flex", gap: "5px" }}>
-                    <Button variant="outline-gold" style={smallBtnStyle}>Ver Progreso</Button>
-                    <Button
-                      variant="outline-gold"
-                      style={smallBtnStyle}
-                      onClick={() => {
-                        const defaultItem = { orden_ensamblado: "OF-2026-089", producto_lote: "Drop Flat 2 Hilos 1000m (Inyección Nylon)", cantidad_en_proceso: "50 Bobinas" };
-                        setItemSeleccionado(defaultItem);
-                        setNuevaCantidadWIP("50 Bobinas");
-                        setModalAjusteOpen(true);
-                      }}
-                    >
-                      ⚙️ Ajustar
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-              <tr style={{ borderBottom: "1px solid #111" }}>
-                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>OF-2026-092</td>
-                <td style={tdStyle}>Patchcord SC/APC-SC/APC 3m</td>
-                <td style={tdStyle}>1,000 Unidades</td>
-                <td style={tdStyle}>Pulido y Test Óptico</td>
-                <td style={{ ...tdStyle, color: theme.green, fontWeight: "bold" }}>CONTROL CALIDAD</td>
-                <td style={tdStyle}>
-                  <div style={{ display: "flex", gap: "5px" }}>
-                    <Button variant="outline-gold" style={smallBtnStyle}>Ver Progreso</Button>
-                    <Button
-                      variant="outline-gold"
-                      style={smallBtnStyle}
-                      onClick={() => {
-                        const defaultItem = { orden_ensamblado: "OF-2026-092", producto_lote: "Patchcord SC/APC-SC/APC 3m", cantidad_en_proceso: "1,000 Unidades" };
-                        setItemSeleccionado(defaultItem);
-                        setNuevaCantidadWIP("1,000 Unidades");
-                        setModalAjusteOpen(true);
-                      }}
-                    >
-                      ⚙️ Ajustar
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            </>
+            <tr>
+              <td colSpan={5} style={{ ...tdStyle, textAlign: "center", color: theme.textMuted, padding: "24px 10px" }}>
+                {cargando ? "Cargando órdenes..." : "No hay órdenes de fabricación registradas."}
+              </td>
+            </tr>
           ) : (
             ordenes.map((item, i) => (
-              <tr key={i} style={{ borderBottom: "1px solid #111" }}>
-                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>{item.orden_ensamblado || item.ordenEnsamblado}</td>
-                <td style={tdStyle}>{item.producto_lote || item.productoLote}</td>
-                <td style={tdStyle}>{item.cantidad_en_proceso || item.cantidadEnProceso}</td>
-                <td style={tdStyle}>{item.etapa_planta || item.etapaPlanta || "Extrusión y Preparación"}</td>
-                <td style={{ ...tdStyle, color: item.estado === "CONTROL CALIDAD" ? "#f1c40f" : theme.green, fontWeight: "bold" }}>
+              <tr key={item.id ?? i} style={{ borderBottom: "1px solid #111" }}>
+                <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>{item.numero}</td>
+                <td style={tdStyle}>{item.notas || "—"}</td>
+                <td style={tdStyle}>
+                  {item.quote_id ? (
+                    <span style={{ color: theme.gold, fontSize: "0.75rem", fontWeight: "bold" }}>
+                      🔗 Vinculado a cliente{item.cliente_nombre ? ` — ${item.cliente_nombre}` : ""}
+                    </span>
+                  ) : (
+                    <span style={{ color: theme.textMuted, fontSize: "0.75rem", fontWeight: "bold" }}>
+                      📦 Stock interno
+                    </span>
+                  )}
+                </td>
+                <td style={{ ...tdStyle, color: colorEstado(item.estado), fontWeight: "bold" }}>
                   {item.estado}
                 </td>
                 <td style={tdStyle}>
@@ -271,7 +297,7 @@ export default function Fabricados() {
                       style={smallBtnStyle}
                       onClick={() => {
                         setItemSeleccionado(item);
-                        setNuevaCantidadWIP(item.cantidad_en_proceso || item.cantidadEnProceso || "");
+                        setNuevoDetalleWIP(item.notas || "");
                         setModalAjusteOpen(true);
                       }}
                     >
@@ -285,7 +311,7 @@ export default function Fabricados() {
         </tbody>
       </table>
 
-      {/* MODAL NUEVA ORDEN DE FABRICACIÓN VINCULADA A COTIZACIÓN Y % PAGO */}
+      {/* MODAL NUEVA ORDEN DE FABRICACIÓN — vinculada a cliente o stock interno */}
       {mostrarModalOF && (
         <div style={modalOverlay}>
           <Card style={{ width: "100%", maxWidth: "550px", marginBottom: 0 }}>
@@ -294,16 +320,14 @@ export default function Fabricados() {
             </Heading>
 
             <div style={{ marginBottom: "15px" }}>
-              <label style={labelStyle}>1. Seleccionar Cotización / Orden de Compra *</label>
+              <label style={labelStyle}>1. Cliente o Stock Interno *</label>
               <select
-                onChange={(e) => {
-                  const sel = cotizacionesAprobadas.find(c => c.id === e.target.value);
-                  setCotizacionSeleccionada(sel || null);
-                  if (sel) setProductoLote(sel.detalles);
-                }}
+                onChange={(e) => elegirCotizacion(e.target.value)}
                 style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                defaultValue=""
               >
-                <option value="">-- Selecciona Cotización Aprobada --</option>
+                <option value="">-- Selecciona una opción --</option>
+                <option value={STOCK_INTERNO}>📦 Stock Interno (sin cliente vinculado)</option>
                 {cotizacionesAprobadas.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.id_cotizacion} - {c.cliente} (Pago: {c.porcentaje_pago}%)
@@ -322,15 +346,25 @@ export default function Fabricados() {
               </div>
             )}
 
-            <div style={{ marginBottom: "15px" }}>
-              <label style={labelStyle}>2. Mínimo % de Pago Requerido para Liberar</label>
-              <input
-                type="number"
-                value={porcentajeRequerido}
-                onChange={(e) => setPorcentajeRequerido(Number(e.target.value))}
-                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
-              />
-            </div>
+            {stockInterno && (
+              <div style={{ padding: "10px", backgroundColor: theme.inputBg, borderRadius: theme.radiusSm, marginBottom: "15px", border: `1px solid ${theme.borderGoldLight}` }}>
+                <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>
+                  📦 Esta orden no queda vinculada a ningún cliente ni cotización — no se valida porcentaje de pago.
+                </p>
+              </div>
+            )}
+
+            {cotizacionSeleccionada && (
+              <div style={{ marginBottom: "15px" }}>
+                <label style={labelStyle}>2. Mínimo % de Pago Requerido para Liberar</label>
+                <input
+                  type="number"
+                  value={porcentajeRequerido}
+                  onChange={(e) => setPorcentajeRequerido(Number(e.target.value))}
+                  style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                />
+              </div>
+            )}
 
             <div style={{ marginBottom: "15px" }}>
               <label style={labelStyle}>3. Producto / Lote a Fabricar</label>
@@ -354,9 +388,17 @@ export default function Fabricados() {
               />
             </div>
 
+            {errorOF && (
+              <p style={{ color: theme.red, fontSize: "0.8rem", marginBottom: "15px", border: `1px solid ${theme.redBorder}`, backgroundColor: theme.redBg, borderRadius: theme.radiusSm, padding: "8px 10px" }}>
+                ⚠ No se pudo guardar la orden: {errorOF}
+              </p>
+            )}
+
             <div style={{ display: "flex", gap: "10px" }}>
-              <Button variant="gold" onClick={handleCrearOrdenFabricacion}>LIBERAR ORDEN DE FABRICACIÓN</Button>
-              <Button variant="outline-gold" onClick={() => setMostrarModalOF(false)}>CANCELAR</Button>
+              <Button variant="gold" onClick={handleCrearOrdenFabricacion} disabled={guardandoOF}>
+                {guardandoOF ? "GUARDANDO..." : "LIBERAR ORDEN DE FABRICACIÓN"}
+              </Button>
+              <Button variant="outline-gold" onClick={cerrarModalOF}>CANCELAR</Button>
             </div>
           </Card>
         </div>
@@ -366,18 +408,17 @@ export default function Fabricados() {
       {modalAjusteOpen && itemSeleccionado && (
         <div style={modalOverlay}>
           <Card style={{ width: "100%", maxWidth: "550px", marginBottom: 0 }}>
-            <Heading>Ajustar Lote: {itemSeleccionado.orden_ensamblado || itemSeleccionado.ordenEnsamblado}</Heading>
+            <Heading>Ajustar Lote: {itemSeleccionado.numero}</Heading>
             <p style={{ color: theme.textMuted, fontSize: "0.8rem", marginBottom: "15px" }}>
-              Producto: {itemSeleccionado.producto_lote || itemSeleccionado.productoLote} <br />
-              Cantidad Actual: <strong style={{ color: theme.green }}>{itemSeleccionado.cantidad_en_proceso || itemSeleccionado.cantidadEnProceso}</strong>
+              Detalle actual: <strong style={{ color: theme.green }}>{itemSeleccionado.notas || "—"}</strong>
             </p>
             <form onSubmit={handleGuardarAjusteWIP}>
               <div style={{ marginBottom: "15px" }}>
-                <label style={labelStyle}>Nueva Cantidad / Unidades:</label>
+                <label style={labelStyle}>Nuevo Detalle (Producto / Cantidad):</label>
                 <input
                   type="text"
-                  value={nuevaCantidadWIP}
-                  onChange={e => setNuevaCantidadWIP(e.target.value)}
+                  value={nuevoDetalleWIP}
+                  onChange={e => setNuevoDetalleWIP(e.target.value)}
                   style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                   required
                 />
@@ -415,9 +456,8 @@ export default function Fabricados() {
                   <tr style={{ borderBottom: `1px solid ${theme.borderGoldCounter}`, color: theme.gold }}>
                     <th style={thStyle}>Fecha</th>
                     <th style={thStyle}>Orden</th>
-                    <th style={thStyle}>Producto</th>
-                    <th style={thStyle}>Cant. Anterior</th>
-                    <th style={thStyle}>Cant. Nueva</th>
+                    <th style={thStyle}>Detalle Anterior</th>
+                    <th style={thStyle}>Detalle Nuevo</th>
                     <th style={thStyle}>Motivo</th>
                   </tr>
                 </thead>
@@ -426,9 +466,8 @@ export default function Fabricados() {
                     <tr key={i} style={{ borderBottom: "1px solid #222" }}>
                       <td style={tdStyle}>{adj.fecha}</td>
                       <td style={tdStyle}>{adj.orden}</td>
-                      <td style={tdStyle}>{adj.producto}</td>
-                      <td style={tdStyle}>{adj.cantidadAnterior}</td>
-                      <td style={{ ...tdStyle, color: theme.green, fontWeight: "bold" }}>{adj.cantidadNueva}</td>
+                      <td style={tdStyle}>{adj.detalleAnterior}</td>
+                      <td style={{ ...tdStyle, color: theme.green, fontWeight: "bold" }}>{adj.detalleNuevo}</td>
                       <td style={tdStyle}>{adj.motivo}</td>
                     </tr>
                   ))}

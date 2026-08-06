@@ -150,10 +150,7 @@ export default function Reportes() {
 
       if (errQuotes) console.error("Error consultando quotes:", errQuotes);
 
-      const { data: prodOrdersData } = await supabase.from("production_orders").select("*");
-
       const quotesList = quotesData || [];
-      const prodList = prodOrdersData || [];
 
       const quotesFormatted = quotesList.map((q) => {
         let itemsProcesados: any[] = [];
@@ -214,27 +211,6 @@ export default function Reportes() {
         });
       });
 
-      prodList.forEach((p, idx) => {
-        const costoPO = Number(p.costo_total || p.monto || 0);
-        if (costoPO > 0) {
-          totalCostos += costoPO;
-          libroContable.push({
-            id: `PO-${p.id || idx}`,
-            asiento: `ASI-PO-${(p.id || idx).toString().padStart(4, "0")}`,
-            fecha: p.created_at ? p.created_at.split("T")[0] : desde,
-            cuenta: "2105 - Cuentas por Pagar Proveedores (CxP)",
-            concepto: `Costo Fabril Órden Producción: ${p.proveedor || "Fábrica Asia"}`,
-            debito: 0,
-            credito: costoPO,
-            costoProduccion: costoPO,
-            impuestoItbms: 0,
-            utilidad: -costoPO,
-            estadoFiscal: "Pasivo Operativo",
-            metodo: "Carta de Crédito / LC",
-          });
-        }
-      });
-
       setReporteContable(libroContable);
 
       const utilidadTotal = ingPagados - totalCostos;
@@ -279,7 +255,9 @@ export default function Reportes() {
         nombre: p.nombre || p.empresa || "Fábrica Internacional",
         region: p.pais || p.region || "Asia / Internacional",
         categoria: p.categoria || "Ensamblaje Fibra Optica",
-        ordenesActivas: prodList.filter((o) => o.proveedor_id === p.id || o.proveedor === p.nombre).length,
+        // production_orders (única fuente de este dato) se eliminó del código por no tener
+        // ningún camino de escritura real — ver auditoría. Sin reemplazo de datos: queda en 0.
+        ordenesActivas: 0,
         estatus: p.estatus || "Certificado",
       }));
       setReporteProveedores(provFormatted);
