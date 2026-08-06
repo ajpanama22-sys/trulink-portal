@@ -1,6 +1,7 @@
 import type { AppProps } from 'next/app';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import Script from 'next/script';
 import FondoCircuitos from '../components/FondoCircuitos';
 import HeaderUser from '../components/HeaderUser';
 import InactivityGuard from '../components/InactivityGuard';
@@ -26,6 +27,13 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 
   return (
     <>
+      {/* TrustedSite — verificación de sitio, carga en todas las páginas */}
+      <Script
+        src="https://cdn.ywxi.net/js/1.js"
+        strategy="afterInteractive"
+        async
+      />
+
       <FondoCircuitos />
 
       {!ocultarHeader && <InactivityGuard />}
