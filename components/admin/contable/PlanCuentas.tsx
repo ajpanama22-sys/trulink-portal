@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { getSupabase } from "../../../lib/supabaseClient";
 
 interface CuentaCatalogo {
   id: number;
@@ -15,9 +16,19 @@ const colorTipo: Record<string, string> = {
   GASTO: "#DAA520",
 };
 
+/** Token de sesión del colaborador logueado, para pasar a los endpoints
+ * que exigen verificarSesionAdmin (listar-cuentas, crear-cuenta-contable). */
+async function obtenerToken(): Promise<string | null> {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data?.session?.access_token || null;
+}
+
 export default function PlanCuentas() {
   const [cuentas, setCuentas] = useState<CuentaCatalogo[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<string>("TODOS");
   const [nombreNueva, setNombreNueva] = useState("");
   const [tipoNueva, setTipoNueva] = useState("GASTO");
@@ -27,12 +38,18 @@ export default function PlanCuentas() {
 
   const cargar = async () => {
     setCargando(true);
+    setErrorCarga("");
     try {
-      const r = await fetch("/api/admin/listar-cuentas");
+      const token = await obtenerToken();
+      const r = await fetch("/api/admin/listar-cuentas", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const d = await r.json();
+      if (!r.ok) throw new Error(d?.error || `Error ${r.status} al cargar el plan de cuentas.`);
       setCuentas(d.cuentas || []);
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error cargando plan de cuentas:", e);
+      setErrorCarga(e.message || "No se pudo cargar el plan de cuentas.");
     } finally {
       setCargando(false);
     }
@@ -43,13 +60,17 @@ export default function PlanCuentas() {
     if (!nombreNueva.trim()) return;
     setCreando(true);
     try {
+      const token = await obtenerToken();
       const r = await fetch("/api/admin/crear-cuenta-contable", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ nombre: nombreNueva, tipo: tipoNueva }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error);
+      if (!r.ok) throw new Error(d.error || `Error ${r.status} al crear la cuenta.`);
       setCuentas((prev) => [...prev, d.cuenta].sort((a, b) => a.codigo.localeCompare(b.codigo)));
       setNombreNueva("");
     } catch (err: any) {
@@ -123,6 +144,18 @@ export default function PlanCuentas() {
           </button>
         ))}
       </div>
+
+      {errorCarga && (
+        <div style={{ background: "rgba(231, 76, 60, 0.1)", border: "1px solid rgba(231, 76, 60, 0.4)", borderRadius: "8px", padding: "12px 16px", marginBottom: "15px", color: "#e74c3c", fontSize: "0.82rem", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
+          <span>⚠ {errorCarga}</span>
+          <button
+            onClick={cargar}
+            style={{ background: "transparent", border: "1px solid #e74c3c", color: "#e74c3c", padding: "5px 12px", borderRadius: "6px", cursor: "pointer", fontSize: "0.75rem", fontWeight: "bold", flexShrink: 0 }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Tabla del catálogo */}
       <div style={{ overflowX: "auto", border: "1px solid rgba(218, 165, 32, 0.2)", borderRadius: "8px" }}>
