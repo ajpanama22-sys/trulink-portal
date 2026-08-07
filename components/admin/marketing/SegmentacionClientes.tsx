@@ -18,6 +18,23 @@ type ClienteResumen = {
   facturasAtrasadas: number;
 };
 
+/**
+ * Misma regla de negocio que en marketing.tsx y validaciones.tsx/crm.tsx:
+ * la lista de precios se define por el perfil que el cliente eligió en el
+ * formulario B2B al registrarse, NO por lo que quedó grabado en la columna
+ * price_list (que puede venir vacía, en minúsculas, como "estandar", etc.).
+ *   ISP -> A | MAYORISTA -> B | INTEGRADOR -> C | CLIENTE FINAL (o vacío) -> D
+ */
+const determinarPriceList = (perfil?: string): 'A' | 'B' | 'C' | 'D' => {
+  const p = (perfil || '').toUpperCase().trim();
+  switch (p) {
+    case 'ISP': return 'A';
+    case 'MAYORISTA': return 'B';
+    case 'INTEGRADOR': return 'C';
+    default: return 'D';
+  }
+};
+
 export default function SegmentacionClientes() {
   const [clientes, setClientes] = useState<ClienteResumen[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +60,17 @@ export default function SegmentacionClientes() {
         });
         const data = await r.json();
         if (data.error) throw new Error(data.error);
-        setClientes(data.clientes || []);
+
+        // La price list real se calcula a partir del perfil del cliente,
+        // sin importar lo que haya llegado en el campo price_list del API.
+        const clientesConPriceListCorrecta: ClienteResumen[] = (data.clientes || []).map(
+          (c: ClienteResumen) => ({
+            ...c,
+            price_list: determinarPriceList(c.perfil_cliente),
+          })
+        );
+
+        setClientes(clientesConPriceListCorrecta);
       } catch (e: any) {
         setError(e.message);
       } finally {
