@@ -92,14 +92,14 @@ export default function EspecialesPage() {
   };
 
   /**
-   * Avisa al equipo comercial que llegó una solicitud nueva, reusando
-   * /api/notificar con el mismo segmento "equipo" que usa el Centro de
-   * Notificaciones (notificaciones.tsx). Si esto falla, NO debe frenar
-   * la solicitud del cliente — el registro en quotes ya quedó guardado,
-   * que es lo que realmente importa. El admin igual la va a ver en el
-   * panel de Cotizaciones -> Pedido Especial.
+   * Avisa al equipo comercial que llegó una solicitud nueva, usando el
+   * endpoint dedicado /api/notificar-pedido-especial (no exige sesión
+   * admin, solo sesión válida). Si esto falla, NO frena la solicitud
+   * del cliente — el registro en quotes ya quedó guardado, que es lo
+   * que realmente importa. El admin igual la va a ver en el panel de
+   * Cotizaciones -> Pedido Especial.
    */
-  const notificarEquipo = async (empresaDestino: string, emailDestino: string) => {
+  const notificarEquipo = async (empresaDestino: string, emailDestino: string, archivoUrlDestino: string | null) => {
     if (!supabase) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -121,6 +121,7 @@ export default function EspecialesPage() {
           empresa: empresaDestino,
           email: emailDestino,
           especificaciones,
+          archivoUrl: archivoUrlDestino,
         }),
       });
 
@@ -168,7 +169,8 @@ export default function EspecialesPage() {
       // Avisa al equipo comercial — best-effort, no bloquea el flujo del cliente
       await notificarEquipo(
         clienteData?.razon_social || nombreEmpresa || mailCliente,
-        clienteData?.email || mailCliente
+        clienteData?.email || mailCliente,
+        adjuntoUrl
       );
 
       setEnviado(true);

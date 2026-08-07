@@ -68,7 +68,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: "Sesión inválida o expirada." });
   }
 
-  const { referencia, empresa, email, especificaciones } = req.body || {};
+  const { referencia, empresa, email, especificaciones, archivoUrl } = req.body || {};
 
   if (!referencia || typeof referencia !== "string") {
     return res.status(400).json({ error: "Falta la referencia de la solicitud." });
@@ -103,6 +103,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const emailTexto = email || "(sin email)";
     const especTexto = especificaciones || "(sin descripción, ver adjunto en el panel de Cotizaciones)";
 
+    // El adjunto solo se linkea si viene una URL http(s) real — nunca se
+    // confía en el string a ciegas, para no terminar incrustando algo raro
+    // en el HTML del correo.
+    const archivoUrlSegura =
+      typeof archivoUrl === "string" && /^https?:\/\//i.test(archivoUrl.trim())
+        ? archivoUrl.trim()
+        : null;
+
     const asunto = `Nuevo pedido especial — Ref. ${referencia}`;
     const cuerpoHtml = `
       <div style="background:#0a0a0a;padding:30px;font-family:sans-serif;color:#DAA520;">
@@ -114,6 +122,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           <tr><td style="padding:4px 12px 4px 0;color:#888;">Email</td><td>${escaparHtml(String(emailTexto))}</td></tr>
         </table>
         <p style="color:#ddd;white-space:pre-wrap;">${escaparHtml(String(especTexto))}</p>
+        ${archivoUrlSegura
+          ? `<p style="margin:18px 0;"><a href="${archivoUrlSegura}" style="color:#DAA520;font-weight:600;">📎 Ver documento adjunto</a></p>`
+          : ""}
         <p style="color:#666;font-size:0.75rem;margin-top:30px;">
           Revísala y cotízala desde Admin → Marketing → Cotizaciones → Pedido Especial.
         </p>
