@@ -105,22 +105,29 @@ export default function EspecialesPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
 
-      await fetch("/api/notificar", {
+      if (!token) {
+        console.error("No hay sesión activa; no se pudo notificar al equipo (la solicitud sí quedó guardada).");
+        return;
+      }
+
+      const res = await fetch("/api/notificar-pedido-especial", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          destinatario: "equipo",
-          canales: ["email"],
-          mensaje:
-            `Nueva solicitud de pedido especial — Ref. ${referencia}\n` +
-            `Cliente: ${empresaDestino}\n` +
-            `Email: ${emailDestino}\n\n` +
-            `${especificaciones || "(sin descripción, ver adjunto en el panel de Cotizaciones)"}`,
+          referencia,
+          empresa: empresaDestino,
+          email: emailDestino,
+          especificaciones,
         }),
       });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.error("No se pudo notificar al equipo (la solicitud sí quedó guardada):", data?.error);
+      }
     } catch (err) {
       console.error("No se pudo notificar al equipo (la solicitud sí quedó guardada):", err);
     }
