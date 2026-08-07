@@ -1,19 +1,9 @@
-// pages/api/admin/pagar-bono.ts
-//
-// Convierte "marcar bono como PAGADO" en un egreso real de tesorería.
-// Antes, cambiar el estado en Comisiones.tsx solo actualizaba una etiqueta
-// y el bono nunca aparecía en cobros_cliente/pagos_proveedor — es decir,
-// nunca bajaba de caja ni entraba al Flujo de Efectivo o Estado de
-// Resultados. Este endpoint usa el mismo procesarEgreso() que ya usa el
-// modal "Registrar Gasto", así que el bono queda trazado exactamente igual
-// que cualquier otro egreso.
-//
-// NOTA: procesarEgreso vive en lib/contabilidad.ts — mismo módulo que ya
-// usa /api/admin/registrar-gasto (el que llama RegistrarGastoModal.tsx).
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 import { procesarEgreso } from "../../../lib/contabilidad";
+import { verificarSesionAdmin } from "../../../lib/verificarSesionAdmin";
+
+const ROLES_PERMITIDOS = ["Super Administrador", "Administrador"];
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
@@ -22,6 +12,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Método no permitido." });
+  }
+
+  const auth = await verificarSesionAdmin(req, ROLES_PERMITIDOS);
+  if (!auth.autorizado) {
+    return res.status(auth.status).json({ error: auth.mensaje });
   }
 
   const { bonoId, bancoOrigen, referenciaBancaria, autor } = req.body;
@@ -41,8 +36,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (bono.estado === "PAGADO") throw new Error("Este bono ya fue marcado como pagado.");
     if (!bono.monto || Number(bono.monto) <= 0) throw new Error("El bono no tiene un monto válido.");
 
-    // Reusa exactamente la misma función que usa el modal de gastos —
-    // crea la cuenta_por_pagar (ya pagada) + el pago_proveedor + auditoría.
     const resumen = await procesarEgreso({
       categoria: "Comisiones & Bonos",
       tercero: bono.colaborador,
@@ -50,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       bancoOrigen,
       referenciaBancaria,
       concepto: `${bono.tipo_bono}${bono.notas ? " — " + bono.notas : ""}`,
-      autor,
+      autor: auth.email || autor,
       cuentaCodigo: "6102",
       cuentaNombre: "Comisiones y Bonificaciones",
     });

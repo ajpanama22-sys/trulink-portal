@@ -1,5 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { createClient } from '@supabase/supabase-js';
+import { verificarSesionAdmin } from '../../../lib/verificarSesionAdmin';
+
+const ROLES_PERMITIDOS = ["Super Administrador", "Administrador"];
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,19 +12,22 @@ const supabase = createClient(
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).end();
 
+  const auth = await verificarSesionAdmin(req, ROLES_PERMITIDOS);
+  if (!auth.autorizado) {
+    return res.status(auth.status).json({ error: auth.mensaje });
+  }
+
   try {
     const { data: clientes, error: errClientes } = await supabase
       .from('clientes')
       .select('id, razon_social, email, tipo_cliente, price_list, pais, perfil_cliente, industria, status, created_at');
     if (errClientes) throw errClientes;
 
-    // Compras efectuadas = quotes pagadas o aceptadas
     const { data: quotes, error: errQuotes } = await supabase
       .from('quotes')
       .select('client_id, total, status, estado_pago, pagado_total, created_at');
     if (errQuotes) throw errQuotes;
 
-    // Para pagos atrasados
     const { data: cxc, error: errCxc } = await supabase
       .from('cuentas_por_cobrar')
       .select('cliente_id, monto_total, saldo_pendiente, estado, fecha_vencimiento');
