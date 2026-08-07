@@ -130,7 +130,7 @@ type CapturaGrafica = { dataUrl: string; width: number; height: number };
  * gráficas que ve el usuario dentro de los exports a Excel, Word y PDF.
  * Requiere: npm install html2canvas
  */
-async function capturarGrafica(ref: React.RefObject<HTMLDivElement>): Promise<CapturaGrafica | null> {
+async function capturarGrafica(ref: React.RefObject<HTMLDivElement | null>): Promise<CapturaGrafica | null> {
   if (!ref.current) return null;
   try {
     const html2canvas = (await import("html2canvas")).default;
