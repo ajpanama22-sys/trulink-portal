@@ -860,7 +860,7 @@ export default function Analitica() {
         });
 
       /** Convierte una captura en un párrafo con la imagen centrada, escalada a un ancho máximo. */
-      const parrafoImagen = (cap: CapturaGrafica | null, anchoMax = 520): Paragraph[] => {
+      const parrafoImagen = (cap: CapturaGrafica | null, anchoMax = 520): any[] => {
         if (!cap) return [];
         const escala = Math.min(1, anchoMax / cap.width);
         return [
