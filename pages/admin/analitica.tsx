@@ -1387,7 +1387,7 @@ export default function Analitica() {
       });
 
       // Pie de página de marca en todas las páginas: línea dorada + numeración.
-      const totalPaginas = doc.internal.getNumberOfPages();
+      const totalPaginas = doc.internal.pages.length - 1;
       for (let i = 1; i <= totalPaginas; i++) {
         doc.setPage(i);
         doc.setDrawColor(...MARCA.doradoRGB);
