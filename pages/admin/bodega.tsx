@@ -3,22 +3,35 @@ import { supabase } from "@/lib/supabaseClient";
 import { theme } from "../../lib/theme";
 import { Card, Button, inputStyle } from "../../lib/ui";
 
+/**
+ * Esquema REAL confirmado en cablesdb / accesoriosdb / herrajesdb
+ * (las 3 tablas son consistentes entre sí):
+ *   "Ítem #" / "Ítem"   bigint/text  -> correlativo (no se usa en el código)
+ *   Familia              text
+ *   SKU                  text        -> NO existe variante en minúscula
+ *   Descripción          text        -> NO existe variante en minúscula
+ *   Especificaciones     text
+ *   estado_inventario    text
+ *   image_url            text        -> ojo: NO es "imagen_url"
+ *   precio_a/b/c/d       numeric
+ *   Cantidad             integer     -> ojo: con mayúscula, NO "cantidad"
+ *
+ * Ninguna de las 3 tablas tiene columna "id". Por eso todo match de
+ * edición/eliminación se hace por SKU (única columna que sirve de
+ * identificador natural).
+ */
 interface Producto {
-  id?: string;
-  sku?: string;
   SKU?: string;
-  descripcion?: string;
   Descripción?: string;
-  especificaciones?: string;
   Especificaciones?: string;
-  familia?: string;
   Familia?: string;
+  estado_inventario?: string;
   precio_a?: number;
   precio_b?: number;
   precio_c?: number;
   precio_d?: number;
-  cantidad?: number;
-  imagen_url?: string;
+  Cantidad?: number;
+  image_url?: string;
 }
 
 export default function Bodega() {
@@ -78,7 +91,11 @@ export default function Bodega() {
     try {
       let query = supabase.from(tablaActiva).select("*");
       if (busqueda.trim() !== "") {
-        query = query.or(`SKU.ilike.%${busqueda}%,sku.ilike.%${busqueda}%,Descripción.ilike.%${busqueda}%,descripcion.ilike.%${busqueda}%`);
+        // Solo SKU y Descripción existen realmente en estas 3 tablas.
+        // Antes también probaba "sku" y "descripcion" en minúscula, que
+        // no existen: Postgres rechazaba TODA la consulta apenas se
+        // escribía algo en el buscador.
+        query = query.or(`SKU.ilike.%${busqueda}%,Descripción.ilike.%${busqueda}%`);
       }
       const { data, error } = await query.limit(50);
       if (error) throw error;
@@ -93,10 +110,9 @@ export default function Bodega() {
   /**
    * Carga las familias ya existentes en la tabla elegida (cablesdb,
    * accesoriosdb o herrajesdb) para poblar el select. Se pide la fila
-   * completa ("*") en vez de columnas fijas ("Familia, familia"), porque
-   * pedir una columna que no existe en esa tabla específica hace fallar
-   * TODA la consulta en Postgres/Supabase — y antes eso pasaba en
-   * silencio (el catch solo logueaba, dejando el select vacío sin avisar).
+   * completa ("*") en vez de columnas fijas, porque pedir una columna
+   * que no existe en esa tabla específica hace fallar TODA la consulta
+   * en Postgres/Supabase.
    */
   const seleccionarTablaCreacion = async (tabla: string) => {
     setTablaCreacion(tabla);
@@ -117,7 +133,7 @@ export default function Bodega() {
       const unicas = Array.from(
         new Set(
           (data || [])
-            .map((item: any) => item.Familia || item.familia)
+            .map((item: any) => item.Familia)
             .filter((f: any) => typeof f === "string" && f.trim() !== "")
         )
       ) as string[];
@@ -174,8 +190,9 @@ export default function Bodega() {
       precio_b: nuevoPrecioB === "" ? 0 : Number(nuevoPrecioB),
       precio_c: nuevoPrecioC === "" ? 0 : Number(nuevoPrecioC),
       precio_d: nuevoPrecioD === "" ? 0 : Number(nuevoPrecioD),
-      cantidad: nuevaCantidad === "" ? 0 : Number(nuevaCantidad),
-      imagen_url: nuevaImagenUrl
+      Cantidad: nuevaCantidad === "" ? 0 : Number(nuevaCantidad),
+      image_url: nuevaImagenUrl || null,
+      estado_inventario: "disponible",
     };
 
     try {
@@ -205,37 +222,37 @@ export default function Bodega() {
     setEditPrecioB(prod.precio_b ?? "");
     setEditPrecioC(prod.precio_c ?? "");
     setEditPrecioD(prod.precio_d ?? "");
-    setEditCantidad(prod.cantidad ?? "");
-    setEditImagenUrl(prod.imagen_url || "");
-    setEditDescripcion(prod.Descripción || prod.descripcion || "");
-    setEditEspecificaciones(prod.Especificaciones || prod.especificaciones || "");
+    setEditCantidad(prod.Cantidad ?? "");
+    setEditImagenUrl(prod.image_url || "");
+    setEditDescripcion(prod.Descripción || "");
+    setEditEspecificaciones(prod.Especificaciones || "");
     setSubModulo("editar");
   };
 
   const guardarCambiosInteligente = async () => {
     if (!productoSeleccionado || !supabase) return;
-    const idProd = productoSeleccionado.id;
-    const skuProd = productoSeleccionado.SKU || productoSeleccionado.sku;
+    const skuProd = productoSeleccionado.SKU;
+    if (!skuProd) {
+      alert("Este producto no tiene SKU válido, no se puede identificar para guardar los cambios.");
+      return;
+    }
 
     const payload = {
       precio_a: editPrecioA === "" ? 0 : Number(editPrecioA),
       precio_b: editPrecioB === "" ? 0 : Number(editPrecioB),
       precio_c: editPrecioC === "" ? 0 : Number(editPrecioC),
       precio_d: editPrecioD === "" ? 0 : Number(editPrecioD),
-      cantidad: editCantidad === "" ? 0 : Number(editCantidad),
-      imagen_url: editImagenUrl,
+      Cantidad: editCantidad === "" ? 0 : Number(editCantidad),
+      image_url: editImagenUrl || null,
       Descripción: editDescripcion,
-      Especificaciones: editEspecificaciones
+      Especificaciones: editEspecificaciones,
     };
 
     try {
-      let error;
-      if (idProd) {
-        ({ error } = await supabase.from(tablaActiva).update(payload).eq("id", idProd));
-      } else if (skuProd) {
-        ({ error } = await supabase.from(tablaActiva).update(payload).or(`SKU.eq.${skuProd},sku.eq.${skuProd}`));
-      }
-
+      // Ninguna de las 3 tablas tiene columna "id" — el único identificador
+      // real es SKU. (Antes se probaba también "sku" en minúscula, que no
+      // existe, y eso hacía fallar la consulta completa.)
+      const { error } = await supabase.from(tablaActiva).update(payload).eq("SKU", skuProd);
       if (error) throw error;
       alert("Producto actualizado con éxito.");
       setSubModulo("buscador");
@@ -258,17 +275,13 @@ export default function Bodega() {
     }
 
     if (pasoEliminar === 2 && productoSeleccionado && supabase) {
+      const skuProd = productoSeleccionado.SKU;
+      if (!skuProd) {
+        alert("Este producto no tiene SKU válido, no se puede identificar para eliminarlo.");
+        return;
+      }
       try {
-        const idProd = productoSeleccionado.id;
-        const skuProd = productoSeleccionado.SKU || productoSeleccionado.sku;
-        let error;
-
-        if (idProd) {
-          ({ error } = await supabase.from(tablaActiva).delete().eq("id", idProd));
-        } else if (skuProd) {
-          ({ error } = await supabase.from(tablaActiva).delete().or(`SKU.eq.${skuProd},sku.eq.${skuProd}`));
-        }
-
+        const { error } = await supabase.from(tablaActiva).delete().eq("SKU", skuProd);
         if (error) throw error;
         alert("Producto eliminado correctamente.");
         setSubModulo("buscador");
@@ -345,21 +358,21 @@ export default function Bodega() {
                   <tr><td colSpan={9} style={{ textTransform: "uppercase", padding: "20px", textAlign: "center", color: theme.textMuted }}>No se encontraron productos.</td></tr>
                 ) : (
                   resultados.map((prod, idx) => (
-                    <tr key={prod.id || idx} style={{ borderBottom: `1px solid ${theme.borderGoldLight}` }}>
+                    <tr key={prod.SKU || idx} style={{ borderBottom: `1px solid ${theme.borderGoldLight}` }}>
                       <td style={tdStyle}>
-                        {prod.imagen_url ? (
-                          <img src={prod.imagen_url} alt="Prod" style={{ width: "35px", height: "35px", objectFit: "contain", borderRadius: "3px" }} />
+                        {prod.image_url ? (
+                          <img src={prod.image_url} alt="Prod" style={{ width: "35px", height: "35px", objectFit: "contain", borderRadius: "3px" }} />
                         ) : (
                           <div style={{ width: "35px", height: "35px", backgroundColor: theme.panelBg, borderRadius: "3px" }} />
                         )}
                       </td>
-                      <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>{prod.SKU || prod.sku}</td>
-                      <td style={tdStyle}>{prod.Descripción || prod.descripcion}</td>
+                      <td style={{ ...tdStyle, color: theme.gold, fontWeight: "bold" }}>{prod.SKU}</td>
+                      <td style={tdStyle}>{prod.Descripción}</td>
                       <td style={tdStyle}>${prod.precio_a ?? 0}</td>
                       <td style={tdStyle}>${prod.precio_b ?? 0}</td>
                       <td style={tdStyle}>${prod.precio_c ?? 0}</td>
                       <td style={tdStyle}>${prod.precio_d ?? 0}</td>
-                      <td style={{ ...tdStyle, fontWeight: "bold" }}>{prod.cantidad ?? 0}</td>
+                      <td style={{ ...tdStyle, fontWeight: "bold" }}>{prod.Cantidad ?? 0}</td>
                       <td style={tdStyle}>
                         <div style={{ display: "flex", gap: "5px" }}>
                           <Button
@@ -503,7 +516,7 @@ export default function Bodega() {
       {subModulo === "editar" && productoSeleccionado && (
         <Card style={{ maxWidth: "700px" }}>
           <h2 style={{ fontSize: "1.1rem", marginBottom: "20px", color: theme.textLight }}>
-            Editando SKU: <span style={{ color: theme.gold }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</span>
+            Editando SKU: <span style={{ color: theme.gold }}>{productoSeleccionado.SKU}</span>
           </h2>
           <div style={{ marginBottom: "15px" }}>
             <label style={labelStyle}>Descripción</label>
@@ -546,7 +559,7 @@ export default function Bodega() {
         <Card style={{ maxWidth: "500px", border: `1px solid ${theme.red}` }}>
           <h2 style={{ fontSize: "1rem", color: theme.red, marginBottom: "15px" }}>⚠️ ELIMINAR PRODUCTO DE BODEGA</h2>
           <p style={{ color: theme.textLight, fontSize: "0.85rem", marginBottom: "20px" }}>
-            Estás a punto de borrar el SKU: <b style={{ color: theme.gold }}>{productoSeleccionado.SKU || productoSeleccionado.sku}</b>
+            Estás a punto de borrar el SKU: <b style={{ color: theme.gold }}>{productoSeleccionado.SKU}</b>
           </p>
           {pasoEliminar === 1 ? (
             <div style={{ display: "flex", gap: "10px" }}>
