@@ -15,6 +15,23 @@ const NOMBRES_MES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Se
 
 const DIRECCION_EMPRESA = "5203 Juan Tabo Blvd NE, Suite 2B, Albuquerque, Nuevo México 87111, Estados Unidos";
 
+// ── Paleta de marca, compartida por los 3 exports (Excel, Word, PDF) ──
+// para que los reportes se vean consistentes con la identidad del portal.
+const MARCA = {
+  doradoHex: "DAA520",
+  doradoBrillanteHex: "FFD700",
+  negroHex: "0A0A0A",
+  negro2Hex: "141414",
+  grisTextoHex: "888888",
+  blancoHex: "FFFFFF",
+  doradoRGB: [184, 134, 11] as [number, number, number],
+  doradoBrillanteRGB: [255, 215, 0] as [number, number, number],
+  negroRGB: [10, 10, 10] as [number, number, number],
+  negro2RGB: [20, 20, 20] as [number, number, number],
+  grisTextoRGB: [130, 130, 130] as [number, number, number],
+  zebraRGB: [247, 247, 247] as [number, number, number],
+};
+
 type PuntoTendencia = {
   clave: string;
   mes: string;
@@ -668,34 +685,84 @@ export default function Analitica() {
         cargarLogoBase64(),
       ]);
 
-      // ── Portada: logo, título del análisis exportado, fecha/hora y dirección ──
-      const hojaPortada = wb.addWorksheet("Portada");
-      hojaPortada.getColumn(1).width = 14;
-      hojaPortada.getColumn(2).width = 60;
+      // ── Portada: marco oscuro con logo, título del análisis, fecha/hora y dirección ──
+      const hojaPortada = wb.addWorksheet("Portada", { properties: { tabColor: { argb: "FF" + MARCA.doradoHex } } });
+      hojaPortada.getColumn(1).width = 4;
+      hojaPortada.getColumn(2).width = 14;
+      hojaPortada.getColumn(3).width = 55;
+      hojaPortada.getColumn(4).width = 4;
+      // Fondo oscuro tipo "portada" en el bloque B2:C13, a juego con el portal.
+      for (let f = 2; f <= 13; f++) {
+        for (let c = 2; c <= 3; c++) {
+          const celda = hojaPortada.getCell(f, c);
+          celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + MARCA.negroHex } };
+        }
+      }
       if (logo) {
         const imgId = wb.addImage({ base64: logo.data, extension: "png" });
-        const anchoLogo = 130;
+        const anchoLogo = 110;
         const altoLogo = anchoLogo * (logo.height / logo.width);
-        hojaPortada.addImage(imgId, { tl: { col: 0, row: 1 }, ext: { width: anchoLogo, height: altoLogo } });
+        hojaPortada.addImage(imgId, { tl: { col: 1.3, row: 1.4 }, ext: { width: anchoLogo, height: altoLogo } });
       }
-      hojaPortada.getCell("B2").value = "Trulink Fiber LLC";
-      hojaPortada.getCell("B2").font = { bold: true, size: 16, color: { argb: "FFDAA520" } };
-      hojaPortada.getCell("B3").value = "Enterprise Intelligence & Accounting BI";
-      hojaPortada.getCell("B3").font = { size: 11, color: { argb: "FF888888" } };
-      hojaPortada.getCell("B5").value = `Reporte: ${tituloTabActiva}`;
-      hojaPortada.getCell("B5").font = { bold: true, size: 13 };
-      hojaPortada.getCell("B6").value = `Generado: ${fechaHoraActual}`;
-      hojaPortada.getCell("B7").value = `Periodo: ${fechaDesde} a ${fechaHasta}`;
-      hojaPortada.getCell("B9").value = DIRECCION_EMPRESA;
-      hojaPortada.getCell("B9").font = { size: 10, color: { argb: "FF888888" } };
+      hojaPortada.getCell("C5").value = "TRULINK FIBER LLC";
+      hojaPortada.getCell("C5").font = { bold: true, size: 18, color: { argb: "FF" + MARCA.doradoBrillanteHex } };
+      hojaPortada.getCell("C6").value = "Enterprise Intelligence & Accounting BI";
+      hojaPortada.getCell("C6").font = { size: 11, color: { argb: "FFCCCCCC" } };
+      hojaPortada.getCell("C8").value = `Reporte: ${tituloTabActiva}`;
+      hojaPortada.getCell("C8").font = { bold: true, size: 13, color: { argb: "FF" + MARCA.doradoHex } };
+      hojaPortada.getCell("C9").value = `Generado: ${fechaHoraActual}`;
+      hojaPortada.getCell("C9").font = { size: 10, color: { argb: "FFDDDDDD" } };
+      hojaPortada.getCell("C10").value = `Periodo: ${fechaDesde} a ${fechaHasta}`;
+      hojaPortada.getCell("C10").font = { size: 10, color: { argb: "FFDDDDDD" } };
+      hojaPortada.getCell("C12").value = DIRECCION_EMPRESA;
+      hojaPortada.getCell("C12").font = { size: 9.5, color: { argb: "FF999999" } };
+      hojaPortada.getCell("C12").alignment = { wrapText: true };
 
-      const agregarHoja = (nombre: string, filas: Record<string, any>[]) => {
-        const ws = wb.addWorksheet(nombre.slice(0, 31));
+      /** Columnas cuyo nombre indica que llevan montos en dólares → formato de moneda. */
+      const esColumnaMoneda = (nombreCol: string) =>
+        /valor|monto|total|cotizado|cobrado|presupuesto|gasto|ingreso|saldo/i.test(nombreCol);
+
+      const agregarHoja = (nombre: string, filas: Record<string, any>[], colorAcento = MARCA.doradoHex) => {
+        const ws = wb.addWorksheet(nombre.slice(0, 31), { properties: { tabColor: { argb: "FF" + colorAcento } } });
         if (filas.length > 0) {
           const columnas = Object.keys(filas[0]);
-          ws.columns = columnas.map((c) => ({ header: c, key: c, width: 28 }));
+          ws.columns = columnas.map((c) => ({
+            header: c,
+            key: c,
+            width: 28,
+            style: esColumnaMoneda(c) ? { numFmt: '"$"#,##0.00' } : undefined,
+          }));
           filas.forEach((f) => ws.addRow(f));
-          ws.getRow(1).font = { bold: true, color: { argb: "FFB8860B" } };
+
+          const filaHeader = ws.getRow(1);
+          filaHeader.eachCell((celda: any) => {
+            celda.font = { bold: true, color: { argb: "FF" + MARCA.doradoBrillanteHex } };
+            celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + MARCA.negro2Hex } };
+            celda.alignment = { vertical: "middle", horizontal: "left" };
+            celda.border = {
+              top: { style: "thin", color: { argb: "FF333333" } },
+              bottom: { style: "thin", color: { argb: "FF333333" } },
+            };
+          });
+          filaHeader.height = 20;
+
+          for (let i = 0; i < filas.length; i++) {
+            const fila = ws.getRow(i + 2);
+            fila.eachCell((celda: any) => {
+              celda.border = {
+                top: { style: "hair", color: { argb: "FFE0E0E0" } },
+                bottom: { style: "hair", color: { argb: "FFE0E0E0" } },
+                left: { style: "hair", color: { argb: "FFE0E0E0" } },
+                right: { style: "hair", color: { argb: "FFE0E0E0" } },
+              };
+            });
+            if (i % 2 === 1) {
+              fila.eachCell((celda: any) => {
+                celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + "F7F7F7" } };
+              });
+            }
+          }
+          ws.views = [{ state: "frozen", ySplit: 1 }];
         }
         return ws;
       };
@@ -704,8 +771,8 @@ export default function Analitica() {
         if (!cap) return;
         if (tituloTexto) {
           const filaTitulo = ws.getRow(filaDesde);
-          filaTitulo.getCell(1).value = tituloTexto;
-          filaTitulo.getCell(1).font = { bold: true, italic: true, size: 11 };
+          filaTitulo.getCell(1).value = `📊  ${tituloTexto}`;
+          filaTitulo.getCell(1).font = { bold: true, italic: true, size: 11, color: { argb: "FF" + MARCA.doradoHex } };
         }
         const imageId = wb.addImage({ base64: cap.dataUrl, extension: "png" });
         const anchoObjetivoPx = 560;
@@ -830,7 +897,29 @@ export default function Analitica() {
    */
   const exportarWord = async () => {
     try {
-      const { Document, Packer, Paragraph, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun } = await import("docx");
+      const [
+        capTendencia, capProductos, capPasarelas, capCxp, capSkus,
+        capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
+        capSegPerfil, capSegLista, logo,
+      ] = await Promise.all([
+        capturarGrafica(refTendencia),
+        capturarGrafica(refTopProductos),
+        capturarGrafica(refPasarelas),
+        capturarGrafica(refCxp),
+        capturarGrafica(refSkus),
+        capturarGrafica(refManufactura),
+        capturarGrafica(refLeadsEstado),
+        capturarGrafica(refLeadsOrigen),
+        capturarGrafica(refPersonal),
+        capturarGrafica(refSegPerfil),
+        capturarGrafica(refSegLista),
+        cargarLogoBase64(),
+      ]);
+
+      const {
+        Document, Packer, Paragraph, Table, TableRow, TableCell,
+        WidthType, AlignmentType, ImageRun, TextRun, BorderStyle, Footer, PageNumber,
+      } = await import("docx");
 
       const [
         capTendencia, capProductos, capPasarelas, capCxp, capSkus,
@@ -851,12 +940,54 @@ export default function Analitica() {
         cargarLogoBase64(),
       ]);
 
+      const BORDES_TABLA = {
+        top: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
+        bottom: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
+        left: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
+        right: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
+        insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
+        insideVertical: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
+      };
+
+      /** Fila de encabezado de tabla con fondo oscuro y texto dorado, a juego con el portal. */
+      const filaEncabezadoTabla = (col1: string, col2: string) =>
+        new TableRow({
+          tableHeader: true,
+          children: [
+            new TableCell({
+              width: { size: 60, type: WidthType.PERCENTAGE },
+              shading: { fill: MARCA.negro2Hex },
+              children: [new Paragraph({ children: [new TextRun({ text: col1, bold: true, color: MARCA.doradoBrillanteHex })] })],
+            }),
+            new TableCell({
+              width: { size: 40, type: WidthType.PERCENTAGE },
+              shading: { fill: MARCA.negro2Hex },
+              children: [new Paragraph({ children: [new TextRun({ text: col2, bold: true, color: MARCA.doradoBrillanteHex })] })],
+            }),
+          ],
+        });
+
       const filaTabla = (label: string, valor: string) =>
         new TableRow({
           children: [
             new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, children: [new Paragraph(label)] }),
             new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [new Paragraph(valor)] }),
           ],
+        });
+
+      /** Título de sección con línea dorada debajo, a juego con el resto de los exports. */
+      const tituloSeccion = (texto: string) =>
+        new Paragraph({
+          spacing: { before: 320, after: 140 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: MARCA.doradoHex } },
+          children: [new TextRun({ text: texto.toUpperCase(), bold: true, color: MARCA.doradoHex, size: 26 })],
+        });
+
+      /** Subtítulo (para cada gráfica dentro de una sección). */
+      const tituloSubseccion = (texto: string) =>
+        new Paragraph({
+          spacing: { before: 220, after: 90 },
+          children: [new TextRun({ text: texto, bold: true, italics: true, color: "555555", size: 20 })],
         });
 
       /** Convierte una captura en un párrafo con la imagen centrada, escalada a un ancho máximo. */
@@ -878,39 +1009,103 @@ export default function Analitica() {
         ];
       };
 
+      // ── Portada: caja de fondo oscuro con logo, título del análisis, fecha y dirección ──
+      const tablaPortada = new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+          insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
+        },
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                shading: { fill: MARCA.negroHex },
+                margins: { top: 300, bottom: 300, left: 300, right: 300 },
+                children: [
+                  ...(logo
+                    ? [
+                        new Paragraph({
+                          alignment: AlignmentType.CENTER,
+                          children: [
+                            new ImageRun({
+                              type: "png",
+                              data: dataUrlAUint8Array(logo.data),
+                              transformation: { width: 120, height: Math.round(120 * (logo.height / logo.width)) },
+                            } as any),
+                          ],
+                        }),
+                      ]
+                    : []),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 200 },
+                    children: [new TextRun({ text: "TRULINK FIBER LLC", bold: true, size: 36, color: MARCA.doradoBrillanteHex })],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [new TextRun({ text: "Enterprise Intelligence & Accounting BI", size: 20, color: "CCCCCC" })],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 220 },
+                    children: [new TextRun({ text: `Reporte: ${tituloTabActiva}`, bold: true, size: 24, color: MARCA.doradoHex })],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [new TextRun({ text: `Generado: ${fechaHoraActual}`, size: 18, color: "DDDDDD" })],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [new TextRun({ text: `Periodo: ${fechaDesde} a ${fechaHasta}`, size: 18, color: "DDDDDD" })],
+                  }),
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    spacing: { before: 180 },
+                    children: [new TextRun({ text: DIRECCION_EMPRESA, size: 16, color: "999999" })],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      });
+
       const doc = new Document({
         sections: [
           {
+            footers: {
+              default: new Footer({
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    border: { top: { style: BorderStyle.SINGLE, size: 4, color: MARCA.doradoHex } },
+                    spacing: { before: 100 },
+                    children: [
+                      new TextRun({ text: "Trulink Fiber LLC · Confidencial   ·   Página ", size: 16, color: "999999" }),
+                      new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "999999" }),
+                      new TextRun({ text: " de ", size: 16, color: "999999" }),
+                      new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: "999999" }),
+                    ],
+                  }),
+                ],
+              }),
+            },
             children: [
-              ...(logo
-                ? [
-                    new Paragraph({
-                      alignment: AlignmentType.CENTER,
-                      children: [
-                        new ImageRun({
-                          type: "png",
-                          data: dataUrlAUint8Array(logo.data),
-                          transformation: {
-                            width: 130,
-                            height: Math.round(130 * (logo.height / logo.width)),
-                          },
-                        } as any),
-                      ],
-                    }),
-                  ]
-                : []),
-              new Paragraph({ text: "Trulink Fiber LLC", heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }),
-              new Paragraph({ text: "Enterprise Intelligence & Accounting BI", heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }),
-              new Paragraph({ text: `Reporte: ${tituloTabActiva}`, heading: HeadingLevel.HEADING_3, alignment: AlignmentType.CENTER }),
-              new Paragraph({ text: `Generado: ${fechaHoraActual}`, alignment: AlignmentType.CENTER }),
-              new Paragraph({ text: `Periodo: ${fechaDesde} a ${fechaHasta}`, alignment: AlignmentType.CENTER }),
-              new Paragraph({ text: DIRECCION_EMPRESA, alignment: AlignmentType.CENTER }),
+              tablaPortada,
               new Paragraph({ text: "" }),
 
-              new Paragraph({ text: "Métricas Financieras", heading: HeadingLevel.HEADING_2 }),
+              tituloSeccion("Métricas Financieras"),
               new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: BORDES_TABLA,
                 rows: [
+                  filaEncabezadoTabla("Métrica Financiera", "Valor"),
                   filaTabla("Pipeline Cotizado", `$${montoCotizaciones.toFixed(2)}`),
                   filaTabla("Facturación Efectiva", `$${montoFacturas.toFixed(2)}`),
                   filaTabla("Cobros Recibidos (Total)", `$${montoTotalCobrado.toFixed(2)}`),
@@ -924,22 +1119,21 @@ export default function Analitica() {
               }),
               new Paragraph({ text: "" }),
 
-              new Paragraph({ text: "Pasarelas de Pago", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Pasarelas de Pago"),
               ...parrafoImagen(capPasarelas, 340),
 
-              new Paragraph({ text: "Cuentas por Pagar por Categoría", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Cuentas por Pagar por Categoría"),
               ...parrafoImagen(capCxp),
 
-              new Paragraph({
-                text: `Tendencia de Cobros y Proyección IA (Confianza R²: ${(confianzaModelo * 100).toFixed(0)}%)`,
-                heading: HeadingLevel.HEADING_2,
-              }),
+              tituloSeccion(`Tendencia de Cobros y Proyección IA (Confianza R²: ${(confianzaModelo * 100).toFixed(0)}%)`),
               ...parrafoImagen(capTendencia),
 
-              new Paragraph({ text: "Operaciones", heading: HeadingLevel.HEADING_2 }),
+              tituloSeccion("Operaciones"),
               new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: BORDES_TABLA,
                 rows: [
+                  filaEncabezadoTabla("Métrica Operativa", "Valor"),
                   filaTabla("Órdenes de Producción Totales", String(totalOrdenesProduccion)),
                   filaTabla("Km Totales Producidos", kmTotalesProducidos.toFixed(2)),
                   filaTabla("Materias Primas Registradas", String(totalMateriasPrimas)),
@@ -948,17 +1142,19 @@ export default function Analitica() {
                 ],
               }),
               new Paragraph({ text: "" }),
-              new Paragraph({ text: "SKUs por Categoría", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("SKUs por Categoría"),
               ...parrafoImagen(capSkus, 340),
-              new Paragraph({ text: "Órdenes de Producción por Estado", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Órdenes de Producción por Estado"),
               ...parrafoImagen(capManufactura),
-              new Paragraph({ text: "Rotación de Productos (Top 5)", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Rotación de Productos (Top 5)"),
               ...parrafoImagen(capProductos),
 
-              new Paragraph({ text: "Marketing y Personal", heading: HeadingLevel.HEADING_2 }),
+              tituloSeccion("Marketing y Personal"),
               new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: BORDES_TABLA,
                 rows: [
+                  filaEncabezadoTabla("Métrica", "Valor"),
                   filaTabla("Campañas Activas", String(campanasActivas)),
                   filaTabla("Presupuesto Total", `$${presupuestoTotal.toFixed(2)}`),
                   filaTabla("Gasto Real", `$${gastoRealMarketing.toFixed(2)}`),
@@ -969,32 +1165,25 @@ export default function Analitica() {
                 ],
               }),
               new Paragraph({ text: "" }),
-              new Paragraph({ text: "Leads por Estado", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Leads por Estado"),
               ...parrafoImagen(capLeadsEstado),
-              new Paragraph({ text: "Leads por Origen", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Leads por Origen"),
               ...parrafoImagen(capLeadsOrigen, 340),
-              new Paragraph({ text: "Colaboradores por Departamento", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Colaboradores por Departamento"),
               ...parrafoImagen(capPersonal),
 
-              new Paragraph({ text: "Segmentación de Clientes", heading: HeadingLevel.HEADING_2 }),
-              new Paragraph({ text: "Por Perfil Comercial", heading: HeadingLevel.HEADING_3 }),
+              tituloSeccion("Segmentación de Clientes"),
+              tituloSubseccion("Por Perfil Comercial"),
               ...parrafoImagen(capSegPerfil, 340),
-              new Paragraph({ text: "Por Lista de Precios (A/B/C/D)", heading: HeadingLevel.HEADING_3 }),
+              tituloSubseccion("Por Lista de Precios (A/B/C/D)"),
               ...parrafoImagen(capSegLista),
 
-              new Paragraph({
-                text: `Proyección IA — Confianza del modelo (R²): ${(confianzaModelo * 100).toFixed(0)}%`,
-                heading: HeadingLevel.HEADING_2,
-              }),
+              tituloSeccion(`Proyección IA — Confianza del modelo (R²): ${(confianzaModelo * 100).toFixed(0)}%`),
               new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: BORDES_TABLA,
                 rows: [
-                  new TableRow({
-                    children: [
-                      new TableCell({ children: [new Paragraph({ text: "Mes", alignment: AlignmentType.CENTER })] }),
-                      new TableCell({ children: [new Paragraph({ text: "Cobrado (Real / Proyección IA)", alignment: AlignmentType.CENTER })] }),
-                    ],
-                  }),
+                  filaEncabezadoTabla("Mes", "Cobrado (Real / Proyección IA)"),
                   ...historicoVentas.map((p) =>
                     filaTabla(`${p.mes}${p.esProyeccion ? " (Proyección IA)" : ""}`, `$${p.cobrado.toFixed(2)}`)
                   ),
@@ -1002,8 +1191,14 @@ export default function Analitica() {
               }),
               new Paragraph({ text: "" }),
 
-              new Paragraph({ text: "Insights Automáticos", heading: HeadingLevel.HEADING_2 }),
-              ...insights.map((texto) => new Paragraph({ text: `• ${texto}` })),
+              tituloSeccion("Insights Automáticos"),
+              ...insights.map(
+                (texto) =>
+                  new Paragraph({
+                    spacing: { after: 100 },
+                    children: [new TextRun({ text: `•  ${texto}`, color: "444444" })],
+                  })
+              ),
             ],
           },
         ],
@@ -1057,29 +1252,67 @@ export default function Analitica() {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margen = 14;
-      let xTexto = margen;
 
-      if (logo) {
-        const anchoLogo = 30;
-        const altoLogo = anchoLogo * (logo.height / logo.width);
-        doc.addImage(logo.data, "PNG", margen, 10, anchoLogo, altoLogo);
-        xTexto = margen + anchoLogo + 8;
-      }
+      /** Membrete oscuro con logo, marca, título del reporte y dirección — se repite en cada página nueva. */
+      const dibujarMembrete = () => {
+        doc.setFillColor(...MARCA.negroRGB);
+        doc.rect(0, 0, pageWidth, 40, "F");
+        doc.setDrawColor(...MARCA.doradoRGB);
+        doc.setLineWidth(0.8);
+        doc.line(0, 40, pageWidth, 40);
 
-      doc.setFontSize(14);
-      doc.setTextColor(20, 20, 20);
-      doc.text("Trulink Fiber LLC - Enterprise Intelligence & Accounting BI", xTexto, 17);
-      doc.setFontSize(10.5);
-      doc.setTextColor(184, 134, 11);
-      doc.text(`Reporte: ${tituloTabActiva}`, xTexto, 23);
-      doc.setFontSize(9);
-      doc.setTextColor(120, 120, 120);
-      doc.text(`Generado: ${fechaHoraActual}`, xTexto, 28.5);
-      doc.text(`Periodo: ${fechaDesde} a ${fechaHasta}`, xTexto, 33.5);
-      doc.text(DIRECCION_EMPRESA, xTexto, 38.5);
+        let xTexto = margen;
+        if (logo) {
+          const anchoLogo = 24;
+          const altoLogo = anchoLogo * (logo.height / logo.width);
+          doc.addImage(logo.data, "PNG", margen, 7, anchoLogo, altoLogo);
+          xTexto = margen + anchoLogo + 8;
+        }
 
+        doc.setFontSize(13);
+        doc.setTextColor(...MARCA.doradoBrillanteRGB);
+        doc.setFont("helvetica", "bold");
+        doc.text("TRULINK FIBER LLC", xTexto, 15);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(200, 200, 200);
+        doc.text("Enterprise Intelligence & Accounting BI", xTexto, 20.5);
+        doc.setFontSize(9.5);
+        doc.setTextColor(...MARCA.doradoRGB);
+        doc.text(`Reporte: ${tituloTabActiva}`, xTexto, 27);
+        doc.setFontSize(7.5);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Generado: ${fechaHoraActual}  ·  Periodo: ${fechaDesde} a ${fechaHasta}`, xTexto, 32);
+        doc.text(DIRECCION_EMPRESA, xTexto, 36.5);
+      };
+
+      /** Título de sección con barra dorada de acento a la izquierda. */
+      const tituloSeccion = (texto: string, y: number) => {
+        doc.setFillColor(...MARCA.doradoRGB);
+        doc.rect(margen, y - 4, 2.2, 5.5, "F");
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...MARCA.negro2RGB);
+        doc.text(texto.toUpperCase(), margen + 5, y);
+        doc.setFont("helvetica", "normal");
+      };
+
+      const estiloTablaBase = {
+        theme: "grid" as const,
+        headStyles: { fillColor: MARCA.negro2RGB, textColor: MARCA.doradoBrillanteRGB, fontStyle: "bold" as const, fontSize: 9 },
+        alternateRowStyles: { fillColor: MARCA.zebraRGB },
+        styles: { fontSize: 9, textColor: [40, 40, 40] as [number, number, number], lineColor: [225, 225, 225] as [number, number, number], lineWidth: 0.2 },
+        margin: { left: margen, right: margen },
+      };
+
+      dibujarMembrete();
+      let cursorY = 50;
+
+      tituloSeccion("Métricas Financieras", cursorY);
+      cursorY += 4;
       autoTable(doc, {
-        startY: 48,
+        ...estiloTablaBase,
+        startY: cursorY,
         head: [["Métrica Financiera", "Valor"]],
         body: [
           ["Pipeline Cotizado", `$${montoCotizaciones.toFixed(2)}`],
@@ -1091,31 +1324,34 @@ export default function Analitica() {
           ["Ticket Promedio", `$${ticketPromedio.toFixed(2)}`],
           ["Crecimiento Mensual (MoM)", `${crecimientoMoM.toFixed(1)}%`],
         ],
-        theme: "grid",
-        headStyles: { fillColor: [20, 20, 20], textColor: [255, 215, 0] },
-        styles: { fontSize: 9 },
       });
 
-      let cursorY = (doc as any).lastAutoTable?.finalY || 48;
+      cursorY = (doc as any).lastAutoTable?.finalY || cursorY;
 
-      /** Inserta una gráfica capturada; salta de página si no entra en el espacio restante. */
+      /** Inserta una gráfica capturada dentro de un marco dorado, con su título; salta de página si no entra. */
       const insertarGrafica = (cap: CapturaGrafica | null, titulo: string, anchoMax = pageWidth - margen * 2) => {
         if (!cap) return;
         const escala = Math.min(1, anchoMax / cap.width);
         const w = cap.width * escala;
         const h = cap.height * escala;
-        if (cursorY + h + 16 > pageHeight - margen) {
+        const bloqueAlto = h + 18;
+        if (cursorY + bloqueAlto > pageHeight - margen) {
           doc.addPage();
-          cursorY = margen;
+          dibujarMembrete();
+          cursorY = 50;
         } else {
-          cursorY += 10;
+          cursorY += 12;
         }
-        doc.setFontSize(10);
-        doc.setTextColor(20, 20, 20);
-        doc.text(titulo, margen, cursorY);
+        tituloSeccion(titulo, cursorY);
         cursorY += 5;
-        doc.addImage(cap.dataUrl, "PNG", margen, cursorY, w, h);
-        cursorY += h + 4;
+        // Marco dorado sutil alrededor de la gráfica, sobre fondo oscuro a juego con el portal.
+        doc.setFillColor(...MARCA.negroRGB);
+        doc.roundedRect(margen, cursorY, w + 4, h + 4, 1.5, 1.5, "F");
+        doc.setDrawColor(...MARCA.doradoRGB);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(margen, cursorY, w + 4, h + 4, 1.5, 1.5, "S");
+        doc.addImage(cap.dataUrl, "PNG", margen + 2, cursorY + 2, w, h);
+        cursorY += h + 8;
       };
 
       insertarGrafica(capTendencia, `Tendencia de Cobros y Proyección IA (Confianza R²: ${(confianzaModelo * 100).toFixed(0)}%)`);
@@ -1130,41 +1366,57 @@ export default function Analitica() {
       insertarGrafica(capSegPerfil, "Segmentación de Clientes por Perfil", 90);
       insertarGrafica(capSegLista, "Segmentación por Lista de Precios (A/B/C/D)");
 
-      if (cursorY + 20 > pageHeight - margen) {
+      if (cursorY + 24 > pageHeight - margen) {
         doc.addPage();
-        cursorY = margen;
+        dibujarMembrete();
+        cursorY = 50;
+      } else {
+        cursorY += 8;
       }
+      tituloSeccion("Proyección IA — Cobrado Real vs. Proyectado", cursorY);
+      cursorY += 4;
       autoTable(doc, {
-        startY: cursorY + 8,
+        ...estiloTablaBase,
+        startY: cursorY,
         head: [["Mes", "Cobrado (Real / Proyección IA)"]],
         body: historicoVentas.map((p) => [`${p.mes}${p.esProyeccion ? " (Proyección IA)" : ""}`, `$${p.cobrado.toFixed(2)}`]),
-        theme: "grid",
-        headStyles: { fillColor: [20, 20, 20], textColor: [179, 136, 255] },
-        styles: { fontSize: 9 },
       });
 
-      const finalYTabla = (doc as any).lastAutoTable?.finalY || cursorY + 8;
-      if (finalYTabla + 20 > pageHeight - margen) {
+      const finalYTabla = (doc as any).lastAutoTable?.finalY || cursorY;
+      if (finalYTabla + 24 > pageHeight - margen) {
         doc.addPage();
-        cursorY = margen;
+        dibujarMembrete();
+        cursorY = 50;
       } else {
-        cursorY = finalYTabla + 10;
+        cursorY = finalYTabla + 12;
       }
-      doc.setFontSize(10);
-      doc.setTextColor(20, 20, 20);
-      doc.text("Insights Automáticos:", margen, cursorY);
+      tituloSeccion("Insights Automáticos", cursorY);
+      cursorY += 7;
       doc.setFontSize(8.5);
-      doc.setTextColor(80, 80, 80);
-      cursorY += 6;
+      doc.setTextColor(70, 70, 70);
       insights.forEach((texto) => {
-        const lineas = doc.splitTextToSize(`• ${texto}`, pageWidth - margen * 2);
+        const lineas = doc.splitTextToSize(`•  ${texto}`, pageWidth - margen * 2 - 4);
         if (cursorY + lineas.length * 4.5 > pageHeight - margen) {
           doc.addPage();
-          cursorY = margen;
+          dibujarMembrete();
+          cursorY = 50;
         }
-        doc.text(lineas, margen, cursorY);
-        cursorY += lineas.length * 4.5 + 2;
+        doc.text(lineas, margen + 2, cursorY);
+        cursorY += lineas.length * 4.5 + 3;
       });
+
+      // Pie de página de marca en todas las páginas: línea dorada + numeración.
+      const totalPaginas = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPaginas; i++) {
+        doc.setPage(i);
+        doc.setDrawColor(...MARCA.doradoRGB);
+        doc.setLineWidth(0.3);
+        doc.line(margen, pageHeight - 12, pageWidth - margen, pageHeight - 12);
+        doc.setFontSize(7.5);
+        doc.setTextColor(...MARCA.grisTextoRGB);
+        doc.text("Trulink Fiber LLC · Confidencial", margen, pageHeight - 7);
+        doc.text(`Página ${i} de ${totalPaginas}`, pageWidth - margen, pageHeight - 7, { align: "right" });
+      }
 
       doc.save(`Trulink_Analitica_${fechaHoraActual.split(" ")[0]}.pdf`);
     } catch (err) {
