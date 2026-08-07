@@ -2,6 +2,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 import { theme, pageWrapStyle } from "../../lib/theme";
 import { Card, Heading, PageHeader, Button, DataRow, inputStyle } from "../../lib/ui";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function RegistrarPagoVisual() {
   const [cargando, setCargando] = useState(false);
@@ -22,9 +23,17 @@ export default function RegistrarPagoVisual() {
     setResultado(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Sesión no encontrada. Vuelve a iniciar sesión.");
+      }
+
       const response = await fetch("/api/admin/registrar-pagos", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({
           referencia,
           montoPagado: parseFloat(montoPagado),
@@ -42,7 +51,6 @@ export default function RegistrarPagoVisual() {
       setResultado(data.resumen);
       alert(`¡Transacción registrada con éxito! Documento emitido: ${data.resumen.documentoEmitido}`);
 
-      // Limpiar formulario
       setReferencia("");
       setMontoPagado("");
       setReferenciaBancaria("");
@@ -63,7 +71,6 @@ export default function RegistrarPagoVisual() {
         <PageHeader title="Registro de Transferencias y Pagos B2B" counterLabel="Módulo Operativo" />
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: "30px" }}>
-          {/* Formulario */}
           <Card>
             <Heading>Datos del Pago Bancario</Heading>
 
@@ -125,7 +132,6 @@ export default function RegistrarPagoVisual() {
             </form>
           </Card>
 
-          {/* Resultado / Resumen en tiempo real */}
           <Card>
             <Heading>Resumen de Transacción Reciente</Heading>
 
