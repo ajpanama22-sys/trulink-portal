@@ -2,9 +2,10 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 import { theme, pageWrapStyle } from "../../lib/theme";
 import { Card, Heading, PageHeader, Button, DataRow, inputStyle } from "../../lib/ui";
-import { supabase } from "../../lib/supabaseClient";
+import { getSupabase } from "../../lib/supabaseClient";
 
 export default function RegistrarPagoVisual() {
+  const supabase = getSupabase();
   const [cargando, setCargando] = useState(false);
   const [referencia, setReferencia] = useState("");
   const [montoPagado, setMontoPagado] = useState("");
@@ -23,6 +24,10 @@ export default function RegistrarPagoVisual() {
     setResultado(null);
 
     try {
+      if (!supabase) {
+        throw new Error("No se pudo conectar con el servidor. Intenta de nuevo.");
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         throw new Error("Sesión no encontrada. Vuelve a iniciar sesión.");
