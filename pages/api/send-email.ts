@@ -1,5 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import nodemailer from 'nodemailer';
+import { verificarSesionAdmin } from '../../lib/verificarSesionAdmin';
 
 // Configurar el transporte SMTP con Brevo
 const transporter = nodemailer.createTransport({
@@ -15,6 +16,16 @@ const transporter = nodemailer.createTransport({
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
+  }
+
+  // Guard de autenticación: antes cualquiera podía llamar este endpoint
+  // directo (sin login) y mandar correo arbitrario haciéndose pasar por
+  // Trulink Fiber (caso to/subject/htmlContent), o disparar los correos
+  // de activación/rechazo para cualquier email. Ahora exige sesión de
+  // colaborador admin/super-admin, igual que registrar-pagos.ts.
+  const auth = await verificarSesionAdmin(req, ["Super Administrador", "Administrador"]);
+  if (!auth.autorizado) {
+    return res.status(auth.status).json({ error: auth.mensaje });
   }
 
   const { 

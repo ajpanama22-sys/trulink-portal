@@ -14,6 +14,11 @@ import { createClient } from "@supabase/supabase-js";
    que ya usa Marketing) para no duplicar lógica de envío, y deja
    un registro en marketing_envios para que el aviso aparezca en
    el Historial de Comunicaciones de Marketing, tal como se pidió.
+
+   /api/notificar.ts ahora exige autenticación (guard de admin o
+   llamada interna). Como este cron no tiene sesión de usuario,
+   se manda el header "x-internal-key" con el mismo CRON_SECRET
+   que protege a este propio endpoint.
    ============================================================ */
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -153,9 +158,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // 3. Reenvía al mismo /api/notificar que ya usa Marketing -- mismo
         //    Nodemailer + SMS Gateway, sin duplicar esa lógica de envío.
+        //    Se manda "x-internal-key" porque /api/notificar ahora exige
+        //    autenticación y este cron no tiene sesión de colaborador.
         const respuestaNotificar = await fetch(`${SITE_URL}/api/notificar`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-internal-key": secretoEsperado || "",
+          },
           body: JSON.stringify({
             destinatarios: [{ nombre, email, telefono }],
             asunto: `Recordatorio de pago — Pedido #${cuenta.quote_referencia || cuenta.numero_factura}`,
@@ -171,7 +181,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (telefono && dataNotificar?.sms?.enviados > 0) {
           await fetch(`${SITE_URL}/api/notificar`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              "x-internal-key": secretoEsperado || "",
+            },
             body: JSON.stringify({
               destinatarios: [{ nombre, email: null, telefono }],
               mensaje: textoSms,

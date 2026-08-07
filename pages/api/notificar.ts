@@ -1,6 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createClient } from "@supabase/supabase-js";
 import nodemailer from "nodemailer";
+import { verificarSesionAdmin } from "../../lib/verificarSesionAdmin";
 
 /* ============================================================
    /api/notificar — Envío de comunicaciones por Email y SMS
@@ -16,6 +17,17 @@ import nodemailer from "nodemailer";
    Si vienen las dos, manda la lista explícita.
    La respuesta tiene el mismo formato en ambos casos, para que
    los dos módulos del portal la lean igual.
+
+   AUTENTICACIÓN:
+   Este endpoint puede enviar a "todos" los clientes activos, así
+   que antes NO tenía ningún guard — cualquiera podía spamear la
+   base completa. Ahora exige UNA de estas dos cosas:
+     - Un token de sesión de colaborador admin/super-admin (uso
+       normal desde marketing.tsx / notificaciones.tsx).
+     - El header "x-internal-key" con el mismo valor de
+       CRON_SECRET (uso servidor-a-servidor desde
+       /api/cron/recordatorio-pagos.ts, que no tiene sesión de
+       usuario).
    ============================================================ */
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -188,6 +200,20 @@ async function enviarSms(telefono: string, mensaje: string) {
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Método no permitido" });
+  }
+
+  // --- Guard de autenticación ---
+  // Camino 1: llamada interna del cron de recordatorios, con el secreto compartido.
+  const claveInterna = req.headers["x-internal-key"];
+  const esLlamadaInterna =
+    !!process.env.CRON_SECRET && claveInterna === process.env.CRON_SECRET;
+
+  // Camino 2: sesión de colaborador admin/super-admin.
+  if (!esLlamadaInterna) {
+    const auth = await verificarSesionAdmin(req, ["Super Administrador", "Administrador"]);
+    if (!auth.autorizado) {
+      return res.status(auth.status).json({ error: auth.mensaje });
+    }
   }
 
   const { destinatario, destinatarios, mensaje, canales, asunto } = req.body || {};
