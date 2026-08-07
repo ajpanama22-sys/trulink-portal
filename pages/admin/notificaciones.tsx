@@ -2,6 +2,7 @@ import { useState } from "react";
 import Sidebar from "./Sidebar";
 import { theme, pageWrapStyle } from "../../lib/theme";
 import { Card, Heading, PageHeader, Button, inputStyle } from "../../lib/ui";
+import { getSupabase } from "../../lib/supabaseClient";
 
 const labelStyle = {
   fontSize: "0.85rem",
@@ -54,9 +55,16 @@ export default function AdminNotificaciones() {
     if (enviarSms) canales.push("sms");
 
     try {
+      const supabase = getSupabase();
+      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      const token = sessionData?.session?.access_token;
+
       const res = await fetch("/api/notificar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ destinatario, mensaje, canales }),
       });
 

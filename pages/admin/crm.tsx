@@ -666,9 +666,14 @@ export default function CRMEpicoEnterprise() {
 
     // 2. Enviar correo de activación (mismo endpoint que validaciones.tsx)
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
       await fetch("/api/send-email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           tipo: "ACTIVACION",
           email: prospecto.email,
