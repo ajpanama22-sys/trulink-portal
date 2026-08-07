@@ -202,6 +202,8 @@ export default function AdminValidaciones() {
       }
 
       const passwordToken = "trulink_" + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      // Token de activación válido por 72 horas desde su generación.
+      const passwordTokenExpira = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
       const tipoClienteVal = itemCompleto.tipo_solicitud || 'Integrador';
       // Antes esto era un valor fijo 'C' sin importar el perfil del cliente.
       // Ahora se calcula según el perfil B2B declarado en la solicitud
@@ -218,6 +220,7 @@ export default function AdminValidaciones() {
           price_list: priceListVal,
           status: 'pendiente_password',
           password_token: passwordToken,
+          password_token_expira: passwordTokenExpira,
           forma_pago: pagoInfo.tipo,
           porcentaje_pago: porcentajeInicialReal,
           pais: itemCompleto.pais || null,

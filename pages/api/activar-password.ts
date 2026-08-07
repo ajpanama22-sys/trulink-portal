@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 1. Buscar al cliente por su password_token pendiente
     const { data: cliente, error: fetchError } = await supabaseAdmin
       .from("clientes")
-      .select("id, email, status, password_token")
+      .select("id, email, status, password_token, password_token_expira")
       .eq("password_token", token)
       .maybeSingle();
 
@@ -48,6 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (!cliente) {
       return res.status(400).json({ error: "Token inválido, expirado o ya utilizado" });
+    }
+
+    // Verificar expiración del token (72h desde su generación)
+    if (cliente.password_token_expira && new Date(cliente.password_token_expira) < new Date()) {
+      return res.status(400).json({ error: "El link de activación expiró. Solicita uno nuevo." });
     }
 
     if (cliente.status === "activo" && !cliente.password_token) {
@@ -98,7 +103,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 4. Marcar al cliente como activo y limpiar el token
     const { error: updateError } = await supabaseAdmin
       .from("clientes")
-      .update({ status: "activo", password_token: null })
+      .update({ status: "activo", password_token: null, password_token_expira: null })
       .eq("id", cliente.id);
 
     if (updateError) {
