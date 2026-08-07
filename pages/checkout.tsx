@@ -267,9 +267,17 @@ export default function Checkout() {
         console.error('Error registrando la transferencia en el libro de pagos:', pagoErr);
       }
 
+      // El endpoint exige sesión de cliente activa (ver verificarSesionCliente.ts),
+      // así que hay que mandar el token igual que en marketing.tsx / crm.tsx.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
       const emailResponse = await fetch('/api/send-transfer-notification', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           recipient: 'fred.jurado@trulinkfiber.com',
           quoteId: refLabel,

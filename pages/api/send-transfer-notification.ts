@@ -1,0 +1,87 @@
+import type { NextApiRequest, NextApiResponse } from 'next';
+import nodemailer from 'nodemailer';
+import { verificarSesionCliente } from '../../lib/verificarSesionCliente';
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+  port: Number(process.env.SMTP_PORT) || 587,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return res.status(405).json({ error: 'Método no permitido' });
+  }
+
+  // --- Guard de autenticación ---
+  // Este endpoint lo llama el cliente desde checkout.tsx al subir un
+  // comprobante de transferencia. No es un endpoint de admin, así que
+  // exige sesión de CLIENTE activo (no rol de colaborador).
+  const auth = await verificarSesionCliente(req);
+  if (!auth.autorizado) {
+    return res.status(auth.status).json({ error: auth.mensaje });
+  }
+
+  // Se añade montoPagado para reflejar exactamente lo que el cliente decidió transferir
+  const { recipient, quoteId, clientName, total, montoPagado, comprobanteUrl } = req.body;
+
+  if (!recipient || !quoteId || !total) {
+    return res.status(400).json({ error: 'Faltan parámetros obligatorios en la solicitud.' });
+  }
+
+  const valorPagado = montoPagado !== undefined ? Number(montoPagado) : Number(total);
+  const granTotal = Number(total);
+  const saldoPendiente = granTotal - valorPagado;
+
+  const asunto = `[PENDIENTE DE PAGO] Comprobante de Transferencia - Cotización #${quoteId}`;
+  
+  const contenidoHtml = `
+    <div style="font-family: sans-serif; background-color: #000; color: #fff; padding: 30px; border-radius: 10px; border: 1px solid #DAA520;">
+      <h2 style="color: #DAA520; text-align: center; border-bottom: 2px solid #DAA520; padding-bottom: 10px;">
+        TRULINK FIBER LLC - NOTIFICACIÓN BANCARIA
+      </h2>
+      
+      <p style="font-size: 1.1rem; color: #fff;">Se ha registrado un nuevo comprobante de pago por transferencia o ACH para su verificación:</p>
+      
+      <div style="background-color: #111; padding: 20px; border-radius: 8px; border: 1px solid #333; margin: 20px 0;">
+        <p style="margin: 8px 0; color: #ddd;"><strong>ID / Referencia de Cotización:</strong> <span style="color: #DAA520;">${quoteId}</span></p>
+        <p style="margin: 8px 0; color: #ddd;"><strong>Cliente / Referencia:</strong> ${clientName || 'N/D'}</p>
+        <p style="margin: 8px 0; color: #ddd;"><strong>Monto Total de Cotización:</strong> $${granTotal.toFixed(2)} USD</p>
+        <p style="margin: 8px 0; color: #ddd;"><strong>Monto Transferido / Pagado:</strong> <span style="color: #DAA520; font-size: 1.2rem; font-weight: bold;">$${valorPagado.toFixed(2)} USD</span></p>
+        ${saldoPendiente > 0 ? `<p style="margin: 8px 0; color: #ffaa00;"><strong>Saldo Pendiente por Cobrar:</strong> $${saldoPendiente.toFixed(2)} USD</p>` : `<p style="margin: 8px 0; color: #4bb543;"><strong>Estado:</strong> Pagado al 100% (Contado)</p>`}
+      </div>
+
+      ${
+        comprobanteUrl
+          ? `<p style="text-align: center; margin: 30px 0;">
+               <a href="${comprobanteUrl}" target="_blank" style="background-color: #DAA520; color: #000; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 8px; display: inline-block;">
+                 Ver Comprobante Adjunto
+               </a>
+             </p>`
+          : '<p style="color: #ff6b6b; font-style: italic;">No se adjuntó enlace directo del comprobante.</p>'
+      }
+
+      <p style="margin-top: 30px; color: #888; font-size: 0.85rem; text-align: center; border-top: 1px dashed #333; padding-top: 15px;">
+        Trulink Fiber LLC – Sistema Automatizado de Gestión Financiera
+      </p>
+    </div>
+  `;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: recipient,
+      subject: asunto,
+      html: contenidoHtml,
+    });
+
+    return res.status(200).json({ success: true, message: 'Notificación de transferencia enviada correctamente' });
+  } catch (error: any) {
+    console.error('Error enviando correo de transferencia SMTP:', error);
+    return res.status(500).json({ error: error.message || 'Error al enviar el correo de notificación' });
+  }
+}
