@@ -1,34 +1,73 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/router";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../lib/supabaseClient";
+import { useRequiereCliente } from "../lib/useRequiereCliente";
 import { theme } from "../lib/theme";
 import { Card, Badge, Button, DataRow, estadoToTone } from "../lib/ui";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
+// ─────────────────────────────────────────────────────────────
+// PÁGINA DE SOLO LECTURA.
+//
+// Antes esta página REGISTRABA el pago ella misma (insert en 'pagos',
+// update de 'quotes') confiando en los parámetros de la URL. Eso permitía
+// que cualquiera con una referencia de cotización visitara esta URL a mano
+// y quedara marcado como "pagado" sin haber pagado nada.
+//
+// Ahora el único lugar que registra un pago real es procesarPagoConfirmado()
+// (lib/contabilidad.ts), llamado desde los webhooks server-side de Stripe y
+// PayPal, que sí verifican la firma de la transacción contra el proveedor.
+// Esta página solo CONSULTA lo que el webhook ya escribió en 'quotes' y
+// 'cuentas_por_cobrar' — nunca escribe nada.
+//
+// Como el webhook puede tardar uno o dos segundos más que el redirect del
+// checkout, hacemos un polling corto (hasta ~15s) antes de mostrar el
+// estado "aún procesando".
+// ─────────────────────────────────────────────────────────────
+
+// Fase rápida: reintenta cada 2s durante los primeros 20s (lo normal es
+// que el webhook llegue en este rango). Fase lenta: si todavía no hay
+// confirmación, baja el ritmo a cada 8s y sigue intentando bastante más
+// tiempo (hasta ~10 minutos) antes de pedirle al usuario que lo verifique
+// manualmente — un webhook puede demorar si Stripe/PayPal tuvo un retry.
+const INTENTOS_FASE_RAPIDA = 10;
+const INTERVALO_RAPIDO_MS = 2000;
+const INTENTOS_FASE_LENTA = 68;
+const INTERVALO_LENTO_MS = 8000;
+
+const NOMBRE_PASARELA: Record<string, string> = {
+  stripe: "Stripe",
+  card: "Stripe",
+  paypal: "PayPal",
+  transferencia: "Transferencia bancaria",
+  ach: "ACH",
+};
 
 export default function PagoExitoso() {
   const router = useRouter();
-  const { session_id, order_id, method, amount } = router.query;
-  const [loading, setLoading] = useState(true);
-  const [orderInfo, setOrderInfo] = useState<any>(null);
-  const [numeroDocumento, setNumeroDocumento] = useState<string | null>(null);
-  const [cerrandoSesion, setCerrandoSesion] = useState(false);
-  const emailSentRef = useRef(false);
-
-  const methodStr = Array.isArray(method) ? method[0] : method;
+  const { cargando: cargandoSesion, autorizado } = useRequiereCliente();
+  const { order_id, method, gateway } = router.query;
   const singleOrderId = Array.isArray(order_id) ? order_id[0] : order_id;
-  const rawAmount = Array.isArray(amount) ? amount[0] : amount;
-  const singleSessionId = Array.isArray(session_id) ? session_id[0] : session_id;
 
-  // Cierra sesión y redirige al login. Aísla el logout en una función
-  // propia para que el botón nunca quede "colgado" si signOut() falla
-  // por red: igual redirige, porque el usuario ya vio su comprobante.
+  // Solo para mostrar un mensaje amigable ("esperando confirmación de
+  // Stripe..."). Nunca se usa para decidir si algo quedó pagado — eso lo
+  // determina exclusivamente lo que haya en 'quotes', escrito por el
+  // webhook server-side.
+  const pasarelaParam = (Array.isArray(gateway) ? gateway[0] : gateway) || (Array.isArray(method) ? method[0] : method) || "";
+  const nombrePasarela = NOMBRE_PASARELA[pasarelaParam.toLowerCase()] || "la pasarela de pago";
+
+  const [buscando, setBuscando] = useState(true);
+  const [quote, setQuote] = useState<any>(null);
+  const [cuenta, setCuenta] = useState<any>(null);
+  const [ultimoCobro, setUltimoCobro] = useState<any>(null);
+  const [agotado, setAgotado] = useState(false);
+  const [cerrandoSesion, setCerrandoSesion] = useState(false);
+  const intentosRef = useRef(0);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   async function handleCerrarSesion() {
     setCerrandoSesion(true);
     try {
-      await supabase.auth.signOut();
+      if (supabase) await supabase.auth.signOut();
     } catch (err) {
       console.error("Error cerrando sesión:", err);
     } finally {
@@ -37,170 +76,89 @@ export default function PagoExitoso() {
   }
 
   useEffect(() => {
-    if (singleOrderId) {
-      const processPaymentAndEmail = async () => {
-        try {
-          const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
-          const newStatus = isTransferencia ? 'en_verificacion' : 'pagado';
+    if (!autorizado || !supabase || !singleOrderId) return;
 
-          // Buscamos la cotización aceptando tanto el UUID real (id) como
-          // la referencia (QT-XXXXXX / ESP-XXXXXX), igual que checkout.tsx.
-          let query = supabase.from('quotes').select('*');
-          if (typeof singleOrderId === 'string' && isNaN(Number(singleOrderId))) {
-            query = query.eq('referencia', singleOrderId);
-          } else {
-            query = query.or(`id.eq.${singleOrderId},referencia.eq.${singleOrderId}`);
-          }
+    let activo = true;
 
-          const { data, error } = await query.maybeSingle();
+    const consultarEstado = async () => {
+      // Cotización, aceptando tanto el UUID real (id) como la referencia.
+      let q = supabase!.from("quotes").select("*");
+      q = isNaN(Number(singleOrderId)) ? q.eq("referencia", singleOrderId) : q.or(`id.eq.${singleOrderId},referencia.eq.${singleOrderId}`);
+      const { data: quoteData, error: quoteError } = await q.maybeSingle();
 
-          if (error) {
-            console.error("Error al obtener la orden de Supabase:", error);
-          }
+      if (!activo) return;
+      if (quoteError) console.error("Error consultando quotes:", quoteError.message);
 
-          const activeData = data || {};
-          setOrderInfo(activeData);
+      const estadosConfirmados = ["paid", "partial", "en_verificacion"];
+      const yaConfirmado = quoteData && estadosConfirmados.includes(String(quoteData.status || "").toLowerCase());
 
-          const dbTotal = Number(activeData.total || activeData.monto || activeData.subtotal || 0);
-          const currentTotal = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
-          const currentPaid = rawAmount ? Number(rawAmount) : currentTotal;
-          const balance = Math.max(0, currentTotal - currentPaid);
-          const fullPay = balance === 0;
-          const docType = fullPay ? "FACTURA" : "RECIBO DE PAGO";
-          const tipoDocumento: 'FACTURA' | 'RECIBO' = fullPay ? 'FACTURA' : 'RECIBO';
-          const metodoNormalizado = isTransferencia ? 'transferencia' : (methodStr || 'pasarela');
+      if (yaConfirmado) {
+        setQuote(quoteData);
 
-          // --- Registro contable: se hace UNA sola vez por carga de página,
-          // junto con el envío de correo, para no duplicar filas en el
-          // libro de pagos si el efecto se vuelve a disparar. ---
-          if (!emailSentRef.current) {
-            emailSentRef.current = true;
+        const referenciaReal = quoteData.referencia || singleOrderId;
+        const { data: cuentaData } = await supabase!
+          .from("cuentas_por_cobrar")
+          .select("*")
+          .eq("quote_referencia", referenciaReal)
+          .maybeSingle();
+        if (!activo) return;
+        setCuenta(cuentaData || null);
 
-            let numDoc: string | null = null;
-
-            if (activeData.id) {
-              // 1. Generar el número secuencial RT-/FT- (atómico, vía función
-              //    de Postgres — ver 001_crear_tabla_pagos.sql).
-              const { data: numData, error: numError } = await supabase.rpc(
-                'generar_numero_documento',
-                { p_tipo: tipoDocumento }
-              );
-              if (numError) {
-                console.error("Error generando número de documento:", numError);
-              } else {
-                numDoc = numData as string;
-                setNumeroDocumento(numDoc);
-              }
-
-              // 2. Insertar el movimiento en el libro de pagos. Esta tabla es
-              //    la que después va a alimentar manufactura.tsx, analitica.tsx,
-              //    el módulo contable y el estado de cuenta por cliente.
-              const { error: pagoError } = await supabase.from('pagos').insert([{
-                numero_documento: numDoc || `${tipoDocumento === 'FACTURA' ? 'FT' : 'RT'}-SIN-NUM-${Date.now()}`,
-                tipo_documento: tipoDocumento,
-                quote_id: activeData.id,
-                quote_referencia: activeData.referencia || singleOrderId,
-                cliente_email: activeData.client_email || activeData.email || activeData.correo || null,
-                cliente_nombre: activeData.client_name || activeData.representante || activeData.nombre || null,
-                monto: currentPaid,
-                monto_total_cotizacion: currentTotal,
-                saldo_pendiente: balance,
-                metodo_pago: metodoNormalizado,
-                session_id: singleSessionId || null,
-                status: isTransferencia ? 'pendiente_verificacion' : 'confirmado',
-              }]);
-              if (pagoError) console.error("Error registrando el pago en el libro:", pagoError);
-
-              // 3. Recalcular el abonado acumulado real sumando TODOS los pagos
-              //    confirmados de esta cotización (puede haber más de uno: ej.
-              //    50% + 50%), y dejarlo en quotes.monto_abonado (nombre real
-              //    de la columna) para que manufactura.tsx quede sincronizado.
-              //    También se actualizan estado_pago y pagado_total, que son
-              //    los campos que analitica.tsx ya usa para sus cálculos.
-              const { data: pagosDeLaOrden } = await supabase
-                .from('pagos')
-                .select('monto')
-                .eq('quote_id', activeData.id)
-                .neq('status', 'anulado');
-
-              const abonadoTotal = (pagosDeLaOrden || []).reduce(
-                (acc: number, p: any) => acc + Number(p.monto || 0), 0
-              );
-              const saldoRestante = Math.max(0, currentTotal - abonadoTotal);
-
-              const { error: updateError } = await supabase
-                .from('quotes')
-                .update({
-                  status: newStatus,
-                  estado_pago: newStatus,
-                  monto_abonado: abonadoTotal,
-                  saldo_pendiente: saldoRestante,
-                  metodo_pago: metodoNormalizado,
-                  pagado_total: saldoRestante <= 0,
-                })
-                .eq('id', activeData.id);
-
-              if (updateError) {
-                console.error("Error al actualizar status de la orden:", updateError);
-              }
-            } else {
-              console.warn("No se encontró ninguna cotización con el identificador:", singleOrderId);
-            }
-
-            const clientEmail = activeData.client_email || activeData.email || activeData.correo || "ajpanama22@gmail.com";
-            const clientName = activeData.client_name || activeData.representante || activeData.nombre || "Alfredo Abdel Jurado Madrigal";
-            const refDocumento = numDoc ? `${numDoc} (Cotización #${singleOrderId})` : `#${singleOrderId}`;
-
-            const emailRes = await fetch('/api/send-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: clientEmail,
-                subject: `${docType} ${numDoc || ''} - Trulink Fiber LLC`,
-                htmlContent: `
-                  <div style="background-color:#000; color:#DAA520; padding:30px; font-family:sans-serif; border-radius:10px;">
-                    <h2 style="color:#DAA520; border-bottom:1px solid #DAA520; padding-bottom:10px;">Trulink Fiber LLC - Notificación de Pago</h2>
-                    <p style="color:#fff; font-size:16px;">Estimado/a <strong>${clientName}</strong>,</p>
-                    <p style="color:#fff; font-size:15px;">Hemos registrado exitosamente su pago correspondiente a ${refDocumento}.</p>
-                    <div style="background:#111; border:1px solid #DAA520; padding:15px; border-radius:8px; margin:20px 0; color:#fff;">
-                      <p><strong>N° de Documento:</strong> ${numDoc || "Pendiente de asignar"}</p>
-                      <p><strong>Tipo de Documento:</strong> ${docType}</p>
-                      <p><strong>Monto Total Cotización:</strong> $${currentTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</p>
-                      <p><strong>Monto Pagado:</strong> <span style="color:#2b7a0b; font-weight:bold;">$${currentPaid.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span></p>
-                      <p><strong>Saldo Pendiente:</strong> $${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</p>
-                      <p><strong>Método:</strong> ${(methodStr || "En línea").toUpperCase()}</p>
-                    </div>
-                    <p style="color:#bbb; font-size:13px;">Atentamente,<br/>Departamento de Administración y Operaciones<br/>Trulink Fiber LLC</p>
-                  </div>
-                `,
-                pdfUrl: activeData.pdf_url || null,
-              })
-            });
-
-            const emailResultText = await emailRes.text();
-            console.log("Respuesta de /api/send-email:", emailRes.status, emailResultText);
-          }
-
-        } catch (err) {
-          console.error("Error crítico al procesar orden:", err);
-        } finally {
-          setLoading(false);
+        if (cuentaData) {
+          const { data: cobroData } = await supabase!
+            .from("cobros_cliente")
+            .select("*")
+            .eq("cuenta_por_cobrar_id", cuentaData.id)
+            .order("fecha", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (!activo) return;
+          setUltimoCobro(cobroData || null);
         }
-      };
-      processPaymentAndEmail();
-    } else {
-      setLoading(false);
-    }
-  }, [singleOrderId, methodStr, rawAmount]);
 
-  const dbTotal = Number(orderInfo?.total || orderInfo?.monto || orderInfo?.subtotal || 0);
-  const totalAmount = dbTotal > 0 ? dbTotal : (rawAmount ? Number(rawAmount) : 0);
-  const paidAmount = rawAmount ? Number(rawAmount) : totalAmount;
-  const balanceAmount = Math.max(0, totalAmount - paidAmount);
-  const isFullPayment = balanceAmount === 0;
+        setBuscando(false);
+        return;
+      }
+
+      // Todavía no llegó el webhook. Reintentamos: rápido al principio,
+      // luego más espaciado, antes de rendirnos y pedir verificación manual.
+      intentosRef.current += 1;
+      const totalIntentos = INTENTOS_FASE_RAPIDA + INTENTOS_FASE_LENTA;
+      if (intentosRef.current >= totalIntentos) {
+        setQuote(quoteData || null);
+        setAgotado(true);
+        setBuscando(false);
+        return;
+      }
+      const intervalo = intentosRef.current <= INTENTOS_FASE_RAPIDA ? INTERVALO_RAPIDO_MS : INTERVALO_LENTO_MS;
+      timeoutRef.current = setTimeout(consultarEstado, intervalo);
+    };
+
+    consultarEstado();
+
+    return () => {
+      activo = false;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [autorizado, singleOrderId]);
+
+  // ── Guard de acceso ──
+  if (cargandoSesion) {
+    return (
+      <div style={pantallaCentro}>
+        <p>Verificando acceso...</p>
+      </div>
+    );
+  }
+  if (!autorizado) return null; // useRequiereCliente ya redirigió
+
+  const totalCotizacion = Number(quote?.total || 0);
+  const montoPagadoAcumulado = Number(quote?.monto_pagado || 0);
+  const saldoPendiente = Number(quote?.saldo_pendiente ?? Math.max(0, totalCotizacion - montoPagadoAcumulado));
+  const isFullPayment = saldoPendiente <= 0;
+  const isTransferencia = quote?.metodo_pago === "Transferencia" || quote?.metodo_pago === "ACH" || quote?.status === "en_verificacion";
   const documentType = isFullPayment ? "FACTURA" : "RECIBO DE PAGO";
-  const isTransferencia = methodStr === 'transferencia' || methodStr === 'ach';
-
+  const montoEsteAbono = ultimoCobro ? Number(ultimoCobro.monto || 0) : montoPagadoAcumulado;
   const currentDate = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -219,6 +177,9 @@ export default function PagoExitoso() {
         }
         .container-pulse {
           animation: pulse-border 4s infinite ease-in-out;
+        }
+        @keyframes girar-spinner {
+          to { transform: rotate(360deg); }
         }
         @media print {
           body, html {
@@ -242,16 +203,44 @@ export default function PagoExitoso() {
         <div className="no-print">
           <img src="/images/logo.png" alt="Trulink Fiber" style={{ width: "130px", marginBottom: "20px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
 
-          {loading ? (
+          {buscando ? (
             <div style={{ padding: "30px 0" }}>
-              <p style={{ color: theme.textMuted, fontSize: "1.1rem", fontStyle: "italic" }}>Procesando transacción y enviando comprobante...</p>
+              <div style={{ marginBottom: "18px" }}>
+                <span style={spinnerStyle} />
+              </div>
+              <p style={{ color: theme.gold, fontSize: "1.1rem", fontWeight: 600, letterSpacing: "0.5px", margin: "0 0 8px 0" }}>
+                Esperando confirmación de pago de {nombrePasarela}...
+              </p>
+              <p style={{ color: theme.textMuted, fontSize: "0.85rem", margin: 0 }}>
+                No cierres ni recargues esta página, esto puede tardar unos segundos.
+              </p>
+            </div>
+          ) : agotado ? (
+            <div style={{ marginBottom: "30px" }}>
+              <h1 style={{ color: theme.gold, fontSize: "1.6rem", marginBottom: "10px", fontWeight: 700, letterSpacing: "1px" }}>Seguimos esperando la confirmación</h1>
+              <div style={{ width: "50px", height: "2px", backgroundColor: theme.gold, margin: "0 auto 15px auto", opacity: 0.8 }}></div>
+              <p style={{ color: theme.textMuted, fontSize: "0.95rem", lineHeight: "1.6", margin: "0 0 18px 0" }}>
+                {nombrePasarela} todavía no nos envía la confirmación de este pago. Si ya completaste el pago de tu
+                lado, no te preocupes: en cuanto llegue la confirmación tu cotización quedará actualizada
+                automáticamente y recibirás el comprobante por correo.
+              </p>
+              <Button
+                variant="outline-gold"
+                onClick={() => {
+                  intentosRef.current = 0;
+                  setAgotado(false);
+                  setBuscando(true);
+                }}
+              >
+                Verificar de nuevo
+              </Button>
             </div>
           ) : isTransferencia ? (
             <div style={{ marginBottom: "30px" }}>
               <h1 style={{ color: theme.gold, fontSize: "1.8rem", marginBottom: "10px", fontWeight: 700, letterSpacing: "1px" }}>¡Instrucciones Registradas!</h1>
               <div style={{ width: "50px", height: "2px", backgroundColor: theme.gold, margin: "0 auto 15px auto", opacity: 0.8 }}></div>
               <p style={{ color: theme.textMuted, fontSize: "1rem", lineHeight: "1.6", margin: 0 }}>
-                Hemos registrado su selección de pago y enviado el comprobante correspondiente a <strong style={{ color: theme.gold }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
+                Hemos registrado tu selección de pago. Un correo de confirmación se envía a <strong style={{ color: theme.gold }}>{quote?.email || "tu correo registrado"}</strong>.
               </p>
               <div style={{ marginTop: "16px" }}>
                 <Badge tone={estadoToTone("en_verificacion")}>EN VERIFICACIÓN</Badge>
@@ -259,10 +248,10 @@ export default function PagoExitoso() {
             </div>
           ) : (
             <div style={{ marginBottom: "30px" }}>
-              <h1 style={{ color: theme.green, fontSize: "1.8rem", marginBottom: "10px", fontWeight: 700, letterSpacing: "1px" }}>¡Transacción Exitosa!</h1>
+              <h1 style={{ color: theme.green, fontSize: "1.8rem", marginBottom: "10px", fontWeight: 700, letterSpacing: "1px" }}>¡PAGO EXITOSO!</h1>
               <div style={{ width: "50px", height: "2px", backgroundColor: theme.green, margin: "0 auto 15px auto", opacity: 0.8 }}></div>
               <p style={{ color: theme.textMuted, fontSize: "1rem", lineHeight: "1.6", margin: 0 }}>
-                Su pago se ha procesado con éxito y se ha enviado la {documentType.toLowerCase()} a <strong style={{ color: theme.gold }}>{orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"}</strong>.
+                Tu pago se procesó con éxito y se envió la {documentType.toLowerCase()} a <strong style={{ color: theme.gold }}>{quote?.email || "tu correo registrado"}</strong>.
               </p>
               <div style={{ marginTop: "16px" }}>
                 <Badge tone="success">PAGADO</Badge>
@@ -271,83 +260,64 @@ export default function PagoExitoso() {
           )}
         </div>
 
-        {/* Voucher Document Box */}
-        <div style={{ width: "100%", backgroundColor: theme.background, border: `1px solid ${theme.borderGold}`, padding: "30px", borderRadius: theme.radiusLg, textAlign: "left", color: theme.gold, margin: "10px 0 30px 0", boxSizing: "border-box", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.8)" }}>
+        {!buscando && quote && (
+          <div style={{ width: "100%", backgroundColor: theme.background, border: `1px solid ${theme.borderGold}`, padding: "30px", borderRadius: theme.radiusLg, textAlign: "left", color: theme.gold, margin: "10px 0 30px 0", boxSizing: "border-box", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.8)" }}>
 
-          <div style={{ textAlign: "center", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "18px", marginBottom: "20px" }}>
-            <img src="/images/logo.png" alt="Trulink Fiber LLC" style={{ width: "100px", height: "auto", marginBottom: "8px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.2))" }} />
-            <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>5203 Juan Tabo Blvd. NE Suite 2a</div>
-            <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>Albuquerque, NM, 87111, USA</div>
-            <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>info@trulinkfiber.com</div>
-          </div>
+            <div style={{ textAlign: "center", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "18px", marginBottom: "20px" }}>
+              <img src="/images/logo.png" alt="Trulink Fiber LLC" style={{ width: "100px", height: "auto", marginBottom: "8px", filter: "drop-shadow(0 0 5px rgba(218,165,32,0.2))" }} />
+              <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>5203 Juan Tabo Blvd. NE Suite 2a</div>
+              <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>Albuquerque, NM, 87111, USA</div>
+              <div style={{ fontSize: "0.75rem", color: theme.textMuted, margin: "2px 0" }}>info@trulinkfiber.com</div>
+            </div>
 
-          <div style={{ background: theme.goldGradient, color: "#1A1400", fontSize: "0.95rem", fontWeight: 700, textAlign: "center", padding: "10px", margin: "0 0 20px 0", borderRadius: theme.radiusSm, border: `1px solid ${theme.gold}`, letterSpacing: "1px" }}>
-            {documentType} {isFullPayment ? "(100% - CONTADO)" : "(ANTICIPO / PARCIAL)"}
-          </div>
+            <div style={{ background: theme.goldGradient, color: "#1A1400", fontSize: "0.95rem", fontWeight: 700, textAlign: "center", padding: "10px", margin: "0 0 20px 0", borderRadius: theme.radiusSm, border: `1px solid ${theme.gold}`, letterSpacing: "1px" }}>
+              {documentType} {isFullPayment ? "(100% - CONTADO)" : "(ANTICIPO / PARCIAL)"}
+            </div>
 
-          <div style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "20px", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "15px", lineHeight: "1.6" }}>
-            <DataRow label="N° de Documento" valor={<strong style={{ color: theme.gold }}>{numeroDocumento || "Generando..."}</strong>} />
-            <DataRow label="Fecha" valor={currentDate} />
-            <DataRow label="Referencia Cotización" valor={<strong style={{ color: theme.gold }}>{`#${singleOrderId || "N/D"}`}</strong>} />
-            <DataRow label="Cliente" valor={orderInfo?.client_name || orderInfo?.representante || orderInfo?.nombre || "Alfredo Abdel Jurado Madrigal"} />
-            <DataRow label="Correo Electrónico" valor={orderInfo?.client_email || orderInfo?.email || orderInfo?.correo || "ajpanama22@gmail.com"} />
-            <DataRow label="Método de Pago" valor={methodStr ? methodStr.toUpperCase() : "Pasarela / En Línea"} />
-          </div>
+            <div style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "20px", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "15px", lineHeight: "1.6" }}>
+              <DataRow label="Fecha de consulta" valor={currentDate} />
+              <DataRow label="Referencia Cotización" valor={<strong style={{ color: theme.gold }}>{`#${quote?.referencia || singleOrderId || "N/D"}`}</strong>} />
+              <DataRow label="Cliente" valor={quote?.empresa || quote?.representante || "N/D"} />
+              <DataRow label="Correo Electrónico" valor={quote?.email || "N/D"} />
+              <DataRow label="Método de Pago" valor={(quote?.metodo_pago || "Pasarela / En Línea").toString().toUpperCase()} />
+              {cuenta?.estado && <DataRow label="Estado de la cuenta" valor={cuenta.estado} />}
+            </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "20px", borderRadius: theme.radiusSm, overflow: "hidden" }}>
-            <thead>
-              <tr style={{ backgroundColor: theme.panelBg, borderBottom: `1px solid ${theme.borderGold}` }}>
-                <th style={{ color: theme.gold, fontSize: "0.85rem", padding: "12px", textAlign: "left", width: "70%", fontWeight: 600 }}>Concepto / Descripción</th>
-                <th style={{ color: theme.gold, fontSize: "0.85rem", padding: "12px", textAlign: "right", width: "30%", fontWeight: 600 }}>Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td style={{ padding: "14px 12px", fontSize: "0.85rem", borderBottom: `1px solid ${theme.borderGoldLight}`, backgroundColor: theme.sidebarBg, verticalAlign: "top", color: theme.textLight }}>
-                  <strong style={{ color: theme.gold }}>{isFullPayment ? "FACTURA COMERCIAL - PAGO TOTAL" : "RECIBO DE ANTICIPO / PAGO PARCIAL"}</strong><br />
-                  <span style={{ color: theme.textMuted, fontSize: "0.75rem", lineHeight: "1.4", display: "inline-block", marginTop: "4px" }}>
-                    {orderInfo?.descripcion || orderInfo?.description || (isFullPayment ? "Liquidación total de orden para suministro y fabricación." : "Monto parcial transferido para la orden.")}
-                  </span>
-                </td>
-                <td style={{ padding: "14px 12px", fontSize: "0.9rem", borderBottom: `1px solid ${theme.borderGoldLight}`, backgroundColor: theme.sidebarBg, textAlign: "right", verticalAlign: "middle", fontWeight: 700, color: theme.gold }}>
-                  ${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+            <div style={{ backgroundColor: theme.sidebarBg, border: `1px solid ${theme.borderGoldLight}`, borderRadius: theme.radiusMd, padding: "15px", marginBottom: "20px" }}>
+              <DataRow label="Monto Total Cotización" valor={`$${totalCotizacion.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`} />
+              <DataRow label="Último abono registrado" valor={<strong style={{ color: theme.green }}>{`$${montoEsteAbono.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}</strong>} />
+              <DataRow label="Total abonado acumulado" valor={`$${montoPagadoAcumulado.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem", fontWeight: 700, paddingTop: "10px", borderTop: `1px solid ${theme.borderGoldLight}`, color: theme.gold }}>
+                <span>Saldo Pendiente:</span>
+                <span>${saldoPendiente.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span>
+              </div>
+            </div>
 
-          <div style={{ backgroundColor: theme.sidebarBg, border: `1px solid ${theme.borderGoldLight}`, borderRadius: theme.radiusMd, padding: "15px", marginBottom: "20px" }}>
-            <DataRow label="Monto Total Cotización" valor={`$${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`} />
-            <DataRow label="Monto Recibido" valor={<strong style={{ color: theme.green }}>{`$${paidAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD`}</strong>} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem", fontWeight: 700, paddingTop: "10px", borderTop: `1px solid ${theme.borderGoldLight}`, color: theme.gold }}>
-              <span>Saldo Pendiente:</span>
-              <span>${balanceAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD</span>
+            <div style={{ fontSize: "0.75rem", color: theme.textMuted, backgroundColor: theme.sidebarBg, border: `1px solid ${theme.borderGoldLight}`, borderLeft: `3px solid ${theme.gold}`, padding: "12px", borderRadius: theme.radiusSm, marginBottom: "20px", lineHeight: "1.5", textAlign: "justify" }}>
+              <strong style={{ color: theme.gold }}>Condiciones:</strong>{" "}
+              {isFullPayment
+                ? "Esta orden ha sido pagada al 100%. Factura emitida para efectos fiscales y de garantía."
+                : `El saldo pendiente de $${saldoPendiente.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD debe ser liquidado previo a la entrega final.`}
+            </div>
+
+            <div style={{ textAlign: "center", fontSize: "0.75rem", color: theme.textMuted, borderTop: `1px dashed ${theme.borderGoldLight}`, paddingTop: "12px", lineHeight: "1.4" }}>
+              <strong style={{ color: theme.gold, fontSize: "0.8rem", letterSpacing: "0.5px" }}>¡GRACIAS POR SU CONFIANZA!</strong><br />
+              www.trulinkfiber.com
             </div>
           </div>
-
-          <div style={{ fontSize: "0.75rem", color: theme.textMuted, backgroundColor: theme.sidebarBg, border: `1px solid ${theme.borderGoldLight}`, borderLeft: `3px solid ${theme.gold}`, padding: "12px", borderRadius: theme.radiusSm, marginBottom: "20px", lineHeight: "1.5", textAlign: "justify" }}>
-            <strong style={{ color: theme.gold }}>Condiciones:</strong>{" "}
-            {isFullPayment
-              ? "Esta orden ha sido pagada al 100%. Factura emitida para efectos fiscales y de garantía."
-              : `El saldo pendiente de $${balanceAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} USD debe ser liquidado previo a la entrega final.`}
-          </div>
-
-          <div style={{ textAlign: "center", fontSize: "0.75rem", color: theme.textMuted, borderTop: `1px dashed ${theme.borderGoldLight}`, paddingTop: "12px", lineHeight: "1.4" }}>
-            <strong style={{ color: theme.gold, fontSize: "0.8rem", letterSpacing: "0.5px" }}>¡GRACIAS POR SU CONFIANZA!</strong><br />
-            www.trulinkfiber.com
-          </div>
-
-        </div>
+        )}
 
         <div className="no-print" style={{ display: "flex", gap: "15px", justifyContent: "center", flexWrap: "wrap", marginTop: "10px" }}>
-          <Button variant="gold" onClick={() => window.print()}>
-            Imprimir / Guardar Comprobante
+          {!buscando && quote && (
+            <Button variant="gold" onClick={() => window.print()}>
+              Imprimir / Guardar Comprobante
+            </Button>
+          )}
+          <Button variant="outline-gold" onClick={() => router.push('/portal-cliente')}>
+            Volver al Portal
           </Button>
-          <Button variant="outline-gold" onClick={() => router.push('/admin')}>
-            Ir al Panel Admin
-          </Button>
-          <Button variant="outline-gold" onClick={() => router.push('/')}>
-            Volver al Inicio
+          <Button variant="outline-gold" onClick={() => router.push('/seguimiento')}>
+            Ver mis pedidos
           </Button>
           <Button variant="ghost" disabled={cerrandoSesion} onClick={handleCerrarSesion}>
             {cerrandoSesion ? "Cerrando..." : "Cerrar Sesión"}
@@ -363,3 +333,23 @@ export default function PagoExitoso() {
     </div>
   );
 }
+
+const spinnerStyle: React.CSSProperties = {
+  display: "inline-block",
+  width: "34px",
+  height: "34px",
+  border: `3px solid ${theme.borderGoldLight}`,
+  borderTopColor: theme.gold,
+  borderRadius: "50%",
+  animation: "girar-spinner 0.8s linear infinite",
+};
+
+const pantallaCentro: React.CSSProperties = {
+  backgroundColor: theme.background,
+  color: theme.gold,
+  minHeight: "100vh",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontFamily: theme.fontFamily,
+};

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { getSupabase } from "../lib/supabaseClient";
+import { useRequiereCliente } from "../lib/useRequiereCliente";
+import { theme } from "../lib/theme";
+import { Card, Heading, Button, inputStyle, DataRow } from "../lib/ui";
 
 export default function EspecialesPage() {
   const router = useRouter();
   const supabase = getSupabase();
+  const { cargando: cargandoGuard, autorizado } = useRequiereCliente();
 
   const [referencia, setReferencia] = useState("");
   const [cargandoSesion, setCargandoSesion] = useState(true);
@@ -128,29 +132,33 @@ export default function EspecialesPage() {
     }
   };
 
+  if (cargandoGuard) {
+    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>Verificando acceso...</p>;
+  }
+  if (!autorizado) return null;
+
   if (enviado) {
     return (
       <div style={contenedor}>
-        <style jsx global>{estilosGlobales}</style>
         <div style={{ maxWidth: "560px", margin: "0 auto", textAlign: "center", paddingTop: "80px" }}>
           <div style={{ fontSize: "3rem", marginBottom: "20px" }}>✓</div>
-          <h1 style={{ color: "#2ecc71", fontSize: "1.4rem", letterSpacing: "1px", marginBottom: "14px" }}>
+          <h1 style={{ color: theme.green, fontSize: "1.4rem", letterSpacing: "1px", marginBottom: "14px" }}>
             Solicitud Recibida
           </h1>
-          <p style={{ color: "#bbb", fontSize: "0.92rem", lineHeight: 1.7, marginBottom: "10px" }}>
-            Tu referencia es <strong style={{ color: "#DAA520" }}>{referencia}</strong>
+          <p style={{ color: theme.textMuted, fontSize: "0.92rem", lineHeight: 1.7, marginBottom: "10px" }}>
+            Tu referencia es <strong style={{ color: theme.gold }}>{referencia}</strong>
           </p>
           <p style={{ color: "#888", fontSize: "0.85rem", lineHeight: 1.7, marginBottom: "32px" }}>
             Nuestro equipo técnico va a revisar tus especificaciones y te enviará
             la cotización por correo. Puedes seguir el avance desde Control de Pedidos.
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-            <button onClick={() => router.push("/seguimiento")} className="esp-btn">
+            <Button variant="gold" onClick={() => router.push("/seguimiento")}>
               Ver mis pedidos
-            </button>
-            <button onClick={() => router.push("/portal-cliente")} className="esp-btn-alt">
+            </Button>
+            <Button variant="outline-gold" onClick={() => router.push("/portal-cliente")}>
               Volver al portal
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -159,123 +167,107 @@ export default function EspecialesPage() {
 
   return (
     <div style={contenedor}>
-      <style jsx global>{estilosGlobales}</style>
-
       <div style={{ maxWidth: "820px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", flexWrap: "wrap", gap: "12px" }}>
-          <button onClick={() => router.push("/portal-cliente")} className="esp-btn-alt">
+          <Button variant="outline-gold" onClick={() => router.push("/portal-cliente")}>
             ← Volver al Portal
-          </button>
+          </Button>
           <span style={{ color: "#888", fontSize: "0.82rem" }}>
-            Referencia: <strong style={{ color: "#DAA520" }}>{referencia}</strong>
+            Referencia: <strong style={{ color: theme.gold }}>{referencia}</strong>
           </span>
         </div>
 
         <div style={{ textAlign: "center", marginBottom: "35px" }}>
-          <h1 style={{ color: "#DAA520", fontSize: "1.5rem", letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 10px 0", fontWeight: 400 }}>
+          <h1 style={{ color: theme.gold, fontSize: "1.5rem", letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 10px 0", fontWeight: 400 }}>
             Pedidos Especiales
           </h1>
-          <div style={{ width: "60px", height: "2px", background: "#DAA520", margin: "0 auto 14px auto", opacity: 0.6 }} />
+          <div style={{ width: "60px", height: "2px", background: theme.gold, margin: "0 auto 14px auto", opacity: 0.6 }} />
           <p style={{ color: "#888", fontSize: "0.88rem", margin: 0, lineHeight: 1.6 }}>
             Cuéntanos qué necesitas y te preparamos una cotización a la medida.
           </p>
         </div>
 
-        <div className="esp-card" style={{ marginBottom: "22px" }}>
-          <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "0.95rem", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "14px" }}>
-            Tus Datos
-          </h3>
+        <Card style={{ marginBottom: "22px" }}>
+          <Heading>Tus Datos</Heading>
           {cargandoSesion ? (
             <p style={{ color: "#888", fontSize: "0.85rem", margin: 0 }}>Cargando...</p>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", fontSize: "0.85rem" }}>
-              <div>
-                <span className="esp-lb">Empresa</span>
-                <strong style={{ color: "#fff" }}>{nombreEmpresa || "No registrada"}</strong>
-              </div>
-              <div>
-                <span className="esp-lb">Representante</span>
-                <strong style={{ color: "#fff" }}>{representante || "No registrado"}</strong>
-              </div>
-              <div>
-                <span className="esp-lb">Correo</span>
-                <strong style={{ color: "#fff" }}>{mailCliente || "No registrado"}</strong>
-              </div>
-              <div>
-                <span className="esp-lb">Teléfono</span>
-                <strong style={{ color: "#fff" }}>{telefonoCliente || "No registrado"}</strong>
-              </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
+              <DataRow label="Empresa" valor={nombreEmpresa || "No registrada"} />
+              <DataRow label="Representante" valor={representante || "No registrado"} />
+              <DataRow label="Correo" valor={mailCliente || "No registrado"} />
+              <DataRow label="Teléfono" valor={telefonoCliente || "No registrado"} />
             </div>
           )}
-        </div>
+        </Card>
 
-        <div className="esp-card" style={{ marginBottom: "22px" }}>
-          <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "0.95rem", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px" }}>
-            Qué Necesitas
-          </h3>
+        <Card style={{ marginBottom: "22px" }}>
+          <Heading>Qué Necesitas</Heading>
           <p style={{ color: "#777", fontSize: "0.78rem", margin: "0 0 16px 0", lineHeight: 1.6 }}>
             Mientras más detalle nos des, más precisa será la cotización.
             Tipo de cable, cantidad de hilos, longitud, condiciones de instalación, normas que debe cumplir.
           </p>
 
-          <label className="esp-lb">Descripción del requerimiento</label>
+          <label style={labelStyle}>Descripción del requerimiento</label>
           <textarea
             value={especificaciones}
             onChange={(e) => setEspecificaciones(e.target.value)}
             placeholder="Ej: Necesito 5 km de cable ADSS de 48 hilos para vanos de 200 metros, con cubierta anti-tracking para línea de alta tensión..."
             rows={6}
-            className="esp-in"
-            style={{ resize: "vertical", marginBottom: "16px" }}
+            style={{ ...inputStyle, width: "100%", resize: "vertical", marginBottom: "16px", boxSizing: "border-box" }}
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>
-              <label className="esp-lb">Cantidad aproximada</label>
-              <input className="esp-in" placeholder="Ej: 5 km, 10 carretes..."
+              <label style={labelStyle}>Cantidad aproximada</label>
+              <input
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                placeholder="Ej: 5 km, 10 carretes..."
                 value={cantidadAprox} onChange={(e) => setCantidadAprox(e.target.value)} />
             </div>
             <div>
-              <label className="esp-lb">¿Para cuándo lo necesitas?</label>
-              <input className="esp-in" type="date"
+              <label style={labelStyle}>¿Para cuándo lo necesitas?</label>
+              <input
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                type="date"
                 value={fechaRequerida} onChange={(e) => setFechaRequerida(e.target.value)} />
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="esp-card" style={{ marginBottom: "26px" }}>
-          <h3 style={{ color: "#DAA520", marginTop: 0, fontSize: "0.95rem", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "6px" }}>
-            Documentos Técnicos
-          </h3>
+        <Card style={{ marginBottom: "26px" }}>
+          <Heading>Documentos Técnicos</Heading>
           <p style={{ color: "#777", fontSize: "0.78rem", margin: "0 0 16px 0" }}>
             Opcional. Planos, fichas técnicas, pliegos de licitación o cualquier especificación en archivo.
           </p>
 
           <input type="file" id="espArchivo" style={{ display: "none" }}
             onChange={(e) => { if (e.target.files?.[0]) setArchivo(e.target.files[0]); }} />
-          <label htmlFor="espArchivo" className="esp-btn-alt" style={{ display: "inline-block" }}>
-            {archivo ? `📎 ${archivo.name}` : "📎 Adjuntar archivo"}
+          <label htmlFor="espArchivo">
+            <Button variant="outline-gold" style={{ display: "inline-block" }}>
+              {archivo ? `📎 ${archivo.name}` : "📎 Adjuntar archivo"}
+            </Button>
           </label>
           {archivo && (
-            <button onClick={() => setArchivo(null)}
-              style={{ background: "transparent", color: "#e74c3c", border: "none", cursor: "pointer", fontSize: "0.78rem", marginLeft: "12px" }}>
+            <Button variant="ghost" onClick={() => setArchivo(null)} style={{ color: theme.red, marginLeft: "12px" }}>
               Quitar
-            </button>
+            </Button>
           )}
-        </div>
+        </Card>
 
-        <div style={{ background: "rgba(218,165,32,0.05)", border: "1px dashed rgba(218,165,32,0.3)",
-          borderRadius: "10px", padding: "16px 20px", marginBottom: "24px" }}>
+        <div style={{ background: theme.goldSoft, border: `1px dashed ${theme.borderGoldInput}`,
+          borderRadius: theme.radiusMd, padding: "16px 20px", marginBottom: "24px" }}>
           <p style={{ color: "#999", fontSize: "0.8rem", margin: 0, lineHeight: 1.6 }}>
-            📌 Este es un <strong style={{ color: "#DAA520" }}>pedido a la medida</strong>, así que no lleva precio
+            📌 Este es un <strong style={{ color: theme.gold }}>pedido a la medida</strong>, así que no lleva precio
             todavía. Nuestro equipo revisa tus especificaciones y te envía la cotización por correo.
           </p>
         </div>
 
         <div style={{ textAlign: "center" }}>
-          <button onClick={enviarSolicitud} disabled={enviando || cargandoSesion}
-            className="esp-btn" style={{ padding: "14px 40px", fontSize: "0.9rem", opacity: enviando ? 0.6 : 1 }}>
+          <Button variant="gold" onClick={enviarSolicitud} disabled={enviando || cargandoSesion}
+            style={{ padding: "14px 40px", fontSize: "0.9rem" }}>
             {enviando ? "Enviando..." : "Enviar Solicitud"}
-          </button>
+          </Button>
         </div>
 
         <p style={{ textAlign: "center", color: "rgba(218,165,32,0.4)", fontSize: "0.74rem", marginTop: "40px", letterSpacing: "1px" }}>
@@ -287,32 +279,19 @@ export default function EspecialesPage() {
 }
 
 const contenedor: React.CSSProperties = {
-  backgroundColor: "#000",
-  color: "#DAA520",
+  backgroundColor: theme.background,
+  color: theme.gold,
   minHeight: "100vh",
   padding: "40px 20px",
-  fontFamily: "'Inter', sans-serif",
+  fontFamily: theme.fontFamily,
   boxSizing: "border-box",
 };
 
-const estilosGlobales = `
-  html, body { margin:0; padding:0; background:#000 !important; }
-  .esp-card { background:linear-gradient(145deg, rgba(15,15,15,0.9), rgba(5,5,5,0.95));
-              border:1px solid rgba(218,165,32,0.3); border-radius:16px; padding:24px;
-              box-shadow:0 10px 30px rgba(0,0,0,0.8); }
-  .esp-in { width:100%; background:#000; color:#DAA520;
-            border:1px solid rgba(218,165,32,0.4); border-radius:8px; padding:12px;
-            font-size:0.88rem; outline:none; box-sizing:border-box; font-family:inherit; }
-  .esp-in:focus { border-color:#DAA520; box-shadow:0 0 10px rgba(218,165,32,0.25); }
-  .esp-lb { display:block; font-size:0.7rem; color:rgba(255,255,255,0.55);
-            margin-bottom:6px; text-transform:uppercase; letter-spacing:0.8px; }
-  .esp-btn { background:linear-gradient(135deg,#DAA520 0%,#B8860B 100%); color:#000;
-             border:none; padding:12px 26px; border-radius:10px; font-weight:700;
-             font-size:0.85rem; cursor:pointer; letter-spacing:0.5px; transition:all .3s ease; }
-  .esp-btn:hover { filter:brightness(1.12); box-shadow:0 0 20px rgba(218,165,32,0.35); }
-  .esp-btn:disabled { opacity:.5; cursor:not-allowed; }
-  .esp-btn-alt { background:linear-gradient(135deg,#0a0a0a 0%,#161616 100%); color:#DAA520;
-                 border:1px solid rgba(218,165,32,0.45); padding:11px 22px; border-radius:10px;
-                 font-weight:600; font-size:0.82rem; cursor:pointer; transition:all .3s ease; }
-  .esp-btn-alt:hover { background:rgba(218,165,32,0.1); box-shadow:0 0 15px rgba(218,165,32,0.2); }
-`;
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  fontSize: "0.7rem",
+  color: theme.textMuted,
+  marginBottom: 6,
+  textTransform: "uppercase",
+  letterSpacing: "0.8px",
+};

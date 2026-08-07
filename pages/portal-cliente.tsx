@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
+import { useRequiereCliente } from "../lib/useRequiereCliente";
 import { theme } from "../lib/theme";
 import { Card, Heading, Button } from "../lib/ui";
 
 export default function PortalCliente() {
   const router = useRouter();
+  const { cargando, autorizado } = useRequiereCliente();
   const [mostrarModalNotif, setMostrarModalNotif] = useState(false);
   const [pushNotif, setPushNotif] = useState(true);
   const [userEmail, setUserEmail] = useState("");
@@ -13,12 +15,14 @@ export default function PortalCliente() {
   const [mensajeModal, setMensajeModal] = useState("");
 
   useEffect(() => {
+    if (!autorizado) return;
     const debeMostrar = sessionStorage.getItem("trulink_mostrar_modal_notif");
     if (debeMostrar === "true") {
       setMostrarModalNotif(true);
       cargarDatosUsuario();
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autorizado]);
 
   const cargarDatosUsuario = async () => {
     if (!supabase) return;
@@ -128,6 +132,24 @@ export default function PortalCliente() {
     localStorage.clear();
     router.push("/");
   };
+
+  // ── Guard de acceso: solo clientes activos pasan de aquí ──
+  if (cargando) {
+    return (
+      <div style={{
+        backgroundColor: theme.background,
+        color: theme.gold,
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: theme.fontFamily,
+      }}>
+        <p>Verificando acceso...</p>
+      </div>
+    );
+  }
+  if (!autorizado) return null; // useRequiereCliente ya redirigió
 
   return (
     <div style={{
