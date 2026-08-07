@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { getSupabase } from '../../../lib/supabaseClient';
 
 type ClienteResumen = {
   id: string;
@@ -29,14 +30,27 @@ export default function SegmentacionClientes() {
   const [orden, setOrden] = useState<'totalComprado' | 'montoAtrasado' | 'razon_social'>('totalComprado');
 
   useEffect(() => {
-    fetch('/api/admin/segmentacion-clientes')
-      .then((r) => r.json())
-      .then((data) => {
+    const cargar = async () => {
+      try {
+        const supabase = getSupabase();
+        const { data: sessionData } = supabase
+          ? await supabase.auth.getSession()
+          : { data: { session: null } };
+        const token = sessionData?.session?.access_token;
+
+        const r = await fetch('/api/admin/segmentacion-clientes', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await r.json();
         if (data.error) throw new Error(data.error);
         setClientes(data.clientes || []);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      } catch (e: any) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    cargar();
   }, []);
 
   const paises = useMemo(
