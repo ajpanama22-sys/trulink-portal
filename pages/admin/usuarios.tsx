@@ -78,8 +78,14 @@ export default function AdminUsuarios() {
   const [mostrarModalColaborador, setMostrarModalColaborador] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
   const [nuevoEmail, setNuevoEmail] = useState("");
+  const [nuevoCedula, setNuevoCedula] = useState("");
+  const [nuevoTelefono, setNuevoTelefono] = useState("");
+  const [nuevoDepartamento, setNuevoDepartamento] = useState("");
   const [nuevoPassword, setNuevoPassword] = useState("");
   const [nuevoRol, setNuevoRol] = useState("Administrador");
+  const [nuevoAceptaEmail, setNuevoAceptaEmail] = useState(true);
+  const [nuevoAceptaPush, setNuevoAceptaPush] = useState(false);
+  const [nuevoNotificaciones, setNuevoNotificaciones] = useState(false);
 
   // Estados para edición (clientes, inversionistas o equipo)
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
@@ -204,18 +210,21 @@ export default function AdminUsuarios() {
     }
   };
 
-  const enviarInvitacionCliente = async (emailCliente: string, id: string, nombreUsuario: string) => {
+  // Enviar correo de "acceso / restablecer contraseña" vía Supabase Auth.
+  // Funciona para cualquier usuario con fila en auth.users (clientes o
+  // colaboradores) — solo cambia la tabla de origen para la auditoría.
+  const enviarAcceso = async (emailUsuario: string, id: string, nombreUsuario: string, tabla: string) => {
     if (!supabase) return;
-    const { error } = await supabase.auth.resetPasswordForEmail(emailCliente, {
+    const { error } = await supabase.auth.resetPasswordForEmail(emailUsuario, {
       redirectTo: `${window.location.origin}/auth/update-password`,
     });
 
     if (error) {
-      alert("Error al enviar correo de invitación: " + error.message);
+      alert("Error al enviar correo de acceso: " + error.message);
     } else {
-      setMensajeModal(`¡Correo de admisión e invitación enviado exitosamente a ${emailCliente}!`);
+      setMensajeModal(`¡Correo de acceso enviado exitosamente a ${emailUsuario}!`);
       setTimeout(() => setMensajeModal(""), 4000);
-      await registrarAuditoria("invitacion", "clientes", id, nombreUsuario, `Invitación reenviada a ${emailCliente}`);
+      await registrarAuditoria("invitacion", tabla, id, nombreUsuario, `Acceso enviado a ${emailUsuario}`);
     }
   };
 
@@ -242,9 +251,15 @@ export default function AdminUsuarios() {
         {
           nombre: nuevoNombre,
           email: nuevoEmail,
+          cedula: nuevoCedula,
+          telefono: nuevoTelefono,
+          departamento: nuevoDepartamento,
           rol: nuevoRol,
           auth_id: authData.user?.id,
           activo: true,
+          acepta_email: nuevoAceptaEmail,
+          acepta_push: nuevoAceptaPush,
+          notificaciones_configuradas: nuevoNotificaciones,
         },
       ])
       .select()
@@ -264,8 +279,14 @@ export default function AdminUsuarios() {
       );
       setNuevoNombre("");
       setNuevoEmail("");
+      setNuevoCedula("");
+      setNuevoTelefono("");
+      setNuevoDepartamento("");
       setNuevoPassword("");
       setNuevoRol("Administrador");
+      setNuevoAceptaEmail(true);
+      setNuevoAceptaPush(false);
+      setNuevoNotificaciones(false);
       cargarUsuarios("equipo");
       setTimeout(() => setMensajeModal(""), 4000);
     }
@@ -288,7 +309,13 @@ export default function AdminUsuarios() {
     if (vista === "equipo") {
       cambios.nombre = editando.nombre;
       cambios.email = editando.email;
+      cambios.cedula = editando.cedula;
+      cambios.telefono = editando.telefono;
+      cambios.departamento = editando.departamento;
       cambios.rol = editando.rol;
+      cambios.acepta_email = editando.acepta_email;
+      cambios.acepta_push = editando.acepta_push;
+      cambios.notificaciones_configuradas = editando.notificaciones_configuradas;
     } else {
       cambios.razon_social = editando.razon_social;
       cambios.email = editando.email;
@@ -320,7 +347,8 @@ export default function AdminUsuarios() {
     (user) =>
       user.razon_social?.toLowerCase().includes(busqueda.toLowerCase()) ||
       user.nombre?.toLowerCase().includes(busqueda.toLowerCase()) ||
-      user.email?.toLowerCase().includes(busqueda.toLowerCase())
+      user.email?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      user.cedula?.toLowerCase().includes(busqueda.toLowerCase())
   );
 
   const registrosAuditoriaFiltrados = registrosAuditoria.filter(
@@ -432,6 +460,35 @@ export default function AdminUsuarios() {
                   />
                 </Campo>
 
+                <Campo label="Cédula">
+                  <input
+                    type="text"
+                    value={nuevoCedula}
+                    onChange={(e) => setNuevoCedula(e.target.value)}
+                    required
+                    placeholder="8-123-4567"
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  />
+                </Campo>
+
+                <Campo label="Teléfono">
+                  <input
+                    type="text"
+                    value={nuevoTelefono}
+                    onChange={(e) => setNuevoTelefono(e.target.value)}
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  />
+                </Campo>
+
+                <Campo label="Departamento">
+                  <input
+                    type="text"
+                    value={nuevoDepartamento}
+                    onChange={(e) => setNuevoDepartamento(e.target.value)}
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                  />
+                </Campo>
+
                 <Campo label="Contraseña Inicial">
                   <input
                     type="password"
@@ -458,6 +515,36 @@ export default function AdminUsuarios() {
                   <p style={{ fontSize: "0.75rem", color: theme.textMuted, marginTop: "8px" }}>
                     {ROLES_CONFIG[nuevoRol]?.descripcion}
                   </p>
+                </div>
+
+                <div style={{ marginBottom: "20px" }}>
+                  <label style={labelStyle}>Preferencias de notificación</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={nuevoAceptaEmail}
+                        onChange={(e) => setNuevoAceptaEmail(e.target.checked)}
+                      />
+                      Acepta notificaciones por correo
+                    </label>
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={nuevoAceptaPush}
+                        onChange={(e) => setNuevoAceptaPush(e.target.checked)}
+                      />
+                      Acepta notificaciones push
+                    </label>
+                    <label style={checkboxLabelStyle}>
+                      <input
+                        type="checkbox"
+                        checked={nuevoNotificaciones}
+                        onChange={(e) => setNuevoNotificaciones(e.target.checked)}
+                      />
+                      Notificaciones configuradas (onboarding completo)
+                    </label>
+                  </div>
                 </div>
 
                 <div style={{ display: "flex", gap: "15px", marginTop: "20px" }}>
@@ -505,6 +592,31 @@ export default function AdminUsuarios() {
                         style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                       />
                     </Campo>
+                    <Campo label="Cédula">
+                      <input
+                        type="text"
+                        value={editando.cedula || ""}
+                        onChange={(e) => setEditando({ ...editando, cedula: e.target.value })}
+                        placeholder="8-123-4567"
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
+                    <Campo label="Teléfono">
+                      <input
+                        type="text"
+                        value={editando.telefono || ""}
+                        onChange={(e) => setEditando({ ...editando, telefono: e.target.value })}
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
+                    <Campo label="Departamento">
+                      <input
+                        type="text"
+                        value={editando.departamento || ""}
+                        onChange={(e) => setEditando({ ...editando, departamento: e.target.value })}
+                        style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                      />
+                    </Campo>
                     <div style={{ marginBottom: "10px" }}>
                       <label style={labelStyle}>Rol / Jerarquía</label>
                       <select
@@ -519,6 +631,35 @@ export default function AdminUsuarios() {
                       <p style={{ fontSize: "0.75rem", color: theme.textMuted, marginTop: "8px" }}>
                         {ROLES_CONFIG[editando.rol]?.descripcion}
                       </p>
+                    </div>
+                    <div style={{ marginBottom: "20px" }}>
+                      <label style={labelStyle}>Preferencias de notificación</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <label style={checkboxLabelStyle}>
+                          <input
+                            type="checkbox"
+                            checked={editando.acepta_email ?? true}
+                            onChange={(e) => setEditando({ ...editando, acepta_email: e.target.checked })}
+                          />
+                          Acepta notificaciones por correo
+                        </label>
+                        <label style={checkboxLabelStyle}>
+                          <input
+                            type="checkbox"
+                            checked={editando.acepta_push ?? false}
+                            onChange={(e) => setEditando({ ...editando, acepta_push: e.target.checked })}
+                          />
+                          Acepta notificaciones push
+                        </label>
+                        <label style={checkboxLabelStyle}>
+                          <input
+                            type="checkbox"
+                            checked={editando.notificaciones_configuradas ?? false}
+                            onChange={(e) => setEditando({ ...editando, notificaciones_configuradas: e.target.checked })}
+                          />
+                          Notificaciones configuradas (onboarding completo)
+                        </label>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -652,7 +793,10 @@ export default function AdminUsuarios() {
                     )}
 
                     {vistaActiva === "equipo" && (
-                      <div style={{ fontSize: "0.8rem", color: theme.textMuted, display: "flex", gap: "12px", alignItems: "center", marginTop: "2px" }}>
+                      <div style={{ fontSize: "0.8rem", color: theme.textMuted, display: "flex", gap: "12px", alignItems: "center", marginTop: "2px", flexWrap: "wrap" }}>
+                        <span>Cédula: <strong style={{ color: theme.textLight }}>{user.cedula || "N/A"}</strong></span> |
+                        <span>Tel: <strong style={{ color: theme.textLight }}>{user.telefono || "N/A"}</strong></span> |
+                        <span>Depto: <strong style={{ color: theme.textLight }}>{user.departamento || "N/A"}</strong></span> |
                         <span>Rol: <strong style={{ color: theme.gold }}>{user.rol || "Administrador"}</strong></span> |
                         <span>Jerarquía: <strong style={{ color: theme.textLight }}>Nivel {ROLES_CONFIG[user.rol]?.jerarquia ?? "N/A"}</strong></span> |
                         <span>Estado: <Badge tone={estadoToTone(estaActivo ? "activo" : "inactivo")}>{estaActivo ? "Activo" : "Suspendido"}</Badge></span>
@@ -661,14 +805,12 @@ export default function AdminUsuarios() {
                   </div>
 
                   <div style={{ display: "flex", gap: "12px" }}>
-                    {vistaActiva !== "equipo" && (
-                      <Button
-                        variant="outline-gold"
-                        onClick={() => enviarInvitacionCliente(user.email, user.id, nombreMostrado)}
-                      >
-                        ENVIAR ACCESO / PASS
-                      </Button>
-                    )}
+                    <Button
+                      variant="outline-gold"
+                      onClick={() => enviarAcceso(user.email, user.id, nombreMostrado, tablaDe(vistaActiva))}
+                    >
+                      ENVIAR ACCESO / PASS
+                    </Button>
 
                     <Button variant="outline-gold" onClick={() => abrirModalEditar(user, vistaActiva)}>
                       MODIFICAR
@@ -719,6 +861,14 @@ function EstadoVacio({ texto }: { texto: string; atenuado?: boolean }) {
 const optionStyle = { backgroundColor: theme.panelBg, color: theme.gold };
 
 const labelStyle = { display: "block", marginBottom: "8px", fontSize: "0.85rem", color: theme.textMuted };
+
+const checkboxLabelStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  fontSize: "0.85rem",
+  color: theme.textMuted,
+} as const;
 
 const overlayModal = {
   position: "fixed",

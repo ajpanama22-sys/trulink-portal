@@ -637,9 +637,18 @@ export default function MarketingEnterprise() {
     if (canalSms) canales.push("sms");
 
     try {
+      // Token de sesión del colaborador logueado: /api/notificar ahora lo
+      // exige para autorizar el envío (antes no había ningún guard).
+      const supabase = getSupabase();
+      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      const token = sessionData?.session?.access_token;
+
       const res = await fetch("/api/notificar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           canales,
           asunto,
@@ -665,7 +674,6 @@ export default function MarketingEnterprise() {
       if (canalSms) partes.push(`SMS: ${okSms} de ${total}` + (failSms ? ` (${failSms} fallaron)` : ""));
       setResultadoEnvio(partes.join("  |  ") || "Envío procesado.");
 
-      const supabase = getSupabase();
       if (supabase) {
         await supabase.from("marketing_envios").insert([{
           asunto: asunto || null,

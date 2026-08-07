@@ -261,9 +261,14 @@ export default function AdminValidaciones() {
 
       // 3. Enviar correo
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
         await fetch("/api/send-email", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             tipo: "ACTIVACION",
             email: emailCliente,
@@ -306,9 +311,14 @@ export default function AdminValidaciones() {
 
       // 2. Enviar correo de rechazo
       try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
         await fetch("/api/send-email", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             tipo: "RECHAZO",
             email: emailCliente,

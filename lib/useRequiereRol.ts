@@ -1,8 +1,10 @@
 // lib/useRequiereRol.ts
 //
-// Hook de guard de página: verifica que el colaborador logueado tenga
-// uno de los roles permitidos para ver la página actual. Si no,
-// redirige a /admin/rrhh (su autoservicio, siempre accesible para todos).
+// Hook de guard de página: verifica que el colaborador logueado
+// esté activo y tenga uno de los roles permitidos para ver la página
+// actual. Si no, redirige a /login (sin sesión / no es colaborador /
+// suspendido) o a /admin/rrhh (colaborador activo pero sin permiso
+// para esta página en particular, su autoservicio siempre accesible).
 //
 // Uso dentro de cualquier página de pages/admin/*.tsx:
 //
@@ -47,7 +49,7 @@ export function useRequiereRol(rolesPermitidos: string[]): ResultadoGuard {
 
       const { data, error } = await supabase
         .from("colaboradores")
-        .select("rol")
+        .select("rol, activo")
         .eq("email", user.email)
         .single();
 
@@ -56,6 +58,12 @@ export function useRequiereRol(rolesPermitidos: string[]): ResultadoGuard {
       if (error || !data) {
         // No es colaborador registrado -> fuera del panel admin
         router.replace("/login");
+        return;
+      }
+
+      if (data.activo === false) {
+        // Colaborador suspendido -> no puede entrar a ningún módulo del panel
+        router.replace("/login?motivo=suspendido");
         return;
       }
 
