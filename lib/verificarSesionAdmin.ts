@@ -22,7 +22,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 // Cliente con service role: necesario para validar el token de OTRO usuario
 // y para leer la tabla colaboradores sin depender de RLS del lado cliente.
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, { global: { headers: { "User-Agent": "TrulinkServer/1.0" } } });
 
 interface ResultadoAuth {
   autorizado: boolean;
