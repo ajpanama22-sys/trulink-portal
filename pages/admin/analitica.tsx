@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import Sidebar from "./Sidebar";
 import { theme, pageWrapStyle } from "../../lib/theme";
@@ -12,6 +12,8 @@ import {
 } from "../../lib/ui";
 
 const NOMBRES_MES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+const DIRECCION_EMPRESA = "5203 Juan Tabo Blvd NE, Suite 2B, Albuquerque, Nuevo México 87111, Estados Unidos";
 
 type PuntoTendencia = {
   clave: string;
@@ -120,6 +122,39 @@ function cargarLogoBase64(): Promise<{ data: string; width: number; height: numb
   });
 }
 
+type CapturaGrafica = { dataUrl: string; width: number; height: number };
+
+/**
+ * Captura cualquier gráfica renderizada en pantalla (SVG o HTML) como
+ * imagen PNG, usando html2canvas. Se usa para incrustar las mismas
+ * gráficas que ve el usuario dentro de los exports a Excel, Word y PDF.
+ * Requiere: npm install html2canvas
+ */
+async function capturarGrafica(ref: React.RefObject<HTMLDivElement>): Promise<CapturaGrafica | null> {
+  if (!ref.current) return null;
+  try {
+    const html2canvas = (await import("html2canvas")).default;
+    const canvas = await html2canvas(ref.current, {
+      backgroundColor: "#0a0a0a",
+      scale: 2,
+      logging: false,
+    });
+    return { dataUrl: canvas.toDataURL("image/png"), width: canvas.width, height: canvas.height };
+  } catch (err) {
+    console.error("No se pudo capturar una gráfica para el export:", err);
+    return null;
+  }
+}
+
+/** Convierte un data URL PNG en bytes crudos, para incrustarlo en un .docx. */
+function dataUrlAUint8Array(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.split(",")[1] || "";
+  const binario = atob(base64);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return bytes;
+}
+
 type TabId = "resumen" | "finanzas" | "operaciones" | "marketing" | "personal" | "clientes";
 
 export default function Analitica() {
@@ -214,6 +249,35 @@ export default function Analitica() {
   const [colaboradoresActivos, setColaboradoresActivos] = useState(0);
   const [colaboradoresPorDepto, setColaboradoresPorDepto] = useState<{ depto: string; cantidad: number }[]>([]);
   const [marcajesHoy, setMarcajesHoy] = useState(0);
+
+  // Refs a los contenedores de cada gráfica, para poder capturarlas como
+  // imagen (html2canvas) al exportar a Excel, Word o PDF. Todas las
+  // pestañas permanecen montadas en el DOM (ocultas fuera de pantalla en
+  // vez de desmontadas) precisamente para que estas capturas funcionen
+  // sin importar cuál pestaña esté activa en el momento del export.
+  const refTendencia = useRef<HTMLDivElement>(null);
+  const refTopProductos = useRef<HTMLDivElement>(null);
+  const refPasarelas = useRef<HTMLDivElement>(null);
+  const refCxp = useRef<HTMLDivElement>(null);
+  const refSkus = useRef<HTMLDivElement>(null);
+  const refManufactura = useRef<HTMLDivElement>(null);
+  const refLeadsEstado = useRef<HTMLDivElement>(null);
+  const refLeadsOrigen = useRef<HTMLDivElement>(null);
+  const refPersonal = useRef<HTMLDivElement>(null);
+  const refSegPerfil = useRef<HTMLDivElement>(null);
+  const refSegLista = useRef<HTMLDivElement>(null);
+
+  // Mapa de título legible por pestaña — se usa en los 3 exports (Excel,
+  // Word, PDF) para dejar impreso cuál análisis se generó.
+  const TAB_LABELS: Record<TabId, string> = {
+    resumen: "Resumen Ejecutivo",
+    finanzas: "Finanzas & CxC/CxP",
+    operaciones: "Operaciones",
+    marketing: "Marketing",
+    personal: "Personal",
+    clientes: "Clientes",
+  };
+  const tituloTabActiva = TAB_LABELS[tab];
 
   useEffect(() => {
     const actualizarReloj = () => {
@@ -569,12 +633,90 @@ export default function Analitica() {
    * Genera un libro con una hoja por área de negocio.
    * Requiere: npm install xlsx
    */
+  /**
+   * Exportación real a Excel (.xlsx) usando la librería "exceljs".
+   * A diferencia de "xlsx" (SheetJS), exceljs sí permite incrustar
+   * imágenes en la hoja — por eso cada sección trae, debajo de su tabla
+   * de datos, la misma gráfica que se ve en pantalla.
+   * Requiere: npm install exceljs html2canvas
+   */
   const exportarExcel = async () => {
     try {
-      const XLSX = await import("xlsx");
-      const wb = XLSX.utils.book_new();
+      const ExcelJS = await import("exceljs");
+      const wb = new ExcelJS.Workbook();
+      wb.creator = "Trulink Fiber LLC";
+      wb.created = new Date();
 
-      const hojaKpis = XLSX.utils.json_to_sheet([
+      // Las gráficas deben capturarse ANTES de tocar nada más: html2canvas
+      // lee directamente lo que está pintado en el DOM en este instante.
+      const [
+        capTendencia, capProductos, capPasarelas, capCxp, capSkus,
+        capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
+        capSegPerfil, capSegLista, logo,
+      ] = await Promise.all([
+        capturarGrafica(refTendencia),
+        capturarGrafica(refTopProductos),
+        capturarGrafica(refPasarelas),
+        capturarGrafica(refCxp),
+        capturarGrafica(refSkus),
+        capturarGrafica(refManufactura),
+        capturarGrafica(refLeadsEstado),
+        capturarGrafica(refLeadsOrigen),
+        capturarGrafica(refPersonal),
+        capturarGrafica(refSegPerfil),
+        capturarGrafica(refSegLista),
+        cargarLogoBase64(),
+      ]);
+
+      // ── Portada: logo, título del análisis exportado, fecha/hora y dirección ──
+      const hojaPortada = wb.addWorksheet("Portada");
+      hojaPortada.getColumn(1).width = 14;
+      hojaPortada.getColumn(2).width = 60;
+      if (logo) {
+        const imgId = wb.addImage({ base64: logo.data, extension: "png" });
+        const anchoLogo = 130;
+        const altoLogo = anchoLogo * (logo.height / logo.width);
+        hojaPortada.addImage(imgId, { tl: { col: 0, row: 1 }, ext: { width: anchoLogo, height: altoLogo } });
+      }
+      hojaPortada.getCell("B2").value = "Trulink Fiber LLC";
+      hojaPortada.getCell("B2").font = { bold: true, size: 16, color: { argb: "FFDAA520" } };
+      hojaPortada.getCell("B3").value = "Enterprise Intelligence & Accounting BI";
+      hojaPortada.getCell("B3").font = { size: 11, color: { argb: "FF888888" } };
+      hojaPortada.getCell("B5").value = `Reporte: ${tituloTabActiva}`;
+      hojaPortada.getCell("B5").font = { bold: true, size: 13 };
+      hojaPortada.getCell("B6").value = `Generado: ${fechaHoraActual}`;
+      hojaPortada.getCell("B7").value = `Periodo: ${fechaDesde} a ${fechaHasta}`;
+      hojaPortada.getCell("B9").value = DIRECCION_EMPRESA;
+      hojaPortada.getCell("B9").font = { size: 10, color: { argb: "FF888888" } };
+
+      const agregarHoja = (nombre: string, filas: Record<string, any>[]) => {
+        const ws = wb.addWorksheet(nombre.slice(0, 31));
+        if (filas.length > 0) {
+          const columnas = Object.keys(filas[0]);
+          ws.columns = columnas.map((c) => ({ header: c, key: c, width: 28 }));
+          filas.forEach((f) => ws.addRow(f));
+          ws.getRow(1).font = { bold: true, color: { argb: "FFB8860B" } };
+        }
+        return ws;
+      };
+
+      const agregarImagen = (ws: any, cap: CapturaGrafica | null, filaDesde: number, tituloTexto?: string) => {
+        if (!cap) return;
+        if (tituloTexto) {
+          const filaTitulo = ws.getRow(filaDesde);
+          filaTitulo.getCell(1).value = tituloTexto;
+          filaTitulo.getCell(1).font = { bold: true, italic: true, size: 11 };
+        }
+        const imageId = wb.addImage({ base64: cap.dataUrl, extension: "png" });
+        const anchoObjetivoPx = 560;
+        const escala = Math.min(1, anchoObjetivoPx / cap.width);
+        ws.addImage(imageId, {
+          tl: { col: 0, row: filaDesde + (tituloTexto ? 1 : 0) },
+          ext: { width: cap.width * escala, height: cap.height * escala },
+        });
+      };
+
+      const hojaKpis = agregarHoja("KPIs Financieros", [
         { Métrica: "Pipeline Cotizado", Valor: montoCotizaciones },
         { Métrica: "Facturación Efectiva", Valor: montoFacturas },
         { Métrica: "Cobros Recibidos (Total)", Valor: montoTotalCobrado },
@@ -586,81 +728,77 @@ export default function Analitica() {
         { Métrica: "Crecimiento Mensual MoM (%)", Valor: Number(crecimientoMoM.toFixed(1)) },
         { Métrica: "Negocio Perdido", Valor: valorNegocioPerdido },
       ]);
-      XLSX.utils.book_append_sheet(wb, hojaKpis, "KPIs Financieros");
+      agregarImagen(hojaKpis, capTendencia, hojaKpis.rowCount + 2, "Tendencia de Cobros y Proyección IA");
 
-      const hojaPagos = XLSX.utils.json_to_sheet([
+      const hojaProductos = agregarHoja(
+        "Top Productos",
+        productosTop.map((p) => ({ SKU: p.sku, Producto: p.nombre, Tipo: p.tipo, Movimientos: p.movimientos }))
+      );
+      agregarImagen(hojaProductos, capProductos, hojaProductos.rowCount + 2, "Rotación de Productos (Top 5)");
+
+      const hojaPagos = agregarHoja("Pasarelas de Pago", [
         { Pasarela: "Stripe", Monto: pagosStripe },
         { Pasarela: "PayPal", Monto: pagosPaypal },
         { Pasarela: "Wise", Monto: pagosWise },
         { Pasarela: "Transferencia Bancaria", Monto: pagosTransferencia },
       ]);
-      XLSX.utils.book_append_sheet(wb, hojaPagos, "Pasarelas de Pago");
+      agregarImagen(hojaPagos, capPasarelas, hojaPagos.rowCount + 2, "Distribución de Cobros por Canal");
 
-      const hojaCxcVencidas = XLSX.utils.json_to_sheet(
+      const hojaCxcVencidas = agregarHoja(
+        "CxC Vencidas",
         cxcVencidas.map((c) => ({
           Cliente: c.cliente_nombre,
           "Fecha de Vencimiento": c.fecha_vencimiento,
           "Saldo Pendiente": Number(c.saldo_pendiente || 0),
         }))
       );
-      XLSX.utils.book_append_sheet(wb, hojaCxcVencidas, "CxC Vencidas");
 
-      const hojaCxp = XLSX.utils.json_to_sheet(
-        cxpPorCuenta.map((c) => ({ Cuenta: c.cuenta, Monto: c.monto }))
-      );
-      XLSX.utils.book_append_sheet(wb, hojaCxp, "CxP por Cuenta");
+      const hojaCxp = agregarHoja("CxP por Cuenta", cxpPorCuenta.map((c) => ({ Cuenta: c.cuenta, Monto: c.monto })));
+      agregarImagen(hojaCxp, capCxp, hojaCxp.rowCount + 2, "Cuentas por Pagar por Categoría");
 
-      const hojaManufactura = XLSX.utils.json_to_sheet([
+      const hojaManufactura = agregarHoja("Manufactura", [
         { Métrica: "Órdenes de Producción Totales", Valor: totalOrdenesProduccion },
         { Métrica: "Km Totales Producidos", Valor: kmTotalesProducidos },
         { Métrica: "Órdenes con Faltantes", Valor: ordenesConFaltantes },
         ...ordenesPorEstado.map((o) => ({ Métrica: `Estado: ${o.estado}`, Valor: o.cantidad })),
       ]);
-      XLSX.utils.book_append_sheet(wb, hojaManufactura, "Manufactura");
+      agregarImagen(hojaManufactura, capManufactura, hojaManufactura.rowCount + 2, "Órdenes de Producción por Estado");
 
-      const hojaBodega = XLSX.utils.json_to_sheet([
+      agregarHoja("Bodega y Materia Prima", [
         { Métrica: "Materias Primas Registradas", Valor: totalMateriasPrimas },
         { Métrica: "Valor de Inventario MP", Valor: valorInventarioMP },
         { Métrica: "Alertas de Stock Bajo", Valor: alertasStockBajo.length },
       ]);
-      XLSX.utils.book_append_sheet(wb, hojaBodega, "Bodega y Materia Prima");
 
-      const hojaMarketing = XLSX.utils.json_to_sheet([
+      const hojaMarketing = agregarHoja("Marketing", [
         { Métrica: "Campañas Activas", Valor: campanasActivas },
         { Métrica: "Presupuesto Total", Valor: presupuestoTotal },
         { Métrica: "Gasto Real", Valor: gastoRealMarketing },
         { Métrica: "Ingresos por Campañas", Valor: ingresosPorCampanas },
         { Métrica: "Leads Totales", Valor: totalLeads },
-        ...leadsPorEstado.map((l) => ({ Métrica: `Leads - Estado: ${l.estado}`, Valor: l.cantidad })),
-        ...leadsPorOrigen.map((l) => ({ Métrica: `Leads - Origen: ${l.origen}`, Valor: l.cantidad })),
       ]);
-      XLSX.utils.book_append_sheet(wb, hojaMarketing, "Marketing");
+      agregarImagen(hojaMarketing, capLeadsEstado, hojaMarketing.rowCount + 2, "Leads por Estado");
+      agregarImagen(hojaMarketing, capLeadsOrigen, hojaMarketing.rowCount + 20, "Leads por Origen");
 
-      const hojaPersonal = XLSX.utils.json_to_sheet([
+      const hojaPersonal = agregarHoja("Personal", [
         { Métrica: "Colaboradores Totales", Valor: totalColaboradores },
         { Métrica: "Colaboradores Activos", Valor: colaboradoresActivos },
         { Métrica: "Marcajes Hoy", Valor: marcajesHoy },
         ...colaboradoresPorDepto.map((c) => ({ Métrica: `Depto: ${c.depto}`, Valor: c.cantidad })),
       ]);
-      XLSX.utils.book_append_sheet(wb, hojaPersonal, "Personal");
+      agregarImagen(hojaPersonal, capPersonal, hojaPersonal.rowCount + 2, "Colaboradores por Departamento");
 
-      const hojaSegmentacion = XLSX.utils.json_to_sheet([
+      const hojaSegmentacion = agregarHoja("Segmentación Clientes", [
         ...segmentacionPerfil.map((s) => ({ Categoría: `Perfil: ${s.perfil}`, Cantidad: s.cantidad })),
         ...segmentacionListaPrecio.map((s) => ({ Categoría: `Lista de Precio: ${s.lista}`, Cantidad: s.cantidad })),
       ]);
-      XLSX.utils.book_append_sheet(wb, hojaSegmentacion, "Segmentación Clientes");
+      agregarImagen(hojaSegmentacion, capSegPerfil, hojaSegmentacion.rowCount + 2, "Segmentación por Perfil");
+      agregarImagen(hojaSegmentacion, capSegLista, hojaSegmentacion.rowCount + 20, "Segmentación por Lista de Precios");
 
-      const hojaTopClientes = XLSX.utils.json_to_sheet(
-        topClientes.map((c) => ({ Cliente: c.empresa, "Total Cotizado": c.total }))
-      );
-      XLSX.utils.book_append_sheet(wb, hojaTopClientes, "Top Clientes");
+      agregarHoja("Top Clientes", topClientes.map((c) => ({ Cliente: c.empresa, "Total Cotizado": c.total })));
 
-      const hojaProductos = XLSX.utils.json_to_sheet(
-        productosTop.map((p) => ({ SKU: p.sku, Producto: p.nombre, Tipo: p.tipo, Movimientos: p.movimientos }))
-      );
-      XLSX.utils.book_append_sheet(wb, hojaProductos, "Top Productos");
-
-      const hojaProyeccion = XLSX.utils.json_to_sheet(
+      agregarHoja(
+        "Proyección IA",
         historicoVentas.map((p) => ({
           Mes: p.mes,
           Tipo: p.esProyeccion ? "Proyección IA" : "Real",
@@ -668,22 +806,50 @@ export default function Analitica() {
           Cobrado: Number(p.cobrado.toFixed(2)),
         }))
       );
-      XLSX.utils.book_append_sheet(wb, hojaProyeccion, "Proyección IA");
 
-      XLSX.writeFile(wb, `Trulink_Analitica_${fechaHoraActual.split(" ")[0]}.xlsx`);
+      const buffer = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Trulink_Analitica_${fechaHoraActual.split(" ")[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("Error generando Excel:", err);
-      alert("No se pudo generar el Excel. Verifica que la librería 'xlsx' esté instalada (npm install xlsx).");
+      alert("No se pudo generar el Excel. Verifica que las librerías 'exceljs' y 'html2canvas' estén instaladas (npm install exceljs html2canvas).");
     }
   };
 
   /**
    * Exportación real a Word (.docx) usando la librería "docx".
-   * Requiere: npm install docx
+   * Cada sección incluye, además de sus tablas, la imagen de la gráfica
+   * correspondiente (capturada en pantalla con html2canvas).
+   * Requiere: npm install docx html2canvas
    */
   const exportarWord = async () => {
     try {
-      const { Document, Packer, Paragraph, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType } = await import("docx");
+      const { Document, Packer, Paragraph, HeadingLevel, Table, TableRow, TableCell, WidthType, AlignmentType, ImageRun } = await import("docx");
+
+      const [
+        capTendencia, capProductos, capPasarelas, capCxp, capSkus,
+        capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
+        capSegPerfil, capSegLista, logo,
+      ] = await Promise.all([
+        capturarGrafica(refTendencia),
+        capturarGrafica(refTopProductos),
+        capturarGrafica(refPasarelas),
+        capturarGrafica(refCxp),
+        capturarGrafica(refSkus),
+        capturarGrafica(refManufactura),
+        capturarGrafica(refLeadsEstado),
+        capturarGrafica(refLeadsOrigen),
+        capturarGrafica(refPersonal),
+        capturarGrafica(refSegPerfil),
+        capturarGrafica(refSegLista),
+        cargarLogoBase64(),
+      ]);
 
       const filaTabla = (label: string, valor: string) =>
         new TableRow({
@@ -693,14 +859,52 @@ export default function Analitica() {
           ],
         });
 
+      /** Convierte una captura en un párrafo con la imagen centrada, escalada a un ancho máximo. */
+      const parrafoImagen = (cap: CapturaGrafica | null, anchoMax = 520): Paragraph[] => {
+        if (!cap) return [];
+        const escala = Math.min(1, anchoMax / cap.width);
+        return [
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new ImageRun({
+                type: "png",
+                data: dataUrlAUint8Array(cap.dataUrl),
+                transformation: { width: Math.round(cap.width * escala), height: Math.round(cap.height * escala) },
+              } as any),
+            ],
+          }),
+          new Paragraph({ text: "" }),
+        ];
+      };
+
       const doc = new Document({
         sections: [
           {
             children: [
-              new Paragraph({ text: "Trulink Fiber LLC", heading: HeadingLevel.TITLE }),
-              new Paragraph({ text: "Enterprise Intelligence & Accounting BI", heading: HeadingLevel.HEADING_2 }),
-              new Paragraph({ text: `Generado: ${fechaHoraActual}` }),
-              new Paragraph({ text: `Periodo: ${fechaDesde} a ${fechaHasta}` }),
+              ...(logo
+                ? [
+                    new Paragraph({
+                      alignment: AlignmentType.CENTER,
+                      children: [
+                        new ImageRun({
+                          type: "png",
+                          data: dataUrlAUint8Array(logo.data),
+                          transformation: {
+                            width: 130,
+                            height: Math.round(130 * (logo.height / logo.width)),
+                          },
+                        } as any),
+                      ],
+                    }),
+                  ]
+                : []),
+              new Paragraph({ text: "Trulink Fiber LLC", heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }),
+              new Paragraph({ text: "Enterprise Intelligence & Accounting BI", heading: HeadingLevel.HEADING_2, alignment: AlignmentType.CENTER }),
+              new Paragraph({ text: `Reporte: ${tituloTabActiva}`, heading: HeadingLevel.HEADING_3, alignment: AlignmentType.CENTER }),
+              new Paragraph({ text: `Generado: ${fechaHoraActual}`, alignment: AlignmentType.CENTER }),
+              new Paragraph({ text: `Periodo: ${fechaDesde} a ${fechaHasta}`, alignment: AlignmentType.CENTER }),
+              new Paragraph({ text: DIRECCION_EMPRESA, alignment: AlignmentType.CENTER }),
               new Paragraph({ text: "" }),
 
               new Paragraph({ text: "Métricas Financieras", heading: HeadingLevel.HEADING_2 }),
@@ -720,6 +924,18 @@ export default function Analitica() {
               }),
               new Paragraph({ text: "" }),
 
+              new Paragraph({ text: "Pasarelas de Pago", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capPasarelas, 340),
+
+              new Paragraph({ text: "Cuentas por Pagar por Categoría", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capCxp),
+
+              new Paragraph({
+                text: `Tendencia de Cobros y Proyección IA (Confianza R²: ${(confianzaModelo * 100).toFixed(0)}%)`,
+                heading: HeadingLevel.HEADING_2,
+              }),
+              ...parrafoImagen(capTendencia),
+
               new Paragraph({ text: "Operaciones", heading: HeadingLevel.HEADING_2 }),
               new Table({
                 width: { size: 100, type: WidthType.PERCENTAGE },
@@ -732,6 +948,12 @@ export default function Analitica() {
                 ],
               }),
               new Paragraph({ text: "" }),
+              new Paragraph({ text: "SKUs por Categoría", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capSkus, 340),
+              new Paragraph({ text: "Órdenes de Producción por Estado", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capManufactura),
+              new Paragraph({ text: "Rotación de Productos (Top 5)", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capProductos),
 
               new Paragraph({ text: "Marketing y Personal", heading: HeadingLevel.HEADING_2 }),
               new Table({
@@ -747,6 +969,18 @@ export default function Analitica() {
                 ],
               }),
               new Paragraph({ text: "" }),
+              new Paragraph({ text: "Leads por Estado", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capLeadsEstado),
+              new Paragraph({ text: "Leads por Origen", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capLeadsOrigen, 340),
+              new Paragraph({ text: "Colaboradores por Departamento", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capPersonal),
+
+              new Paragraph({ text: "Segmentación de Clientes", heading: HeadingLevel.HEADING_2 }),
+              new Paragraph({ text: "Por Perfil Comercial", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capSegPerfil, 340),
+              new Paragraph({ text: "Por Lista de Precios (A/B/C/D)", heading: HeadingLevel.HEADING_3 }),
+              ...parrafoImagen(capSegLista),
 
               new Paragraph({
                 text: `Proyección IA — Confianza del modelo (R²): ${(confianzaModelo * 100).toFixed(0)}%`,
@@ -785,38 +1019,67 @@ export default function Analitica() {
       document.body.removeChild(link);
     } catch (err) {
       console.error("Error generando Word:", err);
-      alert("No se pudo generar el Word. Verifica que la librería 'docx' esté instalada (npm install docx).");
+      alert("No se pudo generar el Word. Verifica que las librerías 'docx' y 'html2canvas' estén instaladas (npm install docx html2canvas).");
     }
   };
 
-  // Exportación PDF real (jsPDF + autoTable) con logo, fecha y hora impresos en el documento
+  /**
+   * Exportación PDF real (jsPDF + autoTable) con logo, fecha y hora impresas
+   * en el documento, y las gráficas reales (capturadas con html2canvas)
+   * intercaladas entre las tablas de datos correspondientes.
+   * Requiere: npm install html2canvas (jspdf y jspdf-autotable ya estaban)
+   */
   const exportarPDF = async () => {
     try {
       const { default: jsPDF } = await import("jspdf");
       const autoTable = (await import("jspdf-autotable")).default;
       const logo = await cargarLogoBase64();
 
+      const [
+        capTendencia, capProductos, capPasarelas, capCxp, capSkus,
+        capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
+        capSegPerfil, capSegLista,
+      ] = await Promise.all([
+        capturarGrafica(refTendencia),
+        capturarGrafica(refTopProductos),
+        capturarGrafica(refPasarelas),
+        capturarGrafica(refCxp),
+        capturarGrafica(refSkus),
+        capturarGrafica(refManufactura),
+        capturarGrafica(refLeadsEstado),
+        capturarGrafica(refLeadsOrigen),
+        capturarGrafica(refPersonal),
+        capturarGrafica(refSegPerfil),
+        capturarGrafica(refSegLista),
+      ]);
+
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
-      let xTexto = 14;
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margen = 14;
+      let xTexto = margen;
 
       if (logo) {
         const anchoLogo = 30;
         const altoLogo = anchoLogo * (logo.height / logo.width);
-        doc.addImage(logo.data, "PNG", 14, 10, anchoLogo, altoLogo);
-        xTexto = 14 + anchoLogo + 8;
+        doc.addImage(logo.data, "PNG", margen, 10, anchoLogo, altoLogo);
+        xTexto = margen + anchoLogo + 8;
       }
 
       doc.setFontSize(14);
       doc.setTextColor(20, 20, 20);
       doc.text("Trulink Fiber LLC - Enterprise Intelligence & Accounting BI", xTexto, 17);
+      doc.setFontSize(10.5);
+      doc.setTextColor(184, 134, 11);
+      doc.text(`Reporte: ${tituloTabActiva}`, xTexto, 23);
       doc.setFontSize(9);
       doc.setTextColor(120, 120, 120);
-      doc.text(`Generado: ${fechaHoraActual}`, xTexto, 23);
-      doc.text(`Periodo: ${fechaDesde} a ${fechaHasta}`, xTexto, 28);
+      doc.text(`Generado: ${fechaHoraActual}`, xTexto, 28.5);
+      doc.text(`Periodo: ${fechaDesde} a ${fechaHasta}`, xTexto, 33.5);
+      doc.text(DIRECCION_EMPRESA, xTexto, 38.5);
 
       autoTable(doc, {
-        startY: 38,
+        startY: 48,
         head: [["Métrica Financiera", "Valor"]],
         body: [
           ["Pipeline Cotizado", `$${montoCotizaciones.toFixed(2)}`],
@@ -833,10 +1096,46 @@ export default function Analitica() {
         styles: { fontSize: 9 },
       });
 
-      const finalY1 = (doc as any).lastAutoTable?.finalY || 38;
+      let cursorY = (doc as any).lastAutoTable?.finalY || 48;
 
+      /** Inserta una gráfica capturada; salta de página si no entra en el espacio restante. */
+      const insertarGrafica = (cap: CapturaGrafica | null, titulo: string, anchoMax = pageWidth - margen * 2) => {
+        if (!cap) return;
+        const escala = Math.min(1, anchoMax / cap.width);
+        const w = cap.width * escala;
+        const h = cap.height * escala;
+        if (cursorY + h + 16 > pageHeight - margen) {
+          doc.addPage();
+          cursorY = margen;
+        } else {
+          cursorY += 10;
+        }
+        doc.setFontSize(10);
+        doc.setTextColor(20, 20, 20);
+        doc.text(titulo, margen, cursorY);
+        cursorY += 5;
+        doc.addImage(cap.dataUrl, "PNG", margen, cursorY, w, h);
+        cursorY += h + 4;
+      };
+
+      insertarGrafica(capTendencia, `Tendencia de Cobros y Proyección IA (Confianza R²: ${(confianzaModelo * 100).toFixed(0)}%)`);
+      insertarGrafica(capPasarelas, "Pasarelas de Pago y Cobros", 90);
+      insertarGrafica(capProductos, "Rotación de Productos (Top 5)");
+      insertarGrafica(capCxp, "Cuentas por Pagar por Categoría");
+      insertarGrafica(capSkus, "SKUs por Categoría", 90);
+      insertarGrafica(capManufactura, "Órdenes de Producción por Estado");
+      insertarGrafica(capLeadsEstado, "Leads por Estado");
+      insertarGrafica(capLeadsOrigen, "Leads por Origen", 90);
+      insertarGrafica(capPersonal, "Colaboradores por Departamento");
+      insertarGrafica(capSegPerfil, "Segmentación de Clientes por Perfil", 90);
+      insertarGrafica(capSegLista, "Segmentación por Lista de Precios (A/B/C/D)");
+
+      if (cursorY + 20 > pageHeight - margen) {
+        doc.addPage();
+        cursorY = margen;
+      }
       autoTable(doc, {
-        startY: finalY1 + 10,
+        startY: cursorY + 8,
         head: [["Mes", "Cobrado (Real / Proyección IA)"]],
         body: historicoVentas.map((p) => [`${p.mes}${p.esProyeccion ? " (Proyección IA)" : ""}`, `$${p.cobrado.toFixed(2)}`]),
         theme: "grid",
@@ -844,16 +1143,26 @@ export default function Analitica() {
         styles: { fontSize: 9 },
       });
 
-      const finalY2 = (doc as any).lastAutoTable?.finalY || finalY1 + 10;
+      const finalYTabla = (doc as any).lastAutoTable?.finalY || cursorY + 8;
+      if (finalYTabla + 20 > pageHeight - margen) {
+        doc.addPage();
+        cursorY = margen;
+      } else {
+        cursorY = finalYTabla + 10;
+      }
       doc.setFontSize(10);
       doc.setTextColor(20, 20, 20);
-      doc.text("Insights Automáticos:", 14, finalY2 + 10);
+      doc.text("Insights Automáticos:", margen, cursorY);
       doc.setFontSize(8.5);
       doc.setTextColor(80, 80, 80);
-      let cursorY = finalY2 + 16;
+      cursorY += 6;
       insights.forEach((texto) => {
-        const lineas = doc.splitTextToSize(`• ${texto}`, pageWidth - 28);
-        doc.text(lineas, 14, cursorY);
+        const lineas = doc.splitTextToSize(`• ${texto}`, pageWidth - margen * 2);
+        if (cursorY + lineas.length * 4.5 > pageHeight - margen) {
+          doc.addPage();
+          cursorY = margen;
+        }
+        doc.text(lineas, margen, cursorY);
         cursorY += lineas.length * 4.5 + 2;
       });
 
@@ -1005,7 +1314,9 @@ export default function Analitica() {
           <div className="analitica-tab-content">
 
             {/* ================= TAB: RESUMEN EJECUTIVO ================= */}
-            {tab === "resumen" && (
+            {/* Permanece montada (fuera de pantalla si no está activa) para que
+                html2canvas pueda capturar sus gráficas al exportar. */}
+            <div style={{ position: tab === "resumen" ? "relative" : "absolute", left: tab === "resumen" ? "auto" : "-99999px", top: 0, width: "100%" }}>
               <>
                 <SectionDivider icon="📊" title="Indicadores Clave del Negocio" subtitle="Pipeline, cobros y salud financiera general" accent={theme.goldBright} />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "20px" }}>
@@ -1036,7 +1347,7 @@ export default function Analitica() {
                   ) : (
                     <>
                       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "25px" }}>
-                        <div style={{ width: "100%", height: "250px", position: "relative" }}>
+                        <div ref={refTendencia} style={{ width: "100%", height: "250px", position: "relative" }}>
                           <svg viewBox={`0 0 ${ANCHO_GRAFICO} ${ALTO_GRAFICO}`} style={{ width: "100%", height: "100%", overflow: "visible" }}>
                             <defs>
                               <linearGradient id="cobradoArea" x1="0" y1="0" x2="0" y2="1">
@@ -1110,35 +1421,39 @@ export default function Analitica() {
                   {productosTop.length === 0 ? (
                     <p style={{ color: theme.textMuted, fontSize: "0.85rem" }}>Cargando catálogo dinámico...</p>
                   ) : (
-                    <Bar3DChart
-                      data={productosTop.map((p, i) => ({
-                        label: p.sku !== "Sin SKU" ? p.sku : p.nombre,
-                        value: p.movimientos,
-                        color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", "#FF5252"][i % 5],
-                      }))}
-                    />
+                    <div ref={refTopProductos}>
+                      <Bar3DChart
+                        data={productosTop.map((p, i) => ({
+                          label: p.sku !== "Sin SKU" ? p.sku : p.nombre,
+                          value: p.movimientos,
+                          color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", "#FF5252"][i % 5],
+                        }))}
+                      />
+                    </div>
                   )}
                 </Card>
               </>
-            )}
+            </div>
 
             {/* ================= TAB: FINANZAS ================= */}
-            {tab === "finanzas" && (
+            <div style={{ position: tab === "finanzas" ? "relative" : "absolute", left: tab === "finanzas" ? "auto" : "-99999px", top: 0, width: "100%" }}>
               <>
                 <SectionDivider icon="💳" title="Pasarelas de Pago y Cobros" subtitle="Distribución de cobros recibidos por canal" accent="#635BFF" />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
                   <Card style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <DonutChart
-                      size={190}
-                      centerLabel="Global"
-                      centerValue={`$${(totalPagosGlobal / 1000).toFixed(1)}k`}
-                      data={[
-                        { label: "Stripe", value: pagosStripe, color: "#635BFF" },
-                        { label: "PayPal", value: pagosPaypal, color: "#00457C" },
-                        { label: "Wise", value: pagosWise, color: "#9FE870" },
-                        { label: "Transferencia", value: pagosTransferencia, color: theme.goldBright },
-                      ]}
-                    />
+                    <div ref={refPasarelas}>
+                      <DonutChart
+                        size={190}
+                        centerLabel="Global"
+                        centerValue={`$${(totalPagosGlobal / 1000).toFixed(1)}k`}
+                        data={[
+                          { label: "Stripe", value: pagosStripe, color: "#635BFF" },
+                          { label: "PayPal", value: pagosPaypal, color: "#00457C" },
+                          { label: "Wise", value: pagosWise, color: "#9FE870" },
+                          { label: "Transferencia", value: pagosTransferencia, color: theme.goldBright },
+                        ]}
+                      />
+                    </div>
                   </Card>
 
                   <Card>
@@ -1176,20 +1491,22 @@ export default function Analitica() {
                   {cxpPorCuenta.length === 0 ? (
                     <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin egresos registrados en el período.</p>
                   ) : (
-                    <Bar3DChart
-                      data={cxpPorCuenta.map((c, i) => ({
-                        label: c.cuenta,
-                        value: Math.round(c.monto),
-                        color: [theme.goldBright, "#29B6F6", theme.green, "#B388FF", theme.red][i % 5],
-                      }))}
-                    />
+                    <div ref={refCxp}>
+                      <Bar3DChart
+                        data={cxpPorCuenta.map((c, i) => ({
+                          label: c.cuenta,
+                          value: Math.round(c.monto),
+                          color: [theme.goldBright, "#29B6F6", theme.green, "#B388FF", theme.red][i % 5],
+                        }))}
+                      />
+                    </div>
                   )}
                 </Card>
               </>
-            )}
+            </div>
 
             {/* ================= TAB: OPERACIONES (Manufactura + Bodega + Inventario) ================= */}
-            {tab === "operaciones" && (
+            <div style={{ position: tab === "operaciones" ? "relative" : "absolute", left: tab === "operaciones" ? "auto" : "-99999px", top: 0, width: "100%" }}>
               <>
                 <SectionDivider icon="📦" title="SKUs en Bases de Datos" subtitle="cablesdb · herrajesdb · accesoriosdb" accent={theme.goldBright} />
                 <Card style={{ marginBottom: "35px" }}>
@@ -1206,7 +1523,7 @@ export default function Analitica() {
                         <span style={{ color: theme.green, fontSize: "0.8rem", fontWeight: "bold" }}>✓ Verificado</span>
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div ref={refSkus} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <DonutChart
                         size={170}
                         centerLabel="Total SKUs"
@@ -1265,7 +1582,9 @@ export default function Analitica() {
                   {ordenesPorEstado.length === 0 ? (
                     <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin órdenes registradas en el período.</p>
                   ) : (
-                    <Bar3DChart data={ordenesPorEstado.map((o, i) => ({ label: o.estado, value: o.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))} height={180} />
+                    <div ref={refManufactura}>
+                      <Bar3DChart data={ordenesPorEstado.map((o, i) => ({ label: o.estado, value: o.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))} height={180} />
+                    </div>
                   )}
                 </Card>
 
@@ -1316,10 +1635,10 @@ export default function Analitica() {
                   </Card>
                 </div>
               </>
-            )}
+            </div>
 
             {/* ================= TAB: MARKETING ================= */}
-            {tab === "marketing" && (
+            <div style={{ position: tab === "marketing" ? "relative" : "absolute", left: tab === "marketing" ? "auto" : "-99999px", top: 0, width: "100%" }}>
               <>
                 <SectionDivider icon="📣" title="Marketing" subtitle="marketing_campaigns, marketing_leads, marketing_gastos" accent="#B388FF" />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "30px" }}>
@@ -1351,7 +1670,9 @@ export default function Analitica() {
                     {leadsPorEstado.length === 0 ? (
                       <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin leads registrados.</p>
                     ) : (
-                      <Bar3DChart data={leadsPorEstado.map((l, i) => ({ label: l.estado, value: l.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))} height={170} />
+                      <div ref={refLeadsEstado}>
+                        <Bar3DChart data={leadsPorEstado.map((l, i) => ({ label: l.estado, value: l.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))} height={170} />
+                      </div>
                     )}
                   </Card>
                   <Card>
@@ -1359,20 +1680,22 @@ export default function Analitica() {
                     {leadsPorOrigen.length === 0 ? (
                       <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin leads registrados.</p>
                     ) : (
-                      <DonutChart
-                        size={170}
-                        centerLabel="Leads"
-                        centerValue={String(totalLeads)}
-                        data={leadsPorOrigen.slice(0, 6).map((l, i) => ({ label: l.origen, value: l.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red, "#FFB300"][i % 6] }))}
-                      />
+                      <div ref={refLeadsOrigen}>
+                        <DonutChart
+                          size={170}
+                          centerLabel="Leads"
+                          centerValue={String(totalLeads)}
+                          data={leadsPorOrigen.slice(0, 6).map((l, i) => ({ label: l.origen, value: l.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red, "#FFB300"][i % 6] }))}
+                        />
+                      </div>
                     )}
                   </Card>
                 </div>
               </>
-            )}
+            </div>
 
             {/* ================= TAB: PERSONAL ================= */}
-            {tab === "personal" && (
+            <div style={{ position: tab === "personal" ? "relative" : "absolute", left: tab === "personal" ? "auto" : "-99999px", top: 0, width: "100%" }}>
               <>
                 <SectionDivider icon="👥" title="Personal" subtitle="colaboradores, marcajes — solo headcount / asistencia" accent="#29B6F6" />
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "30px" }}>
@@ -1394,14 +1717,16 @@ export default function Analitica() {
                   {colaboradoresPorDepto.length === 0 ? (
                     <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin colaboradores registrados.</p>
                   ) : (
-                    <Bar3DChart data={colaboradoresPorDepto.map((c, i) => ({ label: c.depto, value: c.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))} />
+                    <div ref={refPersonal}>
+                      <Bar3DChart data={colaboradoresPorDepto.map((c, i) => ({ label: c.depto, value: c.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))} />
+                    </div>
                   )}
                 </Card>
               </>
-            )}
+            </div>
 
             {/* ================= TAB: CLIENTES ================= */}
-            {tab === "clientes" && (
+            <div style={{ position: tab === "clientes" ? "relative" : "absolute", left: tab === "clientes" ? "auto" : "-99999px", top: 0, width: "100%" }}>
               <>
                 <SectionDivider icon="🏆" title="Top Clientes Corporativos" subtitle="Ranking por monto total cotizado" accent={theme.goldBright} />
                 <Card style={{ marginBottom: "35px" }}>
@@ -1426,12 +1751,14 @@ export default function Analitica() {
                     {segmentacionPerfil.length === 0 ? (
                       <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin clientes registrados.</p>
                     ) : (
-                      <DonutChart
-                        size={180}
-                        centerLabel="Clientes"
-                        centerValue={String(registrosInscripciones)}
-                        data={segmentacionPerfil.map((s, i) => ({ label: s.perfil, value: s.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))}
-                      />
+                      <div ref={refSegPerfil}>
+                        <DonutChart
+                          size={180}
+                          centerLabel="Clientes"
+                          centerValue={String(registrosInscripciones)}
+                          data={segmentacionPerfil.map((s, i) => ({ label: s.perfil, value: s.cantidad, color: [theme.goldBright, theme.green, "#29B6F6", "#B388FF", theme.red][i % 5] }))}
+                        />
+                      </div>
                     )}
                   </Card>
 
@@ -1440,19 +1767,21 @@ export default function Analitica() {
                     {segmentacionListaPrecio.length === 0 ? (
                       <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin datos.</p>
                     ) : (
-                      <Bar3DChart
-                        data={segmentacionListaPrecio.map((s, i) => ({
-                          label: `Lista ${s.lista}`,
-                          value: s.cantidad,
-                          color: ["#FFD700", "#00E676", "#29B6F6", "#B388FF"][i % 4],
-                        }))}
-                        height={180}
-                      />
+                      <div ref={refSegLista}>
+                        <Bar3DChart
+                          data={segmentacionListaPrecio.map((s, i) => ({
+                            label: `Lista ${s.lista}`,
+                            value: s.cantidad,
+                            color: ["#FFD700", "#00E676", "#29B6F6", "#B388FF"][i % 4],
+                          }))}
+                          height={180}
+                        />
+                      </div>
                     )}
                   </Card>
                 </div>
               </>
-            )}
+            </div>
           </div>
         )}
       </div>
