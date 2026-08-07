@@ -16,10 +16,14 @@ import {
 
 type PedidoEspecial = {
   id: string;
-  cliente_email: string;
-  nota_descriptiva: string;
-  archivo_url: string | null;
-  fecha_creacion: string;
+  email: string;
+  empresa: string | null;
+  representante: string | null;
+  telefono_celular: string | null;
+  especificaciones_texto: string | null;
+  archivo_adjunto_url: string | null;
+  cantidad_aproximada: string | null;
+  created_at: string;
 };
 
 type LineaManual = {
@@ -35,7 +39,7 @@ export default function CotizacionManual() {
 
   const [modo, setModo] = useState<"pedido_especial" | "cable" | "producto">("pedido_especial");
 
-  // ── Pedidos especiales pendientes ──
+  // ── Pedidos especiales pendientes (ahora leídos de quotes) ──
   const [pedidosEspeciales, setPedidosEspeciales] = useState<PedidoEspecial[]>([]);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<PedidoEspecial | null>(null);
   const [cargandoPedidos, setCargandoPedidos] = useState(true);
@@ -78,13 +82,21 @@ export default function CotizacionManual() {
     if (modo === "producto") cargarCatalogoProducto(tablaProducto);
   }, [modo, tablaProducto]);
 
+  /**
+   * Antes leía de la tabla "pedidos_especiales", que quedó huérfana:
+   * nada la llenaba. La solicitud real del cliente (especiales.tsx) cae
+   * en "quotes" con type = "especiales" y status = "pendiente_cotizar".
+   * Ahora leemos de ahí directamente.
+   */
   const cargarPedidosEspeciales = async () => {
     if (!supabase) { setCargandoPedidos(false); return; }
     setCargandoPedidos(true);
     const { data, error } = await supabase
-      .from("pedidos_especiales")
+      .from("quotes")
       .select("*")
-      .order("fecha_creacion", { ascending: false });
+      .eq("type", "especiales")
+      .eq("status", "pendiente_cotizar")
+      .order("created_at", { ascending: false });
     if (error) console.error("Error cargando pedidos especiales:", error.message);
     setPedidosEspeciales(data || []);
     setCargandoPedidos(false);
@@ -99,11 +111,14 @@ export default function CotizacionManual() {
     setCargandoCatalogo(false);
   };
 
-  /** Al elegir un pedido especial, precarga el email del cliente y busca sus datos. */
+  /** Al elegir un pedido especial, precarga los datos que ya vinieron en la fila de quotes. */
   const seleccionarPedido = async (pedido: PedidoEspecial) => {
     setPedidoSeleccionado(pedido);
-    setClienteEmail(pedido.cliente_email);
-    await buscarDatosCliente(pedido.cliente_email);
+    setClienteEmail(pedido.email);
+    setEmpresaCliente(pedido.empresa || "");
+    setRepresentanteCliente(pedido.representante || "");
+    setTelefonoCliente(pedido.telefono_celular || "");
+    if (!pedido.empresa) await buscarDatosCliente(pedido.email);
   };
 
   const buscarDatosCliente = async (email: string) => {
@@ -168,6 +183,12 @@ export default function CotizacionManual() {
 
   const hayContenido = lineasManuales.some((l) => l.descripcion.trim() && l.cantidad > 0) || itemsCable.length > 0 || itemsProducto.length > 0;
 
+  /**
+   * Si la cotización viene de una solicitud real del cliente (pedidoSeleccionado),
+   * actualiza esa misma fila de quotes en vez de crear una nueva — si no, la
+   * solicitud original se queda eternamente en "pendiente_cotizar" duplicada.
+   * Si es cable/producto o un pedido especial armado desde cero, sí crea fila nueva.
+   */
   const guardarCotizacion = async () => {
     if (!supabase) return alert("No se pudo conectar con la base de datos.");
     if (!clienteEmail.trim()) return alert("Falta el email del cliente destino.");
@@ -191,37 +212,64 @@ export default function CotizacionManual() {
         ...formatearItemsProductoParaQuotes(itemsProducto),
       ];
 
-      const tipoOrigen = modo === "pedido_especial" ? "pedido_especial" : modo === "cable" ? "fabricacion" : "producto";
+      if (modo === "pedido_especial" && pedidoSeleccionado) {
+        // La fila ya existe (la creó el cliente en especiales.tsx) — se actualiza, no se duplica
+        const { data, error } = await supabase
+          .from("quotes")
+          .update({
+            empresa: empresaCliente || clienteEmail,
+            representante: representanteCliente || null,
+            telefono_celular: telefonoCliente || null,
+            total: totalGeneral,
+            items: itemsFinal,
+            status: "pending",
+            origen_admin: true,
+          })
+          .eq("id", pedidoSeleccionado.id)
+          .select()
+          .single();
+        if (error) throw new Error(error.message);
 
-      const payloadQuote = {
-        referencia,
-        type: tipoOrigen,
-        origen_admin: true,
-        empresa: empresaCliente || clienteEmail,
-        representante: representanteCliente || null,
-        email: clienteEmail.trim(),
-        telefono_celular: telefonoCliente || null,
-        total: totalGeneral,
-        items: itemsFinal,
-        status: "pending",
-        fecha_estimada_entrega: calcularFechaEntrega(),
-        pedido_especial_id: pedidoSeleccionado?.id || null,
-      };
+        try {
+          await supabase.from("audit_log").insert([{
+            accion: "cotizacion_manual_creada",
+            entidad: "quote",
+            entidad_id: String(data.id),
+            detalle: `Pedido especial de ${clienteEmail} cotizado por ${fmt(totalGeneral)}.`,
+          }]);
+        } catch { /* no frena */ }
 
-      const { data, error } = await supabase.from("quotes").insert([payloadQuote]).select().single();
-      if (error) throw new Error(error.message);
+        alert(`Cotización guardada por ${fmt(totalGeneral)}. El cliente ya puede verla en su portal / recibir el enlace de pago.`);
+      } else {
+        // Cable, producto, o pedido especial armado desde cero (sin solicitud previa del cliente)
+        const tipoOrigen = modo === "pedido_especial" ? "especiales" : modo === "cable" ? "fabricacion" : "producto";
 
-      // Auditoría — no debe frenar el flujo si falla
-      try {
-        await supabase.from("audit_log").insert([{
-          accion: "cotizacion_manual_creada",
-          entidad: "quote",
-          entidad_id: String(data.id),
-          detalle: `Cotización manual ${referencia} creada para ${clienteEmail} (${tipoOrigen}) por ${fmt(totalGeneral)}.`,
-        }]);
-      } catch { /* no frena */ }
+        const { data, error } = await supabase.from("quotes").insert([{
+          referencia,
+          type: tipoOrigen,
+          origen_admin: true,
+          empresa: empresaCliente || clienteEmail,
+          representante: representanteCliente || null,
+          email: clienteEmail.trim(),
+          telefono_celular: telefonoCliente || null,
+          total: totalGeneral,
+          items: itemsFinal,
+          status: "pending",
+          fecha_estimada_entrega: calcularFechaEntrega(),
+        }]).select().single();
+        if (error) throw new Error(error.message);
 
-      alert(`Cotización ${referencia} guardada correctamente por ${fmt(totalGeneral)}. El cliente ya puede verla en su portal / recibir el enlace de pago.`);
+        try {
+          await supabase.from("audit_log").insert([{
+            accion: "cotizacion_manual_creada",
+            entidad: "quote",
+            entidad_id: String(data.id),
+            detalle: `Cotización manual ${referencia} creada para ${clienteEmail} (${tipoOrigen}) por ${fmt(totalGeneral)}.`,
+          }]);
+        } catch { /* no frena */ }
+
+        alert(`Cotización ${referencia} guardada correctamente por ${fmt(totalGeneral)}. El cliente ya puede verla en su portal / recibir el enlace de pago.`);
+      }
 
       // Reset del formulario
       setReferencia(generarReferencia());
@@ -233,6 +281,7 @@ export default function CotizacionManual() {
       setEmpresaCliente("");
       setRepresentanteCliente("");
       setTelefonoCliente("");
+      cargarPedidosEspeciales(); // refresca — la que se acaba de cotizar ya no debe salir en pendientes
     } catch (err: any) {
       alert(`Error al guardar la cotización: ${err.message}`);
     } finally {
@@ -301,11 +350,24 @@ export default function CotizacionManual() {
                         background: pedidoSeleccionado?.id === p.id ? "rgba(218,165,32,0.1)" : "transparent",
                       }}
                     >
-                      <div style={{ color: pedidoSeleccionado?.id === p.id ? "#DAA520" : "#FFF", fontWeight: 600, fontSize: "0.8rem" }}>{p.cliente_email}</div>
-                      <div style={{ color: "#888", fontSize: "0.72rem", marginTop: "2px" }}>{p.nota_descriptiva}</div>
+                      <div style={{ color: pedidoSeleccionado?.id === p.id ? "#DAA520" : "#FFF", fontWeight: 600, fontSize: "0.8rem" }}>
+                        {p.empresa || p.email}
+                      </div>
+                      <div style={{ color: "#888", fontSize: "0.72rem", marginTop: "2px" }}>
+                        {p.especificaciones_texto || "Sin descripción (ver adjunto)"}
+                      </div>
+                      {p.cantidad_aproximada && (
+                        <div style={{ color: "#666", fontSize: "0.68rem", marginTop: "2px" }}>
+                          Cantidad aprox: {p.cantidad_aproximada}
+                        </div>
+                      )}
                       <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
-                        <span style={{ color: "#666", fontSize: "0.68rem" }}>{new Date(p.fecha_creacion).toLocaleDateString()}</span>
-                        {p.archivo_url && <a href={p.archivo_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "#29B6F6", fontSize: "0.68rem" }}>📎 Ver adjunto</a>}
+                        <span style={{ color: "#666", fontSize: "0.68rem" }}>{new Date(p.created_at).toLocaleDateString()}</span>
+                        {p.archivo_adjunto_url && (
+                          <a href={p.archivo_adjunto_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "#29B6F6", fontSize: "0.68rem" }}>
+                            📎 Ver adjunto
+                          </a>
+                        )}
                       </div>
                     </div>
                   ))}

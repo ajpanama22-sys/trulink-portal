@@ -91,6 +91,41 @@ export default function EspecialesPage() {
     }
   };
 
+  /**
+   * Avisa al equipo comercial que llegó una solicitud nueva, reusando
+   * /api/notificar con el mismo segmento "equipo" que usa el Centro de
+   * Notificaciones (notificaciones.tsx). Si esto falla, NO debe frenar
+   * la solicitud del cliente — el registro en quotes ya quedó guardado,
+   * que es lo que realmente importa. El admin igual la va a ver en el
+   * panel de Cotizaciones -> Pedido Especial.
+   */
+  const notificarEquipo = async (empresaDestino: string, emailDestino: string) => {
+    if (!supabase) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      await fetch("/api/notificar", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          destinatario: "equipo",
+          canales: ["email"],
+          mensaje:
+            `Nueva solicitud de pedido especial — Ref. ${referencia}\n` +
+            `Cliente: ${empresaDestino}\n` +
+            `Email: ${emailDestino}\n\n` +
+            `${especificaciones || "(sin descripción, ver adjunto en el panel de Cotizaciones)"}`,
+        }),
+      });
+    } catch (err) {
+      console.error("No se pudo notificar al equipo (la solicitud sí quedó guardada):", err);
+    }
+  };
+
   const enviarSolicitud = async () => {
     if (!especificaciones.trim() && !archivo) {
       return alert("Describe lo que necesitas o adjunta un archivo con las especificaciones.");
@@ -122,6 +157,12 @@ export default function EspecialesPage() {
 
       const { error } = await supabase.from("quotes").insert([payload]);
       if (error) throw error;
+
+      // Avisa al equipo comercial — best-effort, no bloquea el flujo del cliente
+      await notificarEquipo(
+        clienteData?.razon_social || nombreEmpresa || mailCliente,
+        clienteData?.email || mailCliente
+      );
 
       setEnviado(true);
     } catch (err: any) {
