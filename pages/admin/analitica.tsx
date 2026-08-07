@@ -921,25 +921,6 @@ export default function Analitica() {
         WidthType, AlignmentType, ImageRun, TextRun, BorderStyle, Footer, PageNumber,
       } = await import("docx");
 
-      const [
-        capTendencia, capProductos, capPasarelas, capCxp, capSkus,
-        capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
-        capSegPerfil, capSegLista, logo,
-      ] = await Promise.all([
-        capturarGrafica(refTendencia),
-        capturarGrafica(refTopProductos),
-        capturarGrafica(refPasarelas),
-        capturarGrafica(refCxp),
-        capturarGrafica(refSkus),
-        capturarGrafica(refManufactura),
-        capturarGrafica(refLeadsEstado),
-        capturarGrafica(refLeadsOrigen),
-        capturarGrafica(refPersonal),
-        capturarGrafica(refSegPerfil),
-        capturarGrafica(refSegLista),
-        cargarLogoBase64(),
-      ]);
-
       const BORDES_TABLA = {
         top: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
         bottom: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
