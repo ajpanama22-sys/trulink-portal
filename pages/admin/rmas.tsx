@@ -113,6 +113,11 @@ export default function RmasAdmin() {
   const [facturasDespachadas, setFacturasDespachadas] = useState<FacturaDespachada[]>([]);
   const [cargandoFacturas, setCargandoFacturas] = useState(false);
 
+  // Dropdown propio para elegir la factura despachada (reemplaza el <select>
+  // nativo, cuya lista desplegable no respeta el ancho del modal cuando el
+  // texto de las opciones es largo).
+  const [mostrarListaFacturas, setMostrarListaFacturas] = useState(false);
+
   // Modal: resolver RMA (cambio de producto / nota de crédito)
   const [resolviendoId, setResolviendoId] = useState<string | null>(null);
   const [tipoResolucion, setTipoResolucion] = useState<TipoResolucion>('Cambio de Producto');
@@ -535,21 +540,72 @@ export default function RmasAdmin() {
                       factura ya pagada y despachada — genera primero el despacho en el módulo de Despachos.
                     </p>
                   ) : (
-                    <select
-                      required
-                      value={referenciaSel}
-                      onChange={(e) => handleSeleccionarFactura(e.target.value)}
-                      style={{ ...inputStyle, color: theme.gold }}
-                    >
-                      <option value="">Selecciona la factura despachada...</option>
-                      {facturasDespachadas.map((f) => (
-                        <option key={f.referencia} value={f.referencia}>
-                          {f.referencia} — {f.empresa || 'Sin empresa'}
-                          {f.fecha_despacho ? ` — despachado ${new Date(f.fecha_despacho).toLocaleDateString()}` : ''}
-                          {f.guia_envio ? ` — Guía ${f.guia_envio}` : ''}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ position: 'relative' }}>
+                      <button
+                        type="button"
+                        onClick={() => setMostrarListaFacturas((v) => !v)}
+                        style={{
+                          ...inputStyle,
+                          color: referenciaSel ? theme.goldBright : theme.gold,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          width: '100%',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {referenciaSel
+                          ? (() => {
+                              const f = facturasDespachadas.find((x) => x.referencia === referenciaSel);
+                              return f ? `${f.referencia} — ${f.empresa || 'Sin empresa'}` : referenciaSel;
+                            })()
+                          : 'Selecciona la factura despachada...'}
+                      </button>
+
+                      {mostrarListaFacturas && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 'calc(100% + 4px)',
+                            left: 0,
+                            right: 0,
+                            maxHeight: '220px',
+                            overflowY: 'auto',
+                            backgroundColor: theme.inputBg,
+                            border: `1px solid ${theme.borderGold}`,
+                            borderRadius: theme.radiusSm,
+                            zIndex: 20,
+                            boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
+                          }}
+                        >
+                          {facturasDespachadas.map((f) => (
+                            <div
+                              key={f.referencia}
+                              onClick={() => {
+                                handleSeleccionarFactura(f.referencia);
+                                setMostrarListaFacturas(false);
+                              }}
+                              style={{
+                                padding: '10px 14px',
+                                cursor: 'pointer',
+                                borderBottom: '1px solid rgba(218,165,32,0.1)',
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(218,165,32,0.12)')}
+                              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                            >
+                              <div style={{ fontWeight: 'bold', color: theme.goldBright, fontSize: '0.9rem' }}>
+                                {f.referencia} — {f.empresa || 'Sin empresa'}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: theme.textMuted, marginTop: 2 }}>
+                                {f.fecha_despacho ? `Despachado ${new Date(f.fecha_despacho).toLocaleDateString()}` : ''}
+                                {f.guia_envio ? ` — Guía ${f.guia_envio}` : ''}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )}
                   <p style={{ fontSize: '0.75rem', color: '#777', marginTop: '4px' }}>
                     Solo se listan facturas con pago verificado al 100% y salida autorizada (EXW).
@@ -736,4 +792,3 @@ const overlayStyle: React.CSSProperties = {
   alignItems: 'center',
   zIndex: 1000,
 };
-
