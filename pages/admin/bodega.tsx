@@ -39,6 +39,7 @@ export default function Bodega() {
 
   const [tablaCreacion, setTablaCreacion] = useState<string>("");
   const [familiasCreacion, setFamiliasCreacion] = useState<string[]>([]);
+  const [cargandoFamilias, setCargandoFamilias] = useState(false);
   const [nuevaFamiliaSeleccionada, setNuevaFamiliaSeleccionada] = useState("");
   const [nombreNuevaFamilia, setNombreNuevaFamilia] = useState("");
   const [nuevoSku, setNuevoSku] = useState("");
@@ -89,6 +90,14 @@ export default function Bodega() {
     }
   };
 
+  /**
+   * Carga las familias ya existentes en la tabla elegida (cablesdb,
+   * accesoriosdb o herrajesdb) para poblar el select. Se pide la fila
+   * completa ("*") en vez de columnas fijas ("Familia, familia"), porque
+   * pedir una columna que no existe en esa tabla específica hace fallar
+   * TODA la consulta en Postgres/Supabase — y antes eso pasaba en
+   * silencio (el catch solo logueaba, dejando el select vacío sin avisar).
+   */
   const seleccionarTablaCreacion = async (tabla: string) => {
     setTablaCreacion(tabla);
     setFamiliasCreacion([]);
@@ -97,16 +106,28 @@ export default function Bodega() {
 
     if (!supabase) return;
 
+    setCargandoFamilias(true);
     try {
-      const { data, error } = await supabase.from(tabla).select("Familia, familia");
-      if (!error && data) {
-        const unicas = Array.from(
-          new Set(data.map((item) => item.Familia || item.familia).filter(Boolean))
-        ) as string[];
-        setFamiliasCreacion(unicas);
+      const { data, error } = await supabase.from(tabla).select("*");
+      if (error) {
+        console.error(`Error al consultar familias de ${tabla}:`, error.message);
+        alert("No se pudieron cargar las familias existentes: " + error.message);
+        return;
       }
-    } catch (err) {
+      const unicas = Array.from(
+        new Set(
+          (data || [])
+            .map((item: any) => item.Familia || item.familia)
+            .filter((f: any) => typeof f === "string" && f.trim() !== "")
+        )
+      ) as string[];
+      unicas.sort((a, b) => a.localeCompare(b));
+      setFamiliasCreacion(unicas);
+    } catch (err: any) {
       console.error("Error al consultar familias:", err);
+      alert("No se pudieron cargar las familias existentes: " + (err?.message || err));
+    } finally {
+      setCargandoFamilias(false);
     }
   };
 
@@ -408,8 +429,11 @@ export default function Bodega() {
                     value={nuevaFamiliaSeleccionada}
                     onChange={(e) => setNuevaFamiliaSeleccionada(e.target.value)}
                     style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
+                    disabled={cargandoFamilias}
                   >
-                    <option value="">-- Seleccionar Familia --</option>
+                    <option value="">
+                      {cargandoFamilias ? "-- Cargando familias... --" : "-- Seleccionar Familia --"}
+                    </option>
                     {familiasCreacion.map((f, i) => (
                       <option key={i} value={f}>{f}</option>
                     ))}
