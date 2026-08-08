@@ -79,10 +79,19 @@ export default function ProveedoresRegistro() {
 
     setCargando(true);
     try {
-      // 1. Crear el proveedor en estado Pendiente (no activo, no homologado)
-      const { data: proveedor, error: dbError } = await supabase
+      // 1. Crear el proveedor en estado Pendiente (no activo, no homologado).
+      // Generamos el id acá mismo (en vez de pedirle a Postgres que lo
+      // devuelva con RETURNING/.select()), porque un visitante sin sesión
+      // no tiene permiso de SELECT sobre la fila que acaba de insertar
+      // (solo el propio proveedor logueado o el staff pueden leerla) — pedir
+      // el RETURNING chocaba con esa policy y Postgres lo reportaba como
+      // "violates row-level security policy" aunque el INSERT en sí era válido.
+      const proveedorId = crypto.randomUUID();
+
+      const { error: dbError } = await supabase
         .from("proveedores")
         .insert([{
+          id: proveedorId,
           nombre: formData.nombre,
           ruc: formData.ruc,
           pais: formData.pais,
@@ -95,20 +104,18 @@ export default function ProveedoresRegistro() {
           estado: "Pendiente",
           estado_homologacion: "Pendiente",
           descripcion: formData.website ? `Sitio web: ${formData.website}. Cargo del contacto: ${formData.cargo}` : `Cargo del contacto: ${formData.cargo}`,
-        }])
-        .select()
-        .single();
+        }]);
 
       if (dbError) throw dbError;
 
       // 2. Subir documentos de homologación (reutiliza el servicio existente)
-      await uploadAndLinkDocument(files.iso, "proveedores/iso", proveedor.id, "proveedores");
-      await uploadAndLinkDocument(files.ficha_tecnica, "proveedores/ficha-tecnica", proveedor.id, "proveedores");
+      await uploadAndLinkDocument(files.iso, "proveedores/iso", proveedorId, "proveedores");
+      await uploadAndLinkDocument(files.ficha_tecnica, "proveedores/ficha-tecnica", proveedorId, "proveedores");
       if (files.estados_financieros) {
-        await uploadAndLinkDocument(files.estados_financieros, "proveedores/estados-financieros", proveedor.id, "proveedores");
+        await uploadAndLinkDocument(files.estados_financieros, "proveedores/estados-financieros", proveedorId, "proveedores");
       }
       if (files.licencia_fabricacion) {
-        await uploadAndLinkDocument(files.licencia_fabricacion, "proveedores/licencia-fabricacion", proveedor.id, "proveedores");
+        await uploadAndLinkDocument(files.licencia_fabricacion, "proveedores/licencia-fabricacion", proveedorId, "proveedores");
       }
 
       setEnviado(true);
