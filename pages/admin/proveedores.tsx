@@ -14,6 +14,7 @@ import {
 import Homologacion from "../../components/admin/proveedores/Homologacion";
 import AlertasDemanda from "../../components/admin/proveedores/AlertasDemanda";
 import Licitaciones from "../../components/admin/proveedores/Licitaciones";
+import LicitacionesItemUnico from "../../components/admin/proveedores/LicitacionesItemUnico";
 
 /* ============================================================
    PROVEEDORES Y ABASTECIMIENTO — TRULINK FIBER LLC
@@ -162,7 +163,7 @@ export default function Proveedores() {
 
   const supabase = getSupabase();
 
-  const [tab, setTab] = useState<"directorio" | "ordenes" | "cxp" | "estado" | "homologacion" | "alertas" | "licitaciones">("directorio");
+  const [tab, setTab] = useState<"directorio" | "ordenes" | "cxp" | "estado" | "homologacion" | "alertas" | "licitaciones" | "rfq_item_unico">("directorio");
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrima[]>([]);
@@ -660,6 +661,7 @@ export default function Proveedores() {
           <Button variant={tab === "homologacion" ? "gold" : "outline-gold"} onClick={() => setTab("homologacion")}>✅ Homologación</Button>
           <Button variant={tab === "alertas" ? "gold" : "outline-gold"} onClick={() => setTab("alertas")}>📣 Alertas de Demanda</Button>
           <Button variant={tab === "licitaciones" ? "gold" : "outline-gold"} onClick={() => setTab("licitaciones")}>🔒 Licitaciones</Button>
+          <Button variant={tab === "rfq_item_unico" ? "gold" : "outline-gold"} onClick={() => setTab("rfq_item_unico")}>📦 RFQ Ítem Único</Button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "15px", marginBottom: "25px" }}>
@@ -1063,6 +1065,7 @@ export default function Proveedores() {
             {tab === "homologacion" && <Homologacion />}
             {tab === "alertas" && <AlertasDemanda />}
             {tab === "licitaciones" && <Licitaciones />}
+            {tab === "rfq_item_unico" && <LicitacionesItemUnico />}
           </>
         )}
       </div>

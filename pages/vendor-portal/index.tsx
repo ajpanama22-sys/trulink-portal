@@ -98,6 +98,9 @@ export default function VendorPortalHome() {
             <a href="/vendor-portal/licitaciones" style={{ textDecoration: "none" }}>
               <Button variant="outline-gold">{t("vendorPortal.btnLicitaciones")}</Button>
             </a>
+            <a href="/vendor-portal/rfq-item-unico" style={{ textDecoration: "none" }}>
+              <Button variant="outline-gold">📦 RFQ Ítem Único</Button>
+            </a>
             <Button variant="ghost" onClick={logout}>{t("common.logout")}</Button>
           </div>
         </div>
