@@ -89,6 +89,11 @@ export default function VendorPortalLicitaciones() {
     }
   };
 
+  const logout = async () => {
+    await supabase?.auth.signOut();
+    window.location.href = "/vendor-portal/login";
+  };
+
   if (cargandoAuth) {
     return <div style={{ backgroundColor: theme.background, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: theme.gold }}>Verificando acceso...</div>;
   }
@@ -99,7 +104,10 @@ export default function VendorPortalLicitaciones() {
       <div style={pageWrapStyle()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <PageHeader title="Licitaciones Privadas" subtitle="Oportunidades de compra abiertas para tu categoría de insumo." />
-          <a href="/vendor-portal" style={{ color: theme.gold, fontSize: "0.82rem", textDecoration: "none" }}>← Volver al panel</a>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <a href="/vendor-portal" style={{ color: theme.gold, fontSize: "0.82rem", textDecoration: "none" }}>← Volver al panel</a>
+            <Button variant="ghost" onClick={logout}>Cerrar sesión</Button>
+          </div>
         </div>
 
         {cargando ? (
