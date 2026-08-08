@@ -68,7 +68,25 @@ export default function Login() {
       return;
     }
 
-    window.location.href = '/selector';
+    // Verificar si es proveedor: esta página (admin/cliente) NO es para
+    // proveedores. Se cierra la sesión abierta acá y se lo redirige a su
+    // propio portal, donde debe volver a autenticarse.
+    const { data: proveedorData } = await supabase
+      .from('proveedores')
+      .select('email')
+      .eq('email', email)
+      .single();
+
+    if (proveedorData) {
+      await supabase.auth.signOut();
+      setMensaje("Esta cuenta es de proveedor. Ingresá desde el Portal de Proveedores.");
+      window.location.href = '/vendor-portal/login';
+      return;
+    }
+
+    // Ningún rol conocido: no dejar pasar a una pantalla genérica.
+    await supabase.auth.signOut();
+    setMensaje("Tu cuenta no tiene un rol asignado. Contactá a un administrador.");
   };
 
   return (
