@@ -163,16 +163,7 @@ async function capturarGrafica(ref: React.RefObject<HTMLDivElement | null>): Pro
   }
 }
 
-/** Convierte un data URL PNG en bytes crudos, para incrustarlo en un .docx. */
-function dataUrlAUint8Array(dataUrl: string): Uint8Array {
-  const base64 = dataUrl.split(",")[1] || "";
-  const binario = atob(base64);
-  const bytes = new Uint8Array(binario.length);
-  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
-  return bytes;
-}
-
-type TabId = "resumen" | "finanzas" | "operaciones" | "marketing" | "personal" | "clientes";
+type TabId = "resumen" | "finanzas" | "operaciones" | "proveedores" | "marketing" | "personal" | "clientes";
 
 export default function Analitica() {
   const [cargando, setCargando] = useState(true);
@@ -267,6 +258,18 @@ export default function Analitica() {
   const [colaboradoresPorDepto, setColaboradoresPorDepto] = useState<{ depto: string; cantidad: number }[]>([]);
   const [marcajesHoy, setMarcajesHoy] = useState(0);
 
+  // 13. Proveedores y Cadena de Suministro (Convenio Marco)
+  const [proveedoresPorEstadoHomologacion, setProveedoresPorEstadoHomologacion] = useState<{ estado: string; cantidad: number }[]>([]);
+  const [proveedoresHomologados, setProveedoresHomologados] = useState(0);
+  const [proveedoresPendientes, setProveedoresPendientes] = useState(0);
+  const [proveedoresPortalActivo, setProveedoresPortalActivo] = useState(0);
+  const [totalOrdenesCompraProveedores, setTotalOrdenesCompraProveedores] = useState(0);
+  const [montoOrdenesCompraProveedores, setMontoOrdenesCompraProveedores] = useState(0);
+  const [licitacionesPorEstado, setLicitacionesPorEstado] = useState<{ estado: string; cantidad: number }[]>([]);
+  const [totalLicitaciones, setTotalLicitaciones] = useState(0);
+  const [licitacionesAdjudicadas, setLicitacionesAdjudicadas] = useState(0);
+  const [alertasDemandaAbiertas, setAlertasDemandaAbiertas] = useState<any[]>([]);
+
   // Refs a los contenedores de cada gráfica, para poder capturarlas como
   // imagen (html2canvas) al exportar a Excel, Word o PDF. Todas las
   // pestañas permanecen montadas en el DOM (ocultas fuera de pantalla en
@@ -283,6 +286,8 @@ export default function Analitica() {
   const refPersonal = useRef<HTMLDivElement>(null);
   const refSegPerfil = useRef<HTMLDivElement>(null);
   const refSegLista = useRef<HTMLDivElement>(null);
+  const refProveedoresEstado = useRef<HTMLDivElement>(null);
+  const refLicitacionesEstado = useRef<HTMLDivElement>(null);
 
   // Mapa de título legible por pestaña — se usa en los 3 exports (Excel,
   // Word, PDF) para dejar impreso cuál análisis se generó.
@@ -290,6 +295,7 @@ export default function Analitica() {
     resumen: "Resumen Ejecutivo",
     finanzas: "Finanzas & CxC/CxP",
     operaciones: "Operaciones",
+    proveedores: "Proveedores y Cadena de Suministro",
     marketing: "Marketing",
     personal: "Personal",
     clientes: "Clientes",
@@ -350,6 +356,9 @@ export default function Analitica() {
         leadsRes,
         colaboradoresRes,
         marcajesRes,
+        ordenesCompraProveedoresRes,
+        licitacionesRes,
+        alertasDemandaRes,
       ] = await Promise.all([
         supabase.from("quotes").select("*").gte("created_at", `${desde}T00:00:00`).lte("created_at", `${hasta}T23:59:59`),
         supabase.from("cablesdb").select("*"),
@@ -369,6 +378,10 @@ export default function Analitica() {
         supabase.from("marketing_leads").select("*").then((res) => res, () => ({ data: [] })),
         supabase.from("colaboradores").select("*").then((res) => res, () => ({ data: [] })),
         supabase.from("marcajes").select("*").gte("marcado_en", `${hasta}T00:00:00`).then((res) => res, () => ({ data: [] })),
+        // ── Convenio Marco: órdenes de compra, licitaciones y alertas de demanda de proveedores ──
+        supabase.from("ordenes_compra").select("id, total, estado").then((res) => res, () => ({ data: [] })),
+        supabase.from("rfq_licitaciones").select("id, estado").then((res) => res, () => ({ data: [] })),
+        supabase.from("alertas_demanda").select("id, descripcion, categoria_insumo, cantidad_sugerida, origen").eq("estado", "Abierta").then((res) => res, () => ({ data: [] })),
       ]);
 
       const quotes = quotesData || [];
@@ -453,6 +466,37 @@ export default function Analitica() {
 
       setTotalProveedores(provData?.length || 0);
       setTotalRmas(rmaData?.length || 0);
+
+      // ── Proveedores y Cadena de Suministro (Convenio Marco) ──
+      const homologCount: { [key: string]: number } = {};
+      let portalActivoCount = 0;
+      (provData || []).forEach((p: any) => {
+        const est = p.estado_homologacion || "Pendiente";
+        homologCount[est] = (homologCount[est] || 0) + 1;
+        if (p.portal_activo) portalActivoCount++;
+      });
+      setProveedoresPorEstadoHomologacion(
+        Object.entries(homologCount).map(([estado, cantidad]) => ({ estado, cantidad })).sort((a, b) => b.cantidad - a.cantidad)
+      );
+      setProveedoresHomologados(homologCount["Homologado"] || 0);
+      setProveedoresPendientes((homologCount["Pendiente"] || 0) + (homologCount["En Revisión"] || 0));
+      setProveedoresPortalActivo(portalActivoCount);
+
+      const ordenesCompraProveedores = ordenesCompraProveedoresRes?.data || [];
+      setTotalOrdenesCompraProveedores(ordenesCompraProveedores.length);
+      setMontoOrdenesCompraProveedores(ordenesCompraProveedores.reduce((acc: number, o: any) => acc + Number(o.total || 0), 0));
+
+      const licitaciones = licitacionesRes?.data || [];
+      setTotalLicitaciones(licitaciones.length);
+      setLicitacionesAdjudicadas(licitaciones.filter((l: any) => l.estado === "Adjudicada").length);
+      const licEstadoCount: { [key: string]: number } = {};
+      licitaciones.forEach((l: any) => {
+        const est = l.estado || "Sin Estado";
+        licEstadoCount[est] = (licEstadoCount[est] || 0) + 1;
+      });
+      setLicitacionesPorEstado(Object.entries(licEstadoCount).map(([estado, cantidad]) => ({ estado, cantidad })).sort((a, b) => b.cantidad - a.cantidad));
+
+      setAlertasDemandaAbiertas((alertasDemandaRes?.data || []).slice(0, 8));
 
       const usuarios = usuariosData || [];
       setRegistrosInscripciones(usuarios.length);
@@ -646,560 +690,6 @@ export default function Analitica() {
   };
 
   /**
-   * Exportación real a Excel (.xlsx) usando la librería "xlsx" (SheetJS).
-   * Genera un libro con una hoja por área de negocio.
-   * Requiere: npm install xlsx
-   */
-  /**
-   * Exportación real a Excel (.xlsx) usando la librería "exceljs".
-   * A diferencia de "xlsx" (SheetJS), exceljs sí permite incrustar
-   * imágenes en la hoja — por eso cada sección trae, debajo de su tabla
-   * de datos, la misma gráfica que se ve en pantalla.
-   * Requiere: npm install exceljs html2canvas
-   */
-  const exportarExcel = async () => {
-    try {
-      const ExcelJS = await import("exceljs");
-      const wb = new ExcelJS.Workbook();
-      wb.creator = "Trulink Fiber LLC";
-      wb.created = new Date();
-
-      // Las gráficas deben capturarse ANTES de tocar nada más: html2canvas
-      // lee directamente lo que está pintado en el DOM en este instante.
-      const [
-        capTendencia, capProductos, capPasarelas, capCxp, capSkus,
-        capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
-        capSegPerfil, capSegLista, logo,
-      ] = await Promise.all([
-        capturarGrafica(refTendencia),
-        capturarGrafica(refTopProductos),
-        capturarGrafica(refPasarelas),
-        capturarGrafica(refCxp),
-        capturarGrafica(refSkus),
-        capturarGrafica(refManufactura),
-        capturarGrafica(refLeadsEstado),
-        capturarGrafica(refLeadsOrigen),
-        capturarGrafica(refPersonal),
-        capturarGrafica(refSegPerfil),
-        capturarGrafica(refSegLista),
-        cargarLogoBase64(),
-      ]);
-
-      // ── Portada: marco oscuro con logo, título del análisis, fecha/hora y dirección ──
-      const hojaPortada = wb.addWorksheet("Portada", { properties: { tabColor: { argb: "FF" + MARCA.doradoHex } } });
-      hojaPortada.getColumn(1).width = 4;
-      hojaPortada.getColumn(2).width = 14;
-      hojaPortada.getColumn(3).width = 55;
-      hojaPortada.getColumn(4).width = 4;
-      // Fondo oscuro tipo "portada" en el bloque B2:C13, a juego con el portal.
-      for (let f = 2; f <= 13; f++) {
-        for (let c = 2; c <= 3; c++) {
-          const celda = hojaPortada.getCell(f, c);
-          celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + MARCA.negroHex } };
-        }
-      }
-      if (logo) {
-        const imgId = wb.addImage({ base64: logo.data, extension: "png" });
-        const anchoLogo = 110;
-        const altoLogo = anchoLogo * (logo.height / logo.width);
-        hojaPortada.addImage(imgId, { tl: { col: 1.3, row: 1.4 }, ext: { width: anchoLogo, height: altoLogo } });
-      }
-      hojaPortada.getCell("C5").value = "TRULINK FIBER LLC";
-      hojaPortada.getCell("C5").font = { bold: true, size: 18, color: { argb: "FF" + MARCA.doradoBrillanteHex } };
-      hojaPortada.getCell("C6").value = "Enterprise Intelligence & Accounting BI";
-      hojaPortada.getCell("C6").font = { size: 11, color: { argb: "FFCCCCCC" } };
-      hojaPortada.getCell("C8").value = `Reporte: ${tituloTabActiva}`;
-      hojaPortada.getCell("C8").font = { bold: true, size: 13, color: { argb: "FF" + MARCA.doradoHex } };
-      hojaPortada.getCell("C9").value = `Generado: ${fechaHoraActual}`;
-      hojaPortada.getCell("C9").font = { size: 10, color: { argb: "FFDDDDDD" } };
-      hojaPortada.getCell("C10").value = `Periodo: ${fechaDesde} a ${fechaHasta}`;
-      hojaPortada.getCell("C10").font = { size: 10, color: { argb: "FFDDDDDD" } };
-      hojaPortada.getCell("C12").value = DIRECCION_EMPRESA;
-      hojaPortada.getCell("C12").font = { size: 9.5, color: { argb: "FF999999" } };
-      hojaPortada.getCell("C12").alignment = { wrapText: true };
-
-      /** Columnas cuyo nombre indica que llevan montos en dólares → formato de moneda. */
-      const esColumnaMoneda = (nombreCol: string) =>
-        /valor|monto|total|cotizado|cobrado|presupuesto|gasto|ingreso|saldo/i.test(nombreCol);
-
-      const agregarHoja = (nombre: string, filas: Record<string, any>[], colorAcento = MARCA.doradoHex) => {
-        const ws = wb.addWorksheet(nombre.slice(0, 31), { properties: { tabColor: { argb: "FF" + colorAcento } } });
-        if (filas.length > 0) {
-          const columnas = Object.keys(filas[0]);
-          ws.columns = columnas.map((c) => ({
-            header: c,
-            key: c,
-            width: 28,
-            style: esColumnaMoneda(c) ? { numFmt: '"$"#,##0.00' } : undefined,
-          }));
-          filas.forEach((f) => ws.addRow(f));
-
-          const filaHeader = ws.getRow(1);
-          filaHeader.eachCell((celda: any) => {
-            celda.font = { bold: true, color: { argb: "FF" + MARCA.doradoBrillanteHex } };
-            celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + MARCA.negro2Hex } };
-            celda.alignment = { vertical: "middle", horizontal: "left" };
-            celda.border = {
-              top: { style: "thin", color: { argb: "FF333333" } },
-              bottom: { style: "thin", color: { argb: "FF333333" } },
-            };
-          });
-          filaHeader.height = 20;
-
-          for (let i = 0; i < filas.length; i++) {
-            const fila = ws.getRow(i + 2);
-            fila.eachCell((celda: any) => {
-              celda.border = {
-                top: { style: "hair", color: { argb: "FFE0E0E0" } },
-                bottom: { style: "hair", color: { argb: "FFE0E0E0" } },
-                left: { style: "hair", color: { argb: "FFE0E0E0" } },
-                right: { style: "hair", color: { argb: "FFE0E0E0" } },
-              };
-            });
-            if (i % 2 === 1) {
-              fila.eachCell((celda: any) => {
-                celda.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + "F7F7F7" } };
-              });
-            }
-          }
-          ws.views = [{ state: "frozen", ySplit: 1 }];
-        }
-        return ws;
-      };
-
-      const agregarImagen = (ws: any, cap: CapturaGrafica | null, filaDesde: number, tituloTexto?: string) => {
-        if (!cap) return;
-        if (tituloTexto) {
-          const filaTitulo = ws.getRow(filaDesde);
-          filaTitulo.getCell(1).value = `📊  ${tituloTexto}`;
-          filaTitulo.getCell(1).font = { bold: true, italic: true, size: 11, color: { argb: "FF" + MARCA.doradoHex } };
-        }
-        const imageId = wb.addImage({ base64: cap.dataUrl, extension: "png" });
-        const anchoObjetivoPx = 560;
-        const escala = Math.min(1, anchoObjetivoPx / cap.width);
-        ws.addImage(imageId, {
-          tl: { col: 0, row: filaDesde + (tituloTexto ? 1 : 0) },
-          ext: { width: cap.width * escala, height: cap.height * escala },
-        });
-      };
-
-      const hojaKpis = agregarHoja("KPIs Financieros", [
-        { Métrica: "Pipeline Cotizado", Valor: montoCotizaciones },
-        { Métrica: "Facturación Efectiva", Valor: montoFacturas },
-        { Métrica: "Cobros Recibidos (Total)", Valor: montoTotalCobrado },
-        { Métrica: "Cuentas por Cobrar (CXC)", Valor: cuentasPorCobrarMonto },
-        { Métrica: "Cuentas por Pagar (CXP)", Valor: cuentasPorPagarMonto },
-        { Métrica: "Flujo Neto Operativo", Valor: flujoNetoOperativo },
-        { Métrica: "Tasa de Conversión (%)", Valor: Number(tasaConversion.toFixed(1)) },
-        { Métrica: "Ticket Promedio", Valor: ticketPromedio },
-        { Métrica: "Crecimiento Mensual MoM (%)", Valor: Number(crecimientoMoM.toFixed(1)) },
-        { Métrica: "Negocio Perdido", Valor: valorNegocioPerdido },
-      ]);
-      agregarImagen(hojaKpis, capTendencia, hojaKpis.rowCount + 2, "Tendencia de Cobros y Proyección IA");
-
-      const hojaProductos = agregarHoja(
-        "Top Productos",
-        productosTop.map((p) => ({ SKU: p.sku, Producto: p.nombre, Tipo: p.tipo, Movimientos: p.movimientos }))
-      );
-      agregarImagen(hojaProductos, capProductos, hojaProductos.rowCount + 2, "Rotación de Productos (Top 5)");
-
-      const hojaPagos = agregarHoja("Pasarelas de Pago", [
-        { Pasarela: "Stripe", Monto: pagosStripe },
-        { Pasarela: "PayPal", Monto: pagosPaypal },
-        { Pasarela: "Wise", Monto: pagosWise },
-        { Pasarela: "Transferencia Bancaria", Monto: pagosTransferencia },
-      ]);
-      agregarImagen(hojaPagos, capPasarelas, hojaPagos.rowCount + 2, "Distribución de Cobros por Canal");
-
-      const hojaCxcVencidas = agregarHoja(
-        "CxC Vencidas",
-        cxcVencidas.map((c) => ({
-          Cliente: c.cliente_nombre,
-          "Fecha de Vencimiento": c.fecha_vencimiento,
-          "Saldo Pendiente": Number(c.saldo_pendiente || 0),
-        }))
-      );
-
-      const hojaCxp = agregarHoja("CxP por Cuenta", cxpPorCuenta.map((c) => ({ Cuenta: c.cuenta, Monto: c.monto })));
-      agregarImagen(hojaCxp, capCxp, hojaCxp.rowCount + 2, "Cuentas por Pagar por Categoría");
-
-      const hojaManufactura = agregarHoja("Manufactura", [
-        { Métrica: "Órdenes de Producción Totales", Valor: totalOrdenesProduccion },
-        { Métrica: "Km Totales Producidos", Valor: kmTotalesProducidos },
-        { Métrica: "Órdenes con Faltantes", Valor: ordenesConFaltantes },
-        ...ordenesPorEstado.map((o) => ({ Métrica: `Estado: ${o.estado}`, Valor: o.cantidad })),
-      ]);
-      agregarImagen(hojaManufactura, capManufactura, hojaManufactura.rowCount + 2, "Órdenes de Producción por Estado");
-
-      agregarHoja("Bodega y Materia Prima", [
-        { Métrica: "Materias Primas Registradas", Valor: totalMateriasPrimas },
-        { Métrica: "Valor de Inventario MP", Valor: valorInventarioMP },
-        { Métrica: "Alertas de Stock Bajo", Valor: alertasStockBajo.length },
-      ]);
-
-      const hojaMarketing = agregarHoja("Marketing", [
-        { Métrica: "Campañas Activas", Valor: campanasActivas },
-        { Métrica: "Presupuesto Total", Valor: presupuestoTotal },
-        { Métrica: "Gasto Real", Valor: gastoRealMarketing },
-        { Métrica: "Ingresos por Campañas", Valor: ingresosPorCampanas },
-        { Métrica: "Leads Totales", Valor: totalLeads },
-      ]);
-      agregarImagen(hojaMarketing, capLeadsEstado, hojaMarketing.rowCount + 2, "Leads por Estado");
-      agregarImagen(hojaMarketing, capLeadsOrigen, hojaMarketing.rowCount + 20, "Leads por Origen");
-
-      const hojaPersonal = agregarHoja("Personal", [
-        { Métrica: "Colaboradores Totales", Valor: totalColaboradores },
-        { Métrica: "Colaboradores Activos", Valor: colaboradoresActivos },
-        { Métrica: "Marcajes Hoy", Valor: marcajesHoy },
-        ...colaboradoresPorDepto.map((c) => ({ Métrica: `Depto: ${c.depto}`, Valor: c.cantidad })),
-      ]);
-      agregarImagen(hojaPersonal, capPersonal, hojaPersonal.rowCount + 2, "Colaboradores por Departamento");
-
-      const hojaSegmentacion = agregarHoja("Segmentación Clientes", [
-        ...segmentacionPerfil.map((s) => ({ Categoría: `Perfil: ${s.perfil}`, Cantidad: s.cantidad })),
-        ...segmentacionListaPrecio.map((s) => ({ Categoría: `Lista de Precio: ${s.lista}`, Cantidad: s.cantidad })),
-      ]);
-      agregarImagen(hojaSegmentacion, capSegPerfil, hojaSegmentacion.rowCount + 2, "Segmentación por Perfil");
-      agregarImagen(hojaSegmentacion, capSegLista, hojaSegmentacion.rowCount + 20, "Segmentación por Lista de Precios");
-
-      agregarHoja("Top Clientes", topClientes.map((c) => ({ Cliente: c.empresa, "Total Cotizado": c.total })));
-
-      agregarHoja(
-        "Proyección IA",
-        historicoVentas.map((p) => ({
-          Mes: p.mes,
-          Tipo: p.esProyeccion ? "Proyección IA" : "Real",
-          Cotizado: Number(p.cotizado.toFixed(2)),
-          Cobrado: Number(p.cobrado.toFixed(2)),
-        }))
-      );
-
-      const buffer = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `Trulink_Analitica_${fechaHoraActual.split(" ")[0]}.xlsx`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error("Error generando Excel:", err);
-      alert("No se pudo generar el Excel. Verifica que las librerías 'exceljs' y 'html2canvas' estén instaladas (npm install exceljs html2canvas).");
-    }
-  };
-
-  /**
-   * Exportación real a Word (.docx) usando la librería "docx".
-   * Cada sección incluye, además de sus tablas, la imagen de la gráfica
-   * correspondiente (capturada en pantalla con html2canvas).
-   * Requiere: npm install docx html2canvas
-   */
-  const exportarWord = async () => {
-    try {
-      const [
-        capTendencia, capProductos, capPasarelas, capCxp, capSkus,
-        capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
-        capSegPerfil, capSegLista, logo,
-      ] = await Promise.all([
-        capturarGrafica(refTendencia),
-        capturarGrafica(refTopProductos),
-        capturarGrafica(refPasarelas),
-        capturarGrafica(refCxp),
-        capturarGrafica(refSkus),
-        capturarGrafica(refManufactura),
-        capturarGrafica(refLeadsEstado),
-        capturarGrafica(refLeadsOrigen),
-        capturarGrafica(refPersonal),
-        capturarGrafica(refSegPerfil),
-        capturarGrafica(refSegLista),
-        cargarLogoBase64(),
-      ]);
-
-      const {
-        Document, Packer, Paragraph, Table, TableRow, TableCell,
-        WidthType, AlignmentType, ImageRun, TextRun, BorderStyle, Footer, PageNumber,
-      } = await import("docx");
-
-      const BORDES_TABLA = {
-        top: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
-        bottom: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
-        left: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
-        right: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
-        insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
-        insideVertical: { style: BorderStyle.SINGLE, size: 2, color: "DDDDDD" },
-      };
-
-      /** Fila de encabezado de tabla con fondo oscuro y texto dorado, a juego con el portal. */
-      const filaEncabezadoTabla = (col1: string, col2: string) =>
-        new TableRow({
-          tableHeader: true,
-          children: [
-            new TableCell({
-              width: { size: 60, type: WidthType.PERCENTAGE },
-              shading: { fill: MARCA.negro2Hex },
-              children: [new Paragraph({ children: [new TextRun({ text: col1, bold: true, color: MARCA.doradoBrillanteHex })] })],
-            }),
-            new TableCell({
-              width: { size: 40, type: WidthType.PERCENTAGE },
-              shading: { fill: MARCA.negro2Hex },
-              children: [new Paragraph({ children: [new TextRun({ text: col2, bold: true, color: MARCA.doradoBrillanteHex })] })],
-            }),
-          ],
-        });
-
-      const filaTabla = (label: string, valor: string) =>
-        new TableRow({
-          children: [
-            new TableCell({ width: { size: 60, type: WidthType.PERCENTAGE }, children: [new Paragraph(label)] }),
-            new TableCell({ width: { size: 40, type: WidthType.PERCENTAGE }, children: [new Paragraph(valor)] }),
-          ],
-        });
-
-      /** Título de sección con línea dorada debajo, a juego con el resto de los exports. */
-      const tituloSeccion = (texto: string) =>
-        new Paragraph({
-          spacing: { before: 320, after: 140 },
-          border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: MARCA.doradoHex } },
-          children: [new TextRun({ text: texto.toUpperCase(), bold: true, color: MARCA.doradoHex, size: 26 })],
-        });
-
-      /** Subtítulo (para cada gráfica dentro de una sección). */
-      const tituloSubseccion = (texto: string) =>
-        new Paragraph({
-          spacing: { before: 220, after: 90 },
-          children: [new TextRun({ text: texto, bold: true, italics: true, color: "555555", size: 20 })],
-        });
-
-      /** Convierte una captura en un párrafo con la imagen centrada, escalada a un ancho máximo. */
-      const parrafoImagen = (cap: CapturaGrafica | null, anchoMax = 520): any[] => {
-        if (!cap) return [];
-        const escala = Math.min(1, anchoMax / cap.width);
-        return [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            children: [
-              new ImageRun({
-                type: "png",
-                data: dataUrlAUint8Array(cap.dataUrl),
-                transformation: { width: Math.round(cap.width * escala), height: Math.round(cap.height * escala) },
-              } as any),
-            ],
-          }),
-          new Paragraph({ text: "" }),
-        ];
-      };
-
-      // ── Portada: caja de fondo oscuro con logo, título del análisis, fecha y dirección ──
-      const tablaPortada = new Table({
-        width: { size: 100, type: WidthType.PERCENTAGE },
-        borders: {
-          top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-          bottom: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-          left: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-          right: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-          insideHorizontal: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-          insideVertical: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
-        },
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                shading: { fill: MARCA.negroHex },
-                margins: { top: 300, bottom: 300, left: 300, right: 300 },
-                children: [
-                  ...(logo
-                    ? [
-                        new Paragraph({
-                          alignment: AlignmentType.CENTER,
-                          children: [
-                            new ImageRun({
-                              type: "png",
-                              data: dataUrlAUint8Array(logo.data),
-                              transformation: { width: 120, height: Math.round(120 * (logo.height / logo.width)) },
-                            } as any),
-                          ],
-                        }),
-                      ]
-                    : []),
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    spacing: { before: 200 },
-                    children: [new TextRun({ text: "TRULINK FIBER LLC", bold: true, size: 36, color: MARCA.doradoBrillanteHex })],
-                  }),
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({ text: "Enterprise Intelligence & Accounting BI", size: 20, color: "CCCCCC" })],
-                  }),
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    spacing: { before: 220 },
-                    children: [new TextRun({ text: `Reporte: ${tituloTabActiva}`, bold: true, size: 24, color: MARCA.doradoHex })],
-                  }),
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({ text: `Generado: ${fechaHoraActual}`, size: 18, color: "DDDDDD" })],
-                  }),
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({ text: `Periodo: ${fechaDesde} a ${fechaHasta}`, size: 18, color: "DDDDDD" })],
-                  }),
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    spacing: { before: 180 },
-                    children: [new TextRun({ text: DIRECCION_EMPRESA, size: 16, color: "999999" })],
-                  }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      });
-
-      const doc = new Document({
-        sections: [
-          {
-            footers: {
-              default: new Footer({
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    border: { top: { style: BorderStyle.SINGLE, size: 4, color: MARCA.doradoHex } },
-                    spacing: { before: 100 },
-                    children: [
-                      new TextRun({ text: "Trulink Fiber LLC · Confidencial   ·   Página ", size: 16, color: "999999" }),
-                      new TextRun({ children: [PageNumber.CURRENT], size: 16, color: "999999" }),
-                      new TextRun({ text: " de ", size: 16, color: "999999" }),
-                      new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: "999999" }),
-                    ],
-                  }),
-                ],
-              }),
-            },
-            children: [
-              tablaPortada,
-              new Paragraph({ text: "" }),
-
-              tituloSeccion("Métricas Financieras"),
-              new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                borders: BORDES_TABLA,
-                rows: [
-                  filaEncabezadoTabla("Métrica Financiera", "Valor"),
-                  filaTabla("Pipeline Cotizado", `$${montoCotizaciones.toFixed(2)}`),
-                  filaTabla("Facturación Efectiva", `$${montoFacturas.toFixed(2)}`),
-                  filaTabla("Cobros Recibidos (Total)", `$${montoTotalCobrado.toFixed(2)}`),
-                  filaTabla("Cuentas por Cobrar (CXC)", `$${cuentasPorCobrarMonto.toFixed(2)}`),
-                  filaTabla("Cuentas por Pagar (CXP)", `$${cuentasPorPagarMonto.toFixed(2)}`),
-                  filaTabla("Flujo Neto Operativo", `$${flujoNetoOperativo.toFixed(2)}`),
-                  filaTabla("Tasa de Conversión", `${tasaConversion.toFixed(1)}%`),
-                  filaTabla("Ticket Promedio", `$${ticketPromedio.toFixed(2)}`),
-                  filaTabla("Crecimiento Mensual (MoM)", `${crecimientoMoM.toFixed(1)}%`),
-                ],
-              }),
-              new Paragraph({ text: "" }),
-
-              tituloSubseccion("Pasarelas de Pago"),
-              ...parrafoImagen(capPasarelas, 340),
-
-              tituloSubseccion("Cuentas por Pagar por Categoría"),
-              ...parrafoImagen(capCxp),
-
-              tituloSeccion(`Tendencia de Cobros y Proyección IA (Confianza R²: ${(confianzaModelo * 100).toFixed(0)}%)`),
-              ...parrafoImagen(capTendencia),
-
-              tituloSeccion("Operaciones"),
-              new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                borders: BORDES_TABLA,
-                rows: [
-                  filaEncabezadoTabla("Métrica Operativa", "Valor"),
-                  filaTabla("Órdenes de Producción Totales", String(totalOrdenesProduccion)),
-                  filaTabla("Km Totales Producidos", kmTotalesProducidos.toFixed(2)),
-                  filaTabla("Materias Primas Registradas", String(totalMateriasPrimas)),
-                  filaTabla("Valor de Inventario MP", `$${valorInventarioMP.toFixed(2)}`),
-                  filaTabla("Alertas de Stock Bajo", String(alertasStockBajo.length)),
-                ],
-              }),
-              new Paragraph({ text: "" }),
-              tituloSubseccion("SKUs por Categoría"),
-              ...parrafoImagen(capSkus, 340),
-              tituloSubseccion("Órdenes de Producción por Estado"),
-              ...parrafoImagen(capManufactura),
-              tituloSubseccion("Rotación de Productos (Top 5)"),
-              ...parrafoImagen(capProductos),
-
-              tituloSeccion("Marketing y Personal"),
-              new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                borders: BORDES_TABLA,
-                rows: [
-                  filaEncabezadoTabla("Métrica", "Valor"),
-                  filaTabla("Campañas Activas", String(campanasActivas)),
-                  filaTabla("Presupuesto Total", `$${presupuestoTotal.toFixed(2)}`),
-                  filaTabla("Gasto Real", `$${gastoRealMarketing.toFixed(2)}`),
-                  filaTabla("Leads Totales", String(totalLeads)),
-                  filaTabla("Colaboradores Totales", String(totalColaboradores)),
-                  filaTabla("Colaboradores Activos", String(colaboradoresActivos)),
-                  filaTabla("Marcajes Hoy", String(marcajesHoy)),
-                ],
-              }),
-              new Paragraph({ text: "" }),
-              tituloSubseccion("Leads por Estado"),
-              ...parrafoImagen(capLeadsEstado),
-              tituloSubseccion("Leads por Origen"),
-              ...parrafoImagen(capLeadsOrigen, 340),
-              tituloSubseccion("Colaboradores por Departamento"),
-              ...parrafoImagen(capPersonal),
-
-              tituloSeccion("Segmentación de Clientes"),
-              tituloSubseccion("Por Perfil Comercial"),
-              ...parrafoImagen(capSegPerfil, 340),
-              tituloSubseccion("Por Lista de Precios (A/B/C/D)"),
-              ...parrafoImagen(capSegLista),
-
-              tituloSeccion(`Proyección IA — Confianza del modelo (R²): ${(confianzaModelo * 100).toFixed(0)}%`),
-              new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                borders: BORDES_TABLA,
-                rows: [
-                  filaEncabezadoTabla("Mes", "Cobrado (Real / Proyección IA)"),
-                  ...historicoVentas.map((p) =>
-                    filaTabla(`${p.mes}${p.esProyeccion ? " (Proyección IA)" : ""}`, `$${p.cobrado.toFixed(2)}`)
-                  ),
-                ],
-              }),
-              new Paragraph({ text: "" }),
-
-              tituloSeccion("Insights Automáticos"),
-              ...insights.map(
-                (texto) =>
-                  new Paragraph({
-                    spacing: { after: 100 },
-                    children: [new TextRun({ text: `•  ${texto}`, color: "444444" })],
-                  })
-              ),
-            ],
-          },
-        ],
-      });
-
-      const blob = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `Trulink_Analitica_${fechaHoraActual.split(" ")[0]}.docx`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error("Error generando Word:", err);
-      alert("No se pudo generar el Word. Verifica que las librerías 'docx' y 'html2canvas' estén instaladas (npm install docx html2canvas).");
-    }
-  };
-
-  /**
    * Exportación PDF real (jsPDF + autoTable) con logo, fecha y hora impresas
    * en el documento, y las gráficas reales (capturadas con html2canvas)
    * intercaladas entre las tablas de datos correspondientes.
@@ -1214,7 +704,7 @@ export default function Analitica() {
       const [
         capTendencia, capProductos, capPasarelas, capCxp, capSkus,
         capManufactura, capLeadsEstado, capLeadsOrigen, capPersonal,
-        capSegPerfil, capSegLista,
+        capSegPerfil, capSegLista, capProveedoresEstado, capLicitaciones,
       ] = await Promise.all([
         capturarGrafica(refTendencia),
         capturarGrafica(refTopProductos),
@@ -1227,6 +717,8 @@ export default function Analitica() {
         capturarGrafica(refPersonal),
         capturarGrafica(refSegPerfil),
         capturarGrafica(refSegLista),
+        capturarGrafica(refProveedoresEstado),
+        capturarGrafica(refLicitacionesEstado),
       ]);
 
       const doc = new jsPDF();
@@ -1341,6 +833,36 @@ export default function Analitica() {
       insertarGrafica(capCxp, "Cuentas por Pagar por Categoría");
       insertarGrafica(capSkus, "SKUs por Categoría", 90);
       insertarGrafica(capManufactura, "Órdenes de Producción por Estado");
+
+      // ── Proveedores y Cadena de Suministro (Convenio Marco) ──
+      cursorY += 12;
+      if (cursorY > pageHeight - margen - 40) {
+        doc.addPage();
+        dibujarMembrete();
+        cursorY = 50;
+      }
+      tituloSeccion("Proveedores y Cadena de Suministro", cursorY);
+      cursorY += 4;
+      autoTable(doc, {
+        ...estiloTablaBase,
+        startY: cursorY,
+        head: [["Métrica de Proveedores", "Valor"]],
+        body: [
+          ["Proveedores Registrados", String(totalProveedores)],
+          ["Homologados", String(proveedoresHomologados)],
+          ["Pendientes de Homologar", String(proveedoresPendientes)],
+          ["Con Acceso al Vendor Portal", String(proveedoresPortalActivo)],
+          ["Órdenes de Compra Totales", String(totalOrdenesCompraProveedores)],
+          ["Monto Total en Órdenes de Compra", `$${montoOrdenesCompraProveedores.toFixed(2)}`],
+          ["Licitaciones Totales", String(totalLicitaciones)],
+          ["Licitaciones Adjudicadas", String(licitacionesAdjudicadas)],
+          ["Alertas de Demanda Abiertas", String(alertasDemandaAbiertas.length)],
+        ],
+      });
+      cursorY = (doc as any).lastAutoTable?.finalY || cursorY;
+      insertarGrafica(capProveedoresEstado, "Proveedores por Estado de Homologación", 90);
+      insertarGrafica(capLicitaciones, "Licitaciones por Estado");
+
       insertarGrafica(capLeadsEstado, "Leads por Estado");
       insertarGrafica(capLeadsOrigen, "Leads por Origen", 90);
       insertarGrafica(capPersonal, "Colaboradores por Departamento");
@@ -1443,6 +965,7 @@ export default function Analitica() {
     { id: "resumen", label: "Resumen Ejecutivo", icon: "📊" },
     { id: "finanzas", label: "Finanzas & CxC/CxP", icon: "💰" },
     { id: "operaciones", label: "Operaciones", icon: "🏭" },
+    { id: "proveedores", label: "Proveedores", icon: "🤝" },
     { id: "marketing", label: "Marketing", icon: "📣" },
     { id: "personal", label: "Personal", icon: "👥" },
     { id: "clientes", label: "Clientes", icon: "🧭" },
@@ -1485,9 +1008,7 @@ export default function Analitica() {
           </div>
 
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <Button variant="outline-gold" onClick={exportarExcel}>📊 Excel</Button>
-            <Button variant="outline-gold" onClick={exportarWord}>📝 Word</Button>
-            <Button variant="gold" onClick={exportarPDF}>📄 PDF</Button>
+            <Button variant="gold" onClick={exportarPDF}>📄 Descargar Reporte PDF</Button>
           </div>
         </div>
 
@@ -1867,6 +1388,104 @@ export default function Analitica() {
                     )}
                   </Card>
                 </div>
+              </>
+            </div>
+
+            {/* ================= TAB: PROVEEDORES (Convenio Marco) ================= */}
+            <div style={{ position: tab === "proveedores" ? "relative" : "absolute", left: tab === "proveedores" ? "auto" : "-99999px", top: 0, width: "100%" }}>
+              <>
+                <SectionDivider icon="🤝" title="Homologación de Proveedores" subtitle="tabla proveedores — estado_homologacion, portal_activo" accent={theme.goldBright} />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "30px" }}>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Proveedores Registrados</span>
+                    <strong style={{ fontSize: "1.6rem", color: theme.goldBright, display: "block", marginTop: "4px" }}>{totalProveedores}</strong>
+                  </Card>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Homologados</span>
+                    <strong style={{ fontSize: "1.6rem", color: theme.green, display: "block", marginTop: "4px" }}>{proveedoresHomologados}</strong>
+                  </Card>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Pendientes de Homologar</span>
+                    <strong style={{ fontSize: "1.6rem", color: proveedoresPendientes > 0 ? "#f39c12" : theme.green, display: "block", marginTop: "4px" }}>{proveedoresPendientes}</strong>
+                  </Card>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Con Acceso al Vendor Portal</span>
+                    <strong style={{ fontSize: "1.6rem", color: "#29B6F6", display: "block", marginTop: "4px" }}>{proveedoresPortalActivo}</strong>
+                  </Card>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "25px", marginBottom: "35px" }}>
+                  <Card>
+                    <h4 style={{ color: theme.textLight, fontSize: "0.85rem", textTransform: "uppercase", marginBottom: "16px", fontWeight: 800, letterSpacing: "1px" }}>Por Estado de Homologación</h4>
+                    {proveedoresPorEstadoHomologacion.length === 0 ? (
+                      <p style={{ color: theme.textMuted, fontSize: "0.78rem" }}>Sin proveedores registrados.</p>
+                    ) : (
+                      <div ref={refProveedoresEstado} style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <DonutChart
+                          size={180}
+                          centerLabel="Proveedores"
+                          centerValue={String(totalProveedores)}
+                          data={proveedoresPorEstadoHomologacion.map((s, i) => ({
+                            label: s.estado,
+                            value: s.cantidad,
+                            color: [theme.green, "#f39c12", theme.goldBright, theme.red][i % 4],
+                          }))}
+                        />
+                      </div>
+                    )}
+                  </Card>
+
+                  <Card>
+                    <Heading>💸 Compras a Proveedores</Heading>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "10px" }}>
+                      <KpiRow label="Órdenes de Compra Totales" valor={String(totalOrdenesCompraProveedores)} color={theme.goldBright} />
+                      <KpiRow label="Monto Total en Órdenes de Compra" valor={`$${montoOrdenesCompraProveedores.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} color={theme.goldBright} />
+                      <KpiRow label="Cuentas por Pagar a Proveedores" valor={`$${cuentasPorPagarMonto.toLocaleString("en-US", { minimumFractionDigits: 2 })}`} color={theme.red} />
+                    </div>
+                  </Card>
+                </div>
+
+                <SectionDivider icon="🔒" title="Licitaciones Privadas (RFQ)" subtitle="tabla rfq_licitaciones — compra directa competitiva" accent="#B388FF" />
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "20px" }}>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Licitaciones Totales</span>
+                    <strong style={{ fontSize: "1.6rem", color: "#B388FF", display: "block", marginTop: "4px" }}>{totalLicitaciones}</strong>
+                  </Card>
+                  <Card style={{ padding: 16, marginBottom: 0, boxShadow: "none", background: "rgba(15,15,15,0.8)" }}>
+                    <span style={{ fontSize: "0.7rem", color: theme.textMuted, textTransform: "uppercase" }}>Adjudicadas</span>
+                    <strong style={{ fontSize: "1.6rem", color: theme.green, display: "block", marginTop: "4px" }}>{licitacionesAdjudicadas}</strong>
+                  </Card>
+                </div>
+                <Card style={{ marginBottom: "35px" }}>
+                  {licitacionesPorEstado.length === 0 ? (
+                    <p style={{ color: theme.textMuted, fontSize: "0.8rem" }}>Sin licitaciones registradas.</p>
+                  ) : (
+                    <div ref={refLicitacionesEstado}>
+                      <Bar3DChart data={licitacionesPorEstado.map((l, i) => ({ label: l.estado, value: l.cantidad, color: [theme.goldBright, "#B388FF", theme.green, theme.red][i % 4] }))} height={180} />
+                    </div>
+                  )}
+                </Card>
+
+                <SectionDivider icon="📣" title="Previsión de Demanda" subtitle="alertas_demanda abiertas — stock mínimo y necesidades puntuales" accent="#f39c12" />
+                <Card>
+                  {alertasDemandaAbiertas.length === 0 ? (
+                    <p style={{ color: theme.green, fontSize: "0.8rem" }}>✓ Sin alertas de demanda abiertas.</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {alertasDemandaAbiertas.map((a, idx) => (
+                        <div key={idx} style={{ display: "flex", justifyContent: "space-between", padding: "10px 14px", background: "rgba(243,156,18,0.08)", border: "1px solid rgba(243,156,18,0.3)", borderRadius: "6px", fontSize: "0.8rem" }}>
+                          <div>
+                            <div style={{ color: theme.textLight, fontWeight: 600 }}>{a.descripcion}</div>
+                            <div style={{ color: theme.textMuted, fontSize: "0.7rem" }}>
+                              {a.categoria_insumo || "Sin categoría"} · {a.origen === "stock_minimo" ? "Stock mínimo" : "Necesidad puntual"}
+                            </div>
+                          </div>
+                          <strong style={{ color: "#f39c12" }}>{a.cantidad_sugerida}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
               </>
             </div>
 

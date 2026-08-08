@@ -108,6 +108,11 @@ export default function Reportes() {
   const [reporteProyecciones, setReporteProyecciones] = useState<any[]>([]);
   const [confianzaModelo, setConfianzaModelo] = useState(0);
 
+  // Licitaciones y alertas de demanda (Convenio Marco), para los KPI de la pestaña Proveedores
+  const [totalLicitaciones, setTotalLicitaciones] = useState(0);
+  const [licitacionesAdjudicadas, setLicitacionesAdjudicadas] = useState(0);
+  const [alertasAbiertas, setAlertasAbiertas] = useState(0);
+
   // Estados de resumen contable
   const [resumenFinanciero, setResumenFinanciero] = useState({
     ingresosPagados: 0,
@@ -249,18 +254,43 @@ export default function Reportes() {
       }));
       setReporteInventario(invCombinado);
 
-      const { data: provData } = await supabase.from("proveedores").select("*");
-      const provFormatted = (provData || []).map((p, idx) => ({
-        id: p.id || idx,
-        nombre: p.nombre || p.empresa || "Fábrica Internacional",
-        region: p.pais || p.region || "Asia / Internacional",
-        categoria: p.categoria || "Ensamblaje Fibra Optica",
-        // production_orders (única fuente de este dato) se eliminó del código por no tener
-        // ningún camino de escritura real — ver auditoría. Sin reemplazo de datos: queda en 0.
-        ordenesActivas: 0,
-        estatus: p.estatus || "Certificado",
-      }));
+      // ── Proveedores: datos reales del módulo Convenio Marco ──
+      // Homologación (estado_homologacion, portal_activo) viene de la
+      // tabla proveedores. Las órdenes de compra reales (antes en 0 fijo
+      // por falta de fuente) ahora se calculan desde ordenes_compra.
+      const [{ data: provData }, { data: ocData }, { data: licData }, { data: alertasData }] = await Promise.all([
+        supabase.from("proveedores").select("*"),
+        supabase.from("ordenes_compra").select("proveedor_id, total").then((res) => res, () => ({ data: [] })),
+        supabase.from("rfq_licitaciones").select("id, estado").then((res) => res, () => ({ data: [] })),
+        supabase.from("alertas_demanda").select("id").eq("estado", "Abierta").then((res) => res, () => ({ data: [] })),
+      ]);
+
+      const ocPorProveedor = new Map<string, { cantidad: number; monto: number }>();
+      (ocData || []).forEach((o: any) => {
+        const key = String(o.proveedor_id || "");
+        const actual = ocPorProveedor.get(key) || { cantidad: 0, monto: 0 };
+        actual.cantidad += 1;
+        actual.monto += Number(o.total || 0);
+        ocPorProveedor.set(key, actual);
+      });
+
+      const provFormatted = (provData || []).map((p, idx) => {
+        const oc = ocPorProveedor.get(String(p.id)) || { cantidad: 0, monto: 0 };
+        return {
+          id: p.id || idx,
+          nombre: p.nombre || "Fábrica Internacional",
+          region: p.pais || "Asia / Internacional",
+          categoria: p.tipo_insumo || "Sin categoría",
+          estadoHomologacion: p.estado_homologacion || "Pendiente",
+          portalActivo: !!p.portal_activo,
+          ordenesActivas: oc.cantidad,
+          montoOrdenes: oc.monto,
+        };
+      });
       setReporteProveedores(provFormatted);
+      setTotalLicitaciones((licData || []).length);
+      setLicitacionesAdjudicadas((licData || []).filter((l: any) => l.estado === "Adjudicada").length);
+      setAlertasAbiertas((alertasData || []).length);
 
       const { data: usersData } = await supabase.from("clientes").select("*");
       const usersFormatted = (usersData || []).map((u, idx) => ({
@@ -391,13 +421,15 @@ export default function Reportes() {
       };
     }
     if (categoria === "proveedores") {
+      const homologados = reporteProveedores.filter((p) => p.estadoHomologacion === "Homologado").length;
+      const conPortal = reporteProveedores.filter((p) => p.portalActivo).length;
       return {
-        kpi1: datasetActivo.length.toString(),
-        label1: "Fábricas Homologadas",
-        kpi2: "Asia / Tier 1",
-        label2: "Origen de Cadena Suministro",
-        kpi3: "Auditoría VIP",
-        label3: "Estatus de Calidad Operativa",
+        kpi1: `${homologados} / ${reporteProveedores.length}`,
+        label1: "Homologados / Registrados",
+        kpi2: String(conPortal),
+        label2: "Con Acceso al Vendor Portal",
+        kpi3: `${licitacionesAdjudicadas} / ${totalLicitaciones}`,
+        label3: `Licitaciones Adjudicadas · ${alertasAbiertas} Alertas Abiertas`,
       };
     }
     if (categoria === "proyecciones") {
@@ -419,84 +451,7 @@ export default function Reportes() {
       kpi3: "Global Hub",
       label3: "Alcance Internacional",
     };
-  }, [categoria, datasetActivo, resumenFinanciero, reporteProyecciones, confianzaModelo]);
-
-  // Exportación CSV
-  const exportarCSV = () => {
-    let csvContent = `TRULINK FIBER LLC - REPORTE CONTABLE Y EJECUTIVO DE ${categoria.toUpperCase()}\n`;
-    csvContent += `Fecha Emisión: ${fechaHoraActual}\n`;
-    csvContent += `Rango: ${fechaDesde} hasta ${fechaHasta}\n`;
-    csvContent += `ITBMS aplicado: ${aplicaItbms ? "SÍ (7%)" : "NO (Zona Franca)"}\n\n`;
-
-    if (categoria === "contable") {
-      csvContent += "Asiento,Fecha,Cuenta Contable,Concepto / Cliente,Débito (Ingreso),Crédito (Pasivo),Costo Fabril Est.,ITBMS (7%),Utilidad Neta,Estado Fiscal\n";
-      datasetActivo.forEach((r) => {
-        csvContent += `"${r.asiento}","${r.fecha}","${r.cuenta}","${r.concepto}",${r.debito},${r.credito},${r.costoProduccion},${r.impuestoItbms},${r.utilidad},"${r.estadoFiscal}"\n`;
-      });
-    } else if (categoria === "ventas") {
-      csvContent += "Código,Fecha,Cliente,País,Monto USD,Estado Pago,Método,Detalle Producto\n";
-      datasetActivo.forEach((r) => {
-        csvContent += `"${r.codigo}","${r.fecha}","${r.cliente}","${r.pais}",${r.monto},"${r.estadoPago}","${r.metodoPago}","${r.resumenItem}"\n`;
-      });
-    } else if (categoria === "inventario") {
-      csvContent += "SKU,Descripción,Categoría,Tabla Supabase,Especificación\n";
-      datasetActivo.forEach((r) => {
-        csvContent += `"${r.sku}","${r.descripcion}","${r.categoria}","${r.tablaOrigen}","${r.especificacion}"\n`;
-      });
-    } else if (categoria === "proveedores") {
-      csvContent += "ID,Nombre Fábrica,Región,Categoría,Órdenes Activas,Estatus\n";
-      datasetActivo.forEach((r) => {
-        csvContent += `"${r.id}","${r.nombre}","${r.region}","${r.categoria}",${r.ordenesActivas},"${r.estatus}"\n`;
-      });
-    } else if (categoria === "proyecciones") {
-      csvContent += `Confianza del Modelo (R²): ${(confianzaModelo * 100).toFixed(0)}%\n`;
-      csvContent += "Mes,Cotizado Proyectado,Facturado Proyectado,Cobrado Proyectado\n";
-      datasetActivo.forEach((r) => {
-        csvContent += `"${r.mes}",${r.cotizadoProyectado.toFixed(2)},${r.facturadoProyectado.toFixed(2)},${r.cobradoProyectado.toFixed(2)}\n`;
-      });
-    } else {
-      csvContent += "ID,Nombre / Contacto,Empresa,Email,País,Fecha Registro,Rol\n";
-      datasetActivo.forEach((r) => {
-        csvContent += `"${r.id}","${r.nombre}","${r.empresa}","${r.email}","${r.pais}","${r.fechaRegistro}","${r.rol}"\n`;
-      });
-    }
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Trulink_Reporte_${categoria}_${fechaDesde}_${fechaHasta}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Exportación JSON (estructura completa, útil para integraciones)
-  const exportarJSON = () => {
-    const blob = new Blob([JSON.stringify({ categoria, generado: fechaHoraActual, rango: { fechaDesde, fechaHasta }, aplicaItbms, datos: datasetActivo, resumen: resumenMétricas }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `Trulink_Reporte_${categoria}_${fechaDesde}_${fechaHasta}.json`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Exportación Excel real (.xlsx) usando SheetJS si está instalado; si no, cae a CSV automáticamente.
-  // Requiere: npm install xlsx
-  const exportarExcel = async () => {
-    try {
-      const XLSX = await import("xlsx");
-      const hoja = XLSX.utils.json_to_sheet(datasetActivo);
-      const libro = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(libro, hoja, categoria.substring(0, 30));
-      XLSX.writeFile(libro, `Trulink_Reporte_${categoria}_${fechaDesde}_${fechaHasta}.xlsx`);
-    } catch (err) {
-      console.warn("Librería 'xlsx' no disponible (ejecute: npm install xlsx). Exportando CSV como respaldo.", err);
-      exportarCSV();
-    }
-  };
+  }, [categoria, datasetActivo, resumenFinanciero, reporteProyecciones, confianzaModelo, reporteProveedores, totalLicitaciones, licitacionesAdjudicadas, alertasAbiertas]);
 
   // Exportación PDF real (jsPDF + autoTable) con logo, fecha y hora impresos en el documento
   const exportarPDF = async () => {
@@ -536,8 +491,8 @@ export default function Reportes() {
         head = [["SKU", "Descripción", "Categoría", "Tabla", "Especificación"]];
         body = datasetActivo.map((r) => [r.sku, r.descripcion, r.categoria, r.tablaOrigen, r.especificacion]);
       } else if (categoria === "proveedores") {
-        head = [["ID", "Nombre", "Región", "Categoría", "Órdenes", "Estatus"]];
-        body = datasetActivo.map((r) => [r.id, r.nombre, r.region, r.categoria, r.ordenesActivas, r.estatus]);
+        head = [["ID", "Nombre", "País", "Categoría", "Homologación", "Portal", "Órdenes", "Monto OC"]];
+        body = datasetActivo.map((r) => [r.id, r.nombre, r.region, r.categoria, r.estadoHomologacion, r.portalActivo ? "Activo" : "Sin acceso", r.ordenesActivas, `$${r.montoOrdenes.toFixed(2)}`]);
       } else if (categoria === "proyecciones") {
         head = [["Mes", "Cotizado Proyectado", "Facturado Proyectado", "Cobrado Proyectado"]];
         body = datasetActivo.map((r) => [r.mes, `$${r.cotizadoProyectado.toFixed(2)}`, `$${r.facturadoProyectado.toFixed(2)}`, `$${r.cobradoProyectado.toFixed(2)}`]);
@@ -586,10 +541,7 @@ export default function Reportes() {
         />
 
         <div className="no-imprimir" style={{ display: "flex", gap: 14, alignItems: "center", justifyContent: "flex-end", marginBottom: 25 }}>
-          <Button variant="outline-gold" onClick={exportarExcel}>📊 Excel (.xlsx)</Button>
-          <Button variant="outline-gold" onClick={exportarCSV}>📄 CSV</Button>
-          <Button variant="outline-gold" onClick={exportarJSON}>🗂️ JSON</Button>
-          <Button variant="gold" onClick={exportarPDF}>📄 PDF</Button>
+          <Button variant="gold" onClick={exportarPDF}>📄 Descargar Reporte PDF</Button>
         </div>
 
         {/* SELECTOR DE PESTAÑAS (INCLUYENDO PROYECCIONES IA) */}
@@ -597,7 +549,7 @@ export default function Reportes() {
           <CategoryTab title="Reportes Contables" subtitle="Libro Mayor y P&L" active={categoria === "contable"} onClick={() => setCategoria("contable")} icon="⚖️" />
           <CategoryTab title="Ventas & Cobros" subtitle="Tabla quotes" active={categoria === "ventas"} onClick={() => setCategoria("ventas")} icon="📈" />
           <CategoryTab title="Inventario SKUs" subtitle="Cables, Herrajes, Acc." active={categoria === "inventario"} onClick={() => setCategoria("inventario")} icon="📦" />
-          <CategoryTab title="Proveedores" subtitle="Tabla proveedores" active={categoria === "proveedores"} onClick={() => setCategoria("proveedores")} icon="🏭" />
+          <CategoryTab title="Proveedores" subtitle="Homologación y Convenio Marco" active={categoria === "proveedores"} onClick={() => setCategoria("proveedores")} icon="🤝" />
           <CategoryTab title="Clientes CRM" subtitle="Tabla clientes" active={categoria === "clientes"} onClick={() => setCategoria("clientes")} icon="👥" />
           <CategoryTab title="Proyecciones IA" subtitle="Regresión predictiva" active={categoria === "proyecciones"} onClick={() => setCategoria("proyecciones")} icon="🤖" />
         </div>
@@ -763,10 +715,12 @@ export default function Reportes() {
                       <>
                         <th style={thStyle}>ID</th>
                         <th style={thStyle}>Nombre Fábrica / Proveedor</th>
-                        <th style={thStyle}>Región / País</th>
-                        <th style={thStyle}>Especialidad</th>
-                        <th style={thStyle}>Órdenes Activas</th>
-                        <th style={thStyle}>Estatus</th>
+                        <th style={thStyle}>País</th>
+                        <th style={thStyle}>Categoría de Insumo</th>
+                        <th style={thStyle}>Homologación</th>
+                        <th style={thStyle}>Vendor Portal</th>
+                        <th style={thStyle}>Órdenes de Compra</th>
+                        <th style={thStyle}>Monto OC</th>
                       </>
                     )}
                     {categoria === "clientes" && (
@@ -836,8 +790,14 @@ export default function Reportes() {
                           <td style={tdStyle}><strong style={{ color: theme.textLight }}>{row.nombre}</strong></td>
                           <td style={tdStyle}>{row.region}</td>
                           <td style={tdStyle}>{row.categoria}</td>
-                          <td style={tdStyle}><strong style={{ color: theme.gold }}>{row.ordenesActivas} órdenes</strong></td>
-                          <td style={tdStyle}><span style={{ color: theme.green, fontWeight: "bold" }}>✓ {row.estatus}</span></td>
+                          <td style={tdStyle}>
+                            <Badge tone={row.estadoHomologacion === "Homologado" ? "success" : row.estadoHomologacion === "Rechazado" ? "danger" : "gold"}>{row.estadoHomologacion}</Badge>
+                          </td>
+                          <td style={tdStyle}>
+                            {row.portalActivo ? <span style={{ color: theme.green, fontWeight: "bold" }}>✓ Activo</span> : <span style={{ color: theme.textMuted }}>Sin acceso</span>}
+                          </td>
+                          <td style={tdStyle}><strong style={{ color: theme.gold }}>{row.ordenesActivas}</strong></td>
+                          <td style={tdStyle}>${row.montoOrdenes.toLocaleString("en-US", { minimumFractionDigits: 2 })}</td>
                         </>
                       )}
                       {categoria === "clientes" && (
