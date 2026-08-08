@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 import { supabase } from "../lib/supabaseClient";
 import { theme } from "../lib/theme";
 import { Button, inputStyle as baseInputStyle } from "../lib/ui";
@@ -7,9 +8,14 @@ import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function Login() {
   const { t } = useI18n();
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mensaje, setMensaje] = useState("");
+  const [mensaje, setMensaje] = useState(
+    router.query.error === "no_autorizado"
+      ? "Tu cuenta de proveedor aún no está homologada o el portal no ha sido activado para tu perfil."
+      : ""
+  );
 
   // Se conserva el borderRadius "15px" distintivo de esta página vía override.
   const inputStyle: React.CSSProperties = {
@@ -68,9 +74,8 @@ export default function Login() {
       return;
     }
 
-    // Verificar si es proveedor: esta página (admin/cliente) NO es para
-    // proveedores. Se cierra la sesión abierta acá y se lo redirige a su
-    // propio portal, donde debe volver a autenticarse.
+    // Verificar si es proveedor: la sesión ya es válida (mismo Supabase
+    // Auth), así que se lo manda directo a su portal.
     const { data: proveedorData } = await supabase
       .from('proveedores')
       .select('email')
@@ -78,9 +83,7 @@ export default function Login() {
       .single();
 
     if (proveedorData) {
-      await supabase.auth.signOut();
-      setMensaje("Esta cuenta es de proveedor. Ingresá desde el Portal de Proveedores.");
-      window.location.href = '/vendor-portal/login';
+      window.location.href = '/vendor-portal';
       return;
     }
 

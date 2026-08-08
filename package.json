@@ -13,7 +13,7 @@
     "@capacitor/cli": "^8.5.0",
     "@capacitor/core": "^8.5.0",
     "@paypal/checkout-server-sdk": "^1.0.3",
-    "@supabase/supabase-js": "^2.110.7",
+    "@supabase/supabase-js": "^2.112.2",
     "@types/formidable": "^3.5.1",
     "docx": "^9.7.1",
     "exceljs": "^4.4.0",
