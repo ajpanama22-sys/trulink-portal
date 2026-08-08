@@ -11,6 +11,9 @@ import {
   estadoToTone,
   inputStyle,
 } from "../../lib/ui";
+import Homologacion from "../../components/admin/proveedores/Homologacion";
+import AlertasDemanda from "../../components/admin/proveedores/AlertasDemanda";
+import Licitaciones from "../../components/admin/proveedores/Licitaciones";
 
 /* ============================================================
    PROVEEDORES Y ABASTECIMIENTO — TRULINK FIBER LLC
@@ -159,7 +162,7 @@ export default function Proveedores() {
 
   const supabase = getSupabase();
 
-  const [tab, setTab] = useState<"directorio" | "ordenes" | "cxp" | "estado">("directorio");
+  const [tab, setTab] = useState<"directorio" | "ordenes" | "cxp" | "estado" | "homologacion" | "alertas" | "licitaciones">("directorio");
 
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [materiasPrimas, setMateriasPrimas] = useState<MateriaPrima[]>([]);
@@ -654,6 +657,9 @@ export default function Proveedores() {
           <Button variant={tab === "ordenes" ? "gold" : "outline-gold"} onClick={() => setTab("ordenes")}>📋 Órdenes de Compra</Button>
           <Button variant={tab === "cxp" ? "gold" : "outline-gold"} onClick={() => setTab("cxp")}>💸 Cuentas por Pagar</Button>
           <Button variant={tab === "estado" ? "gold" : "outline-gold"} onClick={() => setTab("estado")}>📑 Estado de Cuenta</Button>
+          <Button variant={tab === "homologacion" ? "gold" : "outline-gold"} onClick={() => setTab("homologacion")}>✅ Homologación</Button>
+          <Button variant={tab === "alertas" ? "gold" : "outline-gold"} onClick={() => setTab("alertas")}>📣 Alertas de Demanda</Button>
+          <Button variant={tab === "licitaciones" ? "gold" : "outline-gold"} onClick={() => setTab("licitaciones")}>🔒 Licitaciones</Button>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "15px", marginBottom: "25px" }}>
@@ -1053,6 +1059,10 @@ export default function Proveedores() {
                 )}
               </div>
             )}
+
+            {tab === "homologacion" && <Homologacion />}
+            {tab === "alertas" && <AlertasDemanda />}
+            {tab === "licitaciones" && <Licitaciones />}
           </>
         )}
       </div>

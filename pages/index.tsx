@@ -158,8 +158,8 @@ export default function Home() {
           <a href="/clientes" style={{ textDecoration: "none" }}>
             <Button variant="outline-gold">Registro Cliente B2B</Button>
           </a>
-          <a href="/inversores" style={{ textDecoration: "none" }}>
-            <Button variant="outline-gold">Registro Inversor Estratégico</Button>
+          <a href="/proveedores" style={{ textDecoration: "none" }}>
+            <Button variant="outline-gold">Registro de Proveedores</Button>
           </a>
           <a href="/login" style={{ textDecoration: "none" }}>
             <Button variant="outline-gold">Acceso con User + Pass</Button>
