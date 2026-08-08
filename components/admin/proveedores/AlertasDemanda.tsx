@@ -4,11 +4,26 @@ import { theme } from "../../../lib/theme";
 import { Card, Button, Badge, inputStyle } from "../../../lib/ui";
 
 type Alerta = {
-  id: number; origen: string; descripcion: string; cantidad_sugerida: number;
+  id: number; origen: string; tipo_item: string; descripcion: string; cantidad_sugerida: number;
+  tabla_bodega: string | null; sku_bodega: string | null;
   categoria_insumo: string | null; estado: string; fecha_limite: string | null; created_at: string;
 };
 type MateriaPrima = { id: number; codigo: string; nombre: string; unidad: string; stock_actual: number; categoria: string | null };
-type Umbral = { id: number; materia_prima_id: number; stock_minimo: number; categoria_insumo: string | null };
+type Umbral = {
+  id: number; tipo_item: string; materia_prima_id: number | null;
+  tabla_bodega: string | null; sku_bodega: string | null;
+  stock_minimo: number; categoria_insumo: string | null;
+};
+
+// Tablas de bodega conocidas hoy (mismas que usa el flujo de Órdenes de
+// Compra en Proveedores.tsx). Si creás una tabla de producto nueva a
+// futuro, elegí "Otra tabla..." y escribí el nombre — no hace falta tocar
+// código ni SQL, umbrales_reposicion guarda el nombre como texto libre.
+const TABLAS_BODEGA = [
+  { key: "cablesdb", label: "Cables" },
+  { key: "accesoriosdb", label: "Accesorios" },
+  { key: "herrajesdb", label: "Herrajes" },
+];
 
 const labelStyle = {
   display: "block", fontSize: "0.66rem", color: theme.textMuted,
@@ -29,8 +44,14 @@ export default function AlertasDemanda() {
   const [guardando, setGuardando] = useState(false);
 
   const [modalUmbral, setModalUmbral] = useState(false);
-  const [formUmbral, setFormUmbral] = useState({ materia_prima_id: "", stock_minimo: 0, categoria_insumo: "" });
+  const [tipoUmbral, setTipoUmbral] = useState<"materia_prima" | "bodega">("materia_prima");
+  const [formUmbral, setFormUmbral] = useState({
+    materia_prima_id: "", tabla_bodega: TABLAS_BODEGA[0].key, tabla_bodega_otra: "",
+    sku_bodega: "", stock_minimo: 0, categoria_insumo: "",
+  });
   const [guardandoUmbral, setGuardandoUmbral] = useState(false);
+  const [stockBodegaPreview, setStockBodegaPreview] = useState<{ cantidad: number; encontrado: boolean } | null>(null);
+  const [verificandoStock, setVerificandoStock] = useState(false);
 
   const cargar = async () => {
     if (!supabase) { setCargando(false); return; }
@@ -38,7 +59,7 @@ export default function AlertasDemanda() {
     const [alertasRes, mpRes, umbralesRes] = await Promise.all([
       supabase.from("alertas_demanda").select("*").order("created_at", { ascending: false }),
       supabase.from("materia_prima").select("id, codigo, nombre, unidad, stock_actual, categoria").eq("activo", true).order("codigo"),
-      supabase.from("umbrales_reposicion").select("id, materia_prima_id, stock_minimo, categoria_insumo").eq("tipo_item", "materia_prima"),
+      supabase.from("umbrales_reposicion").select("*"),
     ]);
     setAlertas(alertasRes.data || []);
     setMateriasPrimas(mpRes.data || []);
@@ -48,8 +69,9 @@ export default function AlertasDemanda() {
 
   useEffect(() => { cargar(); /* eslint-disable-next-line */ }, []);
 
-  // Corre la función SQL sync_alertas_stock_minimo(): compara umbrales_reposicion
-  // (tabla propia) contra materia_prima.stock_actual (solo LECTURA, nunca la altera).
+  // Corre sync_alertas_stock_minimo(): compara umbrales_reposicion (tabla
+  // propia) contra materia_prima Y las tablas de bodega — solo LECTURA,
+  // nunca las altera.
   const sincronizarStock = async () => {
     if (!supabase) return;
     setSincronizando(true);
@@ -85,26 +107,65 @@ export default function AlertasDemanda() {
     cargar();
   };
 
+  const tablaBodegaElegida = () =>
+    formUmbral.tabla_bodega === "__otra__" ? formUmbral.tabla_bodega_otra.trim() : formUmbral.tabla_bodega;
+
+  // Verifica en vivo el stock actual del SKU en la tabla de bodega elegida,
+  // antes de guardar el umbral (mismo patrón de columnas que usa el flujo
+  // de recepción de OC: "cantidad" + "SKU"/"sku").
+  const verificarStockBodega = async () => {
+    if (!supabase) return;
+    const tabla = tablaBodegaElegida();
+    if (!tabla || !formUmbral.sku_bodega.trim()) {
+      return alert("Elegí la tabla y escribí el SKU primero.");
+    }
+    setVerificandoStock(true);
+    setStockBodegaPreview(null);
+    const { data, error } = await supabase
+      .from(tabla)
+      .select("cantidad")
+      .or(`SKU.eq.${formUmbral.sku_bodega.trim()},sku.eq.${formUmbral.sku_bodega.trim()}`)
+      .maybeSingle();
+    setVerificandoStock(false);
+    if (error) {
+      alert("No se pudo consultar esa tabla/SKU: " + error.message);
+      return;
+    }
+    setStockBodegaPreview({ cantidad: Number(data?.cantidad ?? 0), encontrado: !!data });
+  };
+
   const guardarUmbral = async () => {
     if (!supabase) return;
-    if (!formUmbral.materia_prima_id || !formUmbral.categoria_insumo.trim()) {
-      return alert("Selecciona la materia prima y escribe la categoría de insumo (debe coincidir con el 'tipo_insumo' del proveedor).");
+    if (!formUmbral.categoria_insumo.trim()) {
+      return alert("Escribí la categoría de insumo (debe coincidir con el 'tipo_insumo' del proveedor).");
     }
-    setGuardandoUmbral(true);
-    const existente = umbrales.find((u) => u.materia_prima_id === Number(formUmbral.materia_prima_id));
-    const payload = {
-      tipo_item: "materia_prima",
-      materia_prima_id: Number(formUmbral.materia_prima_id),
+
+    let payload: any = {
       stock_minimo: Number(formUmbral.stock_minimo) || 0,
       categoria_insumo: formUmbral.categoria_insumo,
     };
+    let existente: Umbral | undefined;
+
+    if (tipoUmbral === "materia_prima") {
+      if (!formUmbral.materia_prima_id) return alert("Selecciona la materia prima.");
+      payload = { ...payload, tipo_item: "materia_prima", materia_prima_id: Number(formUmbral.materia_prima_id), tabla_bodega: null, sku_bodega: null };
+      existente = umbrales.find((u) => u.tipo_item === "materia_prima" && u.materia_prima_id === Number(formUmbral.materia_prima_id));
+    } else {
+      const tabla = tablaBodegaElegida();
+      if (!tabla || !formUmbral.sku_bodega.trim()) return alert("Elegí la tabla de bodega y escribí el SKU.");
+      payload = { ...payload, tipo_item: "bodega", materia_prima_id: null, tabla_bodega: tabla, sku_bodega: formUmbral.sku_bodega.trim() };
+      existente = umbrales.find((u) => u.tipo_item === "bodega" && u.tabla_bodega === tabla && u.sku_bodega === formUmbral.sku_bodega.trim());
+    }
+
+    setGuardandoUmbral(true);
     const { error } = existente
       ? await supabase.from("umbrales_reposicion").update(payload).eq("id", existente.id)
       : await supabase.from("umbrales_reposicion").insert([payload]);
     setGuardandoUmbral(false);
     if (error) return alert("Error: " + error.message);
     setModalUmbral(false);
-    setFormUmbral({ materia_prima_id: "", stock_minimo: 0, categoria_insumo: "" });
+    setStockBodegaPreview(null);
+    setFormUmbral({ materia_prima_id: "", tabla_bodega: TABLAS_BODEGA[0].key, tabla_bodega_otra: "", sku_bodega: "", stock_minimo: 0, categoria_insumo: "" });
     cargar();
   };
 
@@ -115,6 +176,8 @@ export default function AlertasDemanda() {
     if (error) return alert("Error: " + error.message);
     cargar();
   };
+
+  const labelTabla = (key: string) => TABLAS_BODEGA.find((t) => t.key === key)?.label || key;
 
   return (
     <Card>
@@ -138,8 +201,9 @@ export default function AlertasDemanda() {
           </div>
           <p style={{ color: theme.textMuted, fontSize: "0.75rem", margin: "0 0 16px 0" }}>
             Estas alertas alimentan la "Previsión de Demanda" que ven los proveedores homologados en su Vendor Portal,
-            filtradas por su categoría de insumo. Las de stock mínimo comparan tus umbrales (pestaña de al lado)
-            contra el stock actual de materia prima; las puntuales se cargan manualmente.
+            filtradas por su categoría de insumo. Cubre materia prima y bodega (cables, herrajes, accesorios y
+            cualquier producto nuevo que registres). Las de stock mínimo comparan tus umbrales contra el stock actual;
+            las puntuales se cargan manualmente.
           </p>
 
           {cargando ? (
@@ -161,7 +225,7 @@ export default function AlertasDemanda() {
                     <tr key={a.id}>
                       <td style={{ padding: "10px", borderBottom: "1px solid #141414", color: theme.textLight }}>{a.descripcion}</td>
                       <td style={{ padding: "10px", borderBottom: "1px solid #141414", fontSize: "0.72rem", color: "#888" }}>
-                        {a.origen === "stock_minimo" ? "Stock mínimo" : "Necesidad puntual"}
+                        {a.origen === "stock_minimo" ? `Stock mínimo (${a.tipo_item === "bodega" ? "bodega" : "materia prima"})` : "Necesidad puntual"}
                       </td>
                       <td style={{ padding: "10px", borderBottom: "1px solid #141414" }}>{a.categoria_insumo || "—"}</td>
                       <td style={{ padding: "10px", borderBottom: "1px solid #141414", color: theme.gold }}>{a.cantidad_sugerida}</td>
@@ -191,12 +255,14 @@ export default function AlertasDemanda() {
             <h3 style={{ color: theme.gold, fontSize: "1rem", textTransform: "uppercase", margin: 0 }}>
               Umbrales de Reposición ({umbrales.length})
             </h3>
-            <Button variant="gold" onClick={() => setModalUmbral(true)}>+ Definir umbral</Button>
+            <Button variant="gold" onClick={() => { setModalUmbral(true); setTipoUmbral("materia_prima"); setStockBodegaPreview(null); }}>
+              + Definir umbral
+            </Button>
           </div>
           <p style={{ color: theme.textMuted, fontSize: "0.75rem", margin: "0 0 16px 0" }}>
-            Acá definís, materia prima por materia prima, a partir de qué nivel de stock querés que se dispare una
-            alerta de reposición. Esto vive en una tabla propia del módulo de proveedores — no se toca ni se le
-            agrega ninguna columna a tu tabla de <code>materia_prima</code>.
+            A partir de qué nivel de stock se dispara la alerta — para materia prima o para producto terminado en
+            bodega (cables, herrajes, accesorios, o una tabla nueva que crees). Vive en una tabla propia de este
+            módulo: no se toca ni se le agrega ninguna columna a tus tablas de inventario/bodega existentes.
           </p>
 
           {cargando ? (
@@ -208,20 +274,29 @@ export default function AlertasDemanda() {
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
                 <thead>
                   <tr>
-                    {["Materia Prima", "Stock actual", "Umbral mínimo", "Categoría de insumo", ""].map((h) => (
+                    {["Ítem", "Tipo", "Umbral mínimo", "Categoría de insumo", ""].map((h) => (
                       <th key={h} style={{ textAlign: "left", padding: "10px", color: theme.gold, fontSize: "0.68rem", textTransform: "uppercase", borderBottom: "1px solid rgba(218,165,32,0.25)" }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {umbrales.map((u) => {
-                    const mp = materiasPrimas.find((m) => m.id === u.materia_prima_id);
-                    const bajoMinimo = mp && mp.stock_actual <= u.stock_minimo;
+                    const mp = u.tipo_item === "materia_prima" ? materiasPrimas.find((m) => m.id === u.materia_prima_id) : null;
+                    const bajoMinimoMp = mp && mp.stock_actual <= u.stock_minimo;
                     return (
                       <tr key={u.id}>
-                        <td style={{ padding: "10px", borderBottom: "1px solid #141414" }}>{mp ? `${mp.codigo} — ${mp.nombre}` : "—"}</td>
-                        <td style={{ padding: "10px", borderBottom: "1px solid #141414", color: bajoMinimo ? "#e74c3c" : theme.textLight }}>
-                          {mp?.stock_actual ?? "—"} {mp?.unidad}
+                        <td style={{ padding: "10px", borderBottom: "1px solid #141414" }}>
+                          {u.tipo_item === "materia_prima"
+                            ? (mp ? `${mp.codigo} — ${mp.nombre}` : "—")
+                            : `${u.sku_bodega} (${labelTabla(u.tabla_bodega || "")})`}
+                          {mp && (
+                            <div style={{ fontSize: "0.68rem", color: bajoMinimoMp ? "#e74c3c" : "#888" }}>
+                              stock actual: {mp.stock_actual} {mp.unidad}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: "10px", borderBottom: "1px solid #141414", fontSize: "0.74rem", color: "#888" }}>
+                          {u.tipo_item === "materia_prima" ? "Materia prima" : "Bodega"}
                         </td>
                         <td style={{ padding: "10px", borderBottom: "1px solid #141414", color: theme.gold }}>{u.stock_minimo}</td>
                         <td style={{ padding: "10px", borderBottom: "1px solid #141414" }}>{u.categoria_insumo || "—"}</td>
@@ -274,19 +349,75 @@ export default function AlertasDemanda() {
 
       {modalUmbral && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
-          <div style={{ background: theme.panelBg, border: `1px solid ${theme.borderGoldCounter}`, borderRadius: theme.radiusLg, padding: "26px", width: "100%", maxWidth: "460px" }}>
+          <div style={{ background: theme.panelBg, border: `1px solid ${theme.borderGoldCounter}`, borderRadius: theme.radiusLg, padding: "26px", width: "100%", maxWidth: "480px" }}>
             <h3 style={{ color: theme.gold, marginTop: 0 }}>Definir Umbral de Reposición</h3>
 
-            <label style={labelStyle}>Materia prima</label>
-            <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: "12px" }}
-              value={formUmbral.materia_prima_id}
-              onChange={(e) => {
-                const mp = materiasPrimas.find((m) => String(m.id) === e.target.value);
-                setFormUmbral({ ...formUmbral, materia_prima_id: e.target.value, categoria_insumo: formUmbral.categoria_insumo || mp?.categoria || "" });
-              }}>
-              <option value="">— Selecciona —</option>
-              {materiasPrimas.map((m) => <option key={m.id} value={m.id}>{m.codigo} — {m.nombre} (stock: {m.stock_actual})</option>)}
-            </select>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+              <Button variant={tipoUmbral === "materia_prima" ? "gold" : "outline-gold"}
+                style={{ flex: 1, padding: "8px" }}
+                onClick={() => { setTipoUmbral("materia_prima"); setStockBodegaPreview(null); }}>
+                Materia Prima
+              </Button>
+              <Button variant={tipoUmbral === "bodega" ? "gold" : "outline-gold"}
+                style={{ flex: 1, padding: "8px" }}
+                onClick={() => { setTipoUmbral("bodega"); setStockBodegaPreview(null); }}>
+                Bodega (producto terminado)
+              </Button>
+            </div>
+
+            {tipoUmbral === "materia_prima" ? (
+              <>
+                <label style={labelStyle}>Materia prima</label>
+                <select style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: "12px" }}
+                  value={formUmbral.materia_prima_id}
+                  onChange={(e) => {
+                    const mp = materiasPrimas.find((m) => String(m.id) === e.target.value);
+                    setFormUmbral({ ...formUmbral, materia_prima_id: e.target.value, categoria_insumo: formUmbral.categoria_insumo || mp?.categoria || "" });
+                  }}>
+                  <option value="">— Selecciona —</option>
+                  {materiasPrimas.map((m) => <option key={m.id} value={m.id}>{m.codigo} — {m.nombre} (stock: {m.stock_actual})</option>)}
+                </select>
+              </>
+            ) : (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                  <div>
+                    <label style={labelStyle}>Tabla / catálogo</label>
+                    <select style={inputStyle} value={formUmbral.tabla_bodega}
+                      onChange={(e) => { setFormUmbral({ ...formUmbral, tabla_bodega: e.target.value }); setStockBodegaPreview(null); }}>
+                      {TABLAS_BODEGA.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+                      <option value="__otra__">Otra tabla... (producto nuevo)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>SKU</label>
+                    <input style={inputStyle} value={formUmbral.sku_bodega} placeholder="TL-FO-101"
+                      onChange={(e) => { setFormUmbral({ ...formUmbral, sku_bodega: e.target.value }); setStockBodegaPreview(null); }} />
+                  </div>
+                </div>
+
+                {formUmbral.tabla_bodega === "__otra__" && (
+                  <>
+                    <label style={labelStyle}>Nombre exacto de la tabla nueva</label>
+                    <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: "12px" }}
+                      value={formUmbral.tabla_bodega_otra} placeholder="ej: fibraopticadb"
+                      onChange={(e) => { setFormUmbral({ ...formUmbral, tabla_bodega_otra: e.target.value }); setStockBodegaPreview(null); }} />
+                  </>
+                )}
+
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                  <Button variant="outline-gold" style={{ padding: "6px 12px", fontSize: "0.75rem" }}
+                    disabled={verificandoStock} onClick={verificarStockBodega}>
+                    {verificandoStock ? "Consultando..." : "Verificar stock actual"}
+                  </Button>
+                  {stockBodegaPreview && (
+                    stockBodegaPreview.encontrado
+                      ? <span style={{ fontSize: "0.78rem", color: theme.gold }}>Stock actual: {stockBodegaPreview.cantidad}</span>
+                      : <span style={{ fontSize: "0.78rem", color: "#e74c3c" }}>No se encontró ese SKU en esa tabla</span>
+                  )}
+                </div>
+              </>
+            )}
 
             <label style={labelStyle}>Stock mínimo</label>
             <input style={{ ...inputStyle, width: "100%", boxSizing: "border-box", marginBottom: "12px" }}
