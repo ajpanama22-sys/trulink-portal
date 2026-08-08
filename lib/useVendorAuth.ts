@@ -9,7 +9,9 @@ import { getSupabase } from "./supabaseClient";
    1. Verifica que haya sesión de Supabase Auth activa.
    2. Busca en `proveedores` la fila con auth_user_id = user.id.
    3. Exige estado_homologacion === 'Homologado' y portal_activo.
-   Si algo falla, redirige a /vendor-portal/login.
+   Si algo falla, redirige a la home del portal ("/") — la página
+   vendor-portal/login.tsx fue eliminada, así que ya no se debe
+   referenciar en ningún redirect.
    ============================================================ */
 
 export type ProveedorSesion = {
@@ -45,7 +47,7 @@ export function useVendorAuth() {
           setAutorizado(false);
           setCargando(false);
         }
-        router.replace("/vendor-portal/login");
+        router.replace("/");
         return;
       }
 
@@ -60,7 +62,7 @@ export function useVendorAuth() {
       if (error || !prov || prov.estado_homologacion !== "Homologado" || !prov.portal_activo) {
         setAutorizado(false);
         setCargando(false);
-        router.replace("/vendor-portal/login?error=no_autorizado");
+        router.replace("/");
         return;
       }
 

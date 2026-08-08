@@ -94,7 +94,7 @@ export default function VendorPortalLicitaciones() {
 
   const logout = async () => {
     await supabase?.auth.signOut();
-    window.location.href = "/vendor-portal/login";
+    window.location.href = "/";
   };
 
   if (cargandoAuth) {
