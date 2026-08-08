@@ -3,6 +3,8 @@ import { useVendorAuth } from "../../lib/useVendorAuth";
 import { getSupabase } from "../../lib/supabaseClient";
 import { theme, pageWrapStyle } from "../../lib/theme";
 import { Card, PageHeader, Badge, estadoToTone, Button } from "../../lib/ui";
+import { useI18n } from "../../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../../components/LanguageSwitcher";
 
 type OrdenCompra = {
   id: number; numero: string | null; fecha: string; fecha_estimada_entrega: string | null;
@@ -28,6 +30,7 @@ const diasVencido = (fechaVenc?: string | null): number => {
 };
 
 export default function VendorPortalHome() {
+  const { t } = useI18n();
   const { cargando: cargandoAuth, autorizado, proveedor } = useVendorAuth();
   const supabase = getSupabase();
 
@@ -79,7 +82,7 @@ export default function VendorPortalHome() {
   if (cargandoAuth) {
     return (
       <div style={{ backgroundColor: theme.background, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: theme.gold }}>
-        Verificando acceso...
+        {t("vendorPortal.verifying")}
       </div>
     );
   }
@@ -89,49 +92,49 @@ export default function VendorPortalHome() {
     <div style={{ backgroundColor: theme.background, minHeight: "100vh" }}>
       <div style={pageWrapStyle()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
-          <PageHeader title={`Portal de Proveedores`} subtitle={`Bienvenido, ${proveedor.nombre}`} />
-          <div style={{ display: "flex", gap: "10px" }}>
+          <PageHeader title={t("vendorPortal.title")} subtitle={`${t("vendorPortal.welcome")}${proveedor.nombre}`} />
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <LanguageSwitcher />
             <a href="/vendor-portal/licitaciones" style={{ textDecoration: "none" }}>
-              <Button variant="outline-gold">📋 Licitaciones</Button>
+              <Button variant="outline-gold">{t("vendorPortal.btnLicitaciones")}</Button>
             </a>
-            <Button variant="ghost" onClick={logout}>Cerrar sesión</Button>
+            <Button variant="ghost" onClick={logout}>{t("common.logout")}</Button>
           </div>
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: "15px", marginBottom: "25px" }}>
           <Card style={{ padding: "18px", marginBottom: 0 }}>
-            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>Órdenes abiertas</span>
+            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>{t("vendorPortal.kpiOrdenesAbiertas")}</span>
             <h2 style={{ color: theme.gold, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{ordenesAbiertas}</h2>
           </Card>
           <Card style={{ padding: "18px", marginBottom: 0 }}>
-            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>Saldo pendiente de cobro</span>
+            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>{t("vendorPortal.kpiSaldoPendiente")}</span>
             <h2 style={{ color: theme.gold, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{fmt(totalPendiente)}</h2>
           </Card>
           <Card style={{ padding: "18px", marginBottom: 0 }}>
-            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>Vencido</span>
+            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>{t("vendorPortal.kpiVencido")}</span>
             <h2 style={{ color: totalVencido > 0 ? "#e74c3c" : theme.green, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{fmt(totalVencido)}</h2>
           </Card>
           <Card style={{ padding: "18px", marginBottom: 0 }}>
-            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>Oportunidades abiertas</span>
+            <span style={{ fontSize: "0.66rem", color: theme.textMuted, textTransform: "uppercase" }}>{t("vendorPortal.kpiOportunidades")}</span>
             <h2 style={{ color: theme.gold, fontSize: "1.5rem", margin: "6px 0 0 0", fontWeight: 400 }}>{alertas.length}</h2>
           </Card>
         </div>
 
         {cargando ? (
-          <Card style={{ textAlign: "center", padding: "40px" }}><p style={{ color: theme.textMuted }}>Cargando...</p></Card>
+          <Card style={{ textAlign: "center", padding: "40px" }}><p style={{ color: theme.textMuted }}>{t("vendorPortal.loading")}</p></Card>
         ) : (
           <>
             {/* PREVISIÓN DE DEMANDA */}
             <Card style={{ marginBottom: "22px" }}>
               <h3 style={{ color: theme.gold, fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "6px" }}>
-                Previsión de Demanda
+                {t("vendorPortal.previsionTitle")}
               </h3>
               <p style={{ color: theme.textMuted, fontSize: "0.75rem", margin: "0 0 16px 0" }}>
-                Necesidades de abastecimiento abiertas para tu categoría ({proveedor.tipo_insumo || "—"}), generadas por
-                reposición automática de stock o por requerimientos puntuales del equipo de compras.
+                {t("vendorPortal.previsionSubtitle1")}{proveedor.tipo_insumo || "—"}{t("vendorPortal.previsionSubtitle2")}
               </p>
               {alertas.length === 0 ? (
-                <p style={{ color: theme.textMuted, textAlign: "center", padding: "20px" }}>No hay necesidades abiertas por el momento.</p>
+                <p style={{ color: theme.textMuted, textAlign: "center", padding: "20px" }}>{t("vendorPortal.previsionEmpty")}</p>
               ) : (
                 <div style={{ display: "grid", gap: "10px" }}>
                   {alertas.map((a) => (
@@ -139,13 +142,13 @@ export default function VendorPortalHome() {
                       <div>
                         <div style={{ color: theme.textLight }}>{a.descripcion}</div>
                         <div style={{ fontSize: "0.7rem", color: "#777" }}>
-                          {a.origen === "stock_minimo" ? "Reposición por stock mínimo" : "Necesidad puntual"}
-                          {a.fecha_limite ? ` · fecha límite ${new Date(a.fecha_limite).toLocaleDateString()}` : ""}
+                          {a.origen === "stock_minimo" ? t("vendorPortal.origenStockMinimo") : t("vendorPortal.origenPuntual")}
+                          {a.fecha_limite ? ` · ${t("vendorPortal.fechaLimite")} ${new Date(a.fecha_limite).toLocaleDateString()}` : ""}
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ color: theme.gold, fontWeight: 700 }}>{a.cantidad_sugerida}</div>
-                        <div style={{ fontSize: "0.66rem", color: "#777" }}>cantidad sugerida</div>
+                        <div style={{ fontSize: "0.66rem", color: "#777" }}>{t("vendorPortal.cantidadSugerida")}</div>
                       </div>
                     </div>
                   ))}
@@ -156,16 +159,16 @@ export default function VendorPortalHome() {
             {/* ÓRDENES DE COMPRA */}
             <Card style={{ marginBottom: "22px" }}>
               <h3 style={{ color: theme.gold, fontSize: "0.95rem", textTransform: "uppercase", marginTop: 0, marginBottom: "14px" }}>
-                Estado de Órdenes de Compra
+                {t("vendorPortal.ordenesTitle")}
               </h3>
               {ordenes.length === 0 ? (
-                <p style={{ color: theme.textMuted, textAlign: "center", padding: "20px" }}>Todavía no tienes órdenes registradas.</p>
+                <p style={{ color: theme.textMuted, textAlign: "center", padding: "20px" }}>{t("vendorPortal.ordenesEmpty")}</p>
               ) : (
                 <div style={{ overflowX: "auto" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
                     <thead>
                       <tr>
-                        {["Orden", "Fecha", "Entrega Est.", "Total", "Estado"].map((h) => (
+                        {[t("vendorPortal.colOrden"), t("vendorPortal.colFecha"), t("vendorPortal.colEntregaEst"), t("vendorPortal.colTotal"), t("vendorPortal.colEstado")].map((h) => (
                           <th key={h} style={{ textAlign: "left", padding: "10px", color: theme.gold, fontSize: "0.68rem", textTransform: "uppercase", borderBottom: "1px solid rgba(218,165,32,0.25)" }}>{h}</th>
                         ))}
                       </tr>
@@ -190,10 +193,10 @@ export default function VendorPortalHome() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px" }}>
               <Card>
                 <h4 style={{ color: theme.gold, fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "12px" }}>
-                  Facturas y Saldos ({cuentas.length})
+                  {t("vendorPortal.facturasTitle")} ({cuentas.length})
                 </h4>
                 {cuentas.length === 0 ? (
-                  <p style={{ color: theme.textMuted, fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin facturas registradas.</p>
+                  <p style={{ color: theme.textMuted, fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>{t("vendorPortal.facturasEmpty")}</p>
                 ) : (
                   cuentas.map((c) => (
                     <div key={c.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #141414", fontSize: "0.8rem" }}>
@@ -208,10 +211,10 @@ export default function VendorPortalHome() {
               </Card>
               <Card>
                 <h4 style={{ color: theme.gold, fontSize: "0.9rem", textTransform: "uppercase", marginTop: 0, marginBottom: "12px" }}>
-                  Historial de Pagos ({pagos.length})
+                  {t("vendorPortal.pagosTitle")} ({pagos.length})
                 </h4>
                 {pagos.length === 0 ? (
-                  <p style={{ color: theme.textMuted, fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>Sin pagos registrados.</p>
+                  <p style={{ color: theme.textMuted, fontSize: "0.8rem", textAlign: "center", padding: "14px" }}>{t("vendorPortal.pagosEmpty")}</p>
                 ) : (
                   pagos.map((p) => (
                     <div key={p.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #141414", fontSize: "0.8rem" }}>
