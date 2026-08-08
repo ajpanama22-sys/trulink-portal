@@ -3,38 +3,42 @@ import type { CSSProperties } from "react";
 import { getSupabase } from "../lib/supabaseClient";
 import { theme } from "../lib/theme";
 import { Card, Heading, Button, inputStyle } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export const dynamic = 'force-dynamic';
 
 const codigosPaises = [
-  { codigo: "+507", pais: "Panamá (+507)" },
-  { codigo: "+1", pais: "Estados Unidos / Canadá (+1)" },
-  { codigo: "+52", pais: "México (+52)" },
-  { codigo: "+57", pais: "Colombia (+57)" },
-  { codigo: "+54", pais: "Argentina (+54)" },
-  { codigo: "+55", pais: "Brasil (+55)" },
-  { codigo: "+56", pais: "Chile (+56)" },
-  { codigo: "+51", pais: "Perú (+51)" },
-  { codigo: "+58", pais: "Venezuela (+58)" },
-  { codigo: "+593", pais: "Ecuador (+593)" },
-  { codigo: "+34", pais: "España (+34)" },
-  { codigo: "+506", pais: "Costa Rica (+506)" },
-  { codigo: "+503", pais: "El Salvador (+503)" },
-  { codigo: "+502", pais: "Guatemala (+502)" },
-  { codigo: "+504", pais: "Honduras (+504)" },
-  { codigo: "+505", pais: "Nicaragua (+505)" },
-  { codigo: "+53", pais: "Cuba (+53)" },
-  { codigo: "+1-809", pais: "República Dominicana (+1 809)" },
-  { codigo: "+598", pais: "Uruguay (+598)" },
-  { codigo: "+595", pais: "Paraguay (+595)" },
-  { codigo: "+44", pais: "Reino Unido (+44)" },
-  { codigo: "+33", pais: "Francia (+33)" },
-  { codigo: "+49", pais: "Alemania (+49)" },
-  { codigo: "+86", pais: "China (+86)" },
-  { codigo: "+81", pais: "Japón (+81)" },
+  { codigo: "+507", es: "Panamá (+507)", en: "Panama (+507)" },
+  { codigo: "+1", es: "Estados Unidos / Canadá (+1)", en: "United States / Canada (+1)" },
+  { codigo: "+52", es: "México (+52)", en: "Mexico (+52)" },
+  { codigo: "+57", es: "Colombia (+57)", en: "Colombia (+57)" },
+  { codigo: "+54", es: "Argentina (+54)", en: "Argentina (+54)" },
+  { codigo: "+55", es: "Brasil (+55)", en: "Brazil (+55)" },
+  { codigo: "+56", es: "Chile (+56)", en: "Chile (+56)" },
+  { codigo: "+51", es: "Perú (+51)", en: "Peru (+51)" },
+  { codigo: "+58", es: "Venezuela (+58)", en: "Venezuela (+58)" },
+  { codigo: "+593", es: "Ecuador (+593)", en: "Ecuador (+593)" },
+  { codigo: "+34", es: "España (+34)", en: "Spain (+34)" },
+  { codigo: "+506", es: "Costa Rica (+506)", en: "Costa Rica (+506)" },
+  { codigo: "+503", es: "El Salvador (+503)", en: "El Salvador (+503)" },
+  { codigo: "+502", es: "Guatemala (+502)", en: "Guatemala (+502)" },
+  { codigo: "+504", es: "Honduras (+504)", en: "Honduras (+504)" },
+  { codigo: "+505", es: "Nicaragua (+505)", en: "Nicaragua (+505)" },
+  { codigo: "+53", es: "Cuba (+53)", en: "Cuba (+53)" },
+  { codigo: "+1-809", es: "República Dominicana (+1 809)", en: "Dominican Republic (+1 809)" },
+  { codigo: "+598", es: "Uruguay (+598)", en: "Uruguay (+598)" },
+  { codigo: "+595", es: "Paraguay (+595)", en: "Paraguay (+595)" },
+  { codigo: "+44", es: "Reino Unido (+44)", en: "United Kingdom (+44)" },
+  { codigo: "+33", es: "Francia (+33)", en: "France (+33)" },
+  { codigo: "+49", es: "Alemania (+49)", en: "Germany (+49)" },
+  { codigo: "+86", es: "China (+86)", en: "China (+86)" },
+  { codigo: "+81", es: "Japón (+81)", en: "Japan (+81)" },
 ];
 
 export default function Clientes() {
+  const { t, idioma } = useI18n();
+
   const [formData, setFormData] = useState({
     tipo_solicitud: "Cliente B2B",
     razon_social: "",
@@ -67,7 +71,7 @@ export default function Clientes() {
       const filesArray = Array.from(e.target.files);
       for (const file of filesArray) {
         if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
-          alert("Restricción del sistema: Solo se permiten archivos en formato PDF.");
+          alert(t("clientes.errFileType"));
           e.target.value = "";
           return;
         }
@@ -79,17 +83,17 @@ export default function Clientes() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!terminosAceptados) {
-      alert("Debe leer y aceptar los Términos y Condiciones para continuar.");
+      alert(t("clientes.errTerms"));
       return;
     }
     if (selectedFiles.length === 0) {
-      alert("Por favor, adjunta al menos un documento PDF de soporte.");
+      alert(t("clientes.errNoFiles"));
       return;
     }
 
     const supabase = getSupabase();
     if (!supabase) {
-      alert("Error: Configuración de cliente no disponible.");
+      alert(t("clientes.errConfig"));
       return;
     }
 
@@ -125,7 +129,7 @@ export default function Clientes() {
       }
 
       if (rutasArchivos.length === 0) {
-        throw new Error("No se pudo completar la subida de los archivos al Storage.");
+        throw new Error(t("clientes.errUploadFail"));
       }
 
       const { error: dbError } = await supabase
@@ -150,10 +154,10 @@ export default function Clientes() {
 
       if (dbError) throw dbError;
 
-      alert("¡Solicitud y documentos PDF enviados con éxito de forma automática!");
+      alert(t("clientes.successMsg"));
       window.location.reload();
     } catch (error: any) {
-      alert("Error al procesar la solicitud: " + error.message);
+      alert(t("clientes.errSubmit") + error.message);
     } finally {
       setCargando(false);
     }
@@ -199,14 +203,18 @@ export default function Clientes() {
         }
       `}</style>
 
+      <div style={{ maxWidth: "900px", margin: "0 auto 14px auto", display: "flex", justifyContent: "flex-end" }}>
+        <LanguageSwitcher />
+      </div>
+
       <Card style={{ maxWidth: "900px", margin: "0 auto" }}>
         <div style={{ textAlign: "center", borderBottom: `1px solid ${theme.borderGoldLight}`, paddingBottom: "25px", marginBottom: "20px" }}>
           <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "130px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
           <h1 style={{ color: theme.gold, fontSize: "1.8rem", fontWeight: 700, letterSpacing: "1.5px", margin: "0 0 5px 0" }}>
-            REGISTRO CORPORATIVO
+            {t("clientes.pageTitle")}
           </h1>
           <p style={{ color: theme.textMuted, fontSize: "0.95rem", margin: 0, letterSpacing: "0.5px" }}>
-            Trulink Fiber LLC — Portal de Acceso y Verificación
+            {t("clientes.pageSubtitle")}
           </p>
         </div>
 
@@ -222,55 +230,55 @@ export default function Clientes() {
             border: `1px solid ${theme.borderGoldLight}`
           }}>
             <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 500, color: theme.gold }}>
-              <input type="radio" name="tipo_solicitud" value="Cliente B2B" onChange={handleInputChange} defaultChecked style={{ marginRight: "10px" }} /> Cliente B2B
+              <input type="radio" name="tipo_solicitud" value="Cliente B2B" onChange={handleInputChange} defaultChecked style={{ marginRight: "10px" }} /> {t("clientes.optionClientB2B")}
             </label>
             <label style={{ display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 500, color: theme.gold }}>
-              <input type="radio" name="tipo_solicitud" value="Inversor Estratégico" onChange={handleInputChange} style={{ marginRight: "10px" }} /> Inversor Estratégico
+              <input type="radio" name="tipo_solicitud" value="Inversor Estratégico" onChange={handleInputChange} style={{ marginRight: "10px" }} /> {t("clientes.optionInvestor")}
             </label>
           </div>
 
-          <Heading>Perfil del Cliente</Heading>
+          <Heading>{t("clientes.sectionProfile")}</Heading>
           <select name="perfil_cliente" style={selectFieldStyle} onChange={handleInputChange} defaultValue="ISP">
-            <option value="ISP">ISP</option>
-            <option value="MAYORISTA">MAYORISTA</option>
-            <option value="INTEGRADOR">INTEGRADOR</option>
-            <option value="CLIENTE FINAL">CLIENTE FINAL</option>
+            <option value="ISP">{t("clientes.profileISP")}</option>
+            <option value="MAYORISTA">{t("clientes.profileWholesale")}</option>
+            <option value="INTEGRADOR">{t("clientes.profileIntegrator")}</option>
+            <option value="CLIENTE FINAL">{t("clientes.profileFinalClient")}</option>
           </select>
 
-          <Heading>Información de la Empresa</Heading>
-          <input name="razon_social" type="text" placeholder="Nombre o Razón Social" style={fieldStyle} onChange={handleInputChange} required />
-          <input name="identificacion_fiscal" type="text" placeholder="Identificación Fiscal (RUC / NIT / EIN)" style={fieldStyle} onChange={handleInputChange} required />
-          <input name="sitio_web" type="url" placeholder="Sitio Web Corporativo" style={fieldStyle} onChange={handleInputChange} />
-          <input name="industria" type="text" placeholder="Industria / Sector" style={fieldStyle} onChange={handleInputChange} />
-          <input name="pais" type="text" placeholder="País" style={fieldStyle} onChange={handleInputChange} required />
-          <input name="direccion" type="text" placeholder="Dirección de Facturación" style={fieldStyle} onChange={handleInputChange} required />
+          <Heading>{t("clientes.sectionCompanyInfo")}</Heading>
+          <input name="razon_social" type="text" placeholder={t("clientes.razonSocial")} style={fieldStyle} onChange={handleInputChange} required />
+          <input name="identificacion_fiscal" type="text" placeholder={t("clientes.identificacionFiscal")} style={fieldStyle} onChange={handleInputChange} required />
+          <input name="sitio_web" type="url" placeholder={t("clientes.sitioWeb")} style={fieldStyle} onChange={handleInputChange} />
+          <input name="industria" type="text" placeholder={t("clientes.industria")} style={fieldStyle} onChange={handleInputChange} />
+          <input name="pais" type="text" placeholder={t("clientes.pais")} style={fieldStyle} onChange={handleInputChange} required />
+          <input name="direccion" type="text" placeholder={t("clientes.direccionFacturacion")} style={fieldStyle} onChange={handleInputChange} required />
 
-          <Heading>Información del Contacto</Heading>
-          <input name="nombre_representante" type="text" placeholder="Nombre Completo del Representante" style={fieldStyle} onChange={handleInputChange} required />
-          <input name="cargo" type="text" placeholder="Cargo en la Empresa" style={fieldStyle} onChange={handleInputChange} />
-          <input name="email" type="email" placeholder="Correo Electrónico Corporativo" style={fieldStyle} onChange={handleInputChange} required />
+          <Heading>{t("clientes.sectionContactInfo")}</Heading>
+          <input name="nombre_representante" type="text" placeholder={t("clientes.nombreRepresentante")} style={fieldStyle} onChange={handleInputChange} required />
+          <input name="cargo" type="text" placeholder={t("clientes.cargo")} style={fieldStyle} onChange={handleInputChange} />
+          <input name="email" type="email" placeholder={t("clientes.email")} style={fieldStyle} onChange={handleInputChange} required />
 
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600, color: theme.gold }}>Teléfono de Oficina</label>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600, color: theme.gold }}>{t("clientes.labelTelOficina")}</label>
           <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
             <select name="codigo_pais_oficina" value={formData.codigo_pais_oficina} onChange={handleInputChange} style={{ ...selectFieldStyle, width: "150px", marginBottom: 0 }}>
               {codigosPaises.map((item) => (
-                <option key={item.codigo} value={item.codigo}>{item.pais}</option>
+                <option key={item.codigo} value={item.codigo}>{idioma === "en" ? item.en : item.es}</option>
               ))}
             </select>
-            <input name="telefono_oficina" type="tel" placeholder="Número de Oficina" value={formData.telefono_oficina} onChange={handleInputChange} style={{ ...fieldStyle, marginBottom: 0, flex: 1 }} />
+            <input name="telefono_oficina" type="tel" placeholder={t("clientes.placeholderTelOficina")} value={formData.telefono_oficina} onChange={handleInputChange} style={{ ...fieldStyle, marginBottom: 0, flex: 1 }} />
           </div>
 
-          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600, color: theme.gold }}>Teléfono Celular / Móvil</label>
+          <label style={{ display: "block", marginBottom: "8px", fontSize: "0.9rem", fontWeight: 600, color: theme.gold }}>{t("clientes.labelTelCelular")}</label>
           <div style={{ display: "flex", gap: "10px", marginBottom: "18px" }}>
             <select name="codigo_pais_celular" value={formData.codigo_pais_celular} onChange={handleInputChange} style={{ ...selectFieldStyle, width: "150px", marginBottom: 0 }}>
               {codigosPaises.map((item) => (
-                <option key={item.codigo} value={item.codigo}>{item.pais}</option>
+                <option key={item.codigo} value={item.codigo}>{idioma === "en" ? item.en : item.es}</option>
               ))}
             </select>
-            <input name="telefono_celular" type="tel" placeholder="Número Celular" value={formData.telefono_celular} onChange={handleInputChange} style={{ ...fieldStyle, marginBottom: 0, flex: 1 }} required />
+            <input name="telefono_celular" type="tel" placeholder={t("clientes.placeholderTelCelular")} value={formData.telefono_celular} onChange={handleInputChange} style={{ ...fieldStyle, marginBottom: 0, flex: 1 }} required />
           </div>
 
-          <Heading>Documentación de Soporte (Solo Archivos PDF)</Heading>
+          <Heading>{t("clientes.sectionDocs")}</Heading>
           <div style={{ ...fieldStyle, padding: "12px", display: "flex", alignItems: "center" }}>
             <input
               type="file"
@@ -289,26 +297,20 @@ export default function Clientes() {
           </div>
           {selectedFiles.length > 0 && (
             <div style={{ fontSize: "0.85rem", color: theme.gold, marginBottom: "15px" }}>
-              Archivos PDF seleccionados ({selectedFiles.length}): {selectedFiles.map(f => f.name).join(", ")}
+              {t("clientes.filesSelected")} ({selectedFiles.length}): {selectedFiles.map(f => f.name).join(", ")}
             </div>
           )}
           <ul style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "25px", paddingLeft: "20px", lineHeight: "1.6" }}>
-            <li><strong style={{ color: theme.gold }}>Nota Obligatoria:</strong> Únicamente se aceptan documentos en formato <strong style={{ color: theme.gold }}>PDF</strong>.</li>
-            <li>Registro Fiscal vigente</li>
-            <li>Certificación Legal (últimos 90 días)</li>
-            <li>Identificación Oficial o Pasaporte</li>
-            <li>Nombramiento de Autoridad Legal</li>
-            <li>Acuerdo de Confidencialidad NDA firmado</li>
+            <li><strong style={{ color: theme.gold }}>{t("clientes.docsNoteTitle")}</strong> {t("clientes.docsNote")} <strong style={{ color: theme.gold }}>{t("clientes.docPdf")}</strong>{idioma === "en" ? ` ${t("clientes.docsNoteEnd")}` : "."}</li>
+            <li>{t("clientes.docList1")}</li>
+            <li>{t("clientes.docList2")}</li>
+            <li>{t("clientes.docList3")}</li>
+            <li>{t("clientes.docList4")}</li>
+            <li>{t("clientes.docList5")}</li>
           </ul>
 
-          <Heading>Términos y Condiciones</Heading>
-          <textarea rows={6} style={{ ...fieldStyle, resize: "vertical", color: theme.textMuted, fontSize: "0.9rem", lineHeight: "1.5" }} readOnly>
-            El acceso al Portal B2B de Trulink Fiber LLC está sujeto a estricta verificación corporativa.
-            El solicitante se compromete a entregar documentación válida, vigente y exclusivamente en formato PDF.
-            El incumplimiento de requisitos legales, fiscales o de formato será motivo de rechazo inmediato.
-            Toda la información enviada será tratada bajo confidencialidad y protección de datos.
-            El acceso approved implica aceptación plena de estas condiciones.
-          </textarea>
+          <Heading>{t("clientes.sectionTerms")}</Heading>
+          <textarea rows={6} style={{ ...fieldStyle, resize: "vertical", color: theme.textMuted, fontSize: "0.9rem", lineHeight: "1.5" }} readOnly value={t("clientes.termsText")} />
 
           <div style={{ display: "flex", alignItems: "center", marginBottom: "25px", cursor: "pointer" }}>
             <input
@@ -317,17 +319,17 @@ export default function Clientes() {
               onChange={(e) => setTerminosAceptados(e.target.checked)}
               style={{ marginRight: "12px" }}
             />
-            <span style={{ fontSize: "0.95rem", fontWeight: 500, color: theme.gold }}>He leído y acepto los Términos y Condiciones</span>
+            <span style={{ fontSize: "0.95rem", fontWeight: 500, color: theme.gold }}>{t("clientes.acceptTerms")}</span>
           </div>
 
           <Button type="submit" variant="gold" disabled={cargando} style={{ width: "100%", padding: "16px 30px", borderRadius: theme.radiusMd, fontSize: "1rem", letterSpacing: "0.5px" }}>
-            {cargando ? "Procesando y subiendo documentos..." : "Enviar Solicitud"}
+            {cargando ? t("clientes.btnSubmitting") : t("clientes.btnSubmit")}
           </Button>
         </form>
       </Card>
 
       <p style={{ marginTop: "35px", fontSize: "0.75rem", color: theme.textMuted, textAlign: "center", letterSpacing: "0.5px" }}>
-        © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
+        {t("common.companyFooter")}
       </p>
     </div>
   );

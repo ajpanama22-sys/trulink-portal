@@ -4,6 +4,8 @@ import { getSupabase } from "../lib/supabaseClient";
 import { useRequiereCliente } from "../lib/useRequiereCliente";
 import { theme } from "../lib/theme";
 import { Card, Button, DataRow, inputStyle } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 type Pedido = {
   id: any;
@@ -27,7 +29,7 @@ type OrdenProduccion = {
   fecha_fin: string | null;
 };
 
-const ETAPAS = ["Recibido", "Aprobado", "En producción", "Despachado"] as const;
+const ETAPAS_KEY = ["recibido", "aprobado", "enProduccion", "despachado"] as const;
 
 const COLOR_ETAPA: Record<string, string> = {
   "Recibido": "#f39c12",
@@ -37,14 +39,9 @@ const COLOR_ETAPA: Record<string, string> = {
   "No aprobado": theme.red,
 };
 
-const ETIQUETA_TIPO: Record<string, string> = {
-  fabricacion: "Fabricación de cables",
-  producto: "Productos terminados",
-  especiales: "Pedido especial",
-};
-
 export default function SeguimientoPedidos() {
   const router = useRouter();
+  const { t } = useI18n();
   const supabase = getSupabase();
   const { cargando: cargandoGuard, autorizado } = useRequiereCliente();
 
@@ -77,7 +74,7 @@ export default function SeguimientoPedidos() {
       }
 
       if (!email) {
-        setMensaje("No se pudo identificar tu sesión. Vuelve a iniciar sesión desde el portal.");
+        setMensaje(t("seguimiento.errNoSesion"));
         setLoading(false);
         return;
       }
@@ -91,7 +88,7 @@ export default function SeguimientoPedidos() {
         .order("created_at", { ascending: false });
 
       if (error) {
-        setMensaje("No se pudo cargar el seguimiento en este momento.");
+        setMensaje(t("seguimiento.errCarga"));
         console.error("Error consultando quotes:", error.message);
       } else {
         setPedidos(data || []);
@@ -103,49 +100,64 @@ export default function SeguimientoPedidos() {
       setProducciones(ops || []);
     } catch (err) {
       console.error("Error cargando seguimiento:", err);
-      setMensaje("Ocurrió un problema al cargar tus pedidos.");
+      setMensaje(t("seguimiento.errGeneral"));
     } finally {
       setLoading(false);
     }
   };
+
+  const ETAPAS = [
+    t("seguimiento.etapas.recibido"),
+    t("seguimiento.etapas.aprobado"),
+    t("seguimiento.etapas.enProduccion"),
+    t("seguimiento.etapas.despachado"),
+  ];
 
   const etapaDe = (p: Pedido): { etapa: string; detalle: string } => {
     const st = String(p.status || "").toLowerCase();
 
     if (st === "despachado_exw") {
       return {
-        etapa: "Despachado",
+        etapa: t("seguimiento.etapas.despachado"),
         detalle: p.guia_envio
           ? `Guía ${p.guia_envio}${p.transportista ? ` · ${p.transportista}` : ""}`
-          : "Mercancía entregada bajo condición EXW Panamá",
+          : t("seguimiento.detalleDespachadoDefault"),
       };
     }
 
     if (st === "rechazada" || st === "rechazado") {
-      return { etapa: "No aprobado", detalle: "Contáctanos para revisar tu solicitud" };
+      return { etapa: t("seguimiento.etapas.noAprobado"), detalle: t("seguimiento.detalleNoAprobado") };
     }
 
     const op = producciones.find((o) => String(o.quote_id) === String(p.id));
     if (op) {
       if (op.estado === "Completada") {
-        return { etapa: "En producción", detalle: "Producción terminada, preparando despacho" };
+        return { etapa: t("seguimiento.etapas.enProduccion"), detalle: t("seguimiento.detalleProduccionTerminada") };
       }
       if (op.estado === "En producción") {
-        return { etapa: "En producción", detalle: "Tu pedido está en la línea de fabricación" };
+        return { etapa: t("seguimiento.etapas.enProduccion"), detalle: t("seguimiento.detalleEnProduccion") };
       }
-      return { etapa: "Aprobado", detalle: "Producción programada" };
+      return { etapa: t("seguimiento.etapas.aprobado"), detalle: t("seguimiento.detalleProduccionProgramada") };
     }
 
     if (p.aprobada) {
-      return { etapa: "Aprobado", detalle: "Tu pedido fue aprobado y entró en cola" };
+      return { etapa: t("seguimiento.etapas.aprobado"), detalle: t("seguimiento.detalleAprobado") };
     }
 
-    return { etapa: "Recibido", detalle: "Estamos revisando tu solicitud" };
+    return { etapa: t("seguimiento.etapas.recibido"), detalle: t("seguimiento.detalleRecibido") };
   };
 
   const indiceEtapa = (etapa: string) => {
-    const i = ETAPAS.indexOf(etapa as any);
+    const i = ETAPAS.indexOf(etapa);
     return i >= 0 ? i : -1;
+  };
+
+  const etiquetaTipo = (tipo: string) => {
+    const key = tipo.toLowerCase();
+    if (key === "fabricacion") return t("seguimiento.tipoFabricacion");
+    if (key === "producto") return t("seguimiento.tipoProducto");
+    if (key === "especiales") return t("seguimiento.tipoEspeciales");
+    return t("seguimiento.tipoSolicitud");
   };
 
   const pedidosFiltrados = pedidos.filter((p) => {
@@ -157,7 +169,7 @@ export default function SeguimientoPedidos() {
   });
 
   if (cargandoGuard) {
-    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>Verificando acceso...</p>;
+    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>{t("common.loadingVerifying")}</p>;
   }
   if (!autorizado) return null;
 
@@ -173,17 +185,20 @@ export default function SeguimientoPedidos() {
       `}</style>
 
       <div style={{ maxWidth: "860px", margin: "0 auto" }}>
-        <Button variant="outline-gold" onClick={() => router.push("/portal-cliente")} style={{ marginBottom: "30px" }}>
-          ← Volver al Portal
-        </Button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", flexWrap: "wrap", gap: "12px" }}>
+          <Button variant="outline-gold" onClick={() => router.push("/portal-cliente")}>
+            {t("common.backToPortal")}
+          </Button>
+          <LanguageSwitcher />
+        </div>
 
         <div style={{ textAlign: "center", marginBottom: "40px" }}>
           <h1 style={{ color: theme.gold, margin: "0 0 10px 0", letterSpacing: "2px", fontSize: "1.6rem", fontWeight: 400, textTransform: "uppercase" }}>
-            Control de Pedidos
+            {t("seguimiento.title")}
           </h1>
           <div style={{ width: "60px", height: "2px", background: theme.gold, margin: "0 auto 14px auto", opacity: 0.6 }} />
           <p style={{ color: theme.textMuted, fontSize: "0.9rem", margin: 0 }}>
-            Seguimiento de tus solicitudes especiales, de fabricación y de bodega
+            {t("seguimiento.subtitle")}
           </p>
         </div>
 
@@ -193,41 +208,41 @@ export default function SeguimientoPedidos() {
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por referencia o número de pedido..."
+              placeholder={t("seguimiento.placeholderBuscar")}
               className="sg-buscador"
               style={{ ...inputStyle, width: "100%", boxSizing: "border-box", padding: "12px 16px", fontSize: "0.9rem" }}
             />
             {busqueda && (
               <Button variant="ghost" onClick={() => setBusqueda("")} style={{ whiteSpace: "nowrap" }}>
-                Limpiar
+                {t("seguimiento.btnLimpiar")}
               </Button>
             )}
           </div>
         )}
 
         {loading ? (
-          <p style={{ textAlign: "center", color: theme.gold }}>Cargando seguimiento...</p>
+          <p style={{ textAlign: "center", color: theme.gold }}>{t("seguimiento.loading")}</p>
         ) : mensaje ? (
           <div style={{ textAlign: "center", padding: "40px", border: `1px dashed ${theme.neutralBorder}`, borderRadius: theme.radiusLg }}>
             <p style={{ color: theme.red, margin: "0 0 8px 0" }}>{mensaje}</p>
-            <Button variant="outline-gold" onClick={cargar} style={{ marginTop: "10px" }}>Reintentar</Button>
+            <Button variant="outline-gold" onClick={cargar} style={{ marginTop: "10px" }}>{t("common.retry")}</Button>
           </div>
         ) : pedidos.length === 0 ? (
           <div style={{ textAlign: "center", padding: "50px 40px", border: `1px dashed ${theme.neutralBorder}`, borderRadius: theme.radiusLg }}>
             <p style={{ color: theme.textMuted, fontSize: "1rem", margin: "0 0 8px 0" }}>
-              Todavía no tienes pedidos registrados.
+              {t("seguimiento.emptyTitle")}
             </p>
             <p style={{ color: theme.textMuted, opacity: 0.7, fontSize: "0.85rem", margin: 0 }}>
-              Cuando solicites una cotización, aparecerá aquí con su avance.
+              {t("seguimiento.emptyBody")}
             </p>
           </div>
         ) : pedidosFiltrados.length === 0 ? (
           <div style={{ textAlign: "center", padding: "50px 40px", border: `1px dashed ${theme.neutralBorder}`, borderRadius: theme.radiusLg }}>
             <p style={{ color: theme.textMuted, fontSize: "1rem", margin: "0 0 8px 0" }}>
-              No se encontraron pedidos que coincidan con "{busqueda}".
+              {t("seguimiento.noResultsTitle")} "{busqueda}".
             </p>
             <Button variant="outline-gold" onClick={() => setBusqueda("")} style={{ marginTop: "10px" }}>
-              Ver todos los pedidos
+              {t("seguimiento.btnVerTodos")}
             </Button>
           </div>
         ) : (
@@ -236,7 +251,7 @@ export default function SeguimientoPedidos() {
               const { etapa, detalle } = etapaDe(p);
               const idx = indiceEtapa(etapa);
               const color = COLOR_ETAPA[etapa] || theme.gold;
-              const rechazado = etapa === "No aprobado";
+              const rechazado = etapa === t("seguimiento.etapas.noAprobado");
 
               return (
                 <div key={String(p.id)} className="sg-card-hover">
@@ -244,10 +259,10 @@ export default function SeguimientoPedidos() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "14px", marginBottom: "18px" }}>
                       <div>
                         <h3 style={{ color: theme.gold, margin: "0 0 6px 0", fontSize: "1.05rem", letterSpacing: "0.5px" }}>
-                          {p.referencia || `Pedido #${String(p.id)}`}
+                          {p.referencia || `#${String(p.id)}`}
                         </h3>
                         <p style={{ color: theme.textMuted, margin: "0 0 4px 0", fontSize: "0.86rem" }}>
-                          {ETIQUETA_TIPO[String(p.type || "").toLowerCase()] || "Solicitud"}
+                          {etiquetaTipo(String(p.type || ""))}
                         </p>
                         {p.especificaciones_texto && (
                           <p style={{ color: theme.textMuted, opacity: 0.8, margin: "0 0 4px 0", fontSize: "0.78rem", maxWidth: "440px" }}>
@@ -256,7 +271,7 @@ export default function SeguimientoPedidos() {
                               : p.especificaciones_texto}
                           </p>
                         )}
-                        <DataRow label="Solicitado" valor={p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"} />
+                        <DataRow label={t("seguimiento.solicitado")} valor={p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"} />
                       </div>
 
                       <div style={{ textAlign: "right" }}>
@@ -267,14 +282,14 @@ export default function SeguimientoPedidos() {
                         }}>
                           ● {etapa}
                         </div>
-                        {p.fecha_estimada_entrega && !rechazado && etapa !== "Despachado" && (
+                        {p.fecha_estimada_entrega && !rechazado && etapa !== t("seguimiento.etapas.despachado") && (
                           <div style={{ marginTop: "7px" }}>
-                            <DataRow label="Entrega estimada" valor={new Date(p.fecha_estimada_entrega).toLocaleDateString()} />
+                            <DataRow label={t("seguimiento.entregaEstimada")} valor={new Date(p.fecha_estimada_entrega).toLocaleDateString()} />
                           </div>
                         )}
                         {p.fecha_despacho && (
                           <div style={{ marginTop: "7px" }}>
-                            <DataRow label="Despachado el" valor={<span style={{ color: theme.green }}>{new Date(p.fecha_despacho).toLocaleDateString()}</span>} />
+                            <DataRow label={t("seguimiento.despachadoEl")} valor={<span style={{ color: theme.green }}>{new Date(p.fecha_despacho).toLocaleDateString()}</span>} />
                           </div>
                         )}
                       </div>
@@ -322,9 +337,9 @@ export default function SeguimientoPedidos() {
 
         {emailCliente && !loading && (
           <p style={{ textAlign: "center", color: theme.textMuted, opacity: 0.6, fontSize: "0.72rem", marginTop: "35px" }}>
-            Mostrando pedidos de {emailCliente}
+            {t("seguimiento.mostrandoPedidos")} {emailCliente}
             {busqueda && pedidosFiltrados.length !== pedidos.length
-              ? ` · ${pedidosFiltrados.length} de ${pedidos.length} resultados`
+              ? ` · ${pedidosFiltrados.length} ${t("seguimiento.deResultados")} ${pedidos.length} ${t("seguimiento.resultados")}`
               : ""}
           </p>
         )}

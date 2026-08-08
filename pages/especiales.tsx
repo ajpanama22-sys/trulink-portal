@@ -4,9 +4,12 @@ import { getSupabase } from "../lib/supabaseClient";
 import { useRequiereCliente } from "../lib/useRequiereCliente";
 import { theme } from "../lib/theme";
 import { Card, Heading, Button, inputStyle, DataRow } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function EspecialesPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const supabase = getSupabase();
   const { cargando: cargandoGuard, autorizado } = useRequiereCliente();
 
@@ -91,14 +94,6 @@ export default function EspecialesPage() {
     }
   };
 
-  /**
-   * Avisa al equipo comercial que llegó una solicitud nueva, usando el
-   * endpoint dedicado /api/notificar-pedido-especial (no exige sesión
-   * admin, solo sesión válida). Si esto falla, NO frena la solicitud
-   * del cliente — el registro en quotes ya quedó guardado, que es lo
-   * que realmente importa. El admin igual la va a ver en el panel de
-   * Cotizaciones -> Pedido Especial.
-   */
   const notificarEquipo = async (empresaDestino: string, emailDestino: string, archivoUrlDestino: string | null) => {
     if (!supabase) return;
     try {
@@ -136,9 +131,9 @@ export default function EspecialesPage() {
 
   const enviarSolicitud = async () => {
     if (!especificaciones.trim() && !archivo) {
-      return alert("Describe lo que necesitas o adjunta un archivo con las especificaciones.");
+      return alert(t("especiales.errNecesidad"));
     }
-    if (!supabase) return alert("No se pudo conectar. Intenta de nuevo.");
+    if (!supabase) return alert(t("especiales.errConexion"));
 
     setEnviando(true);
     try {
@@ -166,7 +161,6 @@ export default function EspecialesPage() {
       const { error } = await supabase.from("quotes").insert([payload]);
       if (error) throw error;
 
-      // Avisa al equipo comercial — best-effort, no bloquea el flujo del cliente
       await notificarEquipo(
         clienteData?.razon_social || nombreEmpresa || mailCliente,
         clienteData?.email || mailCliente,
@@ -176,14 +170,14 @@ export default function EspecialesPage() {
       setEnviado(true);
     } catch (err: any) {
       console.error("Error al enviar la solicitud:", err);
-      alert("No se pudo enviar la solicitud: " + (err.message || err));
+      alert(t("especiales.errEnvio") + (err.message || err));
     } finally {
       setEnviando(false);
     }
   };
 
   if (cargandoGuard) {
-    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>Verificando acceso...</p>;
+    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>{t("common.loadingVerifying")}</p>;
   }
   if (!autorizado) return null;
 
@@ -193,21 +187,20 @@ export default function EspecialesPage() {
         <div style={{ maxWidth: "560px", margin: "0 auto", textAlign: "center", paddingTop: "80px" }}>
           <div style={{ fontSize: "3rem", marginBottom: "20px" }}>✓</div>
           <h1 style={{ color: theme.green, fontSize: "1.4rem", letterSpacing: "1px", marginBottom: "14px" }}>
-            Solicitud Recibida
+            {t("especiales.sentTitle")}
           </h1>
           <p style={{ color: theme.textMuted, fontSize: "0.92rem", lineHeight: 1.7, marginBottom: "10px" }}>
-            Tu referencia es <strong style={{ color: theme.gold }}>{referencia}</strong>
+            {t("especiales.sentRef")} <strong style={{ color: theme.gold }}>{referencia}</strong>
           </p>
           <p style={{ color: "#888", fontSize: "0.85rem", lineHeight: 1.7, marginBottom: "32px" }}>
-            Nuestro equipo técnico va a revisar tus especificaciones y te enviará
-            la cotización por correo. Puedes seguir el avance desde Control de Pedidos.
+            {t("especiales.sentBody")}
           </p>
           <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
             <Button variant="gold" onClick={() => router.push("/seguimiento")}>
-              Ver mis pedidos
+              {t("especiales.btnVerPedidos")}
             </Button>
             <Button variant="outline-gold" onClick={() => router.push("/portal-cliente")}>
-              Volver al portal
+              {t("especiales.btnVolverPortal")}
             </Button>
           </div>
         </div>
@@ -220,63 +213,65 @@ export default function EspecialesPage() {
       <div style={{ maxWidth: "820px", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px", flexWrap: "wrap", gap: "12px" }}>
           <Button variant="outline-gold" onClick={() => router.push("/portal-cliente")}>
-            ← Volver al Portal
+            {t("common.backToPortal")}
           </Button>
-          <span style={{ color: "#888", fontSize: "0.82rem" }}>
-            Referencia: <strong style={{ color: theme.gold }}>{referencia}</strong>
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ color: "#888", fontSize: "0.82rem" }}>
+              {t("especiales.reference")} <strong style={{ color: theme.gold }}>{referencia}</strong>
+            </span>
+            <LanguageSwitcher />
+          </div>
         </div>
 
         <div style={{ textAlign: "center", marginBottom: "35px" }}>
           <h1 style={{ color: theme.gold, fontSize: "1.5rem", letterSpacing: "2px", textTransform: "uppercase", margin: "0 0 10px 0", fontWeight: 400 }}>
-            Pedidos Especiales
+            {t("especiales.backTitle")}
           </h1>
           <div style={{ width: "60px", height: "2px", background: theme.gold, margin: "0 auto 14px auto", opacity: 0.6 }} />
           <p style={{ color: "#888", fontSize: "0.88rem", margin: 0, lineHeight: 1.6 }}>
-            Cuéntanos qué necesitas y te preparamos una cotización a la medida.
+            {t("especiales.backSubtitle")}
           </p>
         </div>
 
         <Card style={{ marginBottom: "22px" }}>
-          <Heading>Tus Datos</Heading>
+          <Heading>{t("especiales.sectionDatos")}</Heading>
           {cargandoSesion ? (
-            <p style={{ color: "#888", fontSize: "0.85rem", margin: 0 }}>Cargando...</p>
+            <p style={{ color: "#888", fontSize: "0.85rem", margin: 0 }}>{t("common.loading")}</p>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px" }}>
-              <DataRow label="Empresa" valor={nombreEmpresa || "No registrada"} />
-              <DataRow label="Representante" valor={representante || "No registrado"} />
-              <DataRow label="Correo" valor={mailCliente || "No registrado"} />
-              <DataRow label="Teléfono" valor={telefonoCliente || "No registrado"} />
+              <DataRow label={t("especiales.empresa")} valor={nombreEmpresa || t("especiales.notRegisteredM")} />
+              <DataRow label={t("especiales.representante")} valor={representante || t("especiales.notRegistered")} />
+              <DataRow label={t("especiales.correo")} valor={mailCliente || t("especiales.notRegistered")} />
+              <DataRow label={t("especiales.telefono")} valor={telefonoCliente || t("especiales.notRegistered")} />
             </div>
           )}
         </Card>
 
         <Card style={{ marginBottom: "22px" }}>
-          <Heading>Qué Necesitas</Heading>
+          <Heading>{t("especiales.sectionNecesitas")}</Heading>
           <p style={{ color: "#777", fontSize: "0.78rem", margin: "0 0 16px 0", lineHeight: 1.6 }}>
-            Mientras más detalle nos des, más precisa será la cotización.
-            Tipo de cable, cantidad de hilos, longitud, condiciones de instalación, normas que debe cumplir.
+            {t("especiales.necesitasHint")}
           </p>
 
-          <label style={labelStyle}>Descripción del requerimiento</label>
+          <label style={labelStyle}>{t("especiales.labelDescripcion")}</label>
           <textarea
             value={especificaciones}
             onChange={(e) => setEspecificaciones(e.target.value)}
-            placeholder="Ej: Necesito 5 km de cable ADSS de 48 hilos para vanos de 200 metros, con cubierta anti-tracking para línea de alta tensión..."
+            placeholder={t("especiales.placeholderDescripcion")}
             rows={6}
             style={{ ...inputStyle, width: "100%", resize: "vertical", marginBottom: "16px", boxSizing: "border-box" }}
           />
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
             <div>
-              <label style={labelStyle}>Cantidad aproximada</label>
+              <label style={labelStyle}>{t("especiales.labelCantidad")}</label>
               <input
                 style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
-                placeholder="Ej: 5 km, 10 carretes..."
+                placeholder={t("especiales.placeholderCantidad")}
                 value={cantidadAprox} onChange={(e) => setCantidadAprox(e.target.value)} />
             </div>
             <div>
-              <label style={labelStyle}>¿Para cuándo lo necesitas?</label>
+              <label style={labelStyle}>{t("especiales.labelFecha")}</label>
               <input
                 style={{ ...inputStyle, width: "100%", boxSizing: "border-box" }}
                 type="date"
@@ -286,21 +281,21 @@ export default function EspecialesPage() {
         </Card>
 
         <Card style={{ marginBottom: "26px" }}>
-          <Heading>Documentos Técnicos</Heading>
+          <Heading>{t("especiales.sectionDocs")}</Heading>
           <p style={{ color: "#777", fontSize: "0.78rem", margin: "0 0 16px 0" }}>
-            Opcional. Planos, fichas técnicas, pliegos de licitación o cualquier especificación en archivo.
+            {t("especiales.docsHint")}
           </p>
 
           <input type="file" id="espArchivo" style={{ display: "none" }}
             onChange={(e) => { if (e.target.files?.[0]) setArchivo(e.target.files[0]); }} />
           <label htmlFor="espArchivo">
             <Button variant="outline-gold" style={{ display: "inline-block" }}>
-              {archivo ? `📎 ${archivo.name}` : "📎 Adjuntar archivo"}
+              {archivo ? `📎 ${archivo.name}` : t("especiales.btnAdjuntar")}
             </Button>
           </label>
           {archivo && (
             <Button variant="ghost" onClick={() => setArchivo(null)} style={{ color: theme.red, marginLeft: "12px" }}>
-              Quitar
+              {t("especiales.btnQuitar")}
             </Button>
           )}
         </Card>
@@ -308,20 +303,19 @@ export default function EspecialesPage() {
         <div style={{ background: theme.goldSoft, border: `1px dashed ${theme.borderGoldInput}`,
           borderRadius: theme.radiusMd, padding: "16px 20px", marginBottom: "24px" }}>
           <p style={{ color: "#999", fontSize: "0.8rem", margin: 0, lineHeight: 1.6 }}>
-            📌 Este es un <strong style={{ color: theme.gold }}>pedido a la medida</strong>, así que no lleva precio
-            todavía. Nuestro equipo revisa tus especificaciones y te envía la cotización por correo.
+            📌 {t("especiales.noticeCustom")} <strong style={{ color: theme.gold }}>{t("especiales.noticeCustomBold")}</strong>{t("especiales.noticeCustomRest")}
           </p>
         </div>
 
         <div style={{ textAlign: "center" }}>
           <Button variant="gold" onClick={enviarSolicitud} disabled={enviando || cargandoSesion}
             style={{ padding: "14px 40px", fontSize: "0.9rem" }}>
-            {enviando ? "Enviando..." : "Enviar Solicitud"}
+            {enviando ? t("especiales.btnEnviando") : t("especiales.btnEnviar")}
           </Button>
         </div>
 
         <p style={{ textAlign: "center", color: "rgba(218,165,32,0.4)", fontSize: "0.74rem", marginTop: "40px", letterSpacing: "1px" }}>
-          © 2026 Trulink Fiber LLC — Excelencia y Vanguardia Tecnológica
+          {t("common.companyFooterAlt")}
         </p>
       </div>
     </div>

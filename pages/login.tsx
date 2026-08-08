@@ -2,8 +2,11 @@ import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { theme } from "../lib/theme";
 import { Button, inputStyle as baseInputStyle } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function Login() {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [mensaje, setMensaje] = useState("");
@@ -21,13 +24,13 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    
+
     if (!supabase) {
-      setMensaje("Error: Cliente de Supabase no inicializado.");
+      setMensaje(t("login.errNoClient"));
       return;
     }
 
-    setMensaje("Verificando...");
+    setMensaje(t("login.msgChecking"));
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -35,11 +38,11 @@ export default function Login() {
     });
 
     if (error) {
-      setMensaje("Acceso denegado: " + error.message);
+      setMensaje(t("login.msgDenied") + error.message);
       return;
-    } 
+    }
 
-    setMensaje("Acceso concedido");
+    setMensaje(t("login.msgGranted"));
 
     // Verificar si el usuario está registrado en la tabla de clientes
     const { data: clienteData } = await supabase
@@ -49,8 +52,7 @@ export default function Login() {
       .single();
 
     if (clienteData) {
-      // Si es cliente, redirigir directo a portal-cliente
-      window.location.href = '/portal-cliente'; 
+      window.location.href = '/portal-cliente';
       return;
     }
 
@@ -62,15 +64,10 @@ export default function Login() {
       .single();
 
     if (colaboradorData) {
-      // Todo colaborador entra al panel /admin. Dentro del panel, el módulo
-      // "RRHH Self-Service" (pages/admin/rrhh.tsx) es su ficha personal;
-      // el resto de módulos los ve según lo que decidan mostrar/ocultar
-      // más adelante en el Sidebar según su rol.
       window.location.href = '/admin';
       return;
     }
 
-    // Por defecto si no está explícitamente en ninguna de las dos tablas
     window.location.href = '/selector';
   };
 
@@ -104,18 +101,16 @@ export default function Login() {
         }
       `}</style>
 
-      {/* Logo */}
+      <div style={{ position: "absolute", top: "18px", right: "18px" }}>
+        <LanguageSwitcher />
+      </div>
+
       <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px", marginBottom: "20px" }} />
 
-      {/* Nombre institucional */}
       <h1 style={{ color: theme.gold, marginBottom: "30px" }}>
-        Trulink Fiber LLC
+        {t("login.title")}
       </h1>
 
-      {/* Formulario de acceso */}
-      {/* Nota: se mantiene como <form> (no <Card>, que sólo acepta `style`, no
-          `className`) para conservar la clase .container-fiber y su animación
-          de pulso dorado. */}
       <form
         onSubmit={handleLogin}
         className="container-fiber"
@@ -129,19 +124,19 @@ export default function Login() {
           backgroundColor: theme.sidebarBg
         }}
       >
-        <h2 style={{ color: theme.gold, marginBottom: "25px" }}>Acceso Portal B2B</h2>
+        <h2 style={{ color: theme.gold, marginBottom: "25px" }}>{t("login.cardTitle")}</h2>
 
-        <label style={{ display: "block", textAlign: "left", marginBottom: "5px", color: theme.textMuted }}>Usuario</label>
+        <label style={{ display: "block", textAlign: "left", marginBottom: "5px", color: theme.textMuted }}>{t("login.labelUser")}</label>
         <input
           type="email"
-          placeholder="correo@empresa.com"
+          placeholder={t("login.placeholderUser")}
           style={inputStyle}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
         />
 
-        <label style={{ display: "block", textAlign: "left", marginBottom: "5px", color: theme.textMuted }}>Contraseña</label>
+        <label style={{ display: "block", textAlign: "left", marginBottom: "5px", color: theme.textMuted }}>{t("login.labelPassword")}</label>
         <input
           type="password"
           placeholder="********"
@@ -151,7 +146,6 @@ export default function Login() {
           required
         />
 
-        {/* Botón biselado */}
         <Button
           type="submit"
           variant="gold"
@@ -163,20 +157,18 @@ export default function Login() {
             marginTop: "10px"
           }}
         >
-          Acceder
+          {t("login.btnSubmit")}
         </Button>
 
-        {/* Mensaje dinámico */}
         {mensaje && (
-          <p style={{ marginTop: "15px", color: mensaje.includes("concedido") ? theme.green : theme.red }}>
+          <p style={{ marginTop: "15px", color: mensaje.includes("concedido") || mensaje.includes("granted") ? theme.green : theme.red }}>
             {mensaje}
           </p>
         )}
       </form>
 
-      {/* Footer institucional */}
       <p style={{ marginTop: "40px", fontSize: "12px", color: theme.gold }}>
-        © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
+        {t("common.companyFooter")}
       </p>
     </div>
   );

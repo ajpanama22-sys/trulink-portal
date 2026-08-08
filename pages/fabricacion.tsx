@@ -6,6 +6,8 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { theme } from "../lib/theme";
 import { Card, Heading, Button, inputStyle } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 const supabase = getSupabase();
 
@@ -28,6 +30,7 @@ const codigoConfiguracion = (tipo: string, vano: number | null, conMensajero: bo
 
 export default function Fabricacion() {
   const router = useRouter();
+  const { t } = useI18n();
   const { cargando: cargandoGuard, autorizado } = useRequiereCliente();
 
   const [cotizacion, setCotizacion] = useState<Item[]>([]);
@@ -199,6 +202,9 @@ export default function Fabricacion() {
     return resultado.data;
   };
 
+  // NOTA: el contenido del PDF generado (jsPDF) queda en español por ahora.
+  // Traducirlo requiere un paso aparte (el motor de PDF no usa el sistema
+  // de i18n de la web). Ver INTEGRACION_IDIOMAS.md para el detalle.
   const generarDocumentoPDF = () => {
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
@@ -268,7 +274,7 @@ export default function Fabricacion() {
 
   const procesarPago = async () => {
     if (cotizacion.length === 0) {
-      alert("La cotización está vacía. Por favor, agregue artículos.");
+      alert(t("fabricacion.errEmptyQuote"));
       return;
     }
 
@@ -292,13 +298,13 @@ export default function Fabricacion() {
       router.push(`/checkout?id=${referenciaActual}`);
     } catch (err: any) {
       console.error("ERROR INESPERADO:", err);
-      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
+      alert(t("fabricacion.errUnexpected") + (err.message || err));
     }
   };
 
   const generarPDF = async (): Promise<void> => {
     if (cotizacion.length === 0) {
-      alert("La cotización está vacía.");
+      alert(t("fabricacion.errEmptyQuoteSave"));
       return;
     }
 
@@ -346,7 +352,7 @@ export default function Fabricacion() {
   };
 
   if (cargandoGuard) {
-    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>Verificando acceso...</p>;
+    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>{t("common.loadingVerifying")}</p>;
   }
   if (!autorizado) return null;
 
@@ -394,7 +400,7 @@ export default function Fabricacion() {
       `}</style>
 
       <div style={{ width: "100%", maxWidth: "1050px", display: "flex", justifyContent: "space-between", marginBottom: "25px", alignItems: "center" }}>
-        <div />
+        <LanguageSwitcher />
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={{
             backgroundColor: "rgba(15, 15, 15, 0.8)",
@@ -403,15 +409,15 @@ export default function Fabricacion() {
             border: `1px solid ${theme.borderGold}`,
             backdropFilter: "blur(5px)"
           }}>
-            <span style={{ color: theme.textLight, fontSize: "0.85rem", letterSpacing: "0.5px" }}>Ref: <strong style={{ color: theme.gold, fontWeight: 600 }}>{referenciaActual}</strong></span>
+            <span style={{ color: theme.textLight, fontSize: "0.85rem", letterSpacing: "0.5px" }}>{t("fabricacion.ref")} <strong style={{ color: theme.gold, fontWeight: 600 }}>{referenciaActual}</strong></span>
           </div>
 
           <Button variant="outline-gold" onClick={handleVolverPortal} style={{ padding: "8px 16px", borderRadius: theme.radiusMd, fontSize: "0.85rem" }}>
-            Volver al Portal
+            {t("common.back")} {t("portalCliente.badge")}
           </Button>
 
           <Button variant="outline-gold" onClick={handleLogOut} style={{ padding: "8px 16px", borderRadius: theme.radiusMd, fontSize: "0.85rem" }}>
-            Cerrar Sesión
+            {t("common.logout")}
           </Button>
         </div>
       </div>
@@ -419,10 +425,10 @@ export default function Fabricacion() {
       <div style={{ textAlign: "center", marginBottom: "35px", maxWidth: "800px", margin: "0 auto 35px auto" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "120px", marginBottom: "15px", filter: "drop-shadow(0 0 10px rgba(218,165,32,0.2))" }} />
         <h1 style={{ color: theme.gold, marginBottom: "8px", fontSize: "2rem", fontWeight: 700, letterSpacing: "1.5px" }}>
-          LÍNEA DE PRODUCCIÓN DE CABLES DE FIBRA
+          {t("fabricacion.title")}
         </h1>
         <div style={{ display: "inline-block", padding: "4px 16px", backgroundColor: theme.goldSoft, borderRadius: "20px", border: `1px solid ${theme.borderGold}` }}>
-          <p style={{ color: theme.textLight, fontSize: "0.95rem", letterSpacing: "3px", margin: 0, fontWeight: 500 }}>ADSS – ASU – FTTX</p>
+          <p style={{ color: theme.textLight, fontSize: "0.95rem", letterSpacing: "3px", margin: 0, fontWeight: 500 }}>{t("fabricacion.subtitle")}</p>
         </div>
       </div>
 
@@ -442,11 +448,11 @@ export default function Fabricacion() {
                 <img src="/images/ASU.png" alt="Cable ASU" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
               <Heading style={{ fontSize: "1.3rem", margin: "0 0 6px 0", textAlign: "center" }}>ASU</Heading>
-              <p style={{ color: theme.textMuted, fontSize: "0.72rem", margin: "0 0 15px 0" }}>Autosoportado con varillas FRP</p>
+              <p style={{ color: theme.textMuted, fontSize: "0.72rem", margin: "0 0 15px 0" }}>{t("fabricacion.asuDesc")}</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Hilos:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.hilos")}</label>
                   <select id="asuHilos" style={controlStyle}>
                     <option value="6">6</option>
                     <option value="12">12</option>
@@ -456,7 +462,7 @@ export default function Fabricacion() {
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Vano:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.vano")}</label>
                   <select id="asuVano" style={controlStyle}>
                     <option value="100">100 m</option>
                     <option value="120">120 m</option>
@@ -465,14 +471,14 @@ export default function Fabricacion() {
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Carrete:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.carrete")}</label>
                   <select id="asuCarrete" style={controlStyle}>
                     <option value="3">3 km</option>
                   </select>
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Cantidad:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.cantidad")}</label>
                   <input
                     id="asuCantidad"
                     type="number"
@@ -495,7 +501,7 @@ export default function Fabricacion() {
                 agregarItem("ASU", hilos, carrete, cantidad, vano, false);
               }}
             >
-              Agregar a Cotización
+              {t("fabricacion.btnAgregar")}
             </Button>
           </div>
 
@@ -505,11 +511,11 @@ export default function Fabricacion() {
                 <img src="/images/ADSS.png" alt="Cable ADSS" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
               <Heading style={{ fontSize: "1.3rem", margin: "0 0 6px 0", textAlign: "center" }}>ADSS</Heading>
-              <p style={{ color: theme.textMuted, fontSize: "0.72rem", margin: "0 0 15px 0" }}>Dieléctrico autosoportado con aramida</p>
+              <p style={{ color: theme.textMuted, fontSize: "0.72rem", margin: "0 0 15px 0" }}>{t("fabricacion.adssDesc")}</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Hilos:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.hilos")}</label>
                   <select id="adssHilos" style={controlStyle}>
                     <option value="72">72</option>
                     <option value="96">96</option>
@@ -518,7 +524,7 @@ export default function Fabricacion() {
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Vano:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.vano")}</label>
                   <select id="adssVano" style={controlStyle}>
                     <option value="100">100 m</option>
                     <option value="120">120 m</option>
@@ -527,14 +533,14 @@ export default function Fabricacion() {
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Carrete:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.carrete")}</label>
                   <select id="adssCarrete" style={controlStyle}>
                     <option value="3">3 km</option>
                   </select>
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Cantidad:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.cantidad")}</label>
                   <input
                     id="adssCantidad"
                     type="number"
@@ -557,7 +563,7 @@ export default function Fabricacion() {
                 agregarItem("ADSS", hilos, carrete, cantidad, vano, false);
               }}
             >
-              Agregar a Cotización
+              {t("fabricacion.btnAgregar")}
             </Button>
           </div>
 
@@ -567,11 +573,11 @@ export default function Fabricacion() {
                 <img src="/images/FTTX.png" alt="Cable FTTX" style={{ width: "100%", height: "140px", objectFit: "cover", transition: "transform 0.5s ease" }} className="hover:scale-105" />
               </div>
               <Heading style={{ fontSize: "1.3rem", margin: "0 0 6px 0", textAlign: "center" }}>FTTX</Heading>
-              <p style={{ color: theme.textMuted, fontSize: "0.72rem", margin: "0 0 15px 0" }}>Drop plano para acometidas</p>
+              <p style={{ color: theme.textMuted, fontSize: "0.72rem", margin: "0 0 15px 0" }}>{t("fabricacion.fttxDesc")}</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Hilos:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.hilos")}</label>
                   <select id="fttxHilos" style={controlStyle}>
                     <option value="1">1</option>
                     <option value="2">2</option>
@@ -579,15 +585,15 @@ export default function Fabricacion() {
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Mensajero:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.mensajero")}</label>
                   <select id="fttxMensajero" style={controlStyle}>
-                    <option value="no">Sin mensajero</option>
-                    <option value="si">Con mensajero</option>
+                    <option value="no">{t("fabricacion.sinMensajero")}</option>
+                    <option value="si">{t("fabricacion.conMensajero")}</option>
                   </select>
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Carrete:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.carrete")}</label>
                   <select id="fttxCarrete" style={controlStyle}>
                     <option value="1">1 km</option>
                     <option value="2">2 km</option>
@@ -595,7 +601,7 @@ export default function Fabricacion() {
                 </div>
 
                 <div style={filaControl}>
-                  <label style={etiquetaControl}>Cantidad:</label>
+                  <label style={etiquetaControl}>{t("fabricacion.cantidad")}</label>
                   <input
                     id="fttxCantidad"
                     type="number"
@@ -618,7 +624,7 @@ export default function Fabricacion() {
                 agregarItem("FTTX", hilos, carrete, cantidad, null, mensajero);
               }}
             >
-              Agregar a Cotización
+              {t("fabricacion.btnAgregar")}
             </Button>
           </div>
 
@@ -635,25 +641,25 @@ export default function Fabricacion() {
         boxSizing: "border-box"
       }}>
         <Heading style={{ textAlign: "center", marginBottom: "25px", fontSize: "1.5rem" }}>
-          Mi Cotización <span style={{ color: theme.textLight, fontWeight: 400 }}>({referenciaActual})</span>
+          {t("fabricacion.cotizacionTitle")} <span style={{ color: theme.textLight, fontWeight: 400 }}>({referenciaActual})</span>
         </Heading>
 
         {cotizacion.length === 0 ? (
           <div style={{ textAlign: "center", padding: "30px 0", backgroundColor: "rgba(15,15,15,0.5)", borderRadius: theme.radiusLg, border: `1px dashed ${theme.borderGold}` }}>
-            <p style={{ color: theme.textMuted, fontSize: "0.95rem", margin: 0 }}>No has agregado artículos aún.</p>
+            <p style={{ color: theme.textMuted, fontSize: "0.95rem", margin: 0 }}>{t("fabricacion.emptyItems")}</p>
           </div>
         ) : (
           <div style={{ overflowX: "auto", borderRadius: theme.radiusLg, border: `1px solid ${theme.borderGold}` }}>
             <table style={{ margin: "0 auto", borderCollapse: "collapse", color: theme.gold, width: "100%", fontSize: "0.9rem", textAlign: "center" }}>
               <thead>
                 <tr style={{ backgroundColor: "#111111", borderBottom: `1px solid ${theme.borderGold}` }}>
-                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>Desc</th>
-                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>Hilos</th>
-                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>Cant</th>
-                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>P. Unit</th>
-                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>P. Carr</th>
-                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>Total</th>
-                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>Acción</th>
+                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>{t("fabricacion.colDesc")}</th>
+                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>{t("fabricacion.colHilos")}</th>
+                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>{t("fabricacion.colCant")}</th>
+                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>{t("fabricacion.colPUnit")}</th>
+                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>{t("fabricacion.colPCarr")}</th>
+                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>{t("fabricacion.colTotal")}</th>
+                  <th style={{ padding: "12px 15px", fontWeight: 600, color: theme.gold }}>{t("fabricacion.colAccion")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -672,7 +678,7 @@ export default function Fabricacion() {
                     <td style={{ padding: "12px 15px", color: theme.gold, fontWeight: 600 }}>${(item.precioCarrete * item.cantidad).toFixed(2)}</td>
                     <td style={{ padding: "12px 15px" }}>
                       <Button variant="outline-red" style={{ padding: "6px 12px", fontSize: "0.8rem", borderRadius: theme.radiusSm }} onClick={() => eliminarItem(index)}>
-                        Eliminar
+                        {t("fabricacion.btnEliminar")}
                       </Button>
                     </td>
                   </tr>
@@ -683,22 +689,22 @@ export default function Fabricacion() {
         )}
 
         <div style={{ marginTop: "25px", color: theme.textMuted, fontSize: "0.85rem", borderTop: `1px dashed ${theme.borderGold}`, paddingTop: "15px", lineHeight: "1.6" }}>
-          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>Precios:</strong> EXW PANAMÁ</p>
-          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
-          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
-          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>{t("fabricacion.precios")}</strong> {t("fabricacion.preciosVal")}</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>{t("fabricacion.nota")}</strong> {t("fabricacion.notaVal")}</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>{t("fabricacion.formaPago")}</strong> {t("fabricacion.formaPagoVal")}</p>
+          <p style={{ margin: "6px 0" }}><strong style={{ color: theme.gold }}>{t("fabricacion.metodosPago")}</strong> {t("fabricacion.metodosPagoVal")}</p>
         </div>
 
         <div style={{ marginTop: "25px", padding: "15px", backgroundColor: theme.goldSoft, borderRadius: theme.radiusLg, border: `1px solid ${theme.borderGold}`, textAlign: "center" }}>
           <Heading style={{ margin: 0, fontSize: "1.5rem", textAlign: "center" }}>
-            TOTAL GENERAL: ${granTotal.toFixed(2)}
+            {t("fabricacion.totalGeneral")} ${granTotal.toFixed(2)}
           </Heading>
         </div>
 
         <div style={{ textAlign: "center", marginTop: "30px", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
           {cargandoSesion && (
             <p style={{ color: theme.gold, fontSize: "0.85rem", margin: 0, fontStyle: "italic" }}>
-              Cargando datos del cliente, un momento...
+              {t("fabricacion.loadingClient")}
             </p>
           )}
           <div style={{ display: "flex", justifyContent: "center", gap: "20px", flexWrap: "wrap" }}>
@@ -708,7 +714,7 @@ export default function Fabricacion() {
               disabled={cargandoSesion}
               style={{ padding: "12px 28px", borderRadius: theme.radiusLg, fontSize: "0.95rem" }}
             >
-              Guardar PDF
+              {t("fabricacion.btnGuardarPdf")}
             </Button>
             <Button
               variant="outline-gold"
@@ -716,7 +722,7 @@ export default function Fabricacion() {
               disabled={cargandoSesion}
               style={{ padding: "12px 28px", borderRadius: theme.radiusLg, fontSize: "0.95rem" }}
             >
-              Proceder con Pago
+              {t("fabricacion.btnProcederPago")}
             </Button>
           </div>
         </div>
@@ -724,7 +730,7 @@ export default function Fabricacion() {
       </div>
 
       <p style={{ marginTop: "35px", fontSize: "0.75rem", color: theme.gold, opacity: 0.7, textAlign: "center", letterSpacing: "0.5px" }}>
-        © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
+        {t("common.companyFooter")}
       </p>
     </div>
   );

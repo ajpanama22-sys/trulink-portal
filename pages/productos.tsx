@@ -6,6 +6,8 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import { theme } from "../lib/theme";
 import { Card, Heading, Button, Badge, inputStyle } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 const supabase = getSupabase();
 
@@ -33,6 +35,7 @@ type ItemCarrito = {
 
 export default function Productos() {
   const router = useRouter();
+  const { t } = useI18n();
   const { cargando: cargandoGuard, autorizado } = useRequiereCliente();
 
   const [categoria, setCategoria] = useState<string | null>(null);
@@ -193,6 +196,8 @@ export default function Productos() {
     return dataRes;
   };
 
+  // NOTA: el contenido del PDF (jsPDF) queda en español por ahora — motor
+  // aparte del sistema de i18n de la web.
   const generarDocumentoPDF = () => {
     const fechaActual = new Date().toLocaleDateString();
     const horaActual = new Date().toLocaleTimeString();
@@ -259,7 +264,7 @@ export default function Productos() {
 
   const procesarPago = async () => {
     if (carrito.length === 0) {
-      alert("La cotización está vacía. Por favor, agregue artículos.");
+      alert(t("productos.errEmptyCart"));
       return;
     }
 
@@ -284,13 +289,13 @@ export default function Productos() {
 
     } catch (err: any) {
       console.error("ERROR INESPERADO:", err);
-      alert(`Ocurrió un error al procesar la solicitud: ${err.message || err}`);
+      alert(t("productos.errUnexpected") + (err.message || err));
     }
   };
 
   const generarPDF = async () => {
     if (carrito.length === 0) {
-      alert("La cotización está vacía.");
+      alert(t("productos.errEmptyCartSave"));
       return;
     }
 
@@ -333,9 +338,16 @@ export default function Productos() {
   const totalPaginas = Math.ceil(productos.length / productosPorPagina);
 
   if (cargandoGuard) {
-    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>Verificando acceso...</p>;
+    return <p style={{ color: "#DAA520", textAlign: "center", marginTop: "60px" }}>{t("common.loadingVerifying")}</p>;
   }
   if (!autorizado) return null;
+
+  const categoriaLabel = (tabla: string | null) => {
+    if (tabla === "accesoriosdb") return t("productos.catAccesorios");
+    if (tabla === "cablesdb") return t("productos.catCables");
+    if (tabla === "herrajesdb") return t("productos.catHerrajes");
+    return t("productos.pageTitleDefault");
+  };
 
   return (
     <div
@@ -355,31 +367,34 @@ export default function Productos() {
         th { background-color: ${theme.gold}; color: ${theme.background}; }
       `}</style>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", gap: "12px", flexWrap: "wrap" }}>
         <Button variant="outline-gold" onClick={() => router.push("/portal-cliente")}>
-          ← Volver al Portal
+          {t("common.backToPortal")}
         </Button>
-        <Button
-          variant="gold"
-          onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })}
-        >
-          🛒 Carrito ({totalItems})
-        </Button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <LanguageSwitcher />
+          <Button
+            variant="gold"
+            onClick={() => document.getElementById('carrito-seccion')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            {t("productos.btnCarrito")} ({totalItems})
+          </Button>
+        </div>
       </div>
 
       <div style={{ textAlign: "center", marginBottom: "40px" }}>
         <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
         <h1 style={{ color: theme.gold, letterSpacing: "1px" }}>
-          {categoria ? categoria.toUpperCase() : "PRODUCTOS TERMINADOS"}
+          {categoriaLabel(categoria)}
         </h1>
       </div>
 
       {!categoria ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "30px", maxWidth: "1000px", margin: "0 auto" }}>
           {[
-            { name: "Accesorios", img: "/images/nap.png", tabla: "accesoriosdb" },
-            { name: "Cables", img: "/images/patch.png", tabla: "cablesdb" },
-            { name: "Herrajes", img: "/images/dtype.png", tabla: "herrajesdb" }
+            { name: t("productos.catAccesorios"), img: "/images/nap.png", tabla: "accesoriosdb" },
+            { name: t("productos.catCables"), img: "/images/patch.png", tabla: "cablesdb" },
+            { name: t("productos.catHerrajes"), img: "/images/dtype.png", tabla: "herrajesdb" }
           ].map((cat, idx) => (
             <div key={idx} onClick={() => seleccionarCategoria(cat.tabla)} style={{ cursor: "pointer" }}>
               <Card style={{ textAlign: "center", marginBottom: 0 }}>
@@ -394,7 +409,7 @@ export default function Productos() {
       ) : (
         <div style={{ maxWidth: "1000px", margin: "0 auto" }}>
           <Button variant="outline-gold" onClick={() => setCategoria(null)} style={{ marginBottom: "20px" }}>
-            ← Volver a Categorías
+            {t("productos.btnVolverCategorias")}
           </Button>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
@@ -409,7 +424,7 @@ export default function Productos() {
                 />
                 <Badge tone="gold">{prod.SKU}</Badge>
                 <p style={{ fontSize: "0.85rem", height: "40px", overflow: "hidden", marginTop: "10px" }}><strong>{prod.Ítem}</strong></p>
-                <p style={{ fontSize: "0.9rem", color: theme.gold, margin: "5px 0" }}>Precio: ${prod.precio_a?.toFixed(2) || "0.00"}</p>
+                <p style={{ fontSize: "0.9rem", color: theme.gold, margin: "5px 0" }}>{t("productos.precio")} ${prod.precio_a?.toFixed(2) || "0.00"}</p>
                 <input
                   type="number"
                   min="1"
@@ -419,7 +434,7 @@ export default function Productos() {
                 />
                 <div>
                   <Button variant="gold" onClick={() => agregarAlCarrito(prod)} style={{ margin: "0 auto" }}>
-                    Agregar
+                    {t("productos.btnAgregar")}
                   </Button>
                 </div>
               </Card>
@@ -433,15 +448,15 @@ export default function Productos() {
                 disabled={paginaActual === 1}
                 onClick={() => setPaginaActual(p => Math.max(p - 1, 1))}
               >
-                ⬅ Anterior
+                {t("productos.btnAnterior")}
               </Button>
-              <span style={{ color: theme.textLight, fontWeight: "bold" }}>Página {paginaActual} de {totalPaginas}</span>
+              <span style={{ color: theme.textLight, fontWeight: "bold" }}>{t("productos.paginaDe")} {paginaActual} {t("productos.de")} {totalPaginas}</span>
               <Button
                 variant="outline-gold"
                 disabled={paginaActual === totalPaginas}
                 onClick={() => setPaginaActual(p => Math.min(p + 1, totalPaginas))}
               >
-                Siguiente ➡
+                {t("productos.btnSiguiente")}
               </Button>
             </div>
           )}
@@ -450,20 +465,20 @@ export default function Productos() {
 
       <div id="carrito-seccion" style={{ maxWidth: "900px", margin: "60px auto" }}>
         <Card>
-          <Heading style={{ textAlign: "center", fontSize: "1.3rem" }}>Mi Cotización ({referenciaActual})</Heading>
+          <Heading style={{ textAlign: "center", fontSize: "1.3rem" }}>{t("productos.cotizacionTitle")} ({referenciaActual})</Heading>
           {carrito.length === 0 ? (
-            <p style={{ textAlign: "center", color: theme.textLight }}>El carrito está vacío.</p>
+            <p style={{ textAlign: "center", color: theme.textLight }}>{t("productos.carritoVacio")}</p>
           ) : (
             <>
               <table>
                 <thead>
                   <tr>
-                    <th>SKU</th>
-                    <th>Descripción</th>
-                    <th>Cant</th>
-                    <th>P. Unitario</th>
-                    <th>Total</th>
-                    <th>Acción</th>
+                    <th>{t("productos.colSku")}</th>
+                    <th>{t("productos.colDesc")}</th>
+                    <th>{t("productos.colCant")}</th>
+                    <th>{t("productos.colPUnit")}</th>
+                    <th>{t("productos.colTotal")}</th>
+                    <th>{t("productos.colAccion")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -476,7 +491,7 @@ export default function Productos() {
                       <td>${(item.precio * item.cantidad).toFixed(2)}</td>
                       <td>
                         <Button variant="outline-red" onClick={() => eliminarDelCarrito(index)} style={{ padding: "5px 10px", fontSize: "0.75rem" }}>
-                          Eliminar
+                          {t("productos.btnEliminar")}
                         </Button>
                       </td>
                     </tr>
@@ -485,31 +500,31 @@ export default function Productos() {
               </table>
 
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingRight: "15px" }}>
-                <h2 style={{ color: theme.gold, margin: 0, fontSize: "1.2rem" }}>TOTAL : ${totalCotizacion.toFixed(2)}</h2>
+                <h2 style={{ color: theme.gold, margin: 0, fontSize: "1.2rem" }}>{t("productos.totalLabel")} ${totalCotizacion.toFixed(2)}</h2>
               </div>
 
               <div style={{ marginTop: "15px", color: theme.textLight, fontSize: "0.85rem", borderTop: `1px dashed ${theme.borderGold}`, paddingTop: "10px" }}>
-                <p style={{ margin: "4px 0" }}><strong>Precios:</strong> EXW PANAMÁ</p>
-                <p style={{ margin: "4px 0" }}><strong>NOTA:</strong> Esta cotización es válida por 15 días a partir de la fecha de emisión.</p>
-                <p style={{ margin: "4px 0" }}><strong>Forma de pago:</strong> 50% a la orden de compra o aceptacion de la oferta y 50% 3 dias antes de fecha estimada de finalizacion de produccion o preparacion de despacho.</p>
-                <p style={{ margin: "4px 0" }}><strong>MÉTODOS DE PAGO:</strong> YAPPY, ACH, PAYPAL, TRANSFERENCIAS INTERNACIONALES</p>
+                <p style={{ margin: "4px 0" }}><strong>{t("productos.precios")}</strong> {t("productos.preciosVal")}</p>
+                <p style={{ margin: "4px 0" }}><strong>{t("productos.nota")}</strong> {t("productos.notaVal")}</p>
+                <p style={{ margin: "4px 0" }}><strong>{t("productos.formaPago")}</strong> {t("productos.formaPagoVal")}</p>
+                <p style={{ margin: "4px 0" }}><strong>{t("productos.metodosPago")}</strong> {t("productos.metodosPagoVal")}</p>
               </div>
 
               {cargandoSesion && (
                 <p style={{ color: theme.gold, fontSize: "0.85rem", textAlign: "center", marginTop: "15px", fontStyle: "italic" }}>
-                  Cargando datos del cliente, un momento...
+                  {t("productos.loadingClient")}
                 </p>
               )}
               <div style={{ display: "flex", gap: "20px", justifyContent: "center", marginTop: "20px" }}>
                 <Button variant="gold" onClick={generarPDF} disabled={cargandoSesion} style={{ padding: "15px 30px" }}>
-                  GUARDAR PDF
+                  {t("productos.btnGuardarPdf")}
                 </Button>
                 <Button variant="gold" onClick={procesarPago} disabled={cargandoSesion} style={{ padding: "15px 30px" }}>
-                  Proceder con Pago
+                  {t("productos.btnProcederPago")}
                 </Button>
               </div>
               <Button variant="outline-red" onClick={vaciarCarrito} style={{ marginTop: "10px", width: "100%" }}>
-                Vaciar carrito
+                {t("productos.btnVaciar")}
               </Button>
             </>
           )}

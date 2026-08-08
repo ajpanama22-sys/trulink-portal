@@ -3,6 +3,8 @@ import { getSupabase } from "../lib/supabaseClient";
 import { uploadAndLinkDocument } from "../services/documentService";
 import { theme } from "../lib/theme";
 import { Card, Heading, Button, inputStyle } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 // Forzamos a Next.js a no intentar pre-renderizar esta página durante el build
 export const dynamic = 'force-dynamic';
@@ -16,16 +18,18 @@ export const dynamic = 'force-dynamic';
    "Homologación" dentro de Proveedores.tsx).
    ============================================================ */
 
-const TIPOS_INSUMO = [
-  "Cables ADSS / OPGW",
-  "Herrajes",
-  "Accesorios de fibra",
-  "Herramientas",
-  "Empaque / Embalaje",
-  "Otro",
-];
-
 export default function ProveedoresRegistro() {
+  const { t } = useI18n();
+
+  const TIPOS_INSUMO = [
+    t("proveedores.tiposInsumo.cables"),
+    t("proveedores.tiposInsumo.herrajes"),
+    t("proveedores.tiposInsumo.accesorios"),
+    t("proveedores.tiposInsumo.herramientas"),
+    t("proveedores.tiposInsumo.empaque"),
+    t("proveedores.tiposInsumo.otro"),
+  ];
+
   const [formData, setFormData] = useState({
     nombre: "",
     ruc: "",
@@ -67,13 +71,13 @@ export default function ProveedoresRegistro() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!files.iso || !files.ficha_tecnica) {
-      alert("Por favor, sube al menos la certificación ISO (o equivalente) y la ficha técnica de fábrica.");
+      alert(t("proveedores.errFiles"));
       return;
     }
 
     const supabase = getSupabase();
     if (!supabase) {
-      alert("Error: Configuración de cliente no disponible.");
+      alert(t("proveedores.errConfig"));
       return;
     }
 
@@ -82,10 +86,7 @@ export default function ProveedoresRegistro() {
       // 1. Crear el proveedor en estado Pendiente (no activo, no homologado).
       // Generamos el id acá mismo (en vez de pedirle a Postgres que lo
       // devuelva con RETURNING/.select()), porque un visitante sin sesión
-      // no tiene permiso de SELECT sobre la fila que acaba de insertar
-      // (solo el propio proveedor logueado o el staff pueden leerla) — pedir
-      // el RETURNING chocaba con esa policy y Postgres lo reportaba como
-      // "violates row-level security policy" aunque el INSERT en sí era válido.
+      // no tiene permiso de SELECT sobre la fila que acaba de insertar.
       const proveedorId = crypto.randomUUID();
 
       const { error: dbError } = await supabase
@@ -120,7 +121,7 @@ export default function ProveedoresRegistro() {
 
       setEnviado(true);
     } catch (error: any) {
-      alert("Error al procesar la solicitud: " + error.message);
+      alert(t("proveedores.errSubmit") + error.message);
     } finally {
       setCargando(false);
     }
@@ -153,73 +154,72 @@ export default function ProveedoresRegistro() {
         }
       `}</style>
 
+      <div style={{ position: "absolute", top: "18px", right: "18px", zIndex: 2 }}>
+        <LanguageSwitcher />
+      </div>
+
       <div style={{ maxWidth: "820px", margin: "0 auto" }}>
         <Card style={{ padding: "40px", borderRadius: "30px" }}>
           <div style={{ textAlign: "center", marginBottom: "30px" }}>
             <img src="/images/logo.png" alt="Trulink Fiber Logo" style={{ width: "150px" }} />
             <Heading style={{ fontSize: "1.6rem", textAlign: "center" }}>
-              Registro de Proveedores — Convenio Marco
+              {t("proveedores.pageTitle")}
             </Heading>
             <p style={{ color: theme.textLight, maxWidth: "560px", margin: "10px auto 0" }}>
-              Trulink Fiber opera bajo un modelo de proveedores homologados: una vez aprobado,
-              tu fábrica queda dentro del catálogo autorizado para cotizar y recibir órdenes
-              de compra directas cuando el volumen lo amerite, con condiciones, precios y
-              plazos pactados por adelantado.
+              {t("proveedores.intro")}
             </p>
           </div>
 
           {enviado ? (
             <div style={{ textAlign: "center", padding: "30px 10px" }}>
-              <h3 style={{ color: theme.green || "#2ecc71" }}>Solicitud recibida</h3>
+              <h3 style={{ color: theme.green || "#2ecc71" }}>{t("proveedores.sentTitle")}</h3>
               <p style={{ color: theme.textLight }}>
-                Nuestro equipo va a revisar tu documentación y perfil. Te contactaremos por
-                correo con el resultado de la homologación y, si es aprobada, tus credenciales
-                de acceso al Portal de Proveedores.
+                {t("proveedores.sentBody")}
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column" }}>
               <p style={{ color: theme.gold, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "10px" }}>
-                Datos de la empresa
+                {t("proveedores.sectionCompany")}
               </p>
-              <input type="text" name="nombre" placeholder="Nombre de la fábrica / empresa" style={fieldStyle} onChange={handleChange} required />
-              <input type="text" name="ruc" placeholder="RUC / Tax ID" style={fieldStyle} onChange={handleChange} required />
-              <input type="text" name="pais" placeholder="País de origen" style={fieldStyle} onChange={handleChange} required />
-              <input type="text" name="direccion" placeholder="Dirección de fábrica" style={fieldStyle} onChange={handleChange} />
-              <input type="url" name="website" placeholder="Sitio web corporativo" style={fieldStyle} onChange={handleChange} />
+              <input type="text" name="nombre" placeholder={t("proveedores.nombre")} style={fieldStyle} onChange={handleChange} required />
+              <input type="text" name="ruc" placeholder={t("proveedores.ruc")} style={fieldStyle} onChange={handleChange} required />
+              <input type="text" name="pais" placeholder={t("proveedores.pais")} style={fieldStyle} onChange={handleChange} required />
+              <input type="text" name="direccion" placeholder={t("proveedores.direccion")} style={fieldStyle} onChange={handleChange} />
+              <input type="url" name="website" placeholder={t("proveedores.website")} style={fieldStyle} onChange={handleChange} />
 
               <select name="tipo_insumo" style={fieldStyle} onChange={handleChange} value={formData.tipo_insumo}>
-                {TIPOS_INSUMO.map((t) => <option key={t} value={t}>{t}</option>)}
+                {TIPOS_INSUMO.map((opcion) => <option key={opcion} value={opcion}>{opcion}</option>)}
               </select>
 
               <p style={{ color: theme.gold, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", margin: "10px 0" }}>
-                Contacto comercial
+                {t("proveedores.sectionContact")}
               </p>
-              <input type="text" name="contacto" placeholder="Nombre del representante" style={fieldStyle} onChange={handleChange} required />
-              <input type="text" name="cargo" placeholder="Cargo" style={fieldStyle} onChange={handleChange} required />
-              <input type="email" name="correo" placeholder="Correo corporativo" style={fieldStyle} onChange={handleChange} required />
-              <input type="tel" name="telefono" placeholder="Teléfono / WhatsApp" style={fieldStyle} onChange={handleChange} required />
-              <textarea name="condiciones_pago" placeholder="Condiciones de pago que propones (ej: 50% anticipo, 50% contra entrega)"
+              <input type="text" name="contacto" placeholder={t("proveedores.contacto")} style={fieldStyle} onChange={handleChange} required />
+              <input type="text" name="cargo" placeholder={t("proveedores.cargo")} style={fieldStyle} onChange={handleChange} required />
+              <input type="email" name="correo" placeholder={t("proveedores.correo")} style={fieldStyle} onChange={handleChange} required />
+              <input type="tel" name="telefono" placeholder={t("proveedores.telefono")} style={fieldStyle} onChange={handleChange} required />
+              <textarea name="condiciones_pago" placeholder={t("proveedores.condicionesPago")}
                 style={{ ...fieldStyle, resize: "vertical" }} rows={2} onChange={handleChange} />
 
               <p style={{ color: theme.gold, fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.5px", margin: "10px 0" }}>
-                Documentación de homologación
+                {t("proveedores.sectionDocs")}
               </p>
-              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>Certificación ISO / calidad (PDF) *</label>
+              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>{t("proveedores.docIso")}</label>
               <input type="file" name="iso" accept="application/pdf" style={fieldStyle} onChange={handleChange} required />
 
-              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>Ficha técnica de fábrica (PDF) *</label>
+              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>{t("proveedores.docFicha")}</label>
               <input type="file" name="ficha_tecnica" accept="application/pdf" style={fieldStyle} onChange={handleChange} required />
 
-              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>Estados financieros (PDF, opcional)</label>
+              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>{t("proveedores.docFinanciero")}</label>
               <input type="file" name="estados_financieros" accept="application/pdf" style={fieldStyle} onChange={handleChange} />
 
-              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>Licencia de fabricación (PDF, opcional)</label>
+              <label style={{ color: theme.gold, marginBottom: "6px", fontSize: "0.85rem" }}>{t("proveedores.docLicencia")}</label>
               <input type="file" name="licencia_fabricacion" accept="application/pdf" style={fieldStyle} onChange={handleChange} />
 
               <div style={{ marginTop: "20px", alignSelf: "center" }}>
                 <Button type="submit" variant="gold" disabled={cargando}>
-                  {cargando ? "Enviando..." : "Enviar Solicitud de Homologación"}
+                  {cargando ? t("proveedores.btnSubmitting") : t("proveedores.btnSubmit")}
                 </Button>
               </div>
             </form>
@@ -228,7 +228,7 @@ export default function ProveedoresRegistro() {
       </div>
 
       <p style={{ marginTop: "40px", fontSize: "12px", color: theme.gold, textAlign: "center" }}>
-        © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
+        {t("common.companyFooter")}
       </p>
     </div>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import FondoCircuitos from '../components/FondoCircuitos';
 import HeaderUser from '../components/HeaderUser';
 import InactivityGuard from '../components/InactivityGuard';
+import { I18nProvider } from '../lib/i18n/LanguageContext';
 
 export default function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -25,7 +26,7 @@ export default function MyApp({ Component, pageProps }: AppProps) {
     (router.pathname === '/' && !isCapacitor);
 
   return (
-    <>
+    <I18nProvider>
       <FondoCircuitos />
 
       {!ocultarHeader && <InactivityGuard />}
@@ -37,6 +38,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       )}
 
       <Component {...pageProps} />
-    </>
+    </I18nProvider>
   );
 }

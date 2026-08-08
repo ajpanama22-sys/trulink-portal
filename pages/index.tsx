@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 import { theme } from "../lib/theme";
 import { Button } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function Home() {
+  const { t } = useI18n();
+
   useEffect(() => {
     const canvas = document.getElementById("fiber-cable") as HTMLCanvasElement | null;
     if (!canvas) return;
@@ -71,28 +75,28 @@ export default function Home() {
     {
       icon: "✓",
       label: "TrustedSite",
-      sub: "Certified Secure",
+      sub: t("home.sealTrustedSite"),
       href: "https://www.trustedsite.com/verify?host=portal.trulinkfiber.org",
       accent: "#4ADE80",
     },
     {
       icon: "🛡",
       label: "SSL Labs",
-      sub: "Rating A+",
+      sub: t("home.sealSSL"),
       href: "https://www.ssllabs.com/ssltest/analyze.html?d=portal.trulinkfiber.org",
       accent: "#60A5FA",
     },
     {
       icon: "🔒",
       label: "Mozilla Observatory",
-      sub: "B+ · 80/100",
+      sub: t("home.sealMozilla"),
       href: "https://developer.mozilla.org/en-US/observatory",
       accent: "#DAA520",
     },
     {
       icon: "💳",
-      label: "Pagos Protegidos",
-      sub: "Stripe · PayPal",
+      label: t("home.sealPagosLabel"),
+      sub: t("home.sealPagos"),
       href: undefined,
       accent: "#C084FC",
     },
@@ -127,6 +131,11 @@ export default function Home() {
         }}
       ></canvas>
 
+      {/* Selector de idioma, esquina superior derecha */}
+      <div style={{ position: "absolute", top: "18px", right: "18px", zIndex: 2 }}>
+        <LanguageSwitcher />
+      </div>
+
       <div style={{ position: "relative", zIndex: 1, padding: "40px", maxWidth: "900px" }}>
         <img
           src="/images/logo.png"
@@ -144,7 +153,7 @@ export default function Home() {
             textTransform: "uppercase",
           }}
         >
-          Trulink Fiber LLC
+          {t("home.title")}
         </h1>
 
         <div
@@ -156,13 +165,13 @@ export default function Home() {
           }}
         >
           <a href="/clientes" style={{ textDecoration: "none" }}>
-            <Button variant="outline-gold">Registro Cliente B2B</Button>
+            <Button variant="outline-gold">{t("home.btnClientB2B")}</Button>
           </a>
           <a href="/proveedores" style={{ textDecoration: "none" }}>
-            <Button variant="outline-gold">Registro de Proveedores</Button>
+            <Button variant="outline-gold">{t("home.btnProveedores")}</Button>
           </a>
           <a href="/login" style={{ textDecoration: "none" }}>
-            <Button variant="outline-gold">Acceso con User + Pass</Button>
+            <Button variant="outline-gold">{t("home.btnLogin")}</Button>
           </a>
         </div>
 
@@ -194,7 +203,7 @@ export default function Home() {
                 textTransform: "uppercase",
               }}
             >
-              Sitio Verificado
+              {t("home.verifiedSite")}
             </span>
             <div
               style={{
@@ -282,7 +291,7 @@ export default function Home() {
             letterSpacing: "1px",
           }}
         >
-          © 2026 Marca registrada – Derechos reservados – Propiedad de Trulink Fiber LLC
+          {t("common.companyFooter")}
         </p>
       </div>
 

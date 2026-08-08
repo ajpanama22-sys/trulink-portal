@@ -4,9 +4,12 @@ import { supabase } from "../lib/supabaseClient";
 import { useRequiereCliente } from "../lib/useRequiereCliente";
 import { theme } from "../lib/theme";
 import { Card, Heading, Button } from "../lib/ui";
+import { useI18n } from "../lib/i18n/LanguageContext";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 export default function PortalCliente() {
   const router = useRouter();
+  const { t } = useI18n();
   const { cargando, autorizado } = useRequiereCliente();
   const [mostrarModalNotif, setMostrarModalNotif] = useState(false);
   const [pushNotif, setPushNotif] = useState(true);
@@ -47,11 +50,6 @@ export default function PortalCliente() {
     let telefonoEncontrado = "";
     let emailEncontrado = emailSession || "";
 
-    // NOTA: se quitaron "phone" y "telefono" del select — esas columnas no
-    // existen en la tabla clientes (solo telefono_celular y
-    // telefono_oficina). Pedir una columna inexistente hace que Supabase
-    // rechace TODA la consulta con 400, por eso el celular siempre salía
-    // "No registrado" aunque sí estuviera guardado en la base de datos.
     if (idUsuario && tablaSesion) {
       const { data, error } = await supabase
         .from(tablaSesion)
@@ -133,7 +131,6 @@ export default function PortalCliente() {
     router.push("/");
   };
 
-  // ── Guard de acceso: solo clientes activos pasan de aquí ──
   if (cargando) {
     return (
       <div style={{
@@ -145,11 +142,11 @@ export default function PortalCliente() {
         justifyContent: "center",
         fontFamily: theme.fontFamily,
       }}>
-        <p>Verificando acceso...</p>
+        <p>{t("common.loadingVerifying")}</p>
       </div>
     );
   }
-  if (!autorizado) return null; // useRequiereCliente ya redirigió
+  if (!autorizado) return null;
 
   return (
     <div style={{
@@ -232,7 +229,6 @@ export default function PortalCliente() {
         }
       `}</style>
 
-      {/* Modal de Notificaciones */}
       {mostrarModalNotif && (
         <div style={{
           position: "fixed",
@@ -259,18 +255,18 @@ export default function PortalCliente() {
                   marginBottom: "12px",
                 }}
               >
-                Canales de Notificación Activos
+                {t("portalCliente.modalTitle")}
               </Heading>
               <p style={{ fontSize: "0.85rem", color: theme.textMuted, marginBottom: "25px", textAlign: "center", lineHeight: "1.6" }}>
-                Es tu primer acceso. Las alertas de pedidos y actualizaciones del sistema se enviarán automáticamente a tus medios registrados:
+                {t("portalCliente.modalBody")}
               </p>
 
               <div style={{ backgroundColor: theme.background, border: `1px solid ${theme.borderGold}`, padding: "18px", borderRadius: theme.radiusMd, marginBottom: "25px" }}>
                 <p style={{ fontSize: "0.88rem", marginBottom: "10px", color: theme.textLight }}>
-                  📧 <strong style={{ color: theme.gold, marginLeft: "6px" }}>Correo:</strong> {userEmail || "Cargando..."}
+                  📧 <strong style={{ color: theme.gold, marginLeft: "6px" }}>{t("portalCliente.modalEmail")}</strong> {userEmail || t("common.loading")}
                 </p>
                 <p style={{ fontSize: "0.88rem", color: theme.textLight, margin: 0 }}>
-                  📱 <strong style={{ color: theme.gold, marginLeft: "6px" }}>Celular:</strong> {userCelular || "No registrado"}
+                  📱 <strong style={{ color: theme.gold, marginLeft: "6px" }}>{t("portalCliente.modalCelular")}</strong> {userCelular || t("portalCliente.modalCelularEmpty")}
                 </p>
               </div>
 
@@ -284,7 +280,7 @@ export default function PortalCliente() {
                     style={{ accentColor: theme.gold, width: "18px", height: "18px", cursor: "pointer" }}
                   />
                   <label htmlFor="pushCheck" style={{ fontSize: "0.83rem", cursor: "pointer", color: theme.textLight }}>
-                    Habilitar notificaciones Push adicionales en navegador
+                    {t("portalCliente.modalCheckboxLabel")}
                   </label>
                 </div>
 
@@ -298,7 +294,7 @@ export default function PortalCliente() {
                     letterSpacing: "1.5px",
                   }}
                 >
-                  Entendido y Continuar
+                  {t("portalCliente.modalBtnConfirm")}
                 </Button>
 
                 {mensajeModal && (
@@ -310,18 +306,19 @@ export default function PortalCliente() {
         </div>
       )}
 
-      {/* Encabezado Superior */}
       <div style={{ width: "100%", maxWidth: "1200px", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", zIndex: 2, position: "relative" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
           <img src="/images/trulink-logo.png" alt="Trulink Fiber" style={{ height: "36px", objectFit: "contain" }} onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />
-          <span style={{ fontSize: "0.75rem", letterSpacing: "3px", color: theme.gold, opacity: 0.6, textTransform: "uppercase" }}>Portal B2B</span>
+          <span style={{ fontSize: "0.75rem", letterSpacing: "3px", color: theme.gold, opacity: 0.6, textTransform: "uppercase" }}>{t("portalCliente.badge")}</span>
         </div>
-        <Button variant="outline-gold" onClick={handleLogout}>
-          Cerrar Sesión
-        </Button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <LanguageSwitcher />
+          <Button variant="outline-gold" onClick={handleLogout}>
+            {t("common.logout")}
+          </Button>
+        </div>
       </div>
 
-      {/* Contenido Principal */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", margin: "auto 0", zIndex: 2, position: "relative" }}>
         <div style={{ textAlign: "center", marginBottom: "45px" }}>
           <Heading
@@ -334,7 +331,7 @@ export default function PortalCliente() {
               marginBottom: "10px",
             }}
           >
-            Seleccione Servicio
+            {t("portalCliente.heading")}
           </Heading>
           <div style={{ width: "60px", height: "2px", backgroundColor: theme.gold, margin: "0 auto", opacity: 0.6 }}></div>
         </div>
@@ -342,37 +339,36 @@ export default function PortalCliente() {
         <div style={{ display: "flex", gap: "25px", flexWrap: "wrap", justifyContent: "center", maxWidth: "1200px" }}>
           <div className="trulink-card" onClick={() => router.push("/especiales")}>
             <div className="card-img-container">
-              <img src="/images/especiales.jpg" alt="Pedidos Especiales" className="card-img" />
+              <img src="/images/especiales.jpg" alt={t("portalCliente.cardEspeciales")} className="card-img" />
             </div>
-            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>Pedidos Especiales</h2>
+            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>{t("portalCliente.cardEspeciales")}</h2>
           </div>
 
           <div className="trulink-card" onClick={() => router.push("/fabricacion")}>
             <div className="card-img-container">
-              <img src="/images/fabrica.png" alt="Fabricación" className="card-img" />
+              <img src="/images/fabrica.png" alt={t("portalCliente.cardFabricacion")} className="card-img" />
             </div>
-            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>Fabricación de Cables</h2>
+            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>{t("portalCliente.cardFabricacion")}</h2>
           </div>
 
           <div className="trulink-card" onClick={() => router.push("/productos")}>
             <div className="card-img-container">
-              <img src="/images/terminado.png" alt="Productos" className="card-img" />
+              <img src="/images/terminado.png" alt={t("portalCliente.cardProductos")} className="card-img" />
             </div>
-            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>Productos Terminados</h2>
+            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>{t("portalCliente.cardProductos")}</h2>
           </div>
 
           <div className="trulink-card" onClick={() => router.push("/seguimiento")}>
             <div className="card-img-container">
-              <img src="/images/pedidos.png" alt="Control de Pedidos" className="card-img" />
+              <img src="/images/pedidos.png" alt={t("portalCliente.cardSeguimiento")} className="card-img" />
             </div>
-            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>Control de Pedidos</h2>
+            <h2 style={{ color: theme.gold, fontSize: "1rem", margin: 0, fontWeight: 500, letterSpacing: "0.8px" }}>{t("portalCliente.cardSeguimiento")}</h2>
           </div>
         </div>
       </div>
 
-      {/* Pie de página discreto */}
       <div style={{ width: "100%", textAlign: "center", marginTop: "40px", fontSize: "0.75rem", color: theme.gold, opacity: 0.4, letterSpacing: "1px", zIndex: 2, position: "relative" }}>
-        © 2026 Trulink Fiber LLC — Excelencia y Vanguardia Tecnológica
+        {t("common.companyFooterAlt")}
       </div>
     </div>
   );
